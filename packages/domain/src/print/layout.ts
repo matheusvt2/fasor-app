@@ -92,8 +92,9 @@ export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSecti
 export const DRAFT_WATERMARK = 'RASCUNHO';
 
 /** Stories 7.2/7.3: the sections built by their own module; a null return prints the empty note. */
-const SECTION_BUILDERS: Readonly<Partial<Record<number, (snapshot: RelatorioSnapshot, heading: { number: number; title: string }) => LayoutSection | null>>> = {
+const SECTION_BUILDERS: Readonly<Partial<Record<number, (snapshot: RelatorioSnapshot, heading: { number: number; title: string }, issuedAt: string) => LayoutSection | null>>> = {
   // Section 7 is built in `layoutSpec` itself (2026-11-04: its empty note names the tests section).
+  // Story 28.5 (seed v18): section 8 counts a suggested deadline from the issue date.
   8: section8Layout,
   11: section11Layout,
 };
@@ -249,7 +250,7 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     // Story 7.1: section 9 prints the equipment sheets (`print/section-9.ts`), else its note.
     if (section === 9) return (index === testsAt ? tests : section9Layout(snapshot, number, title)) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const build = SECTION_BUILDERS[section];
-    if (build !== undefined) return build(snapshot, { number, title }) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
+    if (build !== undefined) return build(snapshot, { number, title }, inputs.issuedAt) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const composed = sectionType(section) !== null;
     // Section 3's own exclusion list (Story 4.2's `setup.exclusions`, AD-21) overrides the
     // seed's own three items when the relatório carries no per-relatório text edit of its own.

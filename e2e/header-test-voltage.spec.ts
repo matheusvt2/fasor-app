@@ -1,4 +1,4 @@
-import { getDefinition, headerParameterView, rowTestVoltage, storedInstrumentHeader, type BlockRow, type InstrumentRow, type OpDraft } from '@app/domain';
+import { cellAddressesOf, getDefinition, headerParameterView, rowTestVoltage, rowVoltageSourceText, SEED_VERSION, storedInstrumentHeader, type BlockRow, type InstrumentRow, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
@@ -6,7 +6,7 @@ import { escapeDialog } from './support/dialogs.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
-import { emCampoDraft, newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
+import { emCampoDraft, newRelatorioDrafts, officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 
@@ -198,4 +198,108 @@ test('@p0 25.11-E2E-001 the arrester\'s megôhmetro registered at 10 kV: 5 typed
   const stored = storedInstrumentHeader(final.block.sheet.test.isolacao?.instrument?.value)!.test_parameter;
   expect(stored).toBe('5 kV');
   expect(headers).toEqual([stored]);
+});
+
+/*
+ * 28.6-E2E-001 (batch e28b, Story 28.6, B-16; `60-ficha.html` `#/ficha/TR-04`). On a v18 relatório's transformer, rated
+ * 13,8 kV on the AT (its rating default 5 kV) at 1280 px: the megôhmetro registered at 10 kV picked, the rows with no voltage
+ * of their own read 10 kV "Do cabeçalho" and SECUNDÁRIO/MASSA its 1 kV "Padrão da linha"; 5 typed in the header moves them
+ * to 5 kV; 2,5 picked on PRIMÁRIO/SECUNDÁRIO reads "Digitada" and "Usar a do instrumento" (10 kV) leaves it. The issued
+ * DOCX prints each row's voltage. Every expected text is the kernel's. It issues a revision, so it runs in the queue lane.
+ */
+test('@p0 28.6-E2E-001 v18 transformer: the rows take the header\'s test voltage, a typed row keeps its own, each says where its voltage comes from; the DOCX prints them', async ({ page }) => {
+  test.setTimeout(300_000);
+  expect(SEED_VERSION).toBe('v18');
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  const transformer = built.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
+  const meggerId = newId();
+  const firstReading = cellAddressesOf(getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca'), 'isolacao')[0]!;
+  const readingRows = cellAddressesOf(getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca'), 'isolacao').filter((address) => address.col === firstReading.col).slice(0, 3);
+  const plate = (key: string, raw: string) => officeDraft(account, { relatorioId: built.relatorioId }, `sheet/${transformer.blockId}/nameplate/${key}`, { raw, unit: 'V', state: 'measured' });
+  await pushDrafts(page, database, [
+    ...built.drafts,
+    emCampoDraft(account, built.relatorioId),
+    instrumentDraft(meggerId, { code: '2E', serial: MEGGER_SERIAL, test_isolacao: { raw: '10', unit: 'kV' } }),
+    plate('tensao_nominal_at', '13800'),
+    plate('tensao_nominal_bt', '380'),
+    // A reading on each row, so the DOCX prints each row's voltage (a row with none prints "-").
+    ...readingRows.map((address) => officeDraft(account, { relatorioId: built.relatorioId }, `sheet/${transformer.blockId}/test/isolacao/cell/${address.row}/${address.col}`, { raw: '5', unit: 'GΩ', state: 'measured' })),
+  ]);
+  await syncNowAndReturn(page);
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${transformer.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+
+  const section = page.locator('section[data-test-key="isolacao"]');
+  const input = section.locator('.e25-header-param').getByRole('textbox', { name: 'Tensão de ensaio' });
+  const cellOf = (row: number) => section.locator('td.cell-voltage').filter({ has: page.locator(`.ficha-cell[data-row-voltage="${row}"]`) });
+  const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+  const insulation = definition.tests.find((one) => one.key === 'isolacao')!;
+  /** What the kernel says of the three rows, read from the block this device holds. */
+  const rowsNow = async () => {
+    const block = (await entities(page)).find((record) => record.entity === 'block' && record.id === transformer.blockId)!.row as BlockRow;
+    return [0, 1, 2].map((row) => {
+      const voltage = rowTestVoltage(block, insulation, row, definition)!;
+      return { text: voltage.text, source: rowVoltageSourceText(voltage, block.seed_version) };
+    });
+  };
+  const expectRows = async (expected: readonly { text: string; source: string | null }[]) => {
+    await expect.poll(rowsNow).toEqual(expected);
+    for (const [row, one] of expected.entries()) {
+      await expect(cellOf(row).locator('select')).toHaveValue(one.text);
+      await expect(cellOf(row).locator('[data-row-voltage-source]')).toHaveText(one.source!);
+    }
+  };
+
+  await section.getByRole('button', { name: /^Instrumento/ }).click();
+  await section.getByRole('radiogroup', { name: 'Instrumentos cadastrados' }).getByRole('radio', { name: /^2E/ }).click();
+  await expectRows([
+    { text: '10', source: 'Do cabeçalho' },
+    { text: '10', source: 'Do cabeçalho' },
+    { text: '1', source: 'Padrão da linha' },
+  ]);
+
+  // The header changed to 5 kV: every row with none of its own follows; SECUNDÁRIO/MASSA keeps its 1 kV.
+  await input.fill('5');
+  await input.press('Tab');
+  await expectRows([
+    { text: '5', source: 'Do cabeçalho' },
+    { text: '5', source: 'Do cabeçalho' },
+    { text: '1', source: 'Padrão da linha' },
+  ]);
+
+  // 2,5 picked on PRIMÁRIO/SECUNDÁRIO: as typed; a later change of the header leaves it.
+  await cellOf(1).locator('select').selectOption('2,5');
+  await expectRows([
+    { text: '5', source: 'Do cabeçalho' },
+    { text: '2,5', source: 'Digitada' },
+    { text: '1', source: 'Padrão da linha' },
+  ]);
+  await section.locator('.e25-header-param').getByRole('button', { name: 'Usar a do instrumento' }).click();
+  await expectRows([
+    { text: '10', source: 'Do cabeçalho' },
+    { text: '2,5', source: 'Digitada' },
+    { text: '1', source: 'Padrão da linha' },
+  ]);
+
+  // The issued DOCX: each row prints its voltage, after LINHA, TERRA and GUARD.
+  await syncNowAndReturn(page);
+  await setParecer(page, built.relatorioId);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  await dialog.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' }).click();
+  await confirmIssue(dialog);
+  await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: 150_000 });
+  await escapeDialog(page, dialog);
+  const revision = (await readStore<{ entity: string; row: { id: string; number: number; relatorio_id: string } }>(page, database, 'entities')).find((record) => record.entity === 'revision' && record.row.number === 1 && record.row.relatorio_id === built.relatorioId)!;
+  const response = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
+  expect(response.status()).toBe(200);
+  const rows = extractStructure(Buffer.from(await response.body())).tables.flat();
+  // The transformer's rows, the ones holding a reading (another transformer of the template prints "-").
+  const voltageOf = (linha: string, terra: string) => rows.find((cells) => cells[0] === linha && cells[1] === terra && cells[3] !== '-')?.[3];
+  expect([voltageOf('PRIMÁRIO', 'MASSA'), voltageOf('PRIMÁRIO', 'SECUNDÁRIO'), voltageOf('SECUNDÁRIO', 'MASSA')]).toEqual(['10', '2,5', '1']);
 });

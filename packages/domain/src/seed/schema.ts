@@ -1147,6 +1147,34 @@ export const seedRulesSchema = z
      * row ends ", conforme Imagem 1", and section 8 prints a run of photo references as one "Imagens 1 e 2".
      */
     wording_pass: z.literal(true).optional(),
+    /**
+     * Story 28.5 (seed v18, B-8): a point started by a tap opens with a priority by its origin (a failed reading P1, a
+     * restricted reading P4, an NC item P2, a sheet not tested P4, a ficha reproved by hand P1, a manual point none) and
+     * its suggested deadline, and a point from a test with no recommendation starts with Bruno's default action.
+     */
+    point_start_priority: z.literal(true).optional(),
+    /**
+     * Story 28.5 (seed v18, B-8, Matheus's Q-6): a deadline that is its priority's suggestion counts from the issue date:
+     * section 8 prints the issue date plus the priority's days (P4 the next intervention), the Prazo reads the term before
+     * the issue, and the overdue pre-issue row skips it. Nothing new is stored; a typed date prints as typed.
+     */
+    deadline_from_issue: z.literal(true).optional(),
+    /**
+     * Story 28.6 (seed v18, B-16): an insulation row with no voltage of its own takes the instrument header's TENSÃO ENSAIO
+     * before its winding's rating default, and the row's voltage shows where it comes from ("Do cabeçalho").
+     */
+    row_voltage_from_header: z.literal(true).optional(),
+    /**
+     * Story 28.7 (seed v18, B-6): under a seeded insulation test that holds a reading above the instrument's limit, one
+     * line per limit in Bruno's words, in the place of Story 23.4's note.
+     */
+    over_range_note: z.literal(true).optional(),
+    /**
+     * Story 28.8 (seed v18, B-7, Q-7): the note against the previous visit names only a cell past Bruno's numbers or that
+     * changed level (judged by today's criterion), never a ">" reading, in a short form; three or more on one equipment are
+     * one line after its last table.
+     */
+    history_note_relevant: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

@@ -61,7 +61,9 @@ async function setUp(
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  // Batch e28b: pinned to seed v17, whose Prazo shows the date a pick suggests from the point's creation; on v18 a suggested
+  // deadline reads as its term and prints from the issue date (Story 28.5, `point-start-priority.spec.ts`).
+  const built = newRelatorioDrafts(account, { seedVersion: 'v17' });
   const scope = { relatorioId: built.relatorioId };
   const { drafts, rows } = pointDrafts(scope, options.texts ?? ['Plaquetas de identificação ausentes.']);
   const next = options.nextIntervention === undefined ? NEXT_INTERVENTION : options.nextIntervention;

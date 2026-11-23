@@ -478,7 +478,11 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   // Story 25.12 (M26): the live points whose deadline is before the day of generating
   // (America/Sao_Paulo; a month only once it has passed), one pending row naming them. The
   // caller's clock is the day: without it nothing is judged.
-  const overdue = now === null ? [] : overduePointPositions(snapshot.points, calendarDateOfInstant(now));
+  // Story 28.5 (seed v18 `deadline_from_issue`): a suggested deadline counts from the issue date and is skipped; a typed one is judged.
+  const overdue =
+    now === null
+      ? []
+      : overduePointPositions(snapshot.points, calendarDateOfInstant(now), { seedVersion: snapshot.relatorio.seed_version, nextIntervention: snapshot.relatorio.setup.next_intervention_date });
   if (overdue.length > 0) {
     rows.push({ id: 'deadline_overdue', row: 'section_8', severity: 'pending', text: deadlineOverdueText(overdue), kind: 'deadline_overdue' });
   }

@@ -140,6 +140,14 @@ export function utilityNameMissing(block: Pick<BlockRow, 'not_tested' | 'seed_ve
   return isUtilityNotTested(block) && (notTestedJustification(block, tag) ?? '').includes(UTILITY_NAME_SLOT);
 }
 
+/**
+ * Story 28.5 (B-8, Bruno's Q-4): whether the band of a sheet marked Não ensaiado offers "Criar ponto de atenção". A sheet
+ * not tested for the utility's equipment ("Equipamento da concessionária", seed v18) offers none; every other reason does.
+ */
+export function notTestedOffersPoint(block: Pick<BlockRow, 'not_tested' | 'seed_version'>): boolean {
+  return block.not_tested !== null && !isUtilityNotTested(block);
+}
+
 /** The seed's label and justification of a sheet's Não ensaiado reason; null when it was tested. */
 function reasonOf(block: Pick<BlockRow, 'not_tested' | 'seed_version'>, tag: string | null): { key: string; label: string; justification: string | null } | null {
   const mark = block.not_tested;
@@ -575,6 +583,13 @@ const ACTION_HELPER_ONE = 'Da recomendação do ensaio · editável';
 const ACTION_HELPER_MANY = 'Das recomendações dos ensaios · editável';
 
 /**
+ * Story 28.5 (seed v18 `point_start_priority`, B-8): Bruno's action for a point from a test with no recommendation, and
+ * the frame's helper under it (`60-ficha.html` `#ficha-dlg-ponto-v18`). A test with a recommendation keeps it.
+ */
+export const POINT_DEFAULT_ACTION = 'Inspecionar o equipamento, corrigir a causa e repetir o ensaio.';
+const ACTION_HELPER_DEFAULT = 'Ação padrão: o ensaio não tem recomendação · editável';
+
+/**
  * Batch e24p (Story 24.17, every seed): the findings of one sheet a point can be created from by a
  * tap, in the order the findings are computed (its failed tests in definition order, its measurement
  * tests, its restricted tests, then a chosen Reprovado): one per test, because one point stands for
@@ -597,6 +612,7 @@ export function sheetPointFindings(snapshot: DerivedSnapshot, blockId: string): 
   if (definition === null) return [];
   const entries = sheetEntries(block, definition, node, equipmentPointTitle(node, snapshot), livePhotos(snapshot), ctx, visitContextOf(snapshot, block));
   const asAction = seedRule(block.seed_version, 'recommendation_as_action');
+  const defaultAction = seedRule(block.seed_version, 'point_start_priority');
   const enabled = enabledSubBlocksOf(block);
   const measured = new Set((definition.measurement_tests ?? []).map((test) => test.key as string));
   const live = livePoints(snapshot.points);
@@ -607,6 +623,8 @@ export function sheetPointFindings(snapshot: DerivedSnapshot, blockId: string): 
     const testKey = entry.kind === 'reprovado' ? null : entry.test_key;
     const place = testKey !== null && (measured.has(testKey) || enabled.has(testKey)) ? 'test' : 'conclusao';
     const count = recommendationCount(entry.recommendations);
+    // Story 28.5 (seed v18): a point from a test (a failed or a restricted one) with no recommendation starts with Bruno's action.
+    if (count === 0 && testKey !== null && defaultAction) return [{ origin: entry.kind, testKey, place, text: entry.finding, action: POINT_DEFAULT_ACTION, actionHelper: ACTION_HELPER_DEFAULT, positions }];
     if (!asAction || count === 0) return [{ origin: entry.kind, testKey, place, text: entry.text, action: '', actionHelper: null, positions }];
     const action = recommendationsText(entry.recommendations);
     // Fix batch e24x (D2): past the action's cap the recommendations start the text instead (Story 23.11's form), or,

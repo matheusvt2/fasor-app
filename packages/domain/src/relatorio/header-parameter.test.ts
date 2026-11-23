@@ -15,7 +15,7 @@ import {
   readHeaderParameter,
 } from './header-parameter.ts';
 import { instrumentHeaderOf, suggestedInstrument, testParameterText, type InstrumentHeader } from './instrument-pick.ts';
-import { rowTestVoltage } from './row-voltage.ts';
+import { rowTestVoltage, rowVoltageSourceText, rowVoltageCell } from './row-voltage.ts';
 import { testVoltageCheck } from './test-voltage.ts';
 import { newEquipmentBlock } from './tree.ts';
 
@@ -217,5 +217,68 @@ describe('25.11-UNIT the readers follow the stored header', () => {
     expect(testVoltageCheck({ block: board, files: [] }, test)).toMatchObject({ given: '10.000 V' });
     const changed = { ...board, sheet: { ...board.sheet, test: { ...board.sheet.test, isolacao: { ...board.sheet.test.isolacao!, instrument: cell(headerWithParameter(board, 'isolacao', '0.5', 'kV')) } } } };
     expect(testVoltageCheck({ block: changed, files: [] }, test)).toMatchObject({ given: '500 V', expected: '500 V' });
+  });
+});
+
+/*
+ * 28.6-UNIT (batch e28b, Story 28.6, B-16): on seed v18 a row with no voltage of its own takes the header's TENSÃO
+ * ENSAIO before its winding's rating default, and says where its voltage comes from; v17 keeps the header last.
+ */
+describe('28.6-UNIT the insulation rows take the header\'s test voltage on v18', () => {
+  const row = instrument();
+  /** A transformer rated 13,8 kV on the AT (its PRIMÁRIO rows default to 5 kV by rating), the header at `parameter`. */
+  function transformer(seedVersion: string, parameter: string | null, typed: Record<number, string> = {}): BlockRow {
+    const block = sheet('transformador_forca', seedVersion, parameter === null ? {} : { isolacao: withParameter(picked(row), parameter) });
+    block.sheet.nameplate.tensao_nominal_at = cell({ raw: '13800', unit: 'V', state: 'measured' });
+    block.sheet.nameplate.tensao_nominal_bt = cell({ raw: '380', unit: 'V', state: 'measured' });
+    const test = isolacao(seedVersion);
+    for (const [r, option] of Object.entries(typed)) {
+      const voltage = rowTestVoltage(block, test, Number(r))!;
+      const tests = block.sheet.test as Record<string, { cells: Record<string, Record<string, Cell>> }>;
+      const current = tests.isolacao ?? { cells: {} };
+      current.cells[r] = { ...current.cells[r], [String(voltage.col)]: cell(rowVoltageCell(option)) };
+      tests.isolacao = current;
+    }
+    return block;
+  }
+  const isolacao = (seedVersion: string) => getDefinition(seedVersion, 'cabine_primaria', 'transformador_forca').tests.find((one) => one.key === 'isolacao')!;
+  /** PRIMÁRIO/MASSA, PRIMÁRIO/SECUNDÁRIO, SECUNDÁRIO/MASSA: the rows of the transformer's table. */
+  const rows = (block: BlockRow, seedVersion: string) => [0, 1, 2].map((r) => rowTestVoltage(block, isolacao(seedVersion), r));
+  const texts = (block: BlockRow, seedVersion: string) => rows(block, seedVersion).map((one) => one?.text);
+  const sources = (block: BlockRow, seedVersion: string) => rows(block, seedVersion).map((one) => rowVoltageSourceText(one, seedVersion));
+
+  it('v18, header 10 kV then 5 kV: the rows with none of their own follow it; SECUNDÁRIO/MASSA keeps its seeded 1 kV', () => {
+    expect(texts(transformer('v18', '10 kV'), 'v18')).toEqual(['10', '10', '1']);
+    expect(texts(transformer('v18', '5 kV'), 'v18')).toEqual(['5', '5', '1']);
+    expect(sources(transformer('v18', '5 kV'), 'v18')).toEqual(['Do cabeçalho', 'Do cabeçalho', 'Padrão da linha']);
+    expect(rows(transformer('v18', '5 kV'), 'v18').map((one) => one?.source)).toEqual(['header', 'header', 'default']);
+  });
+
+  it('v18, one row typed 2,5 kV: it reads as typed, and a later change of the header leaves it', () => {
+    expect(texts(transformer('v18', '5 kV', { 1: '2,5' }), 'v18')).toEqual(['5', '2,5', '1']);
+    expect(texts(transformer('v18', '10 kV', { 1: '2,5' }), 'v18')).toEqual(['10', '2,5', '1']);
+    expect(sources(transformer('v18', '10 kV', { 1: '2,5' }), 'v18')).toEqual(['Do cabeçalho', 'Digitada', 'Padrão da linha']);
+  });
+
+  it('v18, no instrument picked, or a header off the options: the rating default, as on v17', () => {
+    expect(texts(transformer('v18', null), 'v18')).toEqual(['5', '5', '1']);
+    expect(sources(transformer('v18', null), 'v18')).toEqual(['Padrão da linha', 'Padrão da linha', 'Padrão da linha']);
+    expect(texts(transformer('v18', '3 kV'), 'v18')).toEqual(['5', '5', '1']);
+  });
+
+  it('v17: the rating default before the header, as today, and no line under the voltage', () => {
+    expect(texts(transformer('v17', '10 kV'), 'v17')).toEqual(['5', '5', '1']);
+    expect(rows(transformer('v17', '10 kV'), 'v17').map((one) => one?.source)).toEqual(['default', 'default', 'default']);
+    expect(sources(transformer('v17', '10 kV'), 'v17')).toEqual([null, null, null]);
+  });
+
+  it('the notice still reads the effective value: a header of 5 kV on a 380 V winding warns, as a typed 5 kV does', () => {
+    const block = transformer('v18', '5 kV');
+    block.sheet.nameplate.tensao_nominal_at = cell({ raw: '380', unit: 'V', state: 'measured' });
+    expect(rowTestVoltage(block, isolacao('v18'), 0)).toMatchObject({ text: '5', source: 'header' });
+    expect(rowTestVoltage(block, isolacao('v18'), 0)!.notice).toContain('use 0,5 ou 1 kV');
+    const v17 = transformer('v17', '5 kV');
+    v17.sheet.nameplate.tensao_nominal_at = cell({ raw: '380', unit: 'V', state: 'measured' });
+    expect(rowTestVoltage(v17, isolacao('v17'), 0)).toMatchObject({ text: '5', source: 'default' });
   });
 });

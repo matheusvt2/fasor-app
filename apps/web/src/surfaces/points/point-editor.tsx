@@ -1,5 +1,7 @@
 import {
+  deadlineCountsFromIssue,
   deadlineState,
+  deadlineTerm,
   extractPhotoRefs,
   formatCalendarDate,
   galleryTileOrder,
@@ -13,6 +15,8 @@ import {
   pointMissingFields,
   pointMissingText,
   pointOrderText,
+  pointStartLine,
+  pointStartWrites,
   recurringFindings,
   replaceLineText,
   sectionMention,
@@ -268,8 +272,13 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
    * holds nothing to print (it is created with them by its first text, action or
    * Responsável), or a typed Prazo recovered from a draft. The ref is what the writes read.
    */
-  const pendingRef = useRef<PointPriorityWrites>({});
-  const [pending, setPendingState] = useState<PointPriorityWrites>({});
+  // Story 28.5 (seed v18 `point_start_priority`): a new point starts with its origin's priority and the deadline it
+  // suggests, held like a pick until the point is stored; every field stays editable. Older seeds start unset.
+  const [startWrites] = useState<PointPriorityWrites>(() =>
+    point === null ? pointStartWrites(snapshot.relatorio.seed_version, seed.origin, pointId, snapshot.relatorio.setup.next_intervention_date) : {},
+  );
+  const pendingRef = useRef<PointPriorityWrites>(startWrites);
+  const [pending, setPendingState] = useState<PointPriorityWrites>(startWrites);
   const setPending = (next: PointPriorityWrites) => {
     pendingRef.current = next;
     setPendingState(next);
@@ -319,6 +328,10 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const priority = liveRow !== null ? liveRow.priority : (pending.priority ?? null);
   const deadline = liveRow !== null ? liveRow.deadline : (pending.deadline ?? null);
   const prazo = deadlineState({ id: pointId, priority, deadline }, nextIntervention);
+  // Story 28.5 (seed v18 `deadline_from_issue`, Q-6): a suggested deadline reads as its term until the issue prints its date.
+  const seedVersion = snapshot.relatorio.seed_version;
+  const fromIssue = deadlineCountsFromIssue(seedVersion);
+  const term = deadlineTerm({ id: pointId, priority, deadline }, seedVersion, nextIntervention);
   /** The Prazo field's value: the shown deadline, or what is being typed until it commits. */
   const [typedDeadline, setTypedDeadlineState] = useState(deadline);
   /** The typed value, for the draft source (FR-61): a typed Prazo not committed yet is a draft. */
@@ -649,6 +662,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const actionHelperId = useId();
   // Batch e24p (Story 24.17): a new point seeded with an action names where it came from.
   const actionHelper = point === null && (seed.action ?? '') !== '' ? (seed.actionHelper ?? null) : null;
+  // Story 28.5 (seed v18): why a new point starts at its priority ("Começa em P1: leitura fora do critério. Troque se precisar.").
+  const startLine = point === null ? pointStartLine(seedVersion, seed.origin) : null;
   const priorityLabelId = useId();
   const priorityHelperId = useId();
   const deadlineHelperId = useId();
@@ -775,7 +790,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           </span>
           <PriorityPicker labelId={priorityLabelId} describedBy={priorityHelperId} value={priority} onPick={pickPriority} onClear={clearPriority} />
           <span className="helper" id={priorityHelperId}>
-            {t.priorityHelper(formatCalendarDate(pointCreatedDate(pointId)))}
+            {startLine ?? (fromIssue ? t.priorityHelperFromIssue : t.priorityHelper(formatCalendarDate(pointCreatedDate(pointId))))}
           </span>
         </div>
 
@@ -785,7 +800,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           value={typedDeadline}
           suggested={prazo.suggested && deadline !== null}
           replace={prazo.replace}
-          helper={priority === 'P4' && nextIntervention === null && deadline === null ? t.deadlineNoNextIntervention : t.deadlineHelper}
+          term={term}
+          helper={priority === 'P4' && nextIntervention === null && deadline === null ? t.deadlineNoNextIntervention : term !== null ? t.deadlineHelperFromIssue : t.deadlineHelper}
           onChange={changeDeadline}
           onBlur={() => deadlineCommit.blur()}
           onReplace={replaceDeadline}
@@ -847,6 +863,7 @@ function PrazoField({
   value,
   suggested,
   replace,
+  term,
   helper,
   onChange,
   onBlur,
@@ -857,6 +874,8 @@ function PrazoField({
   value: string | null;
   suggested: boolean;
   replace: string | null;
+  /** Story 28.5 (seed v18): the term a suggested deadline reads before the issue ("30 dias após a emissão"); null otherwise. */
+  term: string | null;
   helper: string;
   onChange: (value: string | null) => void;
   onBlur: () => void;
@@ -865,10 +884,18 @@ function PrazoField({
   const t = copy.points;
   const state = suggested ? 'suggested' : 'confirmed';
   const monthId = useId();
-  const month = stored !== null && !FULL_DATE.test(stored) ? formatCalendarDate(stored) : null;
+  const termId = useId();
+  // Story 28.5: a term stands for the date, as a month-only deadline does: shown as a line over an empty Date field,
+  // where a typed date fixes it.
+  const month = term === null && stored !== null && !FULL_DATE.test(stored) ? formatCalendarDate(stored) : null;
   const after = (
     <>
       {suggested ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
+      {term === null ? null : (
+        <span className="helper tabular poa-prazo-month" id={termId} data-prazo-term="">
+          {term}
+        </span>
+      )}
       {month === null ? null : (
         <span className="helper tabular poa-prazo-month" id={monthId}>
           {t.deadlineMonth(month)}
@@ -892,10 +919,11 @@ function PrazoField({
       className="suggestion-field poa-prazo-sf"
       state={state}
       label={t.deadlineLabel}
-      value={value !== null && FULL_DATE.test(value) ? value : null}
+      // While the term stands for the stored date, the field is empty; a date being typed over it shows as typed.
+      value={(term === null || value !== stored) && value !== null && FULL_DATE.test(value) ? value : null}
       onChange={onChange}
       onBlur={onBlur}
-      describedBy={month === null ? helperId : `${monthId} ${helperId}`}
+      describedBy={[term === null ? null : termId, month === null ? null : monthId, helperId].filter((id) => id !== null).join(' ')}
       after={after}
     />
   );

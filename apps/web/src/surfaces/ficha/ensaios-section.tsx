@@ -20,6 +20,7 @@ import {
   sheetRunTarget,
   tableDictationLabel,
   rowVoltageCell,
+  rowVoltageSourceText,
   notApplicableReadingValue,
   ratioRowCalculatedText,
   ratioRowCondicaoText,
@@ -709,7 +710,7 @@ function MeasurementTable({
                 )}
                 {voltageColumn === null || row.voltage === null ? null : (
                   <td className="cell-voltage">
-                    <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(rowName(row), voltageColumn.header)} readOnly={readOnly} />
+                    <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(rowName(row), voltageColumn.header)} readOnly={readOnly} sourceText={rowVoltageSourceText(row.voltage, block.seed_version)} />
                   </td>
                 )}
                 {table.columns.map((column) => {
@@ -750,7 +751,7 @@ function MeasurementTable({
                           <span className="field-label" aria-hidden="true">
                             {voltageColumn.header}
                           </span>
-                          <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(rowName(row), voltageColumn.header)} readOnly={readOnly} stacked />
+                          <RowVoltageField api={api} testKey={test.testKey} row={row} options={voltageColumn.options} label={measurementCellName(rowName(row), voltageColumn.header)} readOnly={readOnly} sourceText={rowVoltageSourceText(row.voltage, block.seed_version)} stacked />
                         </div>
                       ) : null}
                       {cell === undefined ? null : field(row, cell, 'table')}
@@ -976,6 +977,7 @@ function RowVoltageField({
   options,
   label,
   readOnly,
+  sourceText,
   stacked = false,
 }: {
   api: FichaApi;
@@ -984,17 +986,29 @@ function RowVoltageField({
   options: readonly string[];
   label: string;
   readOnly: boolean;
+  /** Story 28.6 (seed v18, `60-ficha.html` `#/ficha/TR-04`): where the voltage comes from, under the select; null on older seeds. */
+  sourceText: string | null;
   /** Below 768 px the select is drawn over the row's first typed cell instead of in its own column. */
   stacked?: boolean;
 }) {
   const voltage = row.voltage!;
   const current = voltage.kv === null ? '' : voltage.text;
   const where = stacked ? { 'data-row-voltage-stacked': row.row } : { 'data-row-voltage': row.row };
+  const sourceId = useId();
+  const source =
+    sourceText === null ? null : (
+      <span className="helper" id={sourceId} data-row-voltage-source={voltage.source ?? ''}>
+        {sourceText}
+      </span>
+    );
   if (readOnly) {
     return (
-      <div className="input" role="textbox" aria-readonly="true" aria-label={label} {...where}>
-        {voltage.text}
-      </div>
+      <>
+        <div className="input" role="textbox" aria-readonly="true" aria-label={label} aria-describedby={source === null ? undefined : sourceId} {...where}>
+          {voltage.text}
+        </div>
+        {source}
+      </>
     );
   }
   const write = (option: string) => {
@@ -1005,18 +1019,21 @@ function RowVoltageField({
     void api.commit([testCellOp(api.author, api.relatorioId, api.blockId, testKey, row.row, voltage.col, value)]).catch(() => undefined);
   };
   return (
-    <div className="ficha-cell" {...where}>
-      {/* The empty option reads "—", as an empty cell does, so the select is as narrow as "2,5" at 390 px. */}
-      <select className="input" aria-label={label} value={current} onChange={(event) => write(event.target.value)}>
-        <option value="">—</option>
-        {current !== '' && !options.includes(current) ? <option value={current}>{current}</option> : null}
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </div>
+    <>
+      <div className="ficha-cell" {...where}>
+        {/* The empty option reads "—", as an empty cell does, so the select is as narrow as "2,5" at 390 px. */}
+        <select className="input" aria-label={label} aria-describedby={source === null ? undefined : sourceId} value={current} onChange={(event) => write(event.target.value)}>
+          <option value="">—</option>
+          {current !== '' && !options.includes(current) ? <option value={current}>{current}</option> : null}
+          {options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </div>
+      {source}
+    </>
   );
 }
 

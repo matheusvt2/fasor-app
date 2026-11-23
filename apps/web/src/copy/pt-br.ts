@@ -1437,9 +1437,13 @@ export const copy = {
     // `72-pontos.html` 241 helper; the creation date is the kernel's (`pointCreatedDate`).
     priorityHelper: (createdDate: string) =>
       `Um toque: a prioridade preenche o prazo abaixo como sugestão a partir da data de criação do ponto${createdDate === '' ? '' : ` (${createdDate})`}`,
+    // authored (Story 28.5, listed for Bruno): the picker's helper on seed v18 when the point starts unset (a manual point, a stored one).
+    priorityHelperFromIssue: 'Um toque: a prioridade preenche o prazo abaixo como sugestão, contada da emissão do relatório',
     deadlineLabel: 'Prazo',
     // `72-pontos.html` 248 helper, verbatim.
     deadlineHelper: 'Edite a data se o combinado com o cliente for outro; imprime só a data',
+    // Story 28.5 (seed v18): `60-ficha.html` `#ficha-dlg-ponto-v18`, verbatim: the Prazo's helper while it reads as its term.
+    deadlineHelperFromIssue: 'A data sai no relatório emitido, contada da emissão. Digite uma data para fixá-la.',
     // authored: a P4 deadline that is a month only (the next intervention stored as mm/aaaa).
     deadlineMonth: (month: string) => `Prazo: ${month} (mês da próxima intervenção)`,
     // authored: P4 picked on a relatório without a next intervention date (Epic 11 conflict 2).

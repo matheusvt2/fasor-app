@@ -9974,6 +9974,8 @@ So that the action plan does not hide two of three poles (M14).
 
 *(2026-11-22, Bruno answered B-8: the starting priority by the kind of finding, always editable (a reading out P1, a restricted reading P4, an NC item P2, a sheet not tested P4 and none for "equipamento da concessionária", a ficha reproved by hand P1), the default action "Inspecionar o equipamento, corrigir a causa e repetir o ensaio." and the deadline counted from the issue date. This second half moves to Epic 28, Story 28.5, on seed v18. What this story built on v15 stays.)*
 
+*(2026-11-23, batch e28b: on seed v18 a point started by a tap opens with a priority by its origin and, from a test with no recommendation, Bruno's default action (Story 28.5); v15 to v17 start as this story left them.)*
+
 ### Story 25.11: The test's voltage in the instrument header can be changed on the sheet
 
 **Dev model:** opus · **Effort:** medium · every seed, screen and stored header: the test parameter of a seeded test's instrument header (TENSÃO ENSAIO, CORRENTE) is a field on the sheet; the registry keeps its default; no fold change expected, no contract
@@ -10091,6 +10093,8 @@ So that I fix a deadline already past, an instrument with no calibration and a s
 - *If Bruno's answer to B-10 shows a screen that still lists a sheet of a removed local, that is a defect and goes to a fix batch.*
 
 *(2026-11-22, Bruno answered B-10: he saw the two sheets in the app, not in the document, without naming the screen. No story: Epic 28's hands-on pass reproduces the case, and a screen that shows such a sheet as live goes to a fix batch. He also asked (B-8) that a deadline count from the issue date, which this story kept out of scope: Epic 28, Story 28.5, on seed v18, where a suggested deadline is no longer overdue at issue.)*
+
+*(2026-11-23, batch e28b: on seed v18 the deadline that is its priority's suggestion counts from the issue date (Story 28.5, Q-6), so the overdue row skips it; a typed date is still judged; v15 to v17 judge every deadline as this story left them.)*
 
 ### Story 25.13: The instruments of a relatório follow its sheets, and registry rows that share a certificate are warned
 
@@ -10664,6 +10668,8 @@ So that a long list of numbers does not hide the one that matters (M31; Bruno, 2
 - `docs/kbs/log.md`.
 
 *(2026-11-22, Bruno answered B-7 in numbers: an insulation drop above 50 %, a contact rise above 25 %, a ratio variation above 0,5 percentage point, a winding variation above 2 %, any change of level both ways, no reading with ">" in the comparison, and one line for an equipment from three variations on. This story moves to Epic 28, Story 28.8, on seed v18; it was never started, and v15 to v17 keep the note of Story 24.16.)*
+
+*(2026-11-23, batch e28b: built on seed v18 by Story 28.8, by Bruno's numbers (B-7); v15 to v17 keep Story 24.16's note.)*
 
 ### Story 25.22: The fixed texts, the cover and the headers
 
@@ -12670,6 +12676,15 @@ So that the action plan comes out right without retyping (B-8; the second half o
 - A dated line under Story 25.10 and under Story 25.12.
 - `docs/kbs/log.md`.
 
+*(2026-11-23, batch e28b, as built, with Matheus's Q-6:)*
+- *Two rule flags of v18, `point_start_priority` and `deadline_from_issue` (`seed/v18.ts`, Story 28.5's fence). The kernel gives the start (`pointStartPriority`, `pointStartWrites`, `pointStartLine` in `points/priority.ts`); the editor holds it as a pick until the point is stored, so nothing is written by opening it, and every field stays editable. The start priority reads the relatório's seed version.*
+- *Bruno's default action goes to a point started from a test (a failed or a restricted one) with no recommendation, with the frame's helper "Ação padrão: o ensaio não tem recomendação · editável" (`sheetPointFindings`). Reading: a restricted test, which started with no action on v14 to v17, takes it too, being a test; a ficha reproved by hand is not a test and starts as before.*
+- *The line under the picker for the four origins the frame does not draw is authored, listed for Bruno: "Começa em P4: leitura com restrição.", "Começa em P2: item não conforme.", "Começa em P4: equipamento não ensaiado.", "Começa em P1: ficha reprovada." (each followed by "Troque se precisar."); and the picker's helper on v18 when the point starts unset: "Um toque: a prioridade preenche o prazo abaixo como sugestão, contada da emissão do relatório".*
+- *The term. A DateField cannot hold the frame's words inside its input, so the term shows as a line over an empty date field, as a month-only P4 deadline already does, with the "Sugerido" pill and the frame's helper; a typed date replaces it. The Pontos card shows the term too. It shows whenever the stored deadline is its priority's suggestion on v18 (not only before the first issue): a later revision counts from its own issue date. Dated amendment in `EXPERIENCE.md`.*
+- *Print: `section8Layout` takes the generation instant (`layoutSpec`'s `issuedAt`, the "Data de emissão"; a preview counts from its own instant). The overdue row skips a v18 suggested deadline. No contract: nothing new is stored.*
+- *Specs that assert v17's points and print were pinned to v17 by addition: `action-plan.spec.ts` (11.9), `points-on-click.spec.ts` (e24h), `recommendation-action.spec.ts` 24.17-E2E-002 (Story 28.5) and `criteria-tables.spec.ts` (23.2, Story 28.7).*
+- *"No point for the utility's equipment" is `notTestedOffersPoint` (`points/derived.ts`), read by the band; the Export dialog's blocking row `utility_name_missing` keeps no "Abrir ficha" link: no story of this batch touches that list.*
+
 ### Story 28.6: The insulation rows take the header's test voltage
 
 **Dev model:** opus · **Effort:** high · seed v18, kernel and web: a row with no voltage of its own takes the instrument header's TENSÃO ENSAIO before the winding's rating default; the row stays editable and shows where its voltage comes from; no contract
@@ -12714,6 +12729,8 @@ So that the document prints the voltage he applied, and he changes only the rows
 - The touched durability specs on the matrix projects, if the commit path changes.
 - `docs/kbs/architecture/measurement-table.md` and `log.md`.
 
+*(2026-11-23, batch e28b, as built:)* *One rule flag of v18, `row_voltage_from_header` (`seed/v18.ts`). `rowTestVoltage` reads it from the block's own seed version: typed, the row's seeded default, the header's TENSÃO ENSAIO when it is one of the options, the winding's rating default, the table's `voltage_default`, none. The line under each row's select is the frame's words through `rowVoltageSourceText`: "Do cabeçalho", "Digitada", "Padrão da linha" (a seeded or a rating default alike), tied to the select as its description, on the table and on the phone's stacked select; v17 and older draw none. The commit path did not change (the same cell put), so no durability spec was run on the matrix.*
+
 ### Story 28.7: A reading above the instrument's limit prints with its note
 
 **Dev model:** opus · **Effort:** medium · seed v18, print only: under an insulation test that holds a reading above the instrument's limit, one note line in Bruno's words; the cell keeps "> valor"; v17 prints byte-identical
@@ -12751,6 +12768,8 @@ So that the client reads it as a limit of the instrument, not as a missing value
 - "28.7-INT-001": the DOCX part and the PDF text of a v18 sheet.
 - `e2e/over-range.spec.ts` gains "28.7-E2E-001 @p0": a reading typed "OL", the PDF read.
 - `docs/kbs/architecture/rendering.md` and `log.md`.
+
+*(2026-11-23, batch e28b, as built:)* *One rule flag of v18, `over_range_note`, read by `overRangeNoteLines` (`print/over-range-note.ts`). Reading, open to Matheus: since seed v13 every seeded insulation test already prints Story 23.4's sentence ("Valores de resistência de isolamento superiores a 2 TΩ, limite de leitura do instrumento.") for its first reading above the limit judged within, which the "Today" above does not name; on v18 Bruno's line takes its place, one per limit whatever the verdict, as the approved frame draws Bruno's line alone, so the document does not say it twice. The limit keeps its number and unit together with a no-break space. The corrected cell of a "> 2 TΩ" reading prints "-", as the frame draws it (Story 23.4: never corrected).*
 
 ### Story 28.8: The variation note names only what matters, by Bruno's numbers
 
@@ -12813,6 +12832,15 @@ So that a long list of numbers does not hide the one that matters (B-7; Story 25
 - The rows of `deferred-work.md` § e24p on the note's length and on the wrap closed.
 - The authored forms listed in the PR for Bruno; a dated line under Story 25.21.
 - `docs/kbs/architecture/rendering.md` and `log.md`.
+
+*(2026-11-23, batch e28b, as built, with Matheus's Q-7:)*
+- *One rule flag of v18, `history_note_relevant`, read by `sheetVariationNotes` (`print/history-note.ts`), which section 9 calls once per sheet. No verdict rule changed.*
+- *The ratio: the previous visit's ratio cells are in `last_results.readings` (the measured ratio, a capture); the input columns are not kept, so the previous error is read against the row's calculated value of today (its plate's taps or its typed nominal ratio), "by today's criterion". The TTR rule is built.*
+- *The previous level: the sheet is evaluated once more with the previous readings in the cells of the current ones and no previous visit, so the criteria and the rules between rows (the pole deviation, the largest-reading share) judge them as today's and no history rule runs. A corrected reading enters at the value today's correction turns into its own corrected value; a reading corrected today against one never corrected has no level to compare.*
+- *A cell past a number that also changed level is named by its change of level. The row is named as the restricted rows of Story 24.16's note ("T1-T2", "Primário/Massa"), not "T1-T2–Fase A".*
+- *Authored, listed for Bruno: "caiu ⟨n⟩ % (antes ⟨valor⟩ a 20 °C)", "teve o erro alterado em ⟨n⟩ ponto percentual (antes desvio de ⟨n⟩ %)", "variou ⟨n⟩ % (antes ⟨valor⟩ a 75 °C)", the level "com restrição" beside the frame's two, and "1 variação relevante" for the singular. The one-line form names each test by its sheet heading ("Ensaio de resistência ôhmica de contato"), where the frame's sample wrote "Resistência ôhmica de contato".*
+- *The frame's DJ-03 sample (40, 41, 236 µΩ, now 52, 49, 262) reads T5-T6 "com restrição" at the previous visit by today's pole deviation (236 against 40 is more than 50 %); the e2e uses poles close enough that the previous level is "dentro do critério".*
+- *The one line goes after the equipment's last test or measurement table (and its notes), kept with it, before OBSERVAÇÕES.*
 
 ### Story 28.9: Etapa 6 takes the relatório's additional items, printed as topics in section 10
 
