@@ -473,3 +473,16 @@ Not drawn here: the two new thermography reasons of Story 28.4 (a chip each in t
 ~~**Approval:** pending, Matheus in the browser.~~
 
 **Approved by Matheus on 2026-11-23** ("aprovado"), with the one open choice decided as above (CONSTRUÇÃO in the plate's empty last pair in print). The other two notes stay as written: the batch confirms the corrected cell of a "> 2 TΩ" reading, and the prototype band keeps its number.
+
+
+## 2026-11-23 — "Alterar senha" on the Conta screen (Story 29.1)
+
+Source: `epics.md` § Epic 29, Story 29.1 (Bruno via Matheus, 2026-11-23: "Opção de alterar senha"), and its Definition of Ready, the coordinator's reading. One row and two dialog states were added to `prototype/screens/90-account.html` (route `#/account`); no new screen, no new class, no CSS: the row is a `.settings-row` with a `.btn-text`, the dialog the existing `.form-dialog` with the fields of `13-definir-senha.html`. `tokens.css` and `components.css` did not change.
+
+| Frame | Route (element) | What it shows | Built by |
+| --- | --- | --- | --- |
+| The row | `#/account` (`#acc-senha-row`), Identificação, after Empresa | "Senha", the line "Ao trocar, os outros aparelhos saem desta conta." and the text action "Alterar senha"; offline the action is disabled with "Alterar senha precisa de conexão" in its reason slot (written here, not drawn) | 29.1 |
+| The dialog | "Alterar senha" (`#acc-dlg-senha`) | "Senha atual", "Nova senha" with "Pelo menos 8 caracteres.", "Repita a senha", each with "Mostrar"; "Cancelar" and "Salvar senha"; the Toast "Senha alterada. Os outros aparelhos saíram desta conta." | 29.1 |
+| Wrong current password | "Simular: senha atual errada" (`#acc-dlg-senha-errada`) | The field in red with "A senha atual não confere." under it; nothing is stored | 29.1 |
+
+The too-short, too-long and mismatch states are those of "Criar senha" (Story 26.6) and are not drawn again. Labels authored here, listed for Bruno: "Senha" (the row), "Ao trocar, os outros aparelhos saem desta conta.", "Alterar senha", "Senha atual", "Nova senha", "A senha atual não confere.", "Alterar senha precisa de conexão", "Senha alterada. Os outros aparelhos saíram desta conta.". `prototype/index.html` was rebuilt with `build.py`.

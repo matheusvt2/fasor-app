@@ -30,6 +30,8 @@ import { setKeepScreenOn, useKeepScreenOn } from '../../input/use-screen-wake-lo
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useTheme } from '../../state/theme.tsx';
+import { useToast } from '../../state/toast.tsx';
+import { ChangePasswordDialog } from './change-password-dialog.tsx';
 import { RegistrationDialog } from './registration-dialog.tsx';
 import './account.css';
 
@@ -194,6 +196,9 @@ export function AccountSurface() {
   }, []);
 
   const [editing, setEditing] = useState(false);
+  // Story 29.1: the "Alterar senha" dialog.
+  const [changingPassword, setChangingPassword] = useState(false);
+  const { showToast } = useToast();
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   /** Story 20.11: what the flush left unsent, counted when "Sair" was pressed. */
   // `null`: the count could not be read, so the dialog is the pending one (never "nothing pending").
@@ -331,6 +336,21 @@ export function AccountSurface() {
                 <br />
                 <span className="sr-value">{user.companyName}</span>
               </span>
+            </li>
+            {/* Story 29.1 (`90-account.html` `#acc-senha-row`): every role changes its own password; online only. */}
+            <li className="settings-row">
+              <span className="grow">
+                <span className="sr-label">{copy.account.passwordLabel}</span>
+                <br />
+                <span className="sr-value">{copy.account.passwordRowNote}</span>
+              </span>
+              <TextButton
+                isDisabled={!session.online}
+                disabledReason={copy.account.changePasswordOfflineReason}
+                onPress={() => setChangingPassword(true)}
+              >
+                {copy.account.changePassword}
+              </TextButton>
             </li>
           </ul>
         </section>
@@ -530,6 +550,18 @@ export function AccountSurface() {
           </div>
         </section>
       </div>
+
+      {changingPassword ? (
+        <ChangePasswordDialog
+          online={session.online}
+          onCancel={() => setChangingPassword(false)}
+          onChanged={() => {
+            setChangingPassword(false);
+            showToast(copy.account.passwordChanged);
+          }}
+          onSignedOut={() => setChangingPassword(false)}
+        />
+      ) : null}
 
       {editing ? (
         <RegistrationDialog

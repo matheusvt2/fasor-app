@@ -153,6 +153,25 @@ export const copy = {
     // authored: the mock has no offline or failure state for "Sair".
     signOutOfflineReason: 'Sair precisa de conexão',
     signOutFailed: 'Não foi possível sair. Tente de novo.',
+    // Story 29.1 (frame `90-account.html` `#acc-dlg-senha`): "Alterar senha" on the Conta screen. The
+    // rule, the mismatch line, "Mostrar", "Repita a senha", "Salvar senha" and "Salvando…" are
+    // `setPassword`'s, the same as "Criar senha".
+    // authored (Story 29.1, listed for Bruno): the row's label.
+    passwordLabel: 'Senha',
+    // authored (Story 29.1, listed for Bruno): the row's value line, what a change does.
+    passwordRowNote: 'Ao trocar, os outros aparelhos saem desta conta.',
+    // authored (Story 29.1, listed for Bruno): the row's action and the dialog's title.
+    changePassword: 'Alterar senha',
+    // authored (Story 29.1, listed for Bruno)
+    currentPasswordLabel: 'Senha atual',
+    // authored (Story 29.1, listed for Bruno)
+    newPasswordLabel: 'Nova senha',
+    // authored (Story 29.1, listed for Bruno): the current password refused, under its field.
+    wrongCurrentPassword: 'A senha atual não confere.',
+    // authored (Story 29.1, listed for Bruno): offline, after "Salvar senha precisa de conexão".
+    changePasswordOfflineReason: 'Alterar senha precisa de conexão',
+    // authored (Story 29.1, listed for Bruno): the Toast after the change.
+    passwordChanged: 'Senha alterada. Os outros aparelhos saíram desta conta.',
     // Story 11.5 (FR-8): "Localização nas fotos", verbatim from `90-account.html` `#acc-loc-row`.
     locationHeading: 'Localização nas fotos',
     locationLabel: 'Gravar coordenadas em cada foto',

@@ -49,7 +49,8 @@ afterAll(async () => {
 
 describe('26.6-API-001b forgot password and the set-password link', () => {
   it('opens exactly the two password routes in AUTH_ROUTES', () => {
-    expect(AUTH_ROUTES.slice(-2)).toEqual([
+    // Story 29.1 (batch e29a): change-password follows them in the list.
+    expect(AUTH_ROUTES.slice(-3, -1)).toEqual([
       { method: 'POST', path: '/api/auth/request-password-reset' },
       { method: 'POST', path: '/api/auth/reset-password' },
     ]);

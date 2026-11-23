@@ -208,10 +208,20 @@ export type ResetPasswordResult =
   | { ok: true }
   | { ok: false; reason: 'invalid-link' | 'too-short' | 'too-long' | 'rate-limited' | 'offline' | 'server' };
 
-/** The two password routes (`AUTH_ROUTES` of the api, Story 26.6). */
+/**
+ * Story 29.1: "Alterar senha" on the Conta screen. `wrong-current` is the current password refused
+ * (better-auth's `INVALID_PASSWORD`); `signed-out` is a session the server no longer holds or a
+ * paused account (a `401`), whose banner the call raises.
+ */
+export type ChangePasswordResult =
+  | { ok: true }
+  | { ok: false; reason: 'wrong-current' | 'too-short' | 'too-long' | 'rate-limited' | 'signed-out' | 'offline' | 'server' };
+
+/** The password routes (`AUTH_ROUTES` of the api, Story 26.6; Story 29.1 adds `change`). */
 export const PASSWORD_ROUTES = {
   requestReset: { method: 'POST', path: '/api/auth/request-password-reset' },
   reset: { method: 'POST', path: '/api/auth/reset-password' },
+  change: { method: 'POST', path: '/api/auth/change-password' },
 } as const;
 
 /** A request that never completed: no network on the device, or a server that did not answer. */
@@ -271,6 +281,31 @@ export async function resetPassword(token: string, newPassword: string): Promise
   if (code === 'PASSWORD_TOO_LONG') return { ok: false, reason: 'too-long' };
   // INVALID_TOKEN, and any other refusal of the link itself: the page of a link that no longer works.
   return { ok: false, reason: 'invalid-link' };
+}
+
+/**
+ * Story 29.1: changes the signed-in user's password. The server ends every other session of the
+ * user and answers this device a new session cookie, so it stays signed in.
+ */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<ChangePasswordResult> {
+  let response: Response;
+  try {
+    response = await postJson(PASSWORD_ROUTES.change, { currentPassword, newPassword });
+  } catch {
+    return { ok: false, reason: unreachableReason() };
+  }
+  if (response.ok) return { ok: true };
+  if (response.status === 429) return { ok: false, reason: 'rate-limited' };
+  if (response.status >= 500) return { ok: false, reason: 'server' };
+  const code = await bodyCode(response);
+  if (response.status === 401) {
+    publishReAuth(code === USER_INACTIVE_CODE ? 'paused' : 'expired');
+    return { ok: false, reason: 'signed-out' };
+  }
+  if (code === 'INVALID_PASSWORD') return { ok: false, reason: 'wrong-current' };
+  if (code === 'PASSWORD_TOO_SHORT') return { ok: false, reason: 'too-short' };
+  if (code === 'PASSWORD_TOO_LONG') return { ok: false, reason: 'too-long' };
+  return { ok: false, reason: 'server' };
 }
 
 /**
