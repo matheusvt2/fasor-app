@@ -1,4 +1,5 @@
 import { councilLabel, defaultTitleForCouncil } from '../registration.ts';
+import { offersAdditionalItems, printedAdditionalItems } from '../relatorio/additional-items.ts';
 import { effectiveParecer, parecerOwnText, parecerTextForPrint, parecerVerdictLabel } from '../relatorio/parecer.ts';
 import { resultsItemsText } from '../relatorio/section-variables.ts';
 import type { Council } from '../schemas/council.ts';
@@ -124,6 +125,12 @@ function signatureOf(responsible: RelatorioSnapshot['responsible']): LayoutSecti
   return { name, title, registration };
 }
 
+/** Story 28.9: the additional items as section 10 bullets, none on a seed without the rule flag or with no item. */
+function additionalItemBullets(snapshot: RelatorioSnapshot): LayoutSection10['bullets'] {
+  if (!offersAdditionalItems(snapshot.relatorio.seed_version)) return [];
+  return printedAdditionalItems(snapshot.relatorio.setup.additional_items).map((text) => ({ kind: 'item' as const, text, runs: [{ text }] }));
+}
+
 /**
  * Section 10's layout from the section as `layoutSpec` resolved it (`base`: its number,
  * title and printable paragraphs, or an empty section when the text resolves to nothing).
@@ -153,7 +160,10 @@ export function section10Layout(
         ...(paragraph.kind === 'numbered' ? { kind: 'numbered' as const, ...(paragraph.number === undefined ? {} : { number: paragraph.number }) } : { kind: 'item' as const }),
         text: positioned(paragraph.text),
         runs: paragraph.runs === undefined ? [{ text: positioned(paragraph.text) }] : positionedRuns(paragraph.runs),
-      })),
+      }))
+      // Story 28.9 (seed v18 `additional_items`, B-15): the relatório's additional items, in Etapa 6's order, after the
+      // fixed items and before the validity line, as bullets of the same kind, plain text (no variable, no reference).
+      .concat(additionalItemBullets(snapshot)),
     validityLine: validityLine(
       snapshot.responsible?.council ?? null,
       snapshot.relatorio.setup.art_trt_number,

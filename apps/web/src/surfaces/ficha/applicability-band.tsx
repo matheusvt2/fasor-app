@@ -94,7 +94,8 @@ export function AppliedBand({ api, testKey, applicability }: { api: FichaApi; te
   return (
     <div className="v13-applied-band" role="status" data-applicability="applied">
       <span className="band-text">
-        <b>{t.appliedLead}</b> {applicability.appliedText}
+        {/* Story 28.10 (B-3): over the test's own value the kernel gives the band's lead too ("Ensaio aplicado por você."). */}
+        <b>{applicability.appliedLead ?? t.appliedLead}</b> {applicability.appliedText}
       </span>
       {readOnly ? null : <TextButton onPress={() => write(null)}>{byValue ? t.undoApply : t.followPlate}</TextButton>}
     </div>

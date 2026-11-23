@@ -251,6 +251,8 @@ export function instantiateTemplate(
       next_intervention_date: null,
       next_intervention_justification: null,
       parecer: null,
+      // Story 28.9 (contract 59): no additional item at creation.
+      additional_items: [],
     },
     export: { scheme: 'por_local_e_tipo' },
     preview_file_id: null,

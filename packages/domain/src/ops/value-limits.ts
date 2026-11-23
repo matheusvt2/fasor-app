@@ -116,6 +116,8 @@ export const SETUP_VALUE_RULES: Readonly<Record<string, ValueRule>> = {
   next_intervention_date: schema,
   next_intervention_justification: medium,
   parecer: { kind: 'object', fields: { verdict: schema, text: long, text_status: schema, text_basis: long } },
+  // Story 28.9 (contract 59): each additional item is capped as the long texts are (the parecer, OBSERVAÇÕES).
+  additional_items: { kind: 'texts', cap: TEXT_CAPS.long },
 };
 
 /** CARACTERÍSTICAS DA SE (`locationSeSchema`). */

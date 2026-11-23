@@ -1175,6 +1175,17 @@ export const seedRulesSchema = z
      * one line after its last table.
      */
     history_note_relevant: z.literal(true).optional(),
+    /**
+     * Story 28.9 (seed v18, B-15): Etapa 6 offers the relatório's "Itens adicionais" (`setup.additional_items`), and
+     * section 10 prints each as a topic after its fixed items, before the validity line. With none, section 10 is v17's.
+     */
+    additional_items: z.literal(true).optional(),
+    /**
+     * Story 28.10 (seed v18, B-12): section 2's paragraph on earth resistance, citing NBR 15749 and NBR 15751, prints
+     * where v14 printed its paragraph, only while the relatório has a live Malha de aterramento sheet and section 2
+     * reads the seed's text (an own text prints as it is, with no paragraph added).
+     */
+    earth_paragraph_with_malha: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

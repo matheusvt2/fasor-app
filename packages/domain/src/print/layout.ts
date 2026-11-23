@@ -3,7 +3,7 @@ import { empresaFooterLine, empresaFormLine } from '../registry/empresa.ts';
 import { SECTION_BLOCK_TYPES, type SectionBlockType } from '../schemas/block-config.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { relatorioSectionNumber } from '../relatorio/instantiate.ts';
-import { section3Blocks, sectionVariables } from '../relatorio/section-variables.ts';
+import { holdsMalhaSheet, section2Blocks, section3Blocks, sectionVariables } from '../relatorio/section-variables.ts';
 import { printsSeedSections, sectionBlocks, seedSectionNumbers } from '../relatorio/sumario.ts';
 import { getSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
@@ -254,7 +254,14 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     const composed = sectionType(section) !== null;
     // Section 3's own exclusion list (Story 4.2's `setup.exclusions`, AD-21) overrides the
     // seed's own three items when the relatório carries no per-relatório text edit of its own.
-    const seeded = section === 3 ? section3Blocks(seedVersion, textDate, relatorio.setup.exclusions) : seededBlocks(seedVersion, section, textDate);
+    // Story 28.10 (seed v18 `earth_paragraph_with_malha`): section 2's seed text gains the paragraph on earth resistance
+    // with a live Malha de aterramento sheet (`section2Blocks`); an own text (below) prints as it is.
+    const seeded =
+      section === 3
+        ? section3Blocks(seedVersion, textDate, relatorio.setup.exclusions)
+        : section === 2 && seededBlocks(seedVersion, section, textDate) !== null
+          ? section2Blocks(seedVersion, textDate, holdsMalhaSheet(snapshot))
+          : seededBlocks(seedVersion, section, textDate);
     const paragraphs = !composed ? null : ownText !== null ? ownParagraphs(ownText, variables) : seeded?.map((block) => seedParagraph(block, variables)) ?? null;
     if (section === 10) return section10Layout(snapshot, { number, title, paragraphs: paragraphs ?? [] });
     if (paragraphs === null || paragraphs.length === 0) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };

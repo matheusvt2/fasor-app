@@ -1,6 +1,7 @@
 import { dateRangeText } from '../format/datetime.ts';
 import { flattenSectionText } from '../templates/section-text.ts';
-import { sectionText, seedRule, type SectionVariable } from '../seed/definitions.ts';
+import { isCompanyBlockType } from '../schemas/block-config.ts';
+import { blockDefinitionIn, sectionText, seedRule, snapshotDefinitionContext, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { sectionPosition } from './section-position.ts';
@@ -105,6 +106,44 @@ export function namesRelay(text: string): boolean {
 /** Section 3's first paragraph without `RELAY_CLAUSE`: "… de Média Tensão, incluindo o relé de proteção." reads "… de Média Tensão.". */
 function withoutRelayClause(text: string): string {
   return text.replace(RELAY_CLAUSE, '');
+}
+
+// authored (Story 28.10, listed for Bruno): v1's paragraph on earth resistance (`seed/sections-v1.ts`), its standard
+// NBR 5419 replaced by the two Bruno named (B-12).
+export const EARTH_RESISTANCE_PARAGRAPH =
+  'Resistência Ôhmica de Aterramento: Medir os valores de resistência de aterramento para verificar se demonstram valores dentro da margem de tolerância exigida pelas normas NBR 15749 e NBR 15751.';
+
+/** Story 28.10: the start of section 2's paragraph on insulation, after which v1 to v14 printed the paragraph on earth resistance. */
+const INSULATION_PARAGRAPH_START = 'Resistência de Isolação:';
+
+/**
+ * Story 28.10 (B-12): whether the relatório holds a live Malha de aterramento sheet: a block of the seeded type, or of
+ * a company type copied from it (`base_block_type`). A snapshot keeps only live blocks (`liveStructure`: not removed,
+ * not under a removed local); a removed row handed in by hand is not counted either.
+ */
+export function holdsMalhaSheet(snapshot: Pick<RelatorioSnapshot, 'blocks'> & Partial<Pick<RelatorioSnapshot, 'equipment_types'>>): boolean {
+  const ctx = snapshotDefinitionContext(snapshot);
+  return snapshot.blocks.some((block) => {
+    if (typeof block.removed_at === 'string') return false;
+    if (block.block_type === MALHA) return true;
+    return isCompanyBlockType(block.block_type) && blockDefinitionIn(ctx, block)?.base_block_type === MALHA;
+  });
+}
+
+const MALHA = 'malha_aterramento';
+
+/**
+ * Section 2's seed text blocks in force on `date`. Story 28.10 (seed v18 `earth_paragraph_with_malha`): with a live
+ * Malha de aterramento sheet (`withMalha`, `holdsMalhaSheet`), the paragraph on earth resistance, citing NBR 15749 and
+ * NBR 15751, right after the paragraph on insulation, where v14 printed its own; without one, as the seed gives it. An
+ * own section 2 text never reaches here (it prints as it is, with no paragraph added).
+ */
+export function section2Blocks(seedVersion: string, date: string, withMalha: boolean): readonly TextBlock[] {
+  const seeded = sectionText(seedVersion, 2, date);
+  if (!withMalha || !seedRule(seedVersion, 'earth_paragraph_with_malha')) return seeded;
+  const paragraph: TextBlock = { kind: 'paragraph', text: EARTH_RESISTANCE_PARAGRAPH };
+  const at = seeded.findIndex((block) => block.kind === 'paragraph' && block.text.startsWith(INSULATION_PARAGRAPH_START));
+  return at === -1 ? [...seeded, paragraph] : [...seeded.slice(0, at + 1), paragraph, ...seeded.slice(at + 1)];
 }
 
 /** `section3Blocks`, flattened to one plain text (the section text editor's own shape, FR-13). */
