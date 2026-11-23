@@ -73,6 +73,19 @@
 [data-route="/relatorio/porto-seguro/setup"] #setup-parecer-gen .helper-ok { display: none; }
 [data-route="/relatorio/porto-seguro/setup"] #setup-parecer-gen.is-confirmed .helper-ok { display: block; }
 [data-route="/relatorio/porto-seguro/setup"] .parecer-own .poa-text-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+/* Story 28.1 (2026-11-23, Epic 28 frames; MOCK-GUIDE.md § 2026-11-23), for Story 28.9 (B-15): "Itens adicionais" under the parecer, the
+   exclusion list's pattern (numbered rows of one field each, an Overflow per row with "Remover", "Adicionar item" last). The items wrap
+   to several lines, so a row's field grows with its text. The three states (empty, two items, a third being typed) are classes on the
+   wrapper, set by the "Simular" buttons. Existing classes and tokens only. */
+[data-route="/relatorio/porto-seguro/setup"] .e28-items { margin-top: var(--sp-5); }
+[data-route="/relatorio/porto-seguro/setup"] .e28-items .exclusion-list .input { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+[data-route="/relatorio/porto-seguro/setup"] .e28-items .exclusion-list li { align-items: flex-start; }
+[data-route="/relatorio/porto-seguro/setup"] .e28-items .exclusion-list .exclusion-num { padding-top: var(--sp-3); }
+[data-route="/relatorio/porto-seguro/setup"] .e28-items .e28-empty, [data-route="/relatorio/porto-seguro/setup"] .e28-items .e28-new { display: none; }
+[data-route="/relatorio/porto-seguro/setup"] .e28-items.is-empty .e28-empty { display: block; }
+[data-route="/relatorio/porto-seguro/setup"] .e28-items.is-empty .exclusion-list { display: none; }
+[data-route="/relatorio/porto-seguro/setup"] .e28-items.is-adding .e28-new { display: flex; }
+[data-route="/relatorio/porto-seguro/setup"] .e28-sim { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
 </style>
 <section class="screen" data-route="/relatorio/porto-seguro/setup" data-title="Dados do relatório" data-shell="app" data-rail="false">
   <div class="setup-content">
@@ -335,6 +348,24 @@
           <span class="pb-verdict" id="setup-parecer-verdict">Apto com restrições</span>
           <span class="pb-text">Seguido do resumo confirmado acima e, depois, dos itens fixos da conclusão e da assinatura de Rafael Lamonde (<span id="setup-art-word">ART</span> 2620262602583).</span>
         </div>
+        <!-- Story 28.1 (2026-11-23, Epic 28 frames; MOCK-GUIDE.md § 2026-11-23), for Story 28.9 (B-15): the relatório's additional items, under the
+             parecer, on a seed v18 relatório only (this band is the app's "Etapa 6 — Conclusão e parecer"). Each item prints as a topic in section 10,
+             after the fixed items and before the validity line; an empty row is not stored. A role without relatorio.fill sees the list read-only.
+             Sample texts are invented. -->
+        <div class="e28-items" id="setup-e28-items" role="group" aria-labelledby="setup-e28-items-l">
+          <span class="field-label" id="setup-e28-items-l">Itens adicionais</span>
+          <p class="section-note">Observações do relatório inteiro. Cada item sai como um tópico na seção 10, depois dos itens fixos.</p>
+          <p class="section-note e28-empty">Nenhum item adicional.</p>
+          <ul class="exclusion-list" aria-label="Itens adicionais">
+            <li><span class="exclusion-num" aria-hidden="true">1.</span><div class="input grow" role="textbox" aria-label="Item adicional 1" contenteditable="true">O ensaio de isolação dos cabos de saída da Coluna 4 foi feito em conjunto, pelo barramento, com as duas chaves fechadas.</div><button class="overflow-trigger" data-toast="Item 1 removido" data-toast-action="Desfazer" aria-label="Mais opções do item adicional 1"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+            <li><span class="exclusion-num" aria-hidden="true">2.</span><div class="input grow" role="textbox" aria-label="Item adicional 2" contenteditable="true">Os ajustes dos relés seguem o estudo de seletividade fornecido pelo cliente, que não foi revisado nesta manutenção.</div><button class="overflow-trigger" data-toast="Item 2 removido" data-toast-action="Desfazer" aria-label="Mais opções do item adicional 2"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+            <li class="e28-new"><span class="exclusion-num" aria-hidden="true">3.</span><div class="input grow is-focus" role="textbox" aria-label="Item adicional 3" contenteditable="true"><span class="placeholder">Escreva o item</span></div><button class="overflow-trigger" data-toggle-class="is-adding" data-toggle-target="#setup-e28-items" aria-label="Mais opções do item adicional 3"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          </ul>
+          <div class="row"><button class="btn btn-text" data-toggle-class="is-adding" data-toggle-target="#setup-e28-items"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar item</button></div>
+          <span class="helper">Um item vazio não é guardado.</span>
+          <div class="e28-sim"><button class="btn btn-text" data-toggle-class="is-empty" data-toggle-target="#setup-e28-items">Simular: lista vazia</button></div>
+        </div>
+
       </div>
     </section>
 
