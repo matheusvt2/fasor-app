@@ -7,65 +7,94 @@ import { OverlayTriggerStateContext } from 'react-aria-components';
  * browser's) closes the overlay and nothing else, and the screen under it stays as it was.
  *
  * - Opening pushes an entry with the same address and the router's own state, plus a marker
- *   (`OVERLAY_KEY`). React Router never sees the push; going back from it is a pop to the same
+ *   (`OVERLAY_KEY`, a token). React Router never sees the push; a pop from it lands on the same
  *   address, which renders the same screen.
  * - A pop that leaves an open overlay's entry closes that overlay (and any opened above it).
- * - Closing by any other means (Escape, a tap outside, a button) takes the entry back off, unless
- *   the overlay's own action already moved the app (a navigation pushed or replaced the entry) or
- *   another overlay opens in the same moment (a menu item that opens a dialog), which then takes
- *   the entry over instead of pushing a second one.
- * - Landing by a pop on an entry whose overlay is no longer open (left under a navigation, or kept
- *   by a reload) skips it, so one back never "does nothing".
+ * - Closing by any other means (Escape, a tap outside, a button) leaves the entry where it is,
+ *   released: the overlay's own action may still be navigating (a sheet opens after a write to the
+ *   device store), so taking the entry back off then would undo that navigation. A released entry
+ *   costs no press: a back from it goes one step further, a pop onto it (back from a later screen)
+ *   skips it, and an overlay opening on it takes it over instead of pushing a second one.
  *
- * The push and the take-back are deferred one task: StrictMode's mount, unmount and remount push
- * once, and a router navigation started by the overlay's action (which completes in microtasks)
- * has already changed the entry when the take-back looks at it.
+ * The push is deferred one task, so StrictMode's mount, unmount and remount push once. React
+ * Router's own pushes and replaces are followed (`pushState` and `replaceState` are wrapped once) so
+ * "the entry just left" is always known.
  */
 
 export const OVERLAY_KEY = '__overlay';
 
 interface OpenOverlay {
-  token: number;
+  token: string;
   close: () => void;
 }
 
+/** Unique across reloads: an entry marked before a reload is never mistaken for a live overlay. */
+const session = Math.random().toString(36).slice(2, 8);
 let sequence = 0;
 const open: OpenOverlay[] = [];
-const closedByPop = new Set<number>();
-let pendingOpens = 0;
-let listening = false;
+let current: string | null = null;
+let skipping = false;
+let started = false;
 
-function entryToken(): number | null {
-  const state: unknown = window.history.state;
+function tokenOf(state: unknown): string | null {
   if (typeof state !== 'object' || state === null) return null;
   const token = (state as Record<string, unknown>)[OVERLAY_KEY];
-  return typeof token === 'number' ? token : null;
+  return typeof token === 'string' ? token : null;
 }
 
-function isOpen(token: number): boolean {
+function isOpen(token: string): boolean {
   return open.some((overlay) => overlay.token === token);
 }
 
-function stateWith(token: number): Record<string, unknown> {
+/** An overlay entry whose overlay is no longer open. */
+function released(token: string | null): token is string {
+  return token !== null && !isOpen(token);
+}
+
+function stateWith(token: string): Record<string, unknown> {
   const state: unknown = window.history.state;
   return { ...(typeof state === 'object' && state !== null ? (state as Record<string, unknown>) : {}), [OVERLAY_KEY]: token };
 }
 
 function onPopState(): void {
-  const here = entryToken();
+  const left = current;
+  // Read before the loop below closes the overlays this pop leaves: theirs are not released entries.
+  const leftReleased = released(left);
+  const here = tokenOf(window.history.state);
+  current = here;
   for (let index = open.length - 1; index >= 0; index -= 1) {
     const overlay = open[index]!;
     if (overlay.token === here) break;
     open.splice(index, 1);
-    closedByPop.add(overlay.token);
     overlay.close();
   }
-  if (here !== null && !isOpen(here) && pendingOpens === 0) window.history.back();
+  if (skipping) {
+    skipping = false;
+    return;
+  }
+  // Back from a released entry only took the dead entry off: go the step the person asked for.
+  // A pop onto a released entry (back from a later screen) skips it the same way.
+  if ((leftReleased && left !== here) || released(here)) {
+    skipping = true;
+    window.history.back();
+  }
 }
 
-function listen(): void {
-  if (listening || typeof window === 'undefined') return;
-  listening = true;
+/** Follows every entry change of the page; idempotent. Called once by the app shell. */
+export function startOverlayHistory(): void {
+  if (started || typeof window === 'undefined') return;
+  started = true;
+  current = tokenOf(window.history.state);
+  const push = window.history.pushState.bind(window.history);
+  const replace = window.history.replaceState.bind(window.history);
+  window.history.pushState = (data: unknown, unused: string, url?: string | URL | null) => {
+    push(data, unused, url);
+    current = tokenOf(data);
+  };
+  window.history.replaceState = (data: unknown, unused: string, url?: string | URL | null) => {
+    replace(data, unused, url);
+    current = tokenOf(data);
+  };
   window.addEventListener('popstate', onPopState);
 }
 
@@ -78,33 +107,24 @@ export function useOverlayHistory(close: () => void): void {
   closeRef.current = close;
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    listen();
-    const overlay: OpenOverlay = { token: (sequence += 1), close: () => closeRef.current() };
+    startOverlayHistory();
+    sequence += 1;
+    const overlay: OpenOverlay = { token: `${session}-${sequence}`, close: () => closeRef.current() };
     let pushed = false;
-    pendingOpens += 1;
     const timer = window.setTimeout(() => {
-      pendingOpens -= 1;
-      const here = entryToken();
-      // An entry whose overlay just closed (a menu item that opened this dialog) is taken over.
-      if (here !== null && !isOpen(here)) window.history.replaceState(stateWith(overlay.token), '');
+      pushed = true;
+      // A released entry (a menu item that opened this dialog, an overlay closed by Escape) is taken over.
+      if (released(tokenOf(window.history.state))) window.history.replaceState(stateWith(overlay.token), '');
       else window.history.pushState(stateWith(overlay.token), '');
       open.push(overlay);
-      pushed = true;
     }, 0);
     return () => {
       if (!pushed) {
         window.clearTimeout(timer);
-        pendingOpens -= 1;
         return;
       }
       const index = open.findIndex((entry) => entry.token === overlay.token);
       if (index >= 0) open.splice(index, 1);
-      if (closedByPop.delete(overlay.token)) return;
-      window.setTimeout(() => {
-        // Another overlay opening now takes the entry over; a navigation already replaced it.
-        if (pendingOpens > 0 || isOpen(overlay.token)) return;
-        if (entryToken() === overlay.token) window.history.back();
-      }, 0);
     };
   }, []);
 }

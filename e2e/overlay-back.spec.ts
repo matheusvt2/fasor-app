@@ -17,7 +17,9 @@ import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
  * tap outside and Escape were already right and stay so.
  */
 
-const { defaultBrowserType: _browser, ...PHONE } = devices['Pixel 7'];
+// Pixel 7 without its browser type: this spec runs in the desktop-chrome project's Chromium.
+const PHONE = { ...devices['Pixel 7'] } as Partial<(typeof devices)['Pixel 7']>;
+delete PHONE.defaultBrowserType;
 test.use(PHONE);
 
 let account: SeedAccount;
@@ -64,10 +66,13 @@ async function fromHome(page: Page, relatorioId: string, homeY = 0): Promise<{ r
   return { row: await openSumario(page, relatorioId), homeY: atHome };
 }
 
-/** Scrolls the window to `y` and waits until it moved. */
+/** Scrolls the window to `y` (again while the screen is still drawing) and waits until it moved. */
 async function scrollTo(page: Page, y: number): Promise<number> {
-  await page.evaluate((top) => window.scrollTo(0, top), y);
-  await expect.poll(() => scrollY(page)).toBeGreaterThan(0);
+  const scrolled = (top: number) => {
+    window.scrollTo(0, top);
+    return Math.round(window.scrollY);
+  };
+  await expect.poll(() => page.evaluate(scrolled, y), { timeout: 10_000 }).toBeGreaterThan(0);
   return scrollY(page);
 }
 
@@ -117,7 +122,7 @@ test('@p0 29.2-E2E-001a an overflow menu: the device back closes it and the SumÃ
   await expect(page).toHaveURL(new RegExp(`${sumario}$`));
 });
 
-test('@p0 29.2-E2E-001b a form dialog: the device back closes it and Conta stays; a tap outside leaves no entry behind', async ({ page }) => {
+test('@p0 29.2-E2E-001b a form dialog: the device back closes it and Conta stays; after a tap outside, one back still leaves Conta', async ({ page }) => {
   test.setTimeout(120_000);
   await resetCompany(account, { standard: true });
   await signIn(page, account.email);
