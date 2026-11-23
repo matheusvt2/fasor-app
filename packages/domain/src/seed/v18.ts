@@ -31,6 +31,10 @@ function cabinePrimariaV18(): ReportSeed {
   const seed = structuredClone(v17);
   story28_3(seed);
   story28_4(seed);
+  story28_5(seed);
+  story28_6(seed);
+  story28_7(seed);
+  story28_8(seed);
   return seed;
 }
 
@@ -203,6 +207,55 @@ function story28_4(seed: ReportSeed): void {
   const battery = fieldOf(noBreak, STORY_28_4_BATTERY_DATE_KEY);
   if (battery.label !== STORY_28_4_BATTERY_DATE_LABEL_BEFORE) throw new Error('seed v18: the battery date is not v17\'s');
   battery.label = STORY_28_4_BATTERY_DATE_LABEL;
+}
+
+// --- Story 28.5: A point starts with a priority and an action, and its deadline counts from the issue date ---
+
+/**
+ * Story 28.5 (B-8, the second half of Story 25.10, with Matheus's Q-6): two rule flags, read by the kernel only
+ * (`points/priority.ts`, `points/derived.ts`, `print/section-8.ts`, `relatorio/pre-issue.ts`). `point_start_priority`: a
+ * tapped point opens with its origin's priority and Bruno's default action; `deadline_from_issue`: a suggested deadline
+ * counts from the issue date. The rule that offers no point for the utility's equipment needs no flag: only v18 has the
+ * reason (Story 28.4).
+ */
+function story28_5(seed: ReportSeed): void {
+  if (seed.rules?.point_start_priority !== undefined || seed.rules?.deadline_from_issue !== undefined) throw new Error('seed v18: a Story 28.5 rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), point_start_priority: true, deadline_from_issue: true };
+}
+
+// --- Story 28.6: The insulation rows take the header's test voltage -------------------------------
+
+/**
+ * Story 28.6 (B-16): one rule flag, `row_voltage_from_header`, read by `rowTestVoltage` and `rowVoltageSourceText`
+ * (`relatorio/row-voltage.ts`): a row's voltage is the typed cell, else its seeded default, else the header's TENSÃO
+ * ENSAIO when it is one of the options, else its winding's or its table's rating default, else none.
+ */
+function story28_6(seed: ReportSeed): void {
+  if (seed.rules?.row_voltage_from_header !== undefined) throw new Error('seed v18: the Story 28.6 rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), row_voltage_from_header: true };
+}
+
+// --- Story 28.7: A reading above the instrument's limit prints with its note -----------------------
+
+/**
+ * Story 28.7 (B-6): one rule flag, `over_range_note`, read by `overRangeNoteLines` (`print/over-range-note.ts`): under a
+ * seeded insulation test with a reading above the limit, Bruno's line per limit, in the place of Story 23.4's note.
+ */
+function story28_7(seed: ReportSeed): void {
+  if (seed.rules?.over_range_note !== undefined) throw new Error('seed v18: the Story 28.7 rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), over_range_note: true };
+}
+
+// --- Story 28.8: The variation note names only what matters, by Bruno's numbers ---------------------
+
+/**
+ * Story 28.8 (B-7, Matheus's Q-7): one rule flag, `history_note_relevant`, read by `sheetVariationNotes`
+ * (`print/history-note.ts`): the note against the previous visit by Bruno's numbers and the change of level, in the short
+ * form, one line at three or more. No verdict rule changes.
+ */
+function story28_8(seed: ReportSeed): void {
+  if (seed.rules?.history_note_relevant !== undefined) throw new Error('seed v18: the Story 28.8 rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), history_note_relevant: true };
 }
 
 export const CABINE_PRIMARIA_V18: ReportSeed = cabinePrimariaV18();

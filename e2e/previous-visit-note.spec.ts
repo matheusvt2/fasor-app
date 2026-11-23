@@ -180,3 +180,75 @@ test('@p0 24.16-E2E-001 relatório B of the obra with a contact rise and an insu
   expect(contact!.slice(1).map((row) => row.at(-1))).toEqual(['40 µΩ', '44 µΩ', '44 µΩ']);
   expect(structure.tables.some((table) => table.some((row) => row.includes('MANUT. ANTERIOR')))).toBe(false);
 });
+
+/*
+ * 28.8-E2E-001 (batch e28b, Story 28.8, B-7, Matheus's Q-7). Relatório A of an obra on seed v18, issued: the breaker's poles at
+ * 180, 200 and 236 µΩ (within < 250 µΩ), the oil transformer's three insulation rows at 10 GΩ (20 °C of oil). Relatório B of
+ * the same obra, typed at 1280 px: the poles at 234 (+30 %, within), 210 (+5 %) and 262 µΩ (+11 %, now out); the
+ * transformer's rows at 4 GΩ (a 60 % drop each, restricted). B's DOCX prints, under the breaker's contact table, the short
+ * form of the two that matter (the rise past 25 % and the change of level) and not the third; and after the transformer's
+ * last table one line counting its three variations. It issues two revisions, so it runs in the queue lane.
+ */
+test('@p0 28.8-E2E-001 v18 second visit: the note names only the rise past 25 % and the change of level, in the short form; three variations on one equipment print as one line', async ({ page }) => {
+  test.setTimeout(600_000);
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const DJ18 = getDefinition('v18', 'cabine_primaria', 'disjuntor_mt');
+  const TR18 = getDefinition('v18', 'cabine_primaria', 'transformador_forca');
+  const poles = cellAddressesOf(DJ18, CONTACT);
+  const firstCol = cellAddressesOf(TR18, 'isolacao')[0]!;
+  const rows = cellAddressesOf(TR18, 'isolacao').filter((address) => address.col === firstCol.col).slice(0, 3);
+  const oil = (relatorioId: string, blockId: string): OpDraft[] => [
+    officeDraft(account, { relatorioId }, `sheet/${blockId}/nameplate/tipo_de_isolacao`, 'A ÓLEO'),
+    officeDraft(account, { relatorioId }, `sheet/${blockId}/nameplate/temperatura_oleo_c`, { raw: '20', unit: '°C', state: 'measured' }),
+  ];
+
+  const a = newRelatorioDrafts(account, { seedVersion: 'v18' });
+  const djA = a.sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
+  const trA = a.sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
+  const blockRows = (drafts: readonly OpDraft[]) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/')).map((draft) => draft.value as { id: string; equipment_id: string | null });
+  const djEquipment = blockRows(a.drafts).find((row) => row.id === djA.blockId)!.equipment_id!;
+  const trEquipment = blockRows(a.drafts).find((row) => row.id === trA.blockId)!.equipment_id!;
+  await pushDrafts(page, database, [
+    ...a.drafts,
+    ...['180', '200', '236'].map((raw, i) => officeDraft(account, { relatorioId: a.relatorioId }, `sheet/${djA.blockId}/test/${CONTACT}/cell/${poles[i]!.row}/${poles[i]!.col}`, { raw, unit: 'µΩ', state: 'measured' })),
+    ...oil(a.relatorioId, trA.blockId),
+    ...rows.map((address) => officeDraft(account, { relatorioId: a.relatorioId }, `sheet/${trA.blockId}/test/isolacao/cell/${address.row}/${address.col}`, { raw: '10', unit: 'GΩ', state: 'measured' })),
+  ]);
+  await issue(page, a.relatorioId);
+
+  const equipment = a.drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith('equipment/')).map((draft) => draft.value as unknown as EquipmentRow);
+  const b = instantiateTemplate(
+    standardTemplate({ id: newId(), seedVersion: 'v18' }),
+    { id: a.projectId },
+    { service_start: '2026-11-09', service_end: '2026-11-10', existingEquipment: equipment, responsible_user_id: null, definitions: EMPTY_DEFINITION_CONTEXT, tagRule: 'legacy' },
+    { newId, actorId: account.userId, companyId: account.companyId },
+  );
+  const djB = blockRows(b.drafts).find((row) => row.equipment_id === djEquipment)!;
+  const trB = blockRows(b.drafts).find((row) => row.equipment_id === trEquipment)!;
+  await pushDrafts(page, database, [...b.drafts, ...oil(b.relatorioId, trB.id)]);
+  await page.goto(`/relatorio/${b.relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
+  for (const id of [djEquipment, trEquipment]) {
+    await expect
+      .poll(async () => ((await entities(page)).find((record) => record.entity === 'equipment' && record.id === id)?.row.last_results as LastResults | null | undefined)?.relatorio_id ?? null, { timeout: 30_000 })
+      .toBe(a.relatorioId);
+  }
+
+  await page.goto(`/relatorio/${b.relatorioId}/ficha/${djB.id}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await typeRun(page, `sheet/${djB.id}`, CONTACT, poles, ['234', '210', '262'], 'µΩ');
+  await page.goto(`/relatorio/${b.relatorioId}/ficha/${trB.id}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await typeRun(page, `sheet/${trB.id}`, 'isolacao', rows, ['4G', '4G', '4G'], 'GΩ');
+
+  const structure = await issue(page, b.relatorioId);
+  const notes = structure.paragraphs.map((text) => text.replace(/\u00a0/gu, ' ')).filter((text) => text.startsWith('Em relação à manutenção anterior:'));
+  expect(notes).toEqual([
+    'Em relação à manutenção anterior: T1-T2 subiu 30 % (antes 180 µΩ); T5-T6 passou a fora do critério (antes 236 µΩ, dentro do critério).',
+    'Em relação à manutenção anterior: 3 variações relevantes (Ensaio de isolação: 3).',
+  ]);
+});

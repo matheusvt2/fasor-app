@@ -2295,6 +2295,8 @@ const E27A_FLAGS = ['parecer_open_apart'] as const;
 const E27B8_NEW_FLAGS = ['caption_para_raios'] as const;
 /** Story 27.9 (batch e27b, seed v17): the printed half of the wording pass. */
 const E27B9_FLAGS = ['wording_pass'] as const;
+/** Batch e28b (Stories 28.5 to 28.8, seed v18): the wave-2 rule flags. */
+const E28B_FLAGS = ['point_start_priority', 'deadline_from_issue', 'row_voltage_from_header', 'over_range_note', 'history_note_relevant'] as const;
 
 /** Batch e24s (Story 24.11): the transformer's appended items, in order. */
 const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
@@ -2368,7 +2370,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
   it('names the five flags of batch e24a, the three of batch e24p, the three of fix batch e24y and the v15 flags of Epic 25, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS]);
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2397,7 +2399,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
     expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
     expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS]);
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS]);
     for (const flag of [...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]) expect(seedRule('v14', flag), flag).toBe(true);
     // Story 25.6: a v15 flag is off on v14.
     for (const flag of E25C6_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
@@ -2794,7 +2796,8 @@ describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v
  * v18 as it ships (Epic 28); until its deploy each batch of the epic re-pins it, after it a change is a new version.
  * Batch e28a, first commit (2026-11-23, Story 28.2): v18 opens equal to v17, the same content and the same rule flags.
  */
-const V18_HASH = 'bd769c9fc4d8223397a4a742cc4fedfbca9f5c607f9ec5fe18c75a1130a7ae2d';
+// Batch e28b (2026-11-23, Stories 28.5 to 28.8): the five wave-2 rule flags (was bd769c9f… after batch e28a).
+const V18_HASH = '01470e099d41662787442513ce5a64c67b05d71709f6d64e0277ddf275d89b74';
 
 /**
  * Batch e28a and the Epic 28 batches after it: each story's delta on v18, undone, in the order `seed/v18.ts` applies
@@ -2804,7 +2807,40 @@ const V18_HASH = 'bd769c9fc4d8223397a4a742cc4fedfbca9f5c607f9ec5fe18c75a1130a7ae
  */
 // Story 28.3 (batch e28a): the transformer's "A SECO" / "A ÓLEO", CONSTRUÇÃO, the TP's and the TC's ÓLEO VEGETAL (`withoutE283` below).
 // Story 28.4 (batch e28a): the transformer's items 18 and 19, two thermography reasons, the utility reason, the battery date label (`withoutE284` below).
-const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE283, withoutE284];
+// Story 28.5 (batch e28b): the rule flags `point_start_priority` and `deadline_from_issue` (`withoutE285` below).
+// Story 28.6 (batch e28b): the rule flag `row_voltage_from_header` (`withoutE286` below).
+// Story 28.7 (batch e28b): the rule flag `over_range_note` (`withoutE287` below).
+// Story 28.8 (batch e28b): the rule flag `history_note_relevant` (`withoutE288` below).
+const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE283, withoutE284, withoutE285, withoutE286, withoutE287, withoutE288];
+
+/** A story's rule flags undone: the seed's `rules` without them. */
+function withoutRuleFlags(seed: ReportSeed, flags: readonly SeedRuleFlag[]): ReportSeed {
+  const out = structuredClone(seed);
+  const rules = { ...(out.rules ?? {}) };
+  for (const flag of flags) delete rules[flag];
+  out.rules = rules;
+  return out;
+}
+
+/** Story 28.5's delta undone: the starting priority and the deadline from the issue date. */
+function withoutE285(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['point_start_priority', 'deadline_from_issue']);
+}
+
+/** Story 28.6's delta undone: the rows take the header's voltage after the rating defaults again. */
+function withoutE286(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['row_voltage_from_header']);
+}
+
+/** Story 28.7's delta undone: no line for a reading above the instrument's limit but Story 23.4's. */
+function withoutE287(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['over_range_note']);
+}
+
+/** Story 28.8's delta undone: Story 24.16's variation note. */
+function withoutE288(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['history_note_relevant']);
+}
 
 /** Story 28.4's delta undone: v17's seventeen transformer items, four thermography reasons, five not-tested reasons and battery label. */
 function withoutE284(seed: ReportSeed): ReportSeed {
@@ -4265,5 +4301,15 @@ describe('seed v13, batch e23e (Stories 23.13, 23.18, 23.20 and 23.21): test-vol
     expect(band([{ up_to: 3, level: 'within', class: 'a' }, { up_to: 2, level: 'restricted', class: 'b' }, { level: 'out', class: 'c' }])).toBe(false);
     // A band table reads a number column of its test.
     expect(refused('tc', (copy) => ((thermo(copy).criteria[0] as { column: string }).column = 'outra'))).toBe(false);
+  });
+});
+
+describe('28.5-UNIT-SEED to 28.8-UNIT-SEED (batch e28b) the rule flags of the wave-2 rules and notes', () => {
+  const FLAGS: readonly SeedRuleFlag[] = ['point_start_priority', 'deadline_from_issue', 'row_voltage_from_header', 'over_range_note', 'history_note_relevant'];
+  it('are on in v18 and off in every version before it', () => {
+    for (const flag of FLAGS) {
+      expect(seedRule('v18', flag), flag).toBe(true);
+      for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
+    }
   });
 });
