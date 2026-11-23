@@ -531,7 +531,9 @@ describe('28.4-API-001 the v18 item and reason keys through the sync route', () 
       const tp = blockOf('tp');
       const tc = blockOf('tc');
       const put = (path: string, value: unknown): OpDraft => ({ ...projectDraft, kind: 'put', scope: 'relatorio', project_id: projectId, relatorio_id: relatorioId, path, value: value as never });
-      const mark = { reason: 'equipamento_concessionaria', text: null, at: '2026-11-23T12:00:00.000Z', by: company.userId, utility_name: 'Concessionária Exemplo' };
+      // The mark's instant is the op's own (a future one is refused `op_attribution`).
+      const at = now();
+      const mark = { reason: 'equipamento_concessionaria', text: null, at: at.toISOString(), by: company.userId, utility_name: 'Concessionária Exemplo' };
       const writes = [
         put(sheetChecklistPath(transformer.id, 'temperatura_alarme_e_desligamento', 'result'), 'NC'),
         put(sheetTestValuePath(tp.id, 'termografia', 'realizacao'), choiceValue('nao_realizada')),
@@ -539,7 +541,6 @@ describe('28.4-API-001 the v18 item and reason keys through the sync route', () 
         put(blockFieldPath(tc.id, 'not_tested'), mark),
       ];
       const batchId = newId();
-      const at = now();
       const batch: Op[] = [projectDraft, ...drafts, ...writes].map((draft) => makeOp({ ...draft, batch_id: batchId, device_id: DEVICE }, { newId, now: at }));
       for (const op of batch) {
         written.opIds.add(op.op_id);

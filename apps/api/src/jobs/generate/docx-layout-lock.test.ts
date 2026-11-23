@@ -520,7 +520,8 @@ describe('27.8-UNIT-SAME a v17 relatório with the v16 fixtures\' answers conclu
  * Batch e28a, Story 28.2 (28.2-UNIT-SAME): at its opening seed v18 changes nothing, so a v18 relatório with the same
  * answers as the v17 one (the rule-built fixture and the Epic 25 fixture, each built on both versions) concludes and
  * prints the same: every ficha's effective pair and the composed parecer are equal, and the layout and the DOCX parts
- * differ in nothing but the ids the fixtures derive from the version, their op ids and the version's own name. The
+ * differ in nothing but the version's own name. The v18 relatório is the v17 fixture with its seed named v18 (the
+ * fixtures write answers from their version's definitions, which Stories 28.3 and 28.4 change), and the
  * comparison reads v18 through v17's rule flags, section texts and definitions (`rulesOff.v18ReadsV17`), so a later
  * Epic 28 story that adds a v18 flag or definition key keeps this pin; what each story changes is pinned by its own test.
  * The v17 goldens themselves (`layout-lock-v17`, `layout-lock-v17-epic25`) are checked above, byte-equal on the code
@@ -535,16 +536,30 @@ describe('28.2-UNIT-SAME a v18 relatório with the v17 fixtures\' answers conclu
   });
 
   /** The version's ids, op ids and name masked (`019a6100-0NVV-…` for the four id families, `vVV`). */
-  const masked = (version: string, text: string) => {
+  const maskedIds = (version: string, text: string) => {
     const hex = Number(version.slice(1)).toString(16).padStart(2, '0');
     let out = text;
     for (const family of ['00', '01', '02', '03']) out = out.replaceAll(`019a6100-${family}${hex}-`, `019a6100-${family}VV-`);
     return out.replaceAll(new RegExp(`\\b${version}\\b`, 'g'), 'vVV');
   };
 
+  /**
+   * The fixture's answers are written from its version's definitions, and v18's differ from v17's from Story 28.3 on
+   * (its options, CONSTRUÇÃO, items 18 and 19). So the v18 relatório is the v17 one with its seed named v18, on the
+   * relatório and on every sheet: the same answers, read by the v18 code with v18 named everywhere.
+   */
+  const asV18 = (snapshot: RelatorioSnapshot): RelatorioSnapshot => ({
+    ...snapshot,
+    relatorio: { ...snapshot.relatorio, seed_version: 'v18' },
+    blocks: snapshot.blocks.map((block) => (block.seed_version === 'v17' ? { ...block, seed_version: 'v18' } : block)),
+  });
+  const onVersion = (build: (version: string) => RelatorioSnapshot) => (version: string) => (version === 'v18' ? asV18(build('v17')) : build(version));
+  /** The v18 relatório carries v17's ids: masked as the v17 ones, its own name masked too. */
+  const masked = (version: string, text: string) => maskedIds(version === 'v18' ? 'v17' : version, text).replaceAll(/\bv18\b/g, 'vVV');
+
   const FIXTURES = [
-    ['the rule-built fixture', (version: string) => layoutLockSnapshot(version)],
-    ['the Epic 25 fixture', layoutLockEpic25Snapshot],
+    ['the rule-built fixture', onVersion((version: string) => layoutLockSnapshot(version))],
+    ['the Epic 25 fixture', onVersion(layoutLockEpic25Snapshot)],
   ] as const;
 
   /** Every equipment sheet's effective conclusion pair, by masked block id, and the composed parecer. */

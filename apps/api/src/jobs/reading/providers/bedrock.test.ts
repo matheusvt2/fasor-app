@@ -674,7 +674,7 @@ describe('28.3-API-001 (batch e28a, seed v18): the structuring prompt names the 
     expect(transformer).toContain('tipo_de_isolacao (select; options: A SECO | A ÓLEO)');
     expect(transformer).toContain('construcao (select; options: ENCAPSULADO EM RESINA EPÓXI | IMPREGNADO A VÁCUO (VPI))');
     expect(transformer).not.toContain('ÓLEO ISOLANTE');
-    expect(transformer).not.toContain('EPÓXI |');
+    expect(transformer).not.toContain('options: EPÓXI');
     const notes = plateFieldNotes(fieldsOf('v18', 'transformador_forca'));
     expect(notes).toContain('The field tipo_de_isolacao is A ÓLEO when the plate names an insulating oil or liquid ("óleo isolante", "óleo mineral", "silicone"); leave it out when the plate prints no insulation word.');
     expect(notes.some((note) => note.startsWith('The field tipo_de_isolacao is A SECO when the plate names a dry unit'))).toBe(true);
