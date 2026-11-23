@@ -3,6 +3,7 @@ import { cabineOf, type CabineLocation } from '../relatorio/cabine.ts';
 import { sheetOrder } from '../relatorio/ficha.ts';
 import { locationPathText } from '../relatorio/location-path.ts';
 import type { SectionMention } from '../relatorio/section-position.ts';
+import { checklistItemLabel } from '../relatorio/oil-rule.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { siteLocalOf, siteResultOf } from '../relatorio/site-checklist.ts';
@@ -100,10 +101,11 @@ export function photoItemLine(photo: PhotoPlace, snapshot: Pick<RelatorioSnapsho
   const definitions = snapshotDefinitionContext(snapshot);
   const definition = blockDefinitionIn(definitions, block);
   if (definition === null) return null;
-  const checklist: readonly { key: string; label: string }[] | null = definition.checklist;
+  const checklist = definition.checklist;
   const index = checklist?.findIndex((item) => item.key === photo.item_key) ?? -1;
   if (checklist === null || index < 0) return null;
-  const head = `Item ${index + 1}${SEP}${screenLabel(checklist[index]!.label)}`;
+  // Seed v18 (Story 28.4): the item's words by the unit's kind.
+  const head = `Item ${index + 1}${SEP}${screenLabel(checklistItemLabel(checklist[index]!, definition, block))}`;
   const result = checklistResultOf(block, photo.item_key, definitions);
   return { head, result, nc: result === 'NC', text: result === null ? head : `${head}${SEP}${result}` };
 }

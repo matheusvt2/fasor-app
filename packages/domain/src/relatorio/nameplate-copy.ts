@@ -1,11 +1,12 @@
 import type { BlockRow, EquipmentRow, JsonValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
-import type { BlockDefinition } from '../seed/schema.ts';
+import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { plural } from '../text/plural.ts';
 import { isCellFilled, isEquipmentBlock } from './sheet-state.ts';
 import { normalizeDateValue } from '../format/datetime.ts';
+import { normalizeRegistryName } from '../text/normalize-name.ts';
 
 /*
  * Story 5.3, FR-34, AR-24: the two copy chips of an empty nameplate group.
@@ -78,7 +79,7 @@ export function nameplateCopyFields(source: Pick<BlockRow, 'sheet'>, definition:
     const option = selectOptionFor(field, cell.value);
     if (option !== null) out.push({ fieldKey: field.key, value: option });
   }
-  return out;
+  return withImpliedValues(out, definition, (key) => source.sheet.nameplate[key]?.value);
 }
 
 /** "Igual à ⟨TAG⟩?": the plate to copy onto `blockId`, or null when none applies. */
@@ -141,6 +142,64 @@ export function lastNameplateCopy(equipment: Pick<EquipmentRow, 'last_nameplate'
     // E78-Q3: a date copied in the canonical shape when it has one ("07/2025" becomes "2025-07"; "2012" stays).
     out.push({ fieldKey: field.key, value: field.kind === 'date' ? normalizeDateValue(value) : value });
   }
+  return withImpliedValues(out, definition, (key) => fields[key]);
+}
+
+/**
+ * Seed v18, batch e28a (Story 28.3, Bruno's Q-1): the option a select with `implied_by` takes from a source that held no
+ * value of its own there, by the value the source held in the named select (a transformer copied from a sheet that said
+ * EPÓXI: CONSTRUÇÃO "ENCAPSULADO EM RESINA EPÓXI"); null when the field has no `implied_by` or the source names none of
+ * its spellings. Matched ignoring case and accents, as `selectOptionFor` matches an alias. No field of v1 to v17 has
+ * the key, so their copies are as before.
+ */
+export function impliedNameplateValue(field: Pick<FieldDef, 'implied_by' | 'options'>, sourceValueOf: (key: string) => unknown): string | null {
+  const implied = field.implied_by;
+  if (implied === undefined) return null;
+  const value = sourceValueOf(implied.field);
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const wanted = normalizeRegistryName(value);
+  for (const [spelling, option] of Object.entries(implied.values)) if (normalizeRegistryName(spelling) === wanted && (field.options ?? []).includes(option)) return option;
+  return null;
+}
+
+/** The copied values with each `implied_by` field the source left empty filled (`impliedNameplateValue`), in the definition's order. */
+function withImpliedValues<T extends { fieldKey: string; value: unknown }>(copied: T[], definition: BlockDefinition, sourceValueOf: (key: string) => unknown): T[] {
+  const taken = new Set(copied.map((entry) => entry.fieldKey));
+  const added = new Map<string, string>();
+  for (const field of definition.nameplate) {
+    if (taken.has(field.key) || field.per_unit === true || isDayMeasuredField(field.key)) continue;
+    const option = impliedNameplateValue(field, sourceValueOf);
+    if (option !== null) added.set(field.key, option);
+  }
+  if (added.size === 0) return copied;
+  const byKey = new Map(copied.map((entry) => [entry.fieldKey, entry]));
+  return definition.nameplate.flatMap((field) => {
+    const own = byKey.get(field.key);
+    if (own !== undefined) return [own];
+    const option = added.get(field.key);
+    return option === undefined ? [] : [{ fieldKey: field.key, value: option } as T];
+  });
+}
+
+/**
+ * Seed v18, batch e28a (Story 28.3; Matheus, 2026-11-23): the plate's fields in the order the sheet draws them. A field
+ * with `screen_after` is drawn right after the field it names (CONSTRUÇÃO after TIPO DE ISOLAÇÃO); the nameplate's own
+ * order stays the printed one, where CONSTRUÇÃO fills the empty last pair. Without the key (every field of v1 to v17)
+ * the order is the nameplate's.
+ */
+export function nameplateScreenOrder<F extends Pick<FieldDef, 'key' | 'screen_after'>>(nameplate: readonly F[]): F[] {
+  const keys = new Set(nameplate.map((field) => field.key));
+  const moved = nameplate.filter((field) => field.screen_after !== undefined && field.screen_after !== field.key && keys.has(field.screen_after));
+  if (moved.length === 0) return [...nameplate];
+  const movedKeys = new Set(moved.map((field) => field.key));
+  const out: F[] = [];
+  const place = (field: F) => {
+    out.push(field);
+    for (const after of moved) if (after.screen_after === field.key) place(after);
+  };
+  for (const field of nameplate) if (!movedKeys.has(field.key)) place(field);
+  // A field whose anchor is itself moved in a loop is drawn at the end, never dropped.
+  for (const field of moved) if (!out.includes(field)) out.push(field);
   return out;
 }
 

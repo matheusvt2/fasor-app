@@ -16,6 +16,7 @@ import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, type FailedRati
 import { failedPrerequisites } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { sectionRefText } from './section-position.ts';
+import { checklistItemLabel } from './oil-rule.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
 import { siteNcCount, siteNcItems } from './site-checklist.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
@@ -155,7 +156,7 @@ function failedRatioRowsOf(block: BlockRow, definition: BlockDefinition | null, 
 function ncItemsOf(block: BlockRow, definition: BlockDefinition | null): { n: number; label: string }[] {
   if (!enabledSubBlocksOf(block).has('checklist')) return [];
   if (definition === null || definition.checklist === null) return [];
-  return definition.checklist.flatMap((item, index) => (checklistResultUnder(block, item.key, definition) === 'NC' ? [{ n: index + 1, label: item.label }] : []));
+  return definition.checklist.flatMap((item, index) => (checklistResultUnder(block, item.key, definition) === 'NC' ? [{ n: index + 1, label: checklistItemLabel(item, definition, block) }] : []));
 }
 
 /** A not-tested sheet's reason as the summary names it: "impossibilidade de desligamento", the typed text for "Outro". */

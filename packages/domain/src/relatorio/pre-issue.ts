@@ -19,6 +19,7 @@ import { listPtBr, plural } from '../text/plural.ts';
 import { pointPhotoRemovedText, pointsSemAcaoText, pointsSemPrioridade, pointsSemPrioridadeText, pointsSemResponsavel, pointsSemResponsavelText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
 import { printsSection } from '../print/layout.ts';
 import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
+import { utilityNameMissing } from '../points/derived.ts';
 import { duplicateTagText } from './block-texts.ts';
 import { calibrationLack, calibrationLackText, deadlineOverdueText, overduePointPositions, sheetsUnderRemovedLocalsText } from './pre-issue-warnings.ts';
 import { sharedCertificateText, sharedCertificateTwins, tickedUnusedInstruments, tickedUnusedText } from './instrument-use.ts';
@@ -49,6 +50,8 @@ import { sectionTextEmpty } from './section-variables.ts';
  * no verdict was tapped, `effectiveParecer` null); everything else warns and the document
  * prints its consequence. Story 25.7 (M20, every seed): a second one, `conclusion_stale`, a
  * concluded sheet whose stored conclusion text is stale, named with the sheets it leads to.
+ * Seed v18, batch e28a (Story 28.4): a third, `utility_name_missing`, a sheet not tested for the utility's equipment
+ * whose justification still holds the empty slot of the utility's name.
  * The `sync` rows (rejected ops, the other devices' last send) are what no Sumário row can
  * say: only the Export dialog draws them.
  */
@@ -85,6 +88,8 @@ export type PreIssueKind =
   | 'parecer_missing'
   | 'conclusion_unconfirmed'
   | 'conclusion_stale'
+  // Seed v18, batch e28a (Story 28.4): a sheet not tested for the utility's equipment with the utility's name empty; blocking.
+  | 'utility_name_missing'
   | 'suggestions_pending'
   | 'calibration'
   | 'certificate_missing'
@@ -529,6 +534,17 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
       sheets: staleSheets,
     });
   }
+  // Seed v18, batch e28a (Story 28.4; coordinator's reading on the frames, open to Matheus): a sheet not tested for
+  // "Equipamento da concessionária" whose justification still holds the empty slot of the utility's name blocks the
+  // issue, here and on the server, and names the sheets; the document never prints the gap.
+  const utilityGaps = snapshot.blocks
+    .filter((block) => block.removed_at === null && isEquipmentBlock(block))
+    .map((block) => ({ block, tag: block.equipment_id === null ? null : (snapshot.equipment.find((row) => row.id === block.equipment_id)?.tag ?? null) }))
+    .filter(({ block, tag }) => utilityNameMissing(block, tag));
+  if (utilityGaps.length > 0) {
+    const sheets = utilityGaps.map(({ block, tag }) => ({ blockId: block.id, name: tag ?? '' }));
+    rows.push({ id: 'utility_name_missing', row: 'section_9', severity: 'blocking', text: utilityNameMissingText(sheets.map((sheet) => sheet.name)), kind: 'utility_name_missing', sheets });
+  }
   for (const finding of integrityFindings({ equipment: snapshot.equipment })) {
     rows.push({
       id: `duplicate_tag:${finding.tag}`,
@@ -667,6 +683,15 @@ export function cabineIncompletaText(name: string, missingText: string): string 
 /** The rows addressed to one Sumário row. */
 export function preIssueRowsFor(rows: readonly PreIssueRow[], key: SumarioRowKey): PreIssueRow[] {
   return rows.filter((row) => row.row === key);
+}
+
+/**
+ * Seed v18, batch e28a (Story 28.4): "Nome da concessionária em branco: TP-04 e TC-03", the blocking row of the sheets
+ * not tested for the utility's equipment whose utility name is empty.
+ */
+// authored (Story 28.4, listed for Bruno): the pending row of an empty utility name.
+export function utilityNameMissingText(names: readonly string[]): string {
+  return `Nome da concessionária em branco: ${listPtBr(names.filter((name) => name !== ''))}`.trim();
 }
 
 /** The blocking rows, the ones "Gerar relatório" names in its reason. */

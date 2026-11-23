@@ -1565,3 +1565,11 @@ button.pp-mod-toggle { cursor: pointer; }
   [data-route="/relatorio/:id"] .revision-row { flex-wrap: wrap; padding: var(--sp-2) 0; }
   [data-route="/relatorio/:id"] .revision-row .rev-text { flex-basis: 100%; }
 }
+
+/* ---------- e28a (Story 28.4, seed v18, Bruno's Q-4): the justification of "Equipamento da concessionária" ----------
+   `60-ficha.html` (Story 28.1's frames, `#/ficha/TP-04` and `#/ficha/TC-03`, its page CSS of 2026-11-23): each rule below
+   is the mock's `[data-route="/ficha/:tag"] X` rule with the route of the app's sheet, declarations copied verbatim. */
+/* `[data-route="/ficha/:tag"] .e28-just`, `.e28-just .field.e28-name` and `.e28-just .observation-field` */
+[data-route="/relatorio/:id/ficha/:blockId"] .e28-just { display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/relatorio/:id/ficha/:blockId"] .e28-just .field.e28-name { max-width: 420px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .e28-just .observation-field { min-height: 120px; }

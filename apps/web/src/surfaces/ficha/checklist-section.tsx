@@ -1,4 +1,5 @@
 import {
+  checklistItemLabel,
   checklistResultIsStored,
   checklistResultOf,
   checklistUnsetItems,
@@ -273,7 +274,8 @@ export function ChecklistSection({
             api={api}
             target={sheetRowTarget(snapshot, block, item, pending, learned)}
             item={item}
-            label={screenLabel(item.label)}
+            // Seed v18 (Story 28.4): the item's words by the unit's kind, the kernel's.
+            label={screenLabel(checklistItemLabel(item, definition, block))}
             number={index + 1}
             readOnly={readOnly}
             photos={photos}

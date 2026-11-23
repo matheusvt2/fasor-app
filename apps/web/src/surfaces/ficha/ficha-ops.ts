@@ -224,8 +224,9 @@ export function concludedByOp(author: Author, relatorioId: string, blockId: stri
 
 /**
  * `block/{id}/not_tested` put (AR-17): "Marcar não ensaiado" (`{reason, text, at}`, `by`
- * added here) and its "Desfazer" (`null`).
+ * added here) and its "Desfazer" (`null`). Seed v18 (Story 28.4): the mark of "Equipamento da concessionária" also
+ * carries the utility's name (`utility_name`), written with the whole mark.
  */
-export function notTestedOp(author: Author, relatorioId: string, blockId: string, value: { reason: string; text: string | null; at: string } | null): OpDraft {
+export function notTestedOp(author: Author, relatorioId: string, blockId: string, value: { reason: string; text: string | null; at: string; utility_name?: string | null } | null): OpDraft {
   return putBlockOp(author, relatorioId, blockId, 'not_tested', value === null ? null : { ...value, by: author.id });
 }

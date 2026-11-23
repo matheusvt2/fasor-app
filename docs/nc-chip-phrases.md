@@ -298,3 +298,14 @@ Block types: `no_break_comando`.
 | 4 | BATERIAS | `baterias` | bateria estufada · vazamento de eletrólito · oxidação nos bornes da bateria · bateria com vida útil vencida |
 | 5 | ATERRAMENTO, BYPASS E IDENTIFICAÇÃO | `aterramento_bypass_e_identificacao` | aterramento desconectado · chave de bypass inoperante · no-break sem identificação |
 | 6 | CARGAS ALIMENTADAS IDENTIFICADAS | `cargas_alimentadas_identificadas` | cargas alimentadas sem identificação · relé sem alimentação do no-break · bobina de abertura sem alimentação do no-break |
+
+## Transformer on seed v18 (Epic 28, Story 28.4)
+
+*(2026-11-23, batch e28a, seed `v18`; Bruno's B-5, B-17 and Q-3.)* Two items appended after the seventeen of v17, asked on both kinds of unit. The label is Bruno's, one per kind: the kernel prints the dry words on a dry unit (`dry_label`, `checklistItemLabel`) and the oil words otherwise. The phrases are authored, one list true of both kinds, pending Bruno's review.
+
+Block types: `transformador_forca` (v18 only, the oil words first, then the dry words).
+
+| # | Item (oil unit / dry unit) | Key | NC phrases |
+| --- | --- | --- | --- |
+| 18 | RELÉ/TERMÔMETRO DE TEMPERATURA: ALARME E DESLIGAMENTO / SENSORES DE TEMPERATURA (PT100) E RELÉ TÉRMICO: ALARME E DESLIGAMENTO | `temperatura_alarme_e_desligamento` | alarme de temperatura não atua · desligamento por temperatura não atua · sensor de temperatura danificado ou desconectado |
+| 19 | ATERRAMENTO DO TANQUE E DO NEUTRO / ATERRAMENTO DA CARCAÇA E DO NEUTRO | `aterramento_carcaca_tanque_e_neutro` | aterramento do neutro desconectado · conexão de aterramento oxidada ou frouxa · cordoalha de aterramento danificada |

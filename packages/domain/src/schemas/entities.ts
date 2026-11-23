@@ -551,6 +551,13 @@ export const notTestedSchema = z.object({
   text: nullableString,
   at: isoTimestampSchema,
   by: actorIdSchema,
+  /**
+   * Seed v18, batch e28a (Story 28.4, Bruno's Q-4, contract 58): the utility's name a mark for a `utility` reason
+   * ("Equipamento da concessionária") fills its justification with; `text` is then the justification as rewritten on
+   * the ficha (null: the default, `notTestedJustification`). Optional and never defaulted, so no stored mark changes
+   * bytes.
+   */
+  utility_name: nullableString.optional(),
 });
 
 export const concludedBySchema = z.object({ actor_id: actorIdSchema, at: isoTimestampSchema });

@@ -1,4 +1,4 @@
-import { buildProseSuggestion, ncObsReadingTargetSchema, ncObsSkipReason, sheetChecklistPath } from '@app/domain';
+import { buildProseSuggestion, checklistItemLabel, ncObsReadingTargetSchema, ncObsSkipReason, sheetChecklistPath } from '@app/domain';
 import { PermanentReadingError } from '../providers/errors.ts';
 import { readingDefinitionOf, targetBlock } from './shared.ts';
 import type { ReadingKindHandler } from './types.ts';
@@ -38,7 +38,8 @@ export const ncObsHandler: ReadingKindHandler = {
         const prose = await providers.prose.describe({
           image: { bytes: image.bytes, mime: image.mime },
           kind: 'nc_obs',
-          context: { block_type: block.block_type, item_label: item.label },
+          // Seed v18 (Story 28.4): the item's words by the unit's kind, the kernel's.
+          context: { block_type: block.block_type, item_label: checklistItemLabel(item, definition, block) },
         });
         const built = buildProseSuggestion({
           relatorioId,

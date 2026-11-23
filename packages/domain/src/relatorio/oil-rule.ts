@@ -2,7 +2,7 @@ import { fileFieldPath, sheetChecklistPath, sheetNameplatePath } from '../ops/pa
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
-import type { OilRule } from '../seed/schema.ts';
+import type { BlockDefinition, ChecklistItem, FieldDef, OilRule } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { plural } from '../text/plural.ts';
 import { sentenceCase } from './reading-cells.ts';
@@ -95,6 +95,19 @@ export function oilDerivedNaKeysUnder(rule: OilRule | null, block: Partial<State
   return NONE;
 }
 
+/**
+ * Seed v18, batch e28a (Story 28.4, Bruno's Q-3): the words of a checklist item on this sheet: its `dry_label` on a dry
+ * unit (the definition's oil rule reads it non-oil), else its `label`. The one reader of an item's words on the screen,
+ * in print, in the points, the captions and the conclusion; no item of v1 to v17 has a `dry_label`, so they read
+ * `label` as before.
+ */
+export function checklistItemLabel(item: Pick<ChecklistItem, 'label' | 'dry_label'>, definition: Pick<BlockDefinition, 'oil_rule'> | null, block: Partial<Pick<BlockRow, 'sheet' | 'config'>>): string {
+  if (item.dry_label === undefined) return item.label;
+  const rule = definition?.oil_rule ?? null;
+  if (rule === null || block.sheet === undefined) return item.label;
+  return oilStateOf(rule, block.sheet.nameplate[rule.field], block.config) === false ? item.dry_label : item.label;
+}
+
 /** True when the block's rule names `itemKey` (the rule, not the config's NA defaults, decides it). */
 export function isOilItem(block: Partial<RuleBlock>, itemKey: string, ctx: DefinitionContext): boolean {
   return oilRuleOf(block, ctx)?.items.includes(itemKey as OilRule['items'][number]) ?? false;
@@ -178,12 +191,23 @@ export function oilFieldExcusedReason(block: StateBlock, fieldKey: string, ctx: 
  */
 export function isFieldHidden(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config' | 'sheet'>, fieldKey: string, ctx: DefinitionContext): boolean {
   const definition = blockDefinitionIn(ctx, { seed_version: block.seed_version, block_type: block.block_type, config: block.config });
-  const field = definition?.nameplate.find((candidate) => candidate.key === fieldKey);
-  const condition = field?.excused_unless;
-  if (definition === null || condition === undefined) return false;
-  const select = definition.nameplate.find((candidate) => candidate.key === condition.field);
+  if (definition === null) return false;
+  return isFieldHiddenUnder(definition.nameplate, block, fieldKey, 0);
+}
+
+/**
+ * `isFieldHidden` on the definition's plate. Seed v18, batch e28a (Story 28.3): a field whose condition names a field
+ * that is itself hidden is hidden too (TIPO (ANP) hangs on NATUREZA DO LÍQUIDO, which v18 hides on a dry unit). No
+ * field of v13 to v17 hangs on a field with a condition of its own, so they read as before.
+ */
+function isFieldHiddenUnder(nameplate: readonly FieldDef[], block: Pick<BlockRow, 'sheet'>, fieldKey: string, depth: number): boolean {
+  const condition = nameplate.find((candidate) => candidate.key === fieldKey)?.excused_unless;
+  if (condition === undefined || depth > nameplate.length) return false;
+  const select = nameplate.find((candidate) => candidate.key === condition.field);
+  if (select === undefined) return false;
+  if (select.excused_unless !== undefined && isFieldHiddenUnder(nameplate, block, select.key, depth + 1)) return true;
   const value = block.sheet.nameplate[condition.field]?.value;
-  if (select === undefined || typeof value !== 'string' || value.trim() === '') return false;
+  if (typeof value !== 'string' || value.trim() === '') return false;
   const option = selectOptionFor(select, value);
   return option !== null && !condition.in.includes(option);
 }
