@@ -9,7 +9,9 @@
    Matheus's Q-2); the note under an insulation table that holds a reading above the instrument's limit (Story 28.7); the variation
    note by Bruno's numbers in its short form and its one-line form (Story 28.8, Matheus's Q-7); section 10's additional items as topics
    (Story 28.9). Every v1 to v17 sheet prints as before. Table style copied from key-print-section-9-v15.html. Page-only: the printed A4
-   page is paper, black on white in every theme. 9 pt = 10 px here. Client, site, makers, names and values are invented sample data. */
+   page is paper, black on white in every theme. 9 pt = 10 px here. Client, site, makers, names and values are invented sample data.
+   2026-11-23, Matheus approved the frames and decided: in print CONSTRUÇÃO takes the empty last pair of the plate, after CLASSE
+   TÉRMICA, so no v17 plate row moves; on screen it stays right after TIPO DE ISOLAÇÃO. */
 .print-page { box-sizing: border-box; width: 794px; padding: 30px 48px 22px; background: #fff; color: #111; box-shadow: 0 1px 4px rgba(0,0,0,.25);
   display: flex; flex-direction: column; font-family: Arial, Helvetica, sans-serif; font-size: 10px; line-height: 1.35; }
 .print-page * { box-sizing: border-box; }
@@ -36,18 +38,16 @@
 .pt .is-delta, .pp-note.is-delta, .pp-bullets .is-delta, .pp-text .is-delta { outline: 2px dashed #1F5FA8; outline-offset: -3px; }
 .pp-note.is-delta { outline-offset: -1px; }
 .pp-bullets .is-delta { outline-offset: 1px; }
-.pp-frame { outline: 2px dashed #8A4B00; outline-offset: -3px; }   /* mock-only: a choice of this frame, open to Matheus */
 .mock-row.is-print { gap: var(--sp-6); }
 .mock-note { font-size: 13px; color: var(--ink-secondary); max-width: 794px; margin: var(--sp-2) 0 0; }
 .mock-legend { display: inline-block; width: 22px; height: 12px; outline: 2px dashed #1F5FA8; outline-offset: -3px; vertical-align: -1px; margin-right: 6px; }
-.mock-legend.is-frame { outline-color: #8A4B00; }
 .src-table { width: 794px; border-collapse: collapse; font-size: 13px; background: var(--surface-raised); color: var(--ink-primary); }
 .src-table th, .src-table td { border: 1px solid var(--border-strong); padding: 6px 10px; text-align: left; vertical-align: top; }
 .src-table th { background: var(--surface-base); font-weight: 600; }
 </style></head>
 <body class="mock-page">
 <h1 class="mock-title">Seção 9 e seção 10 impressas — o que muda num relatório v18</h1>
-<p class="mock-sub">Story 28.1 (2026-11-23), para o Matheus aprovar. O documento está protegido: num relatório de seed v18 mudam só as coisas abaixo em relação à v17, desenhadas sobre o que a v17 imprime hoje. Na placa do transformador entra CONSTRUÇÃO, TIPO DE ISOLAÇÃO diz "A SECO" ou "A ÓLEO", e o campo que o tipo não pede imprime "-"; sob uma tabela de isolação com uma leitura acima do limite do instrumento entra uma nota; a nota de variação nomeia só o que passou dos números do Bruno, em forma curta, e vira uma linha só com três ou mais variações no equipamento; a seção 10 imprime os itens adicionais como tópicos. Todo relatório v1 a v17 continua imprimindo como hoje. Valores, nomes e textos de exemplo. <span class="mock-legend" aria-hidden="true"></span>contorno azul = o que muda; <span class="mock-legend is-frame" aria-hidden="true"></span>contorno âmbar = escolha deste desenho, a confirmar com o Matheus (só no mock, não imprime).</p>
+<p class="mock-sub">Story 28.1 (2026-11-23), aprovada pelo Matheus em 2026-11-23. O documento está protegido: num relatório de seed v18 mudam só as coisas abaixo em relação à v17, desenhadas sobre o que a v17 imprime hoje. Na placa do transformador entra CONSTRUÇÃO, TIPO DE ISOLAÇÃO diz "A SECO" ou "A ÓLEO", e o campo que o tipo não pede imprime "-"; sob uma tabela de isolação com uma leitura acima do limite do instrumento entra uma nota; a nota de variação nomeia só o que passou dos números do Bruno, em forma curta, e vira uma linha só com três ou mais variações no equipamento; a seção 10 imprime os itens adicionais como tópicos. Todo relatório v1 a v17 continua imprimindo como hoje. Valores, nomes e textos de exemplo. <span class="mock-legend" aria-hidden="true"></span>contorno azul = o que muda (só no mock, não imprime).</p>
 
 <div class="mock-row is-print">
 <div class="mock-item">
@@ -56,12 +56,12 @@
 <p class="pp-sheet">TRANSFORMADOR DE FORÇA TR-04</p>
 <table class="pt pt-plate"><thead><tr class="pt-title"><th colspan="6">DADOS DO EQUIPAMENTO</th></tr></thead><tbody>
 <tr><td class="pl">IDENTIFICAÇÃO</td><td>TR-04</td><td class="pl">FABRICAÇÃO</td><td>Fabricante A</td><td class="pl">Nº SÉRIE</td><td>0000-2231</td></tr>
-<tr><td class="pl">TIPO</td><td>TS-500</td><td class="pl is-delta">TIPO DE ISOLAÇÃO</td><td class="is-delta">A SECO</td><td class="pl is-delta pp-frame">CONSTRUÇÃO</td><td class="is-delta pp-frame">ENCAPSULADO EM RESINA EPÓXI</td></tr>
-<tr><td class="pl">NATUREZA DO LÍQUIDO</td><td>-</td><td class="pl">TIPO (ANP)</td><td>-</td><td class="pl">VOL. ÓLEO</td><td>-</td></tr>
-<tr><td class="pl">POTÊNCIA NOMINAL</td><td><span class="nb">500 kVA</span></td><td class="pl">TAPS</td><td><span class="nb">13,8 kV</span>; <span class="nb">13,2 kV</span>; <span class="nb">12,6 kV</span></td><td class="pl">TAP ATUAL</td><td><span class="nb">13,2 kV</span></td></tr>
-<tr><td class="pl">DATA FABRICAÇÃO</td><td>05/2019</td><td class="pl">TENSÃO NOMINAL AT</td><td><span class="nb">13,8 kV</span></td><td class="pl">TENSÃO NOMINAL BT</td><td><span class="nb">380 V</span></td></tr>
-<tr><td class="pl">DESLOCAMENTO ANGULAR</td><td>Dyn1</td><td class="pl">IMPEDÂNCIA</td><td><span class="nb">5,5 %</span></td><td class="pl">MATERIAL DO ENROLAMENTO</td><td>Al</td></tr>
-<tr><td class="pl">TEMPERATURA DO ÓLEO</td><td>-</td><td class="pl">TEMPERATURA DO ENROLAMENTO</td><td><span class="nb">34 °C</span></td><td class="pl">CLASSE TÉRMICA</td><td>F</td></tr>
+<tr><td class="pl">TIPO</td><td>TS-500</td><td class="pl is-delta">TIPO DE ISOLAÇÃO</td><td class="is-delta">A SECO</td><td class="pl">NATUREZA DO LÍQUIDO</td><td>-</td></tr>
+<tr><td class="pl">TIPO (ANP)</td><td>-</td><td class="pl">VOL. ÓLEO</td><td>-</td><td class="pl">POTÊNCIA NOMINAL</td><td><span class="nb">500 kVA</span></td></tr>
+<tr><td class="pl">TAPS</td><td><span class="nb">13,8 kV</span>; <span class="nb">13,2 kV</span>; <span class="nb">12,6 kV</span></td><td class="pl">TAP ATUAL</td><td><span class="nb">13,2 kV</span></td><td class="pl">DATA FABRICAÇÃO</td><td>05/2019</td></tr>
+<tr><td class="pl">TENSÃO NOMINAL AT</td><td><span class="nb">13,8 kV</span></td><td class="pl">TENSÃO NOMINAL BT</td><td><span class="nb">380 V</span></td><td class="pl">DESLOCAMENTO ANGULAR</td><td>Dyn1</td></tr>
+<tr><td class="pl">IMPEDÂNCIA</td><td><span class="nb">5,5 %</span></td><td class="pl">MATERIAL DO ENROLAMENTO</td><td>Al</td><td class="pl">TEMPERATURA DO ÓLEO</td><td>-</td></tr>
+<tr><td class="pl">TEMPERATURA DO ENROLAMENTO</td><td><span class="nb">34 °C</span></td><td class="pl">CLASSE TÉRMICA</td><td>F</td><td class="pl is-delta">CONSTRUÇÃO</td><td class="is-delta">ENCAPSULADO EM RESINA EPÓXI</td></tr>
 </tbody></table>
 <p class="pp-omit-line">Trecho omitido no mock: VERIFICAÇÕES GERAIS, com os itens 18 e 19 nas palavras do transformador a seco</p>
 <table class="pt pt-85"><thead>
@@ -88,16 +88,16 @@
 <p class="pp-sheet">TRANSFORMADOR DE FORÇA TR-05</p>
 <table class="pt pt-plate"><thead><tr class="pt-title"><th colspan="6">DADOS DO EQUIPAMENTO</th></tr></thead><tbody>
 <tr><td class="pl">IDENTIFICAÇÃO</td><td>TR-05</td><td class="pl">FABRICAÇÃO</td><td>Fabricante C</td><td class="pl">Nº SÉRIE</td><td>0000-3318</td></tr>
-<tr><td class="pl">TIPO</td><td>TO-750</td><td class="pl is-delta">TIPO DE ISOLAÇÃO</td><td class="is-delta">A ÓLEO</td><td class="pl is-delta pp-frame">CONSTRUÇÃO</td><td class="is-delta pp-frame">-</td></tr>
-<tr><td class="pl">NATUREZA DO LÍQUIDO</td><td>MINERAL</td><td class="pl">TIPO (ANP)</td><td>A</td><td class="pl">VOL. ÓLEO</td><td><span class="nb">420 L</span></td></tr>
-<tr><td class="pl">POTÊNCIA NOMINAL</td><td><span class="nb">750 kVA</span></td><td class="pl">TAPS</td><td><span class="nb">13,8 kV</span>; <span class="nb">13,2 kV</span>; <span class="nb">12,6 kV</span></td><td class="pl">TAP ATUAL</td><td><span class="nb">13,8 kV</span></td></tr>
-<tr><td class="pl">DATA FABRICAÇÃO</td><td>11/2016</td><td class="pl">TENSÃO NOMINAL AT</td><td><span class="nb">13,8 kV</span></td><td class="pl">TENSÃO NOMINAL BT</td><td><span class="nb">380 V</span></td></tr>
-<tr><td class="pl">DESLOCAMENTO ANGULAR</td><td>Dyn1</td><td class="pl">IMPEDÂNCIA</td><td><span class="nb">4,8 %</span></td><td class="pl">MATERIAL DO ENROLAMENTO</td><td>Cu</td></tr>
-<tr><td class="pl">TEMPERATURA DO ÓLEO</td><td><span class="nb">38 °C</span></td><td class="pl">TEMPERATURA DO ENROLAMENTO</td><td>-</td><td class="pl">CLASSE TÉRMICA</td><td>-</td></tr>
+<tr><td class="pl">TIPO</td><td>TO-750</td><td class="pl is-delta">TIPO DE ISOLAÇÃO</td><td class="is-delta">A ÓLEO</td><td class="pl">NATUREZA DO LÍQUIDO</td><td>MINERAL</td></tr>
+<tr><td class="pl">TIPO (ANP)</td><td>A</td><td class="pl">VOL. ÓLEO</td><td><span class="nb">420 L</span></td><td class="pl">POTÊNCIA NOMINAL</td><td><span class="nb">750 kVA</span></td></tr>
+<tr><td class="pl">TAPS</td><td><span class="nb">13,8 kV</span>; <span class="nb">13,2 kV</span>; <span class="nb">12,6 kV</span></td><td class="pl">TAP ATUAL</td><td><span class="nb">13,8 kV</span></td><td class="pl">DATA FABRICAÇÃO</td><td>11/2016</td></tr>
+<tr><td class="pl">TENSÃO NOMINAL AT</td><td><span class="nb">13,8 kV</span></td><td class="pl">TENSÃO NOMINAL BT</td><td><span class="nb">380 V</span></td><td class="pl">DESLOCAMENTO ANGULAR</td><td>Dyn1</td></tr>
+<tr><td class="pl">IMPEDÂNCIA</td><td><span class="nb">4,8 %</span></td><td class="pl">MATERIAL DO ENROLAMENTO</td><td>Cu</td><td class="pl">TEMPERATURA DO ÓLEO</td><td><span class="nb">38 °C</span></td></tr>
+<tr><td class="pl">TEMPERATURA DO ENROLAMENTO</td><td>-</td><td class="pl">CLASSE TÉRMICA</td><td>-</td><td class="pl is-delta">CONSTRUÇÃO</td><td class="is-delta">-</td></tr>
 </tbody></table>
 <p class="pp-omit-line">Trecho omitido no mock: VERIFICAÇÕES GERAIS, com os itens 18 e 19 nas palavras do transformador a óleo, os ensaios e a conclusão, como na v17</p>
   </div></div>
-  <p class="mock-note">Na v17 esta linha imprime TIPO DE ISOLAÇÃO "ÓLEO ISOLANTE" seguida de NATUREZA DO LÍQUIDO, e as linhas seguem de três em três. Contorno âmbar: CONSTRUÇÃO logo depois de TIPO DE ISOLAÇÃO, onde a tela a mostra; por isso, numa ficha v18, os pares seguintes andam uma casa (a última linha, que na v17 tem um par vazio, fica cheia). A outra forma, que não move nada, é CONSTRUÇÃO no par vazio do fim, depois de CLASSE TÉRMICA. A escolha é do Matheus.</p>
+  <p class="mock-note">CONSTRUÇÃO ocupa o par vazio do fim da placa, depois de CLASSE TÉRMICA, e nenhuma linha da v17 se move (decisão do Matheus, 2026-11-23). Na tela o campo continua logo depois de TIPO DE ISOLAÇÃO.</p>
 </div>
 </div>
 
@@ -160,7 +160,7 @@
   <table class="src-table">
     <thead><tr><th scope="col">Mudança</th><th scope="col">Relatório v18 imprime</th><th scope="col">Relatório v1 a v17</th></tr></thead>
     <tbody>
-      <tr><td>Isolação do transformador (Story 28.3, Q-1 e Q-2)</td><td>TIPO DE ISOLAÇÃO "A SECO" ou "A ÓLEO". CONSTRUÇÃO com o valor no seco e "-" no óleo; NATUREZA DO LÍQUIDO e TIPO (ANP) com "-" no seco, como hoje</td><td>"EPÓXI", "Á SECO" ou "ÓLEO ISOLANTE"; sem CONSTRUÇÃO</td></tr>
+      <tr><td>Isolação do transformador (Story 28.3, Q-1 e Q-2)</td><td>TIPO DE ISOLAÇÃO "A SECO" ou "A ÓLEO". CONSTRUÇÃO no par vazio do fim da placa, depois de CLASSE TÉRMICA, com o valor no seco e "-" no óleo; nenhuma linha se move; NATUREZA DO LÍQUIDO e TIPO (ANP) com "-" no seco, como hoje</td><td>"EPÓXI", "Á SECO" ou "ÓLEO ISOLANTE"; sem CONSTRUÇÃO, o último par da placa vazio</td></tr>
       <tr><td>TP e TC (Story 28.3)</td><td>"ÓLEO VEGETAL" quando escolhido; o resto igual</td><td>Como hoje</td></tr>
       <tr><td>Itens 18 e 19 do transformador (Story 28.4, Q-3)</td><td>Duas linhas a mais em VERIFICAÇÕES GERAIS, com as palavras do tipo (óleo ou seco)</td><td>17 itens</td></tr>
       <tr><td>Bateria do No-break (Q-5)</td><td>"BATERIAS: DATA DE FABRICAÇÃO, INSTALAÇÃO OU TROCA"</td><td>"BATERIAS: DATA DE FABRICAÇÃO OU INSTALAÇÃO"</td></tr>

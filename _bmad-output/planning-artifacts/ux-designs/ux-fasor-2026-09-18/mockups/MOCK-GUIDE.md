@@ -462,7 +462,7 @@ Six example sheets on seed v18 were added to `60-ficha.html` (`data-only-tag` bl
 
 Choices of this frame, open to Matheus:
 
-- **Where CONSTRUÇÃO prints.** Drawn right after TIPO DE ISOLAÇÃO, where the screen shows it, so on a v18 transformer the plate pairs after it move one slot (the last row of v17's plate has an empty pair, which fills). The alternative that moves nothing is the empty pair at the end, after CLASSE TÉRMICA; it would also put the field at the end of the screen's plate. Outlined in amber in the print frame.
+- **Where CONSTRUÇÃO prints.** ~~Drawn right after TIPO DE ISOLAÇÃO, where the screen shows it, so on a v18 transformer the plate pairs after it move one slot (the last row of v17's plate has an empty pair, which fills). The alternative that moves nothing is the empty pair at the end, after CLASSE TÉRMICA; it would also put the field at the end of the screen's plate. Outlined in amber in the print frame.~~ *(2026-11-23, Matheus, "use o recomendado": closed. In print CONSTRUÇÃO takes the empty last pair of the plate, after CLASSE TÉRMICA, so no v17 plate row moves; on screen it stays right after TIPO DE ISOLAÇÃO, as drawn. The print frame is redrawn so and the amber outline is gone.)*
 - **The corrected cell of a "> 2 TΩ" reading** is drawn "-" (nothing to correct); the batch confirms what `overRangeText` gives there today.
 - **The prototype's parecer band is numbered "Etapa 5"**, older than the app, whose "Etapa 6 — Conclusão e parecer" it is. The number was left as it is; the list is drawn in that band.
 
@@ -470,4 +470,6 @@ Labels authored here (the frame's, listed for Bruno): "Construção" helper "Opc
 
 Not drawn here: the two new thermography reasons of Story 28.4 (a chip each in the existing list), the NC phrases of items 18 and 19 (the batch authors them), section 9's print of a sheet not tested for the utility (it prints its justification as the other reasons do), Story 28.10's texts and band (no frame asked). The screen on `PT100`: `screenLabel` would lower it unless the batch adds it to `SCREEN_LABEL_ACRONYMS`. `prototype/index.html` was rebuilt with `build.py` (no warnings).
 
-**Approval:** pending, Matheus in the browser.
+~~**Approval:** pending, Matheus in the browser.~~
+
+**Approved by Matheus on 2026-11-23** ("aprovado"), with the one open choice decided as above (CONSTRUÇÃO in the plate's empty last pair in print). The other two notes stay as written: the batch confirms the corrected cell of a "> 2 TΩ" reading, and the prototype band keeps its number.

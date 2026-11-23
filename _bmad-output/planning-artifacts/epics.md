@@ -12437,6 +12437,8 @@ So that the batches build from frames, not from a guess (E14-A4).
 - Matheus's approval recorded in the PR.
 - `docs/kbs/ux/mockups-and-css.md` and `log.md`.
 
+*(2026-11-23, Matheus: the frames are approved ("aprovado"), PR #368. The frames are `prototype/screens/60-ficha.html` (`#/ficha/TR-04`, `TR-05`, `TP-03`, `TP-04`, `TC-03`, `NB-03`, the editor `#ficha-dlg-ponto-v18`), `50-relatorio-setup.html` (`#setup-e28-items`) and `key-print-section-9-v18.html`; the table, the authored labels and the notes are in `MOCK-GUIDE.md` § 2026-11-23. Its one open choice is decided, "use o recomendado": in print CONSTRUÇÃO takes the empty last pair of the transformer's plate, after CLASSE TÉRMICA, so no v17 plate row moves; on screen it stays right after TIPO DE ISOLAÇÃO.)*
+
 ### Story 28.2: Seed v18 opens and the v17 layout is locked
 
 **Dev model:** opus · **Effort:** high · kernel: `seed/v18.ts` equal to v17, `SEED_VERSION` v18, `V17_HASH` pinned as shipped, the v17 layout lock confirmed against the deployed commit; contract main's plus one, at least 58
@@ -12542,6 +12544,8 @@ So that the plate says once what kind of unit it is (B-4; the oil half of Story 
 - The `source-deltas.md` row's "planned" replaced by the built record; a dated line under Story 25.19.
 - `docs/kbs/architecture/kernel-and-seed.md`, `docs/kbs/architecture/suggestions-and-reading.md` and `log.md`.
 
+*(2026-11-23, Matheus, on the Story 28.1 frames, "use o recomendado": where CONSTRUÇÃO prints. On a v18 transformer the printed plate (DADOS DO EQUIPAMENTO, three pairs per row) keeps every v17 row where it is, and CONSTRUÇÃO takes the empty last pair, after CLASSE TÉRMICA: its value on a dry unit, "-" on an oil unit. On screen the field sits right after TIPO DE ISOLAÇÃO, so the printed order of this one field differs from the screen's. Frame: `key-print-section-9-v18.html`.)*
+
 ### Story 28.4: Two items on the oil transformer, two reasons for a thermography not done, and the reason "Equipamento da concessionária"
 
 **Dev model:** opus · **Effort:** medium · seed v18, seed data: two new items on the transformer's list; two new thermography reasons; one new not-tested reason with its justification; new item and reason keys on the batch's contract number; v17 lists unchanged
@@ -12593,6 +12597,10 @@ So that he stops writing them by hand (B-5, B-17, B-8, B-15).
 - `e2e/seed-v18-lists.spec.ts` "28.4-E2E-001 @p0": the two items answered NC, the new thermography reason, the new not-tested reason, through the DOCX.
 - `docs/nc-chip-phrases.md`; the authored phrases and justification listed in the PR for Bruno.
 - `docs/kbs/architecture/kernel-and-seed.md` and `log.md`.
+
+*(2026-11-23, notes for the batch from the Story 28.1 frames, PR #368:)*
+- *`PT100` on screen.* The dry unit's item "SENSORES DE TEMPERATURA (PT100) E RELÉ TÉRMICO: ALARME E DESLIGAMENTO" renders through `screenLabel`, which would lower "PT100" to "Pt100". The batch adds `PT100` to `SCREEN_LABEL_ACRONYMS` (`packages/domain/src/relatorio/screen-label.ts`) with its test, so the screen reads "Sensores de temperatura (PT100) e relé térmico: alarme e desligamento", as the frame `#/ficha/TR-04` draws it.
+- *An empty utility name at issue.* The story decides what a sheet not tested for "Equipamento da concessionária" does while its utility name is empty. *Coordinator's reading, open to Matheus:* the sheet raises a pending row, and the relatório does not issue with the gap left in the sentence. The frame `#/ficha/TC-03` draws the empty state (the slot in the placeholder ink and "Digite o nome: ele completa o texto abaixo."); the pending row's words are the batch's, listed for Bruno.
 
 ### Story 28.5: A point starts with a priority and an action, and its deadline counts from the issue date
 
