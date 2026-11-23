@@ -458,6 +458,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   return (
     <DialogShell
       className="export-dialog"
+      // Story 29.2: the dialog's open state is the Sumário's `?exportar=1`, an entry of its own.
+      history={false}
       isOpen={isOpen}
       onOpenChange={(next) => {
         // Esc and the scrim: the dialog's cancel path, unless the generation it was opened for succeeded.

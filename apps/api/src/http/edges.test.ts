@@ -76,6 +76,8 @@ describe('20.13-UNIT the better-auth allowlist (S7)', () => {
       // Story 26.6 (batch e26c): extended, the two password routes.
       'POST /api/auth/request-password-reset',
       'POST /api/auth/reset-password',
+      // Story 29.1 (batch e29a): extended, the signed-in user's password change.
+      'POST /api/auth/change-password',
     ]);
     for (const route of AUTH_ROUTES) {
       const res = await app.request(route.path, route.method === 'POST' ? post(route.path, { headers: headersOf({}), body: '{}' }).init : { method: 'GET' });
@@ -88,7 +90,6 @@ describe('20.13-UNIT the better-auth allowlist (S7)', () => {
       ['GET', '/api/auth/list-sessions'],
       ['POST', '/api/auth/revoke-other-sessions'],
       ['POST', '/api/auth/revoke-sessions'],
-      ['POST', '/api/auth/change-password'],
       ['POST', '/api/auth/change-email'],
       ['POST', '/api/auth/sign-up/email'],
       ['POST', '/api/auth/delete-user'],

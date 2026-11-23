@@ -9,6 +9,8 @@ import { copy } from '../copy/pt-br.ts';
 import { ui } from '../copy/ui.ts';
 import { oldestPendingClientTs } from '../db/commit.ts';
 import { useLiveQuery } from '../db/live.ts';
+import { startOverlayHistory } from '../state/overlay-history.ts';
+import { useScrollRestoration } from '../state/scroll-restoration.ts';
 import { useBackTargetValue } from '../state/back-target.tsx';
 import { BannerSlot, bannerCandidates } from '../state/banner-slot.tsx';
 import { useExtraBannerValue } from '../state/extra-banner.tsx';
@@ -99,6 +101,9 @@ export function AppShell() {
   // E12-Q2: a forward navigation opens the new page at its top, its heading focused.
   const titleRef = useRef<HTMLHeadingElement>(null);
   useForwardArrival(titleRef);
+  // Story 29.2: a back (a pop) returns to the scroll the screen had, and closes an open overlay first.
+  useScrollRestoration();
+  useEffect(() => startOverlayHistory(), []);
 
   function goBack(): void {
     // A `useBackTarget` override (the Export-dialog return) wins over the route's back.

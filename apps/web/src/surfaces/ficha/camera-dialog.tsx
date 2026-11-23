@@ -1,6 +1,7 @@
 import { burstCountText, cameraContextText, cameraSavingText, cameraZoomText } from '@app/domain';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Button as AriaButton, Dialog, Modal, ModalOverlay, ToggleButton } from 'react-aria-components';
+import { OverlayHistory } from '../../state/overlay-history.ts';
 import { useScreenWakeLock } from '../../input/use-screen-wake-lock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { cameraCapabilities, useCameraControls } from './camera-controls.ts';
@@ -108,6 +109,8 @@ export function CameraView({
   return (
     <ModalOverlay className="dialog-scrim scrim-camera" isOpen isDismissable={false} onOpenChange={(isOpen) => (isOpen ? undefined : onClose())}>
       <Modal className="dialog-modal">
+        {/* Story 29.2: the device's back closes the camera and nothing else. */}
+        <OverlayHistory />
         <Dialog className="camera-view" aria-label={t.cameraLabel} ref={markModal}>
           <div className="cam-top">
             <AriaButton className="icon-btn" aria-label={t.closeCamera} onPress={onClose}>
