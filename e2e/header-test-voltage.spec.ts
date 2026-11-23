@@ -233,12 +233,12 @@ test('@p0 28.6-E2E-001 v18 transformer: the rows take the header\'s test voltage
   const input = section.locator('.e25-header-param').getByRole('textbox', { name: 'Tensão de ensaio' });
   const cellOf = (row: number) => section.locator('td.cell-voltage').filter({ has: page.locator(`.ficha-cell[data-row-voltage="${row}"]`) });
   const definition = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
-  const test = definition.tests.find((one) => one.key === 'isolacao')!;
+  const insulation = definition.tests.find((one) => one.key === 'isolacao')!;
   /** What the kernel says of the three rows, read from the block this device holds. */
   const rowsNow = async () => {
     const block = (await entities(page)).find((record) => record.entity === 'block' && record.id === transformer.blockId)!.row as BlockRow;
     return [0, 1, 2].map((row) => {
-      const voltage = rowTestVoltage(block, test, row, definition)!;
+      const voltage = rowTestVoltage(block, insulation, row, definition)!;
       return { text: voltage.text, source: rowVoltageSourceText(voltage, block.seed_version) };
     });
   };
