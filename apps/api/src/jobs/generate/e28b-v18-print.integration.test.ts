@@ -21,7 +21,7 @@ import { placeholderPages } from './toc.ts';
  */
 
 const ISSUED_AT = '2026-12-10T15:00:00.000Z';
-const NBSP = / /gu;
+const NBSP = /\u00a0/gu;
 
 const sofficeOnPath = (process.env.PATH ?? '').split(delimiter).some((dir) => {
   try {

@@ -19,7 +19,7 @@ import { section9Layout, type PrintSheet } from './section-9.ts';
  */
 
 const TITLE = 'RELATÓRIOS DOS ENSAIOS';
-const NBSP = ' ';
+const NBSP = '\u00a0';
 const NOTE = 'Em relação à manutenção anterior: ';
 const BRUNO = 'Valores de resistência de isolação superiores a ';
 
@@ -70,7 +70,7 @@ describe('28.7-UNIT a reading above the instrument\'s limit prints with Bruno\'s
     const { sheet } = withBreaker('v18', 'isolacao', [overRange('2', 'TΩ')]);
     const lines = paragraphsOf(sheet()).filter((text) => text.startsWith(BRUNO));
     expect(lines).toEqual([`${BRUNO}2${NBSP}TΩ, limite de leitura do instrumento na tensão de ensaio aplicada.`]);
-    const cells = sheet().parts.flatMap((part) => (part.kind === 'table' ? part.table.rows.flatMap((row) => row.cells.map((one) => one.text.replace(/ /gu, ' '))) : []));
+    const cells = sheet().parts.flatMap((part) => (part.kind === 'table' ? part.table.rows.flatMap((row) => row.cells.map((one) => one.text.replace(/\u00a0/gu, ' '))) : []));
     expect(cells).toContain('> 2 TΩ');
     // Story 23.4's sentence gives way to Bruno's on v18.
     expect(paragraphsOf(sheet()).some((text) => text.startsWith('Valores de resistência de isolamento'))).toBe(false);
