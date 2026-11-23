@@ -4,6 +4,7 @@ import { OverflowMenu } from '../../components/index.ts';
 import { useFillAccess } from '../../state/permissions.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relatorio-tree-shared.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * E14-A7: the rail presentation of the relatório tree (`relatorio-tree.tsx` says what each
@@ -71,7 +72,7 @@ export const RailLocation = memo(function RailLocation({ node, shared }: { node:
                 <button type="button" className="tree-body" data-tree-open aria-label={copy.local.entryLabel(site.ncBadge === null ? SITE_CHECKLIST_LABEL : `${SITE_CHECKLIST_LABEL} · ${site.ncBadge}`, node.name)} onClick={() => shared.actions.openVerificacoes(node.id)}>
                   <span className="tree-id">
                     <svg className="ico ico-sm" aria-hidden="true">
-                      <use href="/sprite.svg#i-check-all" />
+                      <use href={spriteHref('i-check-all')} />
                     </svg>
                     <span className="tree-name">{SITE_CHECKLIST_LABEL}</span>
                     <span className="tree-meta">{site.railCounter}</span>

@@ -20,6 +20,7 @@ import { Button as AriaButton, Menu, MenuItem, MenuSection, MenuTrigger, Popover
 import { relabelDismissButtons } from '../../components/dismiss-label.ts';
 import { OVERFLOW_MENU_PLACEMENT } from '../../components/overflow-menu.tsx';
 import { copy } from '../../copy/pt-br.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 26.10 (`mockups/prototype/screens/93-papeis.html`): the grid of Papéis e permissões, roles
@@ -45,7 +46,7 @@ export function LockIcon() {
 function ChevronDown({ className = 'ico ico-sm' }: { className?: string }) {
   return (
     <svg className={className} aria-hidden="true">
-      <use href="/sprite.svg#i-chev-down" />
+      <use href={spriteHref('i-chev-down')} />
     </svg>
   );
 }

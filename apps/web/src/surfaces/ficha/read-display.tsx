@@ -73,6 +73,7 @@ import { useCropViewer } from './nameplate-suggestions.tsx';
 import { CancelledReading, DisplayEmptyLine, DisplayFailedLine, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 9.1 (FR-36/37, EXPERIENCE.md › Measurement readings and Read display button;
@@ -354,7 +355,7 @@ export function QueuedBanner({ entry, tile, retake = null }: { entry: DisplayQue
       return (
         <span className="queued-banner">
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-image" />
+            <use href={spriteHref('i-image')} />
           </svg>
           {online ? t.displayRunning : t.displayQueued}
         </span>
@@ -365,7 +366,7 @@ export function QueuedBanner({ entry, tile, retake = null }: { entry: DisplayQue
       return (
         <span className="queued-banner">
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-image" />
+            <use href={spriteHref('i-image')} />
           </svg>
           {t.displayRunning}
         </span>
@@ -660,7 +661,7 @@ export function ReadDisplayButton({
         onPress={camera.open}
       >
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-camera" />
+          <use href={spriteHref('i-camera')} />
         </svg>
         {t.readDisplay}
       </AriaButton>
@@ -686,7 +687,7 @@ export function ConfirmTableButton({ model, testKey, tableKey, exclude }: { mode
   return (
     <button type="button" className="btn btn-secondary" onClick={() => model.confirmAll(testKey, tableKey, exclude)}>
       <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-check-all" />
+        <use href={spriteHref('i-check-all')} />
       </svg>
       {confirmarTodosText(n)}
     </button>
@@ -783,7 +784,7 @@ export function EnvReadDisplayButton({ relatorioId, cabineId, target }: { relato
         onPress={camera.open}
       >
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-camera" />
+          <use href={spriteHref('i-camera')} />
         </svg>
         {t.readDisplay}
       </AriaButton>

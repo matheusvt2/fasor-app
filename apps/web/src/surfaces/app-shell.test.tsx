@@ -10,6 +10,7 @@ import { SyncContext, type SyncState } from '../state/sync.tsx';
 import { makeSyncState } from '../test/sync-state.ts';
 import { ToastProvider, useToast } from '../state/toast.tsx';
 import { AppShell } from './app-shell.tsx';
+import { spriteHref } from '../styles/sprite.ts';
 
 /*
  * The shell renders the App bar, the one banner slot, the sync live region and the
@@ -127,7 +128,7 @@ describe('AppShell app bar', () => {
       const view = renderShell(syncState(), path);
       const back = screen.getByRole('button', { name: 'Voltar' });
       expect(back).toHaveClass('icon-btn');
-      expect(back.querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-back');
+      expect(back.querySelector('use')).toHaveAttribute('href', spriteHref('i-back'));
       await userEvent.click(back);
       expect(screen.getByText('home')).toBeVisible();
       view.unmount();

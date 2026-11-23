@@ -25,6 +25,7 @@ import { useSession } from '../../state/session.tsx';
 import type { DecisionActions } from './decision-actions.ts';
 import './sync.css';
 import { useDialogTelemetry } from '../../telemetry/hooks.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Stories 10.2 and 10.3 (FR-59, `prototype/screens/86-sync-conflito.html`, epic-10
@@ -77,7 +78,7 @@ export function ConflictDialog({ entry, decision, context, actions, onClose }: C
           </div>
           <button type="button" className="icon-btn" aria-label={t.close} onClick={cancel}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-close" />
+              <use href={spriteHref('i-close')} />
             </svg>
           </button>
         </div>

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DictationButton, SpeechEngineProvider } from './dictation.tsx';
 import { createSpeechEngine, type SpeechEngine } from './engine.ts';
 import { createFakeEngine } from './fake-engine.ts';
+import { spriteHref } from '../styles/sprite.ts';
 
 /*
  * 9.4-UNIT: the Dictation button. Hidden (no element) with no engine, an unavailable one or
@@ -65,7 +66,7 @@ describe('9.4-UNIT DictationButton', () => {
     const button = screen.getByRole('button', { name: 'Ditar a legenda' });
     expect(button).toHaveClass('dictation-btn');
     expect(button).toHaveAttribute('aria-pressed', 'false');
-    expect(button.querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-mic');
+    expect(button.querySelector('use')).toHaveAttribute('href', spriteHref('i-mic'));
     expect(container.querySelector('.dictation > .listening-word')).toHaveTextContent('Ouvindo…');
     // E9-Q11: the live region exists before listening, empty, and says the word once it listens.
     const live = container.querySelector('.dictation > [aria-live="polite"]');

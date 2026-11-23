@@ -71,6 +71,7 @@ import { useReadingCancelled } from './reading-line.tsx';
 import { TapAtualField } from './tap-atual-field.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /** Fix batch e24y (P3): the nameplate field that holds the plate's TAG, the equipment's TAG. */
 const PLATE_TAG_FIELD = 'tag';
@@ -435,7 +436,7 @@ export function NameplateSection({
         {same === null ? null : (
           <Chip onPress={copySame}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-repeat" />
+              <use href={spriteHref('i-repeat')} />
             </svg>
             {t.igualA(same.tag)}
           </Chip>
@@ -443,7 +444,7 @@ export function NameplateSection({
         {lastVisit.length === 0 || own === undefined ? null : (
           <Chip onPress={() => copyFrom(lastVisit, camposCopiadosText)}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-repeat" />
+              <use href={spriteHref('i-repeat')} />
             </svg>
             {t.lastVisit(own.tag)}
           </Chip>

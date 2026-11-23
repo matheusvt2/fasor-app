@@ -11,6 +11,7 @@ import { RelatorioGate } from './relatorio-gate.tsx';
 import { RelatorioTree } from './relatorio-tree.tsx';
 import './relatorio.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /**
  * `/relatorio/:id/arvore` (Story 4.4): the location tree in its rail presentation until
@@ -68,7 +69,7 @@ function Arvore({ relatorioId, state }: { relatorioId: string; state: EntityStat
           }}
         >
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-tree" />
+            <use href={spriteHref('i-tree')} />
           </svg>
         </button>
         <span className="rail-vlabel" aria-hidden="true">
@@ -89,7 +90,7 @@ function Arvore({ relatorioId, state }: { relatorioId: string; state: EntityStat
             }}
           >
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-back" />
+              <use href={spriteHref('i-back')} />
             </svg>
           </button>
         </div>

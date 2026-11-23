@@ -49,6 +49,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { Button, Chip, FormDialog, OverflowMenu, SegmentedControl, TextButton, Toggle, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useToast } from '../../state/toast.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 14.7: the tab panels of the type editor (`43-tipo-equipamento.html`). Each control hands
@@ -94,7 +95,7 @@ function IssueLines({ issues }: { issues: readonly TypeDraftIssue[] }) {
 
 const icon = (name: string) => (
   <svg className="ico" aria-hidden="true">
-    <use href={`/sprite.svg#${name}`} />
+    <use href={spriteHref(name)} />
   </svg>
 );
 

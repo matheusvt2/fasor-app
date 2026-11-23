@@ -30,6 +30,7 @@ import { useToast } from '../../state/toast.tsx';
 import { UsersTabs } from '../users/users-tabs.tsx';
 import { LockIcon, PapeisGrid } from './papeis-grid.tsx';
 import { RoleNameDialog, type RoleNameSubmitResult } from './role-name-dialog.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 26.10 (`mockups/prototype/screens/93-papeis.html`, approved 2026-11-21): Papéis e
@@ -227,7 +228,7 @@ export function PapeisSurface() {
             <h2>{t.heading}</h2>
             <Button variant="secondary" isDisabled={!online} disabledReason={offline} onPress={() => setDialog({ kind: 'new' })}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-plus" />
+                <use href={spriteHref('i-plus')} />
               </svg>
               {t.newRole}
             </Button>

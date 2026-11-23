@@ -8,6 +8,7 @@ import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 type Gender = WordRow['gender'];
 type Numeral = WordRow['number'];
@@ -143,7 +144,7 @@ export function WordRegistryPanel(props: WordRegistryPanelProps) {
         </div>
         <button type="button" className="icon-btn" aria-label={base.close} onClick={onClose}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-close" />
+            <use href={spriteHref('i-close')} />
           </svg>
         </button>
       </div>

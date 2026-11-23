@@ -10,6 +10,7 @@ import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { CnpjField } from './cnpj-field.tsx';
 import { sameFieldValue } from './field-value.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 export interface ClientPanelProps {
   /** The id this panel edits: minted locally for "Novo cliente" before it exists. */
@@ -135,7 +136,7 @@ export function ClientPanel({ clientId, client, referenced, clients = NO_CLIENTS
         </div>
         <button type="button" className="icon-btn" aria-label={t.close} onClick={onClose}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-close" />
+            <use href={spriteHref('i-close')} />
           </svg>
         </button>
       </div>
@@ -179,7 +180,7 @@ export function ClientPanel({ clientId, client, referenced, clients = NO_CLIENTS
           {client === null ? null : referenced ? (
             <TextButton tone="red" onPress={() => void archiveOrRemove()}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-archive" />
+                <use href={spriteHref('i-archive')} />
               </svg>
               {t.archive}
             </TextButton>
@@ -406,7 +407,7 @@ function SitesField({ sites, label, addLabel, removeLabel, onCommit }: SitesFiel
               onClick={() => removeSite(index, site.id)}
             >
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-close" />
+                <use href={spriteHref('i-close')} />
               </svg>
             </button>
           </div>

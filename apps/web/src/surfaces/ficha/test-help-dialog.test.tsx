@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from '../../test-axe.ts';
 import { TestHelpAction } from './test-help-dialog.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 23.10 (batch e23h; `60-ficha.html` `#ficha-dlg-como-iso` and `#ficha-dlg-como-ttr`):
@@ -46,7 +47,7 @@ describe('23.10 "Como ensaiar": the action', () => {
     open(definition([], [{ key: 'tensoes_medidas', help: { objective: 'Texto.' } }]), 'tensoes_medidas');
     expect(button()).toHaveClass('btn', 'btn-text');
     expect(button()).toHaveAttribute('aria-haspopup', 'dialog');
-    expect(button().querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-book');
+    expect(button().querySelector('use')).toHaveAttribute('href', spriteHref('i-book'));
   });
 });
 

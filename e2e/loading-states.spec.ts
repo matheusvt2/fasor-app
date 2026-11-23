@@ -2,6 +2,7 @@ import type { Page, Route } from '@playwright/test';
 import { PRODUTO } from '@app/domain';
 import { deviceDatabaseName, expect, signIn, test, SEED_PASSWORD, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
+import { goToNeutralDocument } from './support/durability.ts';
 import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 
 /*
@@ -79,7 +80,8 @@ test('@p1 Home says "Carregando relatórios…" while the device store has not a
   await resetEmpresaB(account, { standard: true });
   await signIn(page, account.email);
   const holder = await context.newPage();
-  await holder.goto('/sprite.svg');
+  // A same-origin document that is not the app, so nothing there opens the store first.
+  await goToNeutralDocument(holder);
   await holdDeviceStore(holder, deviceDatabaseName(account.userId));
   await page.bringToFront();
   await page.reload();

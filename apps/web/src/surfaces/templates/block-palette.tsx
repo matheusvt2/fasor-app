@@ -16,6 +16,7 @@ import { QuantityStepper } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { useTypeNaming } from './type-naming.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /** "1 Objetivo": the section's FO.SERV-03 number and its title, as the mock writes both. */
 export function sectionName(type: SectionBlockType): string {
@@ -121,7 +122,7 @@ export function BlockPaletteContent({
         {drawer ? (
           <button type="button" className="icon-btn" aria-label={copy.composer.closePalette} onClick={onClose}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-close" />
+              <use href={spriteHref('i-close')} />
             </svg>
           </button>
         ) : null}
@@ -145,7 +146,7 @@ export function BlockPaletteContent({
               onClick={() => (held ? onSectionHeld(type) : onAddSection(type))}
             >
               <svg className="ico" aria-hidden="true">
-                <use href={type === 'section_8' ? '/sprite.svg#i-flag' : '/sprite.svg#i-doc'} />
+                <use href={type === 'section_8' ? spriteHref('i-flag') : spriteHref('i-doc')} />
               </svg>
               <span className="pi-text">
                 <span>{sectionName(type)}</span>
@@ -266,7 +267,7 @@ export function PaletteEquipmentRow({ type, meta = null, value, isDisabled, disa
   return (
     <div className="palette-item is-stepper" data-hidden-type={hidden ? '' : undefined}>
       <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-block" />
+        <use href={spriteHref('i-block')} />
       </svg>
       <span className="pi-text">
         <span>{name}</span>
@@ -279,7 +280,7 @@ export function PaletteEquipmentRow({ type, meta = null, value, isDisabled, disa
       {onEditDefaults === undefined ? null : (
         <button type="button" className="icon-btn" aria-label={copy.composer.editDefaults(name)} onClick={onEditDefaults}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-layers" />
+            <use href={spriteHref('i-layers')} />
           </svg>
         </button>
       )}

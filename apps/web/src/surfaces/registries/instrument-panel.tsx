@@ -39,6 +39,7 @@ import { useSyncActions } from '../../state/sync-actions.ts';
 import { useToast } from '../../state/toast.tsx';
 import { sameFieldValue } from './field-value.ts';
 import { useLiveReseed } from './live-reseed.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 const NO_WORDS: WordRow[] = [];
 const NO_INSTRUMENTS: InstrumentRow[] = [];
@@ -297,7 +298,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
         </div>
         <button type="button" className="icon-btn" aria-label={t.close} onClick={onClose}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-close" />
+            <use href={spriteHref('i-close')} />
           </svg>
         </button>
       </div>
@@ -433,7 +434,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
           {instrument === null ? null : referenced ? (
             <TextButton tone="red" onPress={() => void archiveOrRemove()}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-archive" />
+                <use href={spriteHref('i-archive')} />
               </svg>
               {t.archive}
             </TextButton>

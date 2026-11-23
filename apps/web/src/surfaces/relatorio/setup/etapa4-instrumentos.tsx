@@ -20,6 +20,7 @@ import { Checkbox, TextButton } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import type { BandRef, CommitField } from './setup-fields.ts';
+import { spriteHref } from '../../../styles/sprite.ts';
 
 // --- Etapa 4 — Instrumentos e certificados -------------------------------------------------
 
@@ -149,7 +150,7 @@ export function Etapa4Instrumentos({
             }
           >
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-plus" />
+              <use href={spriteHref('i-plus')} />
             </svg>
             {t.registerInstrument}
           </TextButton>

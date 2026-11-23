@@ -44,6 +44,7 @@ import { useToast } from '../../state/toast.tsx';
 import type { UndoableEdits } from '../../state/use-undoable-edits.ts';
 import { newId } from '../../ids.ts';
 import { createTypeOp, createVersionOp, putTypeDraftOp, putTypeStampOp } from './type-ops.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 export interface TypeListSectionProps {
   /** Commits one batch through the list's edit queue; null when nothing was written. */
@@ -53,7 +54,7 @@ export interface TypeListSectionProps {
 
 const icon = (name: string) => (
   <svg className="ico" aria-hidden="true">
-    <use href={`/sprite.svg#${name}`} />
+    <use href={spriteHref(name)} />
   </svg>
 );
 

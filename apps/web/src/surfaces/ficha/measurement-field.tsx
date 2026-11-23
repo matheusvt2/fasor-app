@@ -28,6 +28,7 @@ import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { DRAFT_SURFACE } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, measurementCellOp, testCellOp } from './ficha-ops.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * The Measurement field (Story 5.5, UX-DR39; `key-equipment-sheet.html`, `60-ficha.html`):
@@ -425,7 +426,7 @@ export function MeasurementField<Address extends FieldAddress>({
           >
             <span className="unit-text">{shownUnit}</span>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-cycle" />
+              <use href={spriteHref('i-cycle')} />
             </svg>
           </button>
         ) : shownUnit === null ? null : (

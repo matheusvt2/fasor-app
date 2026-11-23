@@ -10,6 +10,7 @@ import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
 import { useSheetCamera } from './photo-openers.tsx';
 import { PlateCameraGroup, PlateCrop, PlatePendingRow, PlatePhotoRow } from './plate-photo.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * 8.2/8.6-UNIT: the plate photo above the nameplate, state by state (`60-ficha.html`): the tile
@@ -232,7 +233,7 @@ describe('8.2-UNIT the empty plate', () => {
       'btn btn-text',
     ]);
     const attach = screen.getByRole('button', { name: 'Anexar arquivo' });
-    expect(attach.querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-image');
+    expect(attach.querySelector('use')).toHaveAttribute('href', spriteHref('i-image'));
     const input = screen.getByTestId('attach-file-input');
     expect(input).toHaveAttribute('accept', 'image/*,.heic,.heif');
     expect(input).not.toHaveAttribute('multiple');

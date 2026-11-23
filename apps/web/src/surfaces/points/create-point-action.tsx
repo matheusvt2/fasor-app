@@ -5,6 +5,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
 import { useToast } from '../../state/toast.tsx';
 import { PointEditorDialog, type PointSeed } from './point-editor.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 6.6: "Criar ponto de atenção" on a sheet -- the NC row's inline action (the
@@ -43,7 +44,7 @@ export function CreatePointAction({
       {hideButton ? null : (
         <Button variant="secondary" onPress={() => setOpen(seed())}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-flag" />
+            <use href={spriteHref('i-flag')} />
           </svg>
           {t.createFromRow}
         </Button>

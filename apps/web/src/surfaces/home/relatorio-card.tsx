@@ -1,6 +1,7 @@
 import { statusLabel, type HomeCard, type ResumeTarget } from '@app/domain';
 import { Button, StatusPill, SyncBadge, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 export interface RelatorioCardProps {
   card: HomeCard;
@@ -44,7 +45,7 @@ export function RelatorioCard({ card, onPress, resume = null, onContinue, fillSh
       >
         <span>{card.title}</span>
         <svg className="ico card-chev" aria-hidden="true">
-          <use href="/sprite.svg#i-chev-right" />
+          <use href={spriteHref('i-chev-right')} />
         </svg>
       </button>
       {card.meta === '' ? null : <p className="card-meta">{card.meta}</p>}

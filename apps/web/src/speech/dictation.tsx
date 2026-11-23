@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useMemo, useR
 import { SuggestionField } from '../components/suggestion-field.tsx';
 import { ui } from '../copy/ui.ts';
 import { createSpeechEngine, speechEngineName, type SpeechEngine } from './engine.ts';
+import { spriteHref } from '../styles/sprite.ts';
 
 /*
  * Story 9.4 (FR-40, UX-DR18; `components.css` Dictation button): one listening session
@@ -136,7 +137,7 @@ export function DictationButton({ label, onResult, onStart, className }: { label
     <span className={className === undefined ? 'dictation' : `dictation ${className}`}>
       <button type="button" className="dictation-btn" aria-pressed={listening} aria-label={label} onClick={toggle}>
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-mic" />
+          <use href={spriteHref('i-mic')} />
         </svg>
       </button>
       {/* The word as the mock draws it (CSS shows it while pressed), and, E9-Q11, a live region

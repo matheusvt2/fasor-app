@@ -4,6 +4,7 @@ import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { RETURN_PARAM, RETURN_TO_EXPORT } from '../../state/back-target.tsx';
 import { ExportDialog } from '../export/export-dialog.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 export interface GenerateActionProps {
   /** The relatório the Export dialog generates. */
@@ -60,7 +61,7 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
         onPress={() => setOpen(true)}
       >
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-doc" />
+          <use href={spriteHref('i-doc')} />
         </svg>
         {copy.sumario.generate}
       </Button>

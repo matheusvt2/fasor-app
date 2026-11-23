@@ -22,6 +22,7 @@ import { Button } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { tagReason, tagRefusalText, TagField } from './tag-dialogs.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 4.5: the field Block palette (`40-relatorio-overview.html` `#lo-palette`,
@@ -160,7 +161,7 @@ export function FieldPalette({ target, seedVersion, definitions, locations, bloc
         <span id={headingId}>{t.title}</span>
         <button type="button" className="icon-btn" aria-label={copy.sumario.close} onClick={onClose}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-close" />
+            <use href={spriteHref('i-close')} />
           </svg>
         </button>
       </div>
@@ -175,7 +176,7 @@ export function FieldPalette({ target, seedVersion, definitions, locations, bloc
               onClick={() => onPhotograph({ locationId: location.id, anchorBlockId: target.anchorBlockId })}
             >
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-camera" />
+                <use href={spriteHref('i-camera')} />
               </svg>
               {t.photograph}
             </button>
@@ -185,7 +186,7 @@ export function FieldPalette({ target, seedVersion, definitions, locations, bloc
             {onAttach === undefined ? null : (
               <button type="button" className="btn btn-text" onClick={() => onAttach({ locationId: location.id, anchorBlockId: target.anchorBlockId })}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-image" />
+                  <use href={spriteHref('i-image')} />
                 </svg>
                 {copy.photos.attachFile}
               </button>
@@ -204,7 +205,7 @@ export function FieldPalette({ target, seedVersion, definitions, locations, bloc
                 onClick={() => onResume(row.photoId, { locationId: location.id, anchorBlockId: target.anchorBlockId })}
               >
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-image" />
+                  <use href={spriteHref('i-image')} />
                 </svg>
                 <span className="pi-text">
                   <span>{copy.panelAwaiting.row}</span>
@@ -237,7 +238,7 @@ function ItemBody({ item }: { item: PaletteItem }) {
   return (
     <>
       <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-block" />
+        <use href={spriteHref('i-block')} />
       </svg>
       <span className="pi-text">
         <span>{item.label}</span>

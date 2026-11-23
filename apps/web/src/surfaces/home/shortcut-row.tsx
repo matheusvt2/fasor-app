@@ -2,6 +2,7 @@ import { CADASTROS_SUBLINE, permissionForScreen, templatesSubline, type Template
 import { Link } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
 import { useCanFn } from '../../state/permissions.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 const TEMPLATES = '/templates';
 const CADASTROS = '/cadastros';
@@ -42,42 +43,42 @@ export function ShortcutRow({ templates }: ShortcutRowProps) {
       {shown.templates ? (
         <Link className="shortcut-card" to={TEMPLATES} data-telemetry="home.shortcut_templates">
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-layers" />
+            <use href={spriteHref('i-layers')} />
           </svg>
           <span>
             {copy.home.templates}
             <span className="shortcut-sub">{templatesSubline(templates)}</span>
           </span>
           <svg className="ico chev" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-right" />
+            <use href={spriteHref('i-chev-right')} />
           </svg>
         </Link>
       ) : null}
       {shown.cadastros ? (
         <Link className="shortcut-card" to={CADASTROS} data-telemetry="home.shortcut_cadastros">
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-book" />
+            <use href={spriteHref('i-book')} />
           </svg>
           <span>
             {copy.home.cadastros}
             <span className="shortcut-sub">{CADASTROS_SUBLINE}</span>
           </span>
           <svg className="ico chev" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-right" />
+            <use href={spriteHref('i-chev-right')} />
           </svg>
         </Link>
       ) : null}
       {shown.usuarios ? (
         <Link className="shortcut-card" to={USUARIOS}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-users" />
+            <use href={spriteHref('i-users')} />
           </svg>
           <span>
             {copy.users.shortcut}
             <span className="shortcut-sub">{copy.users.shortcutSub}</span>
           </span>
           <svg className="ico chev" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-right" />
+            <use href={spriteHref('i-chev-right')} />
           </svg>
         </Link>
       ) : null}

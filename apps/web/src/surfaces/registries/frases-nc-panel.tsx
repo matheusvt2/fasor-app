@@ -9,6 +9,7 @@ import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useLiveReseed } from './live-reseed.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 14.12: the panel of one learned NC phrase in Cadastros › Frases de NC, the Fabricantes
@@ -72,7 +73,7 @@ export function FrasesNcPanel({ entry, onClose }: { entry: NcPhraseRegistryRow; 
         </div>
         <button type="button" className="icon-btn" aria-label={t.close} onClick={onClose}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-close" />
+            <use href={spriteHref('i-close')} />
           </svg>
         </button>
       </div>

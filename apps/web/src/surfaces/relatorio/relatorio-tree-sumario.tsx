@@ -10,6 +10,7 @@ import { useReorder, type Reorder } from '../templates/use-reorder.ts';
 import { useFillAccess } from '../../state/permissions.tsx';
 import { blockTrigger, locationTrigger } from './tree-actions.ts';
 import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relatorio-tree-shared.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * E14-A7: the Sumário presentation of the relatório tree (`relatorio-tree.tsx` says what each
@@ -26,7 +27,7 @@ import { Chevron, locationMenu, sameRow, treeKeys, type Shared } from './relator
 
 const PlusIcon = () => (
   <svg className="ico" aria-hidden="true">
-    <use href="/sprite.svg#i-plus" />
+    <use href={spriteHref('i-plus')} />
   </svg>
 );
 
@@ -124,7 +125,7 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
             >
               <span className="eq-card-title">
                 <svg className="ico ico-sm" aria-hidden="true">
-                  <use href="/sprite.svg#i-check-all" />
+                  <use href={spriteHref('i-check-all')} />
                 </svg>
                 <span className="s9-site-name">{SITE_CHECKLIST_LABEL}</span>
                 <span className="s9-site-count">{site.railCounter}</span>
