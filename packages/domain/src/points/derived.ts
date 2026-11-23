@@ -7,6 +7,7 @@ import type { TestEvaluation } from '../relatorio/reading-cells.ts';
 import { outReadings, worstReadings } from '../relatorio/readings.ts';
 import { failedPrerequisites } from '../relatorio/restriction.ts';
 import { sheetMeasurements, sheetReadings } from '../relatorio/sheet-evaluation.ts';
+import { checklistItemLabel } from '../relatorio/oil-rule.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteLocals, siteObservationOf, sitePointTitle, siteResultOf } from '../relatorio/site-checklist.ts';
@@ -15,7 +16,7 @@ import { visitContextOf, type VisitContext } from '../relatorio/visit-context.ts
 import type { BlockRow, PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, getSeed, seedRule, siteItems, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
-import type { BlockDefinition } from '../seed/schema.ts';
+import type { BlockDefinition, NotTestedReason } from '../seed/schema.ts';
 import { recommendationCount, recommendationsText, recommendedPointText, testIndexRecommendationOf, testRecommendationOf } from '../seed/test-help.ts';
 import { livePoints } from './checks.ts';
 import { TEXT_CAPS } from '../ops/value-limits.ts';
@@ -89,18 +90,61 @@ const SEP = ' · ';
 type TreeSnapshot = Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>;
 type DerivedSnapshot = TreeSnapshot & Pick<RelatorioSnapshot, 'points' | 'relatorio' | 'files' | 'equipment_types'>;
 
-/** The seed's label and justification of a sheet's Não ensaiado reason; null when it was tested. */
-function reasonOf(block: Pick<BlockRow, 'not_tested' | 'seed_version'>): { key: string; label: string; justification: string | null } | null {
+/** The seed's reason of a sheet's Não ensaiado mark, or undefined when the seed lacks it. */
+function seededReasonOf(block: Pick<BlockRow, 'not_tested' | 'seed_version'>): NotTestedReason | undefined {
+  const mark = block.not_tested;
+  if (mark === null) return undefined;
+  try {
+    return getSeed(block.seed_version, 'cabine_primaria').not_tested_reasons.find((reason) => reason.key === mark.reason);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Seed v18, batch e28a (Story 28.4, Bruno's Q-4): what fills the justification of "Equipamento da concessionária"
+ * while the utility's name is empty, so the gap shows in the text and the relatório does not issue with it
+ * (`utilityNameMissing`, a blocking pre-issue row).
+ */
+// authored (Story 28.4, listed for Bruno): the slot the utility's name fills in the default justification.
+export const UTILITY_NAME_SLOT = '[nome da concessionária]';
+
+/** True when the sheet is marked Não ensaiado for a reason that names the utility's equipment (seed v18's `utility`). */
+export function isUtilityNotTested(block: Pick<BlockRow, 'not_tested' | 'seed_version'>): boolean {
+  return seededReasonOf(block)?.utility === true;
+}
+
+/**
+ * The justification a Não ensaiado mark prints and its point starts with: the seed's, else the typed text of "Outro";
+ * null when there is none. Seed v18, batch e28a (Story 28.4, Bruno's Q-4): for a `utility` reason, the text rewritten on
+ * the ficha (the mark's `text`), else the seed's default with `{tag}` the sheet's TAG and `{concessionaria}` the
+ * utility's name; in either, the name fills `UTILITY_NAME_SLOT`, which stays while the name is empty.
+ */
+export function notTestedJustification(block: Pick<BlockRow, 'not_tested' | 'seed_version'>, tag: string | null): string | null {
   const mark = block.not_tested;
   if (mark === null) return null;
   const typed = mark.text !== null && mark.text.trim() !== '' ? mark.text.trim() : null;
-  let seeded: { label: string; justification: string | null } | undefined;
-  try {
-    seeded = getSeed(block.seed_version, 'cabine_primaria').not_tested_reasons.find((reason) => reason.key === mark.reason);
-  } catch {
-    seeded = undefined;
-  }
-  return { key: mark.reason, label: seeded?.label ?? mark.reason, justification: seeded?.justification ?? typed };
+  const seeded = seededReasonOf(block);
+  if (seeded?.utility !== true) return seeded?.justification ?? typed;
+  const name = typeof mark.utility_name === 'string' && mark.utility_name.trim() !== '' ? mark.utility_name.trim() : null;
+  const base = typed ?? (seeded.justification ?? '').replaceAll('{tag}', tag ?? '').replaceAll('{concessionaria}', UTILITY_NAME_SLOT);
+  return name === null ? base : base.replaceAll(UTILITY_NAME_SLOT, name);
+}
+
+/**
+ * Seed v18, batch e28a (Story 28.4; coordinator's reading on the frames, open to Matheus): a sheet not tested for the
+ * utility's equipment whose justification still holds the empty slot of the utility's name. The relatório does not
+ * issue with the gap (a blocking pre-issue row names the sheets).
+ */
+export function utilityNameMissing(block: Pick<BlockRow, 'not_tested' | 'seed_version'>, tag: string | null): boolean {
+  return isUtilityNotTested(block) && (notTestedJustification(block, tag) ?? '').includes(UTILITY_NAME_SLOT);
+}
+
+/** The seed's label and justification of a sheet's Não ensaiado reason; null when it was tested. */
+function reasonOf(block: Pick<BlockRow, 'not_tested' | 'seed_version'>, tag: string | null): { key: string; label: string; justification: string | null } | null {
+  const mark = block.not_tested;
+  if (mark === null) return null;
+  return { key: mark.reason, label: seededReasonOf(block)?.label ?? mark.reason, justification: notTestedJustification(block, tag) };
 }
 
 /** The title of an equipment row as section 8 names it: "⟨TAG⟩ · ⟨path⟩", the TAG alone without a place. */
@@ -252,7 +296,7 @@ function sheetEntries(
         kind: 'nc',
         key: `nc:${block.id}:${item.key}`,
         item_key: item.key,
-        ...texts(ncText(index + 1, item.label, observation, rowPhotoIds(photos, { blockId: block.id }, item.key), block.seed_version)),
+        ...texts(ncText(index + 1, checklistItemLabel(item, definition, block), observation, rowPhotoIds(photos, { blockId: block.id }, item.key), block.seed_version)),
       });
     });
   }
@@ -447,7 +491,7 @@ function allDerivedPoints(snapshot: DerivedSnapshot, standing?: Set<string>): De
     const block = blocks.get(node.blockId);
     if (block === undefined || block.removed_at !== null) continue;
     const title = equipmentPointTitle(node, snapshot);
-    const reason = reasonOf(block);
+    const reason = reasonOf(block, block.equipment_id === null ? null : (snapshot.equipment.find((row) => row.id === block.equipment_id)?.tag ?? null));
     if (reason !== null) {
       out.push({
         ...base,
@@ -630,7 +674,7 @@ export function ncRowPointText(snapshot: Pick<RelatorioSnapshot, 'files' | 'rela
     if (definition === null || index < 0) return '';
     const cell = owner.block.sheet.checklist[itemKey]?.observation;
     const observation = isCellFilled(cell) && typeof cell!.value === 'string' ? cell!.value.trim() : null;
-    return ncText(index + 1, definition.checklist![index]!.label, observation, rowPhotoIds(photos, { blockId: owner.block.id }, itemKey), owner.block.seed_version);
+    return ncText(index + 1, checklistItemLabel(definition.checklist![index]!, definition, owner.block), observation, rowPhotoIds(photos, { blockId: owner.block.id }, itemKey), owner.block.seed_version);
   }
   const item = siteItems(snapshot.relatorio.seed_version).find((row) => row.key === itemKey);
   if (item === undefined) return '';
@@ -645,8 +689,8 @@ function reasonText(entry: Pick<DerivedPoint, 'reason_key' | 'reason_label' | 'j
 }
 
 /** The text a point written from an untested sheet starts with: what section 8 would print for it; "" when nothing. */
-export function notTestedPointText(block: Pick<BlockRow, 'not_tested' | 'seed_version'>): string {
-  return reasonOf(block)?.justification ?? '';
+export function notTestedPointText(block: Pick<BlockRow, 'not_tested' | 'seed_version'>, tag: string | null = null): string {
+  return notTestedJustification(block, tag) ?? '';
 }
 
 /**

@@ -15,7 +15,7 @@ import { fieldValueText } from '../relatorio/ficha.ts';
 import { storedInstrumentHeader } from '../relatorio/instrument-pick.ts';
 import { configFieldsOf, evaluateSheetMeasurements, measurementRowJudgements, type EvaluatedMeasurementCell, type MeasurementTestEvaluation } from '../relatorio/measurement-evaluation.ts';
 import { nameplateTagPrefill } from '../relatorio/nameplate-copy.ts';
-import { isOilFieldExcused } from '../relatorio/oil-rule.ts';
+import { checklistItemLabel, isOilFieldExcused } from '../relatorio/oil-rule.ts';
 import { evaluateSheetReadings, MANUFACTURER_PRINT_SUFFIX, polarizationNotApplicable, type EvaluatedCell, type EvaluatedRow, type EvaluatedTable, type TestEvaluation, type TestKey } from '../relatorio/readings.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
@@ -451,7 +451,8 @@ function checklistPart(block: BlockRow, definition: BlockDefinition, columns: re
     const observation = isCellFilled(observationCell) && typeof observationCell!.value === 'string' ? observationCell!.value.trim() : '';
     rows.push({
       cells: columns.map((column, c): PrintCell => {
-        if (c === 0) return { text: `${index + 1}. ${printLabel(item.label)}`, align: 'left' };
+        // Seed v18 (Story 28.4): an item's words by the unit's kind (`checklistItemLabel`).
+        if (c === 0) return { text: `${index + 1}. ${printLabel(checklistItemLabel(item, definition, block))}`, align: 'left' };
         if (column === 'C' || column === 'NC' || column === 'NA') return valueCell(result === column ? MARK : '');
         return c === last ? { text: observation, align: 'left' } : valueCell('');
       }),
@@ -1563,9 +1564,10 @@ function conclusionParts(block: BlockRow, definition: BlockDefinition, tag: stri
 // --- the reason band --------------------------------------------------------------------------
 
 /** "NÃO ENSAIADO — Solicitação do cliente: ⟨justificativa⟩", the justification section 8 prints for it (the seed's, else the typed text). */
-function notTestedPart(block: BlockRow): SheetPart {
+function notTestedPart(block: BlockRow, tag: string | null): SheetPart {
   const reason = notTestedReasonText(block) ?? '';
-  const justification = notTestedPointText(block).trim();
+  // Seed v18 (Story 28.4): a utility reason's justification fills the sheet's TAG and the utility's name.
+  const justification = notTestedPointText(block, tag).trim();
   const text = justification === '' || justification === reason ? `${NOT_TESTED_PREFIX} — ${reason}` : `${NOT_TESTED_PREFIX} — ${reason}: ${justification}`;
   return table([1], [bandRow(text, 1, { bold: false, align: 'left' })]);
 }
@@ -1643,7 +1645,8 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
     if (nameplate) parts.push({ ...parts.pop()!, keepWithNext: true });
     // Stories 17.1 and 17.4: its photos print under it, in the walk's order (they no longer
     // print in section 7). Story 20.6: all of them after the reason band, plate first.
-    parts.push(notTestedPart(block), ...photosPart(sheetPhotos(ctx, blockId)));
+    const tag = block.equipment_id === null ? null : (ctx.snapshot.equipment.find((row) => row.id === block.equipment_id)?.tag ?? null);
+    parts.push(notTestedPart(block, tag), ...photosPart(sheetPhotos(ctx, blockId)));
     return sheet();
   }
   if (definition === null) return sheet();

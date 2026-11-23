@@ -202,9 +202,10 @@ describe('26.2-UNIT-009 contract 55 and the new codes', () => {
   // e27a (Stories 27.1 and 27.2, 2026-11-21): the number moved on to 56; a 55 bundle is refused too.
   // Fix batch e27a-review (R8): the exact numbers, and the refusal of 55 and 54 asserted, as the title says.
   // Batch e27b (Story 27.8, seed v17, 2026-11-22): the number moved on to 57; 55 and 54 stay refused.
-  it('speaks 57 with a minimum of 57: a 55 bundle is refused, and so is a 54 one (it cannot parse the role families)', () => {
-    expect(CONTRACT_VERSION).toBe(57);
-    expect(MIN_CONTRACT_VERSION).toBe(57);
+  // Batch e28a (Stories 28.2 to 28.4, seed v18, 2026-11-23): the number moved on to 58; 55 and 54 stay refused.
+  it('speaks 58 with a minimum of 58: a 55 bundle is refused, and so is a 54 one (it cannot parse the role families)', () => {
+    expect(CONTRACT_VERSION).toBe(58);
+    expect(MIN_CONTRACT_VERSION).toBe(58);
     // A bundle is refused (426 contract_outdated) below MIN_CONTRACT_VERSION.
     expect(55 < MIN_CONTRACT_VERSION).toBe(true);
     expect(54 < MIN_CONTRACT_VERSION).toBe(true);

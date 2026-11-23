@@ -79,7 +79,9 @@ export {
 // 7 (Story 23.17, seed v13): TIPO (ANP) as the oil's class letter and NATUREZA DO LÍQUIDO only when the plate names the liquid; the kernel composes the rest.
 // 8 (Story 23.18, seed v13): FUNÇÃO DO TC by its options (only as printed), and the S classes ("0,3S") and the protection classes with their factor ("5P20") as printed.
 // 9 (Story 24.13, seed v14): the No-break de comando's battery fields ("BATERIAS: ...") are the battery bank's, read only where the photo shows them, never the unit's.
-export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-9';
+// 10 (2026-11-23, Story 28.3, seed v18): the transformer's TIPO DE ISOLAÇÃO reads "A SECO" or "A ÓLEO" (its options, from the
+//    seed), a dry unit's CONSTRUÇÃO only as printed; the TP's and the TC's options gain "ÓLEO VEGETAL" (from the seed).
+export const BEDROCK_STRUCTURING_PROMPT_VERSION = 'bedrock-structuring-10';
 
 /** The prompt of the prose step (caption, NC draft); bump it with every change of the prompt or the tool schema. */
 export const BEDROCK_PROSE_PROMPT_VERSION = 'bedrock-prose-1';
@@ -249,6 +251,15 @@ export function plateFieldNotes(fields: readonly FieldDef[]): string[] {
     const insulation = field('tipo_de_isolacao');
     const oilOption = insulation?.options?.find((option) => /óleo/i.test(option));
     if (oilOption !== undefined) notes.push(`The field tipo_de_isolacao is ${oilOption} when the plate names an insulating oil or liquid ("óleo isolante", "óleo mineral", "silicone"); leave it out when the plate prints no insulation word.`);
+  }
+  // Story 28.3 (seed v18): the transformer's dry option and its CONSTRUÇÃO, only as printed; the kernel reads an EPÓXI as the dry option.
+  const construcao = field('construcao');
+  if (construcao?.kind === 'select') {
+    const dry = field('tipo_de_isolacao')?.options?.find((option) => /seco/i.test(option));
+    if (dry !== undefined) notes.push(`The field tipo_de_isolacao is ${dry} when the plate names a dry unit ("a seco", "seco", "epóxi", "resina epóxi", "cast resin", "VPI"); leave it out when the plate prints no insulation word.`);
+    notes.push(
+      `The field construcao is how a dry unit is built, only as printed: give one of: ${construcao.options?.join(' | ') ?? ''} ("encapsulado", "resina epóxi" or "cast resin" is the first, "impregnado a vácuo" or "VPI" the second); leave it out when the plate prints neither.`,
+    );
   }
   const exatidao = field('exatidao');
   if (exatidao?.kind === 'select') {

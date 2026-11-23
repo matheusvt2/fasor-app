@@ -10540,6 +10540,8 @@ So that I do not read two names for one thing (M29, M11).
 
 *(2026-11-22, Bruno answered B-4: on the transformer TIPO DE ISOLAÇÃO reads "A SECO" or "A ÓLEO", and NATUREZA DO LÍQUIDO stays, for an oil unit only; on the TP and the TC "ÓLEO MINERAL" and "ÓLEO VEGETAL" beside the dry options. The oil half of this story moves to Epic 28, Story 28.3, on seed v18, with the plate prompt and the paid plate eval. The "A SECO" half stays as built on v16.)*
 
+*(2026-11-23, batch e28a, Story 28.3: the oil half built on seed v18, contract 58: the transformer reads "A SECO" or "A ÓLEO" (EPÓXI an alias of "A SECO", Bruno's Q-1) with CONSTRUÇÃO on the dry unit; the TP and the TC offer ÓLEO VEGETAL. v1 to v17 unchanged.)*
+
 ### Story 25.20: The criterion and the result print on each row, and the corrected columns say so
 
 **Dev model:** opus · **Effort:** max · seed v15, print only: every measurement test's table gains a CRITÉRIO and a RESULTADO column per row; the corrected columns' headers read "20 °C (corrigido)" and "75 °C (corrigido)"; no word, number or unit breaks; v1 to v14 print byte-identical
@@ -12481,6 +12483,8 @@ So that every relatório issued on v17 prints the same tomorrow (AD-21).
 - `e2e/seed-v18.spec.ts` "28.2-E2E-001 @p0": a new relatório on v18 concludes and prints.
 - `docs/kbs/architecture/kernel-and-seed.md` and `log.md`.
 
+*(2026-11-23, batch e28a, as built: seed v18 opened equal to v17 with `V17_HASH` frozen as shipped at the deploy of `886af55e`; contract 58, MIN 58. The v17 goldens were taken on the Story 27.8 commit and no later commit moved them, and main's product code at `e685c1ae` is the deployed code, so none was re-taken. 28.2-UNIT-SAME reads v18 through v17's flags, section texts and definitions, so the later Epic 28 stories keep it.)*
+
 ### Story 28.3: The oil's names: "A SECO" or "A ÓLEO" on the transformer, "ÓLEO VEGETAL" on the TP and the TC
 
 **Dev model:** opus · **Effort:** high · seed v18: the transformer's TIPO DE ISOLAÇÃO oil option reads "A ÓLEO", with its aliases; NATUREZA DO LÍQUIDO is not drawn on a dry unit; the TP and the TC gain "ÓLEO VEGETAL" as an oil option; every reader of the oil option gives on v18 what it gives on v17; the plate prompt follows and the paid eval runs before the deploy; rides on the batch's contract number
@@ -12546,6 +12550,8 @@ So that the plate says once what kind of unit it is (B-4; the oil half of Story 
 
 *(2026-11-23, Matheus, on the Story 28.1 frames, "use o recomendado": where CONSTRUÇÃO prints. On a v18 transformer the printed plate (DADOS DO EQUIPAMENTO, three pairs per row) keeps every v17 row where it is, and CONSTRUÇÃO takes the empty last pair, after CLASSE TÉRMICA: its value on a dry unit, "-" on an oil unit. On screen the field sits right after TIPO DE ISOLAÇÃO, so the printed order of this one field differs from the screen's. Frame: `key-print-section-9-v18.html`.)*
 
+*(2026-11-23, batch e28a, as built, with Bruno's Q-1 and Matheus's decision on the frames: the readings above are replaced by the dated answers. TIPO DE ISOLAÇÃO offers "A SECO" and "A ÓLEO" only; ÓLEO ISOLANTE, ÓLEO MINERAL and ÓLEO read "A ÓLEO", EPÓXI and "Á SECO" read "A SECO". CONSTRUÇÃO is appended to the plate (so it prints in the empty last pair) with the seed key `screen_after` placing it after TIPO DE ISOLAÇÃO on screen and `implied_by` giving "ENCAPSULADO EM RESINA EPÓXI" to a copy from a sheet that said EPÓXI; it is optional, hangs on "A SECO" (`excused_unless`) and is a dry field of the oil rule. NATUREZA DO LÍQUIDO hangs on "A ÓLEO"; TIPO (ANP), which hangs on it, is hidden with it (`isFieldHidden` follows a hidden condition field; no field of v13 to v17 does). The transformer's subtypes `epoxi` and `a_seco` stay as v17's, so a stored template keeps validating. The oil subtype's label: none exists, nothing to follow. `oilStateOf` keeps comparing the stored value exactly with `oil_values` ("A ÓLEO"): every path that writes a v18 plate (the select, both copy chips, the plate reading) lands on an option. The plate prompt is `bedrock-structuring-10`, with notes for the dry option and CONSTRUÇÃO; the OCR schema did not change. The paid eval was not run: it needs Matheus's word.)*
+
 ### Story 28.4: Two items on the oil transformer, two reasons for a thermography not done, and the reason "Equipamento da concessionária"
 
 **Dev model:** opus · **Effort:** medium · seed v18, seed data: two new items on the transformer's list; two new thermography reasons; one new not-tested reason with its justification; new item and reason keys on the batch's contract number; v17 lists unchanged
@@ -12601,6 +12607,12 @@ So that he stops writing them by hand (B-5, B-17, B-8, B-15).
 *(2026-11-23, notes for the batch from the Story 28.1 frames, PR #368:)*
 - *`PT100` on screen.* The dry unit's item "SENSORES DE TEMPERATURA (PT100) E RELÉ TÉRMICO: ALARME E DESLIGAMENTO" renders through `screenLabel`, which would lower "PT100" to "Pt100". The batch adds `PT100` to `SCREEN_LABEL_ACRONYMS` (`packages/domain/src/relatorio/screen-label.ts`) with its test, so the screen reads "Sensores de temperatura (PT100) e relé térmico: alarme e desligamento", as the frame `#/ficha/TR-04` draws it.
 - *An empty utility name at issue.* The story decides what a sheet not tested for "Equipamento da concessionária" does while its utility name is empty. *Coordinator's reading, open to Matheus:* the sheet raises a pending row, and the relatório does not issue with the gap left in the sentence. The frame `#/ficha/TC-03` draws the empty state (the slot in the placeholder ink and "Digite o nome: ele completa o texto abaixo."); the pending row's words are the batch's, listed for Bruno.
+
+*(2026-11-23, batch e28a, as built, with Bruno's Q-3, Q-4 and Q-5; the readings above are replaced by the dated answers:)*
+- *Items 18 and 19 are asked on both kinds, keys `temperatura_alarme_e_desligamento` and `aterramento_carcaca_tanque_e_neutro` (`ITEM_KEYS`); the seed shape is one item with `label` (the oil words) and `dry_label` (the dry words), and the kernel picks the words by the oil rule (`checklistItemLabel`) for the sheet, the print, the points, the captions, the conclusion and the prose reading. An unknown unit reads the oil words. Neither is an oil item. One list of NC phrases, true of both kinds (authored, `docs/nc-chip-phrases.md`).*
+- *`PT100` joins `SCREEN_LABEL_ACRONYMS` with its test. `screenLabel` already kept it whole by its digit rule, so the screen reads the same; the entry makes it explicit and reads "pt100" back as "PT100".*
+- *"Equipamento da concessionária" is a seed reason with `utility: true` whose justification is Bruno's sentence with `{tag}` and `{concessionaria}`; the mark keeps the typed name in a new optional `utility_name` and a rewritten text in its `text`, both written with the whole mark (`block/{id}/not_tested`). The ficha shows a "Justificativa" section (the frame's words) with the name and a text area; the text area shows the kernel's text, and the empty name is the slot "[nome da concessionária]" (authored; the frame's placeholder ink cannot be drawn inside a text area). A rewritten text that keeps the slot still takes the name. While the slot stays, a blocking row "Nome da concessionária em branco: ⟨TAG⟩" (authored) stops the issue, on the device and on the server (coordinator's reading, open to Matheus). The band offering no point for this reason is Story 28.5's.*
+- *The No-break de comando's battery date reads "BATERIAS: DATA DE FABRICAÇÃO, INSTALAÇÃO OU TROCA" on v18 (Q-5), same key and value.*
 
 ### Story 28.5: A point starts with a priority and an action, and its deadline counts from the issue date
 

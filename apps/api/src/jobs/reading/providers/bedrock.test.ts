@@ -256,7 +256,7 @@ describe('11.6 Bedrock: no tool_use or invalid JSON is permanent', () => {
 
 describe('AIR-1 and AIR-V1 (review 2026-10-08): the structuring prompt', () => {
   it('asks for dates exactly as precise as printed and spells out the pt-BR separators; its version is 7 (Story 23.17)', async () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-9');
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-10');
     const client = replying([toolUse('record_values', plateValues)]);
     await structurer(client).structure(plateInput);
     const system = client.commands[0]!.input.system![0]!.text!;
@@ -272,7 +272,7 @@ describe('21.2 the structuring prompt asks for the vector group, printed or draw
     const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
     const client = replying([toolUse('record_values', plateValues)]);
     const result = await structurer(client).structure(withGroup);
-    expect(result.prompt_version).toBe('bedrock-structuring-9');
+    expect(result.prompt_version).toBe('bedrock-structuring-10');
     const text = client.commands[0]!.input.messages![0]!.content![1]!.text!;
     expect(text).toContain('The field ligacao_secundaria holds the transformer\'s vector group');
     expect(text).toContain(`Give exactly one of these codes: ${VECTOR_GROUP_CODES.join(' | ')}.`);
@@ -512,7 +512,7 @@ describe('e21f the drawn vector diagram: described by the model, composed by the
     expect(groupOf(result.output.values)).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t4', 't9'], confidence: 0.5 });
     expect(result.output.values).toHaveLength(others.length + 1);
     expect(Object.keys(result.output)).toEqual(['values']);
-    expect(result.prompt_version).toBe('bedrock-structuring-9');
+    expect(result.prompt_version).toBe('bedrock-structuring-10');
   });
 
   it('a wrong composed "Dy1" citing a label that prints no group is replaced by the diagram\'s "Yyn0"', async () => {
@@ -648,7 +648,7 @@ describe('24.13 (batch e24s, seed v14): the structuring prompt says the battery 
   const fieldsOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate;
 
   it('a v14 No-break de comando names its seven battery fields and the bank\'s quantity; every other type and version asks neither', () => {
-    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-9');
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-10');
     const notes = plateFieldNotes(fieldsOf('v14', 'no_break_comando'));
     const bank = notes.find((note) => note.includes('describe the battery bank'))!;
     for (const field of fieldsOf('v14', 'no_break_comando').filter((one) => one.key.startsWith('baterias_'))) expect(bank).toContain(field.key);
@@ -662,5 +662,33 @@ describe('24.13 (batch e24s, seed v14): the structuring prompt says the battery 
     ] as const) {
       expect(plateFieldNotes(fieldsOf(version, type)).some((note) => note.includes('battery')), `${version} ${type}`).toBe(false);
     }
+  });
+});
+
+describe('28.3-API-001 (batch e28a, seed v18): the structuring prompt names the v18 insulation options from the seed', () => {
+  const fieldsOf = (version: string, type: string) => getDefinition(version, 'cabine_primaria', type).nameplate;
+
+  it('a v18 transformer lists "A SECO | A ÓLEO" and CONSTRUÇÃO\'s two options, says when each applies; a v18 TP and TC list ÓLEO VEGETAL; the version is 10', () => {
+    expect(BEDROCK_STRUCTURING_PROMPT_VERSION).toBe('bedrock-structuring-10');
+    const transformer = structuringPrompt({ ...plateInput, fields: fieldsOf('v18', 'transformador_forca') });
+    expect(transformer).toContain('tipo_de_isolacao (select; options: A SECO | A ÓLEO)');
+    expect(transformer).toContain('construcao (select; options: ENCAPSULADO EM RESINA EPÓXI | IMPREGNADO A VÁCUO (VPI))');
+    expect(transformer).not.toContain('ÓLEO ISOLANTE');
+    expect(transformer).not.toContain('options: EPÓXI');
+    const notes = plateFieldNotes(fieldsOf('v18', 'transformador_forca'));
+    expect(notes).toContain('The field tipo_de_isolacao is A ÓLEO when the plate names an insulating oil or liquid ("óleo isolante", "óleo mineral", "silicone"); leave it out when the plate prints no insulation word.');
+    expect(notes.some((note) => note.startsWith('The field tipo_de_isolacao is A SECO when the plate names a dry unit'))).toBe(true);
+    expect(notes.some((note) => note.startsWith('The field construcao is how a dry unit is built, only as printed: give one of: ENCAPSULADO EM RESINA EPÓXI | IMPREGNADO A VÁCUO (VPI)'))).toBe(true);
+    for (const type of ['tp', 'tc']) {
+      expect(structuringPrompt({ ...plateInput, fields: fieldsOf('v18', type) }), type).toContain('tipo_de_isolacao (select; options: EPÓXI | A SECO | ÓLEO MINERAL | ÓLEO VEGETAL)');
+      expect(structuringPrompt({ ...plateInput, fields: fieldsOf('v17', type) }), type).toContain('tipo_de_isolacao (select; options: EPÓXI | A SECO | ÓLEO MINERAL)');
+    }
+  });
+
+  it('a v17 transformer\'s prompt is as before: its three options, no CONSTRUÇÃO and no dry note', () => {
+    const notes = plateFieldNotes(fieldsOf('v17', 'transformador_forca'));
+    expect(structuringPrompt({ ...plateInput, fields: fieldsOf('v17', 'transformador_forca') })).toContain('tipo_de_isolacao (select; options: EPÓXI | A SECO | ÓLEO ISOLANTE)');
+    expect(notes.some((note) => note.includes('construcao') || note.includes('dry unit'))).toBe(false);
+    expect(notes).toContain('The field tipo_de_isolacao is ÓLEO ISOLANTE when the plate names an insulating oil or liquid ("óleo isolante", "óleo mineral", "silicone"); leave it out when the plate prints no insulation word.');
   });
 });

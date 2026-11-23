@@ -38,6 +38,24 @@ import {
   STORY_27_8_PARA_RAIO_LABEL,
   STORY_27_8_PARA_RAIO_LABEL_BEFORE,
 } from './v17.ts';
+import {
+  STORY_28_3_CONSTRUCAO,
+  STORY_28_3_DRY,
+  STORY_28_3_EPOXY,
+  STORY_28_3_INSTRUMENT_TYPES,
+  STORY_28_3_OIL,
+  STORY_28_3_OIL_BEFORE,
+  STORY_28_3_TRANSFORMER_ALIASES,
+  STORY_28_3_TRANSFORMER_OPTIONS,
+  STORY_28_3_VEGETAL,
+  STORY_28_4_BATTERY_DATE_KEY,
+  STORY_28_4_BATTERY_DATE_LABEL,
+  STORY_28_4_BATTERY_DATE_LABEL_BEFORE,
+  STORY_28_4_THERMOGRAPHY_REASONS,
+  STORY_28_4_THERMOGRAPHY_TYPES,
+  STORY_28_4_TRANSFORMER_ITEMS,
+  STORY_28_4_UTILITY_REASON,
+} from './v18.ts';
 import { selectOptionFor } from './select-option.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, seedRulesSchema, type BlockDefinition, type FieldDef, type ReportSeed, type SeedRuleFlag, type TableDef, type TestDef } from './schema.ts';
@@ -312,7 +330,8 @@ describe('seed v1: checklists (addendum §9.2)', () => {
     // Batch e24s (seed v14, contract 47) appended four: the transformer's three and the Inspeção de QGBT's function test.
     // Batch e24s (Story 24.13) then the No-break de comando's six.
     // Batch e25s (seed v16, Story 25.18, contract 54) appended the TC's item 7 on its secondary.
-    expect(ITEM_KEYS).toHaveLength(90);
+    // Batch e28a (seed v18, Story 28.4, contract 58) appended the transformer's items 18 and 19.
+    expect(ITEM_KEYS).toHaveLength(92);
   });
 
   it('gives every item of every list three or four NC chip phrases', () => {
@@ -1769,7 +1788,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
     expect(keys('v9', 'transformador_forca')).toContain('potencia_nominal');
   });
 
-  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 to v17 (vector_group) transformador de força ratio table only', () => {
+  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 to v18 (vector_group) transformador de força ratio table only', () => {
     const factors: string[] = [];
     for (const version of Object.keys(SEED_VERSIONS)) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
@@ -1786,6 +1805,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
       'v15/transformador_forca/relacao_transformacao/vector_group',
       'v16/transformador_forca/relacao_transformacao/vector_group',
       'v17/transformador_forca/relacao_transformacao/vector_group',
+      'v18/transformador_forca/relacao_transformacao/vector_group',
     ]);
   });
 
@@ -2652,7 +2672,9 @@ describe('e25s-UNIT-V16 seed v16 (Epic 25 wave 3) opens equal to v15, and v15 is
 });
 
 /**
- * v17 as it ships (Epic 27 wave 2); until its deploy each batch of the wave re-pins it, after it a change is a new version.
+ * v17 as it ships (Epic 27 wave 2); until its deploy each batch of the wave re-pinned it. Frozen since the deploy of
+ * 886af55e (2026-11-22, with Epic 26): the value that commit's `seed.test.ts` holds, and a change to v17 is now a new
+ * version (seed v18, batch e28a).
  * Batch e27b, first commit (2026-11-22): v17 opens equal to v16, the same content and the same rule flags.
  */
 // Story 27.8 (batch e27b): "ITEM", "Para-raios", the participle of "limpeza e reaperto" and two flags (`withoutE27b8` below).
@@ -2696,10 +2718,10 @@ describe('27.8-UNIT seed v17 (Epic 27 wave 2) opens equal to v16, and v16 is fro
   const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
   const VERSIONS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16'];
 
-  it('is the version a new Template is created with, offering the types of v16', () => {
-    expect(SEED_VERSION).toBe('v17');
+  // Seed v18 (batch e28a) is the version a new Template is created with since Epic 28 wave 1; v17 ships as it did.
+  it('was the version a new Template is created with until v18, offering the types of v16', () => {
     expect(SEED_VERSIONS.v17!.version).toBe('v17');
-    expect(Object.keys(SEED_VERSIONS)).toEqual([...VERSIONS, 'v17']);
+    expect(Object.keys(SEED_VERSIONS).slice(0, 17)).toEqual([...VERSIONS, 'v17']);
     expect(equipmentTypesOf('v17')).toEqual(equipmentTypesOf('v16'));
   });
 
@@ -2711,7 +2733,7 @@ describe('27.8-UNIT seed v17 (Epic 27 wave 2) opens equal to v16, and v16 is fro
     expect(hash('v14'), 'seed v14 changed after it shipped: add a new version instead').toBe(V14_HASH);
     expect(hash('v15'), 'seed v15 changed after it shipped: add a new version instead').toBe(V15_HASH);
     expect(hash('v16'), 'seed v16 changed after it shipped: add a new version instead').toBe(V16_HASH);
-    expect(hash('v17'), 'seed v17 changed: before its first deploy update this pin, after it add a new version').toBe(V17_HASH);
+    expect(hash('v17'), 'seed v17 changed after it shipped: add a new version instead').toBe(V17_HASH);
   });
 
   it('stringifies equal to v16 once every batch e27b story\'s delta is undone', () => {
@@ -2726,7 +2748,8 @@ describe('27.8-UNIT seed v17 (Epic 27 wave 2) opens equal to v16, and v16 is fro
 
 describe('27.8-UNIT seed v17 (Story 27.8): the form\'s words "ITEM", "Para-raios" and "realizados"; v1 to v16 unchanged', () => {
   const v17 = getSeed('v17', 'cabine_primaria');
-  const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v17');
+  // Seed v18 (batch e28a) opens equal to v17 and keeps its words and flags.
+  const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v17' && version !== 'v18');
 
   it('the checklist header reads "ITEM" on v17 and "ÍTEM" on every older seed; the other columns are v16\'s', () => {
     expect(STORY_27_8_CHECKLIST_HEADER).toBe('ITEM');
@@ -2761,8 +2784,226 @@ describe('27.8-UNIT seed v17 (Story 27.8): the form\'s words "ITEM", "Para-raios
 });
 
 describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v17 only', () => {
-  it('turns on wording_pass on v17 and on no older seed', () => {
-    for (const version of Object.keys(SEED_VERSIONS)) expect(seedRule(version, 'wording_pass'), version).toBe(version === 'v17');
+  // Seed v18 (batch e28a) keeps v17's flags.
+  it('turns on wording_pass on v17 (and v18) and on no older seed', () => {
+    for (const version of Object.keys(SEED_VERSIONS)) expect(seedRule(version, 'wording_pass'), version).toBe(version === 'v17' || version === 'v18');
+  });
+});
+
+/**
+ * v18 as it ships (Epic 28); until its deploy each batch of the epic re-pins it, after it a change is a new version.
+ * Batch e28a, first commit (2026-11-23, Story 28.2): v18 opens equal to v17, the same content and the same rule flags.
+ */
+const V18_HASH = 'bd769c9fc4d8223397a4a742cc4fedfbca9f5c607f9ec5fe18c75a1130a7ae2d';
+
+/**
+ * Batch e28a and the Epic 28 batches after it: each story's delta on v18, undone, in the order `seed/v18.ts` applies
+ * them. A story that adds a v18 key, word or rule flag adds its own fenced section to `seed/v18.ts`
+ * (`// --- Story 28.N: ... ---`) and its own `withoutE28<N>` helper below this line (e.g. `withoutE283`), and names it
+ * here, so `withoutE28(v18)` stays v17 and "28.2-UNIT-001" keeps pinning that every other byte of v18 is v17's.
+ */
+// Story 28.3 (batch e28a): the transformer's "A SECO" / "A ÓLEO", CONSTRUÇÃO, the TP's and the TC's ÓLEO VEGETAL (`withoutE283` below).
+// Story 28.4 (batch e28a): the transformer's items 18 and 19, two thermography reasons, the utility reason, the battery date label (`withoutE284` below).
+const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE283, withoutE284];
+
+/** Story 28.4's delta undone: v17's seventeen transformer items, four thermography reasons, five not-tested reasons and battery label. */
+function withoutE284(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  const added = new Set(STORY_28_4_TRANSFORMER_ITEMS.map((item) => item.key as string));
+  out.blocks.transformador_forca.checklist = out.blocks.transformador_forca.checklist!.filter((item) => !added.has(item.key));
+  const reasons = new Set(STORY_28_4_THERMOGRAPHY_REASONS.map((reason) => reason.key));
+  for (const type of STORY_28_4_THERMOGRAPHY_TYPES) {
+    const motivo = out.blocks[type]!.measurement_tests!.find((test) => test.key === 'termografia')!.values!.find((value) => value.key === 'motivo')!;
+    motivo.options = motivo.options!.filter((option) => !reasons.has(option.key));
+  }
+  out.not_tested_reasons = out.not_tested_reasons.filter((reason) => reason.key !== STORY_28_4_UTILITY_REASON.key);
+  out.blocks.no_break_comando!.nameplate.find((field) => field.key === STORY_28_4_BATTERY_DATE_KEY)!.label = STORY_28_4_BATTERY_DATE_LABEL_BEFORE;
+  return out;
+}
+
+/** Story 28.3's delta undone: v17's three transformer options and aliases, no CONSTRUÇÃO, v17's oil value and sampling, the TP and TC without ÓLEO VEGETAL. */
+function withoutE283(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  const transformer = out.blocks.transformador_forca;
+  const insulation = transformer.nameplate.find((field) => field.key === 'tipo_de_isolacao')!;
+  insulation.options = [STORY_28_3_EPOXY, STORY_28_3_DRY, STORY_28_3_OIL_BEFORE];
+  insulation.option_aliases = { ÓLEO: STORY_28_3_OIL_BEFORE, 'ÓLEO MINERAL': STORY_28_3_OIL_BEFORE, 'Á SECO': STORY_28_3_DRY };
+  delete transformer.nameplate.find((field) => field.key === 'natureza_liquido')!.excused_unless;
+  transformer.nameplate = transformer.nameplate.filter((field) => field.key !== STORY_28_3_CONSTRUCAO.key);
+  transformer.oil_rule!.oil_values = [STORY_28_3_OIL_BEFORE];
+  transformer.oil_rule!.dry_fields = transformer.oil_rule!.dry_fields!.filter((key) => key !== STORY_28_3_CONSTRUCAO.key);
+  const condition = transformer.measurement_tests!.find((test) => test.key === 'coleta_oleo')!.applies_when as { values: string[] };
+  condition.values = [STORY_28_3_OIL_BEFORE];
+  for (const type of STORY_28_3_INSTRUMENT_TYPES) {
+    const definition = out.blocks[type];
+    const field = definition.nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')!;
+    field.options = field.options!.filter((option) => option !== STORY_28_3_VEGETAL);
+    definition.oil_rule!.oil_values = definition.oil_rule!.oil_values.filter((value) => value !== STORY_28_3_VEGETAL);
+  }
+  return out;
+}
+
+/** v18 with every Epic 28 story's delta undone: v17 as it shipped. */
+function withoutE28(seed: ReportSeed): ReportSeed {
+  return E28_STRIPS.reduceRight((out, strip) => strip(out), structuredClone(seed));
+}
+
+describe('28.2-UNIT-001 seed v18 (Epic 28) opens equal to v17', () => {
+  const v17 = getSeed('v17', 'cabine_primaria');
+  const v18 = getSeed('v18', 'cabine_primaria');
+  const VERSIONS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17'];
+
+  it('is the version a new Template is created with, offering the types of v17', () => {
+    expect(SEED_VERSION).toBe('v18');
+    expect(SEED_VERSIONS.v18!.version).toBe('v18');
+    expect(Object.keys(SEED_VERSIONS)).toEqual([...VERSIONS, 'v18']);
+    expect(equipmentTypesOf('v18')).toEqual(equipmentTypesOf('v17'));
+  });
+
+  it('stringifies equal to v17 once every Epic 28 story\'s delta is undone', () => {
+    expect(JSON.stringify(withoutE28(v18))).toBe(JSON.stringify(v17));
+  });
+
+  it('keeps every rule flag v17 turns on (a v18 relatório concludes and prints as a v17 one until a story says otherwise)', () => {
+    expect(withoutE28(v18).rules).toEqual(v17.rules);
+    for (const flag of Object.keys(v17.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v18', flag), flag).toBe(true);
+  });
+});
+
+describe('28.3-UNIT-001 seed v18 (Story 28.3): the oil\'s names on the transformer, the TP and the TC; v17 unchanged', () => {
+  const v17 = getSeed('v17', 'cabine_primaria');
+  const v18 = getSeed('v18', 'cabine_primaria');
+  const field = (seed: ReportSeed, type: string, key: string) => (seed.blocks as Record<string, BlockDefinition>)[type]!.nameplate.find((candidate) => candidate.key === key);
+
+  it('the transformer offers "A SECO" and "A ÓLEO" only, its v1 to v17 spellings aliases; v17 keeps EPÓXI, A SECO and ÓLEO ISOLANTE', () => {
+    const insulation = field(v18, 'transformador_forca', 'tipo_de_isolacao')!;
+    expect(insulation.options).toEqual(['A SECO', 'A ÓLEO']);
+    expect(STORY_28_3_TRANSFORMER_OPTIONS).toEqual([STORY_28_3_DRY, STORY_28_3_OIL]);
+    expect(insulation.option_aliases).toEqual({ ÓLEO: 'A ÓLEO', 'ÓLEO MINERAL': 'A ÓLEO', 'Á SECO': 'A SECO', 'ÓLEO ISOLANTE': 'A ÓLEO', EPÓXI: 'A SECO' });
+    expect(STORY_28_3_TRANSFORMER_ALIASES).toEqual(insulation.option_aliases);
+    for (const spelling of ['ÓLEO', 'óleo mineral', 'ÓLEO ISOLANTE', 'Oleo Isolante']) expect(selectOptionFor(insulation, spelling), spelling).toBe('A ÓLEO');
+    for (const spelling of ['EPÓXI', 'epoxi', 'Á SECO', 'A SECO']) expect(selectOptionFor(insulation, spelling), spelling).toBe('A SECO');
+    expect(field(v17, 'transformador_forca', 'tipo_de_isolacao')!.options).toEqual(['EPÓXI', 'A SECO', 'ÓLEO ISOLANTE']);
+  });
+
+  it('the oil rule and the oil sampling read "A ÓLEO"; CONSTRUÇÃO is a dry field; v17 reads ÓLEO ISOLANTE', () => {
+    const rule = v18.blocks.transformador_forca.oil_rule!;
+    expect(rule.oil_values).toEqual(['A ÓLEO']);
+    expect(rule.dry_fields).toEqual(['temperatura_enrolamento_c', 'classe_termica', 'construcao']);
+    expect(rule.items).toEqual(v17.blocks.transformador_forca.oil_rule!.items);
+    expect(v18.blocks.transformador_forca.measurement_tests!.find((test) => test.key === 'coleta_oleo')!.applies_when).toEqual({ op: 'in', values: ['A ÓLEO'], field: 'tipo_de_isolacao' });
+    expect(v17.blocks.transformador_forca.oil_rule!.oil_values).toEqual(['ÓLEO ISOLANTE']);
+  });
+
+  it('NATUREZA DO LÍQUIDO hangs on "A ÓLEO"; CONSTRUÇÃO is the plate\'s last field, optional, drawn after TIPO DE ISOLAÇÃO, asked on "A SECO", EPÓXI implying the encapsulated one', () => {
+    expect(field(v18, 'transformador_forca', 'natureza_liquido')!.excused_unless).toEqual({ field: 'tipo_de_isolacao', in: ['A ÓLEO'] });
+    expect(field(v17, 'transformador_forca', 'natureza_liquido')!.excused_unless).toBeUndefined();
+    const nameplate = v18.blocks.transformador_forca.nameplate;
+    expect(nameplate.at(-1)).toEqual(STORY_28_3_CONSTRUCAO);
+    expect(STORY_28_3_CONSTRUCAO).toEqual({
+      key: 'construcao',
+      label: 'CONSTRUÇÃO',
+      kind: 'select',
+      options: ['ENCAPSULADO EM RESINA EPÓXI', 'IMPREGNADO A VÁCUO (VPI)'],
+      optional: true,
+      help: 'Opcional',
+      excused_unless: { field: 'tipo_de_isolacao', in: ['A SECO'] },
+      screen_after: 'tipo_de_isolacao',
+      implied_by: { field: 'tipo_de_isolacao', values: { EPÓXI: 'ENCAPSULADO EM RESINA EPÓXI' } },
+    });
+    expect(nameplate.slice(0, -1).map((one) => one.key)).toEqual(v17.blocks.transformador_forca.nameplate.map((one) => one.key));
+    // The subtypes (template config keys) are v17's.
+    expect(v18.blocks.transformador_forca.subtypes).toEqual(v17.blocks.transformador_forca.subtypes);
+  });
+
+  it('the TP and the TC offer EPÓXI, A SECO, ÓLEO MINERAL and ÓLEO VEGETAL, both oils; v17 offers three', () => {
+    for (const type of STORY_28_3_INSTRUMENT_TYPES) {
+      expect(field(v18, type, 'tipo_de_isolacao')!.options, type).toEqual(['EPÓXI', 'A SECO', 'ÓLEO MINERAL', STORY_28_3_VEGETAL]);
+      expect(v18.blocks[type].oil_rule!.oil_values, type).toEqual(['ÓLEO MINERAL', 'ÓLEO VEGETAL']);
+      expect(field(v17, type, 'tipo_de_isolacao')!.options, type).toEqual(['EPÓXI', 'A SECO', 'ÓLEO MINERAL']);
+      expect(v17.blocks[type].oil_rule!.oil_values, type).toEqual(['ÓLEO MINERAL']);
+    }
+  });
+
+  it('no seed before v18 carries `screen_after` or `implied_by`', () => {
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const one of definition.nameplate) expect(one.screen_after === undefined && one.implied_by === undefined, `${version} ${definition.block_type}/${one.key}`).toBe(true);
+      }
+    }
+  });
+});
+
+describe('28.4-UNIT-001 seed v18 (Story 28.4): items 18 and 19, the thermography\'s and the not-tested reasons, the battery date; v17 unchanged', () => {
+  const v17 = getSeed('v17', 'cabine_primaria');
+  const v18 = getSeed('v18', 'cabine_primaria');
+  const motivo = (seed: ReportSeed, type: string) => (seed.blocks as Record<string, BlockDefinition>)[type]!.measurement_tests!.find((test) => test.key === 'termografia')!.values!.find((value) => value.key === 'motivo')!.options!.map((option) => option.label);
+
+  it('the transformer asks nineteen items: v17\'s seventeen, then 18 and 19 with Bruno\'s words for each kind, neither an oil nor a dry item', () => {
+    const checklist = v18.blocks.transformador_forca.checklist!;
+    expect(checklist).toHaveLength(19);
+    expect(checklist.slice(0, 17)).toEqual(v17.blocks.transformador_forca.checklist);
+    expect(checklist.slice(17)).toEqual(STORY_28_4_TRANSFORMER_ITEMS);
+    expect(checklist.slice(17).map((item) => [item.key, item.label, item.dry_label])).toEqual([
+      ['temperatura_alarme_e_desligamento', 'RELÉ/TERMÔMETRO DE TEMPERATURA: ALARME E DESLIGAMENTO', 'SENSORES DE TEMPERATURA (PT100) E RELÉ TÉRMICO: ALARME E DESLIGAMENTO'],
+      ['aterramento_carcaca_tanque_e_neutro', 'ATERRAMENTO DO TANQUE E DO NEUTRO', 'ATERRAMENTO DA CARCAÇA E DO NEUTRO'],
+    ]);
+    const rule = v18.blocks.transformador_forca.oil_rule!;
+    for (const item of STORY_28_4_TRANSFORMER_ITEMS) {
+      expect(rule.items as readonly string[]).not.toContain(item.key);
+      expect((rule.dry_items ?? []) as readonly string[]).not.toContain(item.key);
+      expect(ITEM_KEYS as readonly string[]).toContain(item.key);
+    }
+    expect(v17.blocks.transformador_forca.checklist).toHaveLength(17);
+  });
+
+  it('no item of v1 to v17 has a dry label; on v18 only items 18 and 19 do', () => {
+    for (const version of Object.keys(SEED_VERSIONS)) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        const dry = (definition.checklist ?? []).filter((item) => item.dry_label !== undefined).map((item) => `${definition.block_type}/${item.key}`);
+        expect(dry, version).toEqual(version === 'v18' && definition.block_type === 'transformador_forca' ? STORY_28_4_TRANSFORMER_ITEMS.map((item) => `transformador_forca/${item.key}`) : []);
+      }
+    }
+  });
+
+  it('every v18 thermography offers six reasons, the two new ones before "Outro"; v17 offers four', () => {
+    for (const type of STORY_28_4_THERMOGRAPHY_TYPES) {
+      expect(motivo(v18, type), type).toEqual(['Equipamento fora de carga', 'Sem acesso seguro ao equipamento', 'Sem termovisor disponível', 'Carga insuficiente para avaliação', 'Fora do escopo contratado', 'Outro']);
+      expect(motivo(v17, type), type).toEqual(['Equipamento fora de carga', 'Sem acesso seguro ao equipamento', 'Sem termovisor disponível', 'Outro']);
+    }
+  });
+
+  it('the not-tested reasons offer "Equipamento da concessionária" before "Outro", with Bruno\'s default justification; v17 offers five', () => {
+    expect(v18.not_tested_reasons.map((reason) => reason.key)).toEqual(['impossibilidade_desligamento', 'solicitacao_cliente', 'equipamento_inacessivel', 'defeito_no_equipamento', 'equipamento_concessionaria', 'outro']);
+    expect(v18.not_tested_reasons[4]).toEqual(STORY_28_4_UTILITY_REASON);
+    expect(STORY_28_4_UTILITY_REASON.justification).toBe(
+      'Ensaios não realizados no(s) equipamento(s) {tag}, de propriedade da concessionária {concessionaria} e destinado(s) à medição de faturamento, por não haver autorização da concessionária para intervenção.',
+    );
+    expect(v17.not_tested_reasons.map((reason) => reason.key)).toEqual(['impossibilidade_desligamento', 'solicitacao_cliente', 'equipamento_inacessivel', 'defeito_no_equipamento', 'outro']);
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) expect(getSeed(version, 'cabine_primaria').not_tested_reasons.some((reason) => reason.utility !== undefined), version).toBe(false);
+  });
+
+  it('the No-break de comando\'s battery date names the exchange on v18, the same key; v17 keeps its label', () => {
+    const field = (seed: ReportSeed) => seed.blocks.no_break_comando!.nameplate.find((one) => one.key === STORY_28_4_BATTERY_DATE_KEY)!;
+    expect(field(v18).label).toBe(STORY_28_4_BATTERY_DATE_LABEL);
+    expect(STORY_28_4_BATTERY_DATE_LABEL).toBe('BATERIAS: DATA DE FABRICAÇÃO, INSTALAÇÃO OU TROCA');
+    expect({ ...field(v18), label: STORY_28_4_BATTERY_DATE_LABEL_BEFORE }).toEqual(field(v17));
+  });
+});
+
+describe('28.2-UNIT-002 seed v17 is frozen as it shipped at the deploy of 886af55e; v18 is pinned until its own', () => {
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
+
+  it('V17_HASH is the value v17 shipped with at the deploy of 886af55e, and v11 to v16 hash as they shipped', () => {
+    expect(V17_HASH).toBe('c909f38ad394437eb2d5039d0fd1e373d85a7d1d4c4b2958fc79d209c051fcdb');
+    expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
+    expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
+    expect(hash('v13'), 'seed v13 changed after it shipped: add a new version instead').toBe(V13_HASH);
+    expect(hash('v14'), 'seed v14 changed after it shipped: add a new version instead').toBe(V14_HASH);
+    expect(hash('v15'), 'seed v15 changed after it shipped: add a new version instead').toBe(V15_HASH);
+    expect(hash('v16'), 'seed v16 changed after it shipped: add a new version instead').toBe(V16_HASH);
+    expect(hash('v17'), 'seed v17 changed after it shipped: add a new version instead').toBe(V17_HASH);
+    expect(hash('v18'), 'seed v18 changed: before its first deploy update this pin, after it add a new version').toBe(V18_HASH);
   });
 });
 
@@ -2886,7 +3127,7 @@ describe('25.16-UNIT seed v16 (Story 25.16): the Malha\'s continuity test takes 
       for (const block of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
         for (const test of block.measurement_tests ?? []) {
           const where = `${version} ${block.block_type}/${test.key}`;
-          if (version !== 'v16' && version !== 'v17') expect(test.added_rows, where).toBeUndefined();
+          if (version !== 'v16' && version !== 'v17' && version !== 'v18') expect(test.added_rows, where).toBeUndefined();
           else if (block.block_type === 'malha_aterramento' && test.key === STORY_25_16_TEST) expect(test.added_rows, where).toEqual(STORY_25_16_ADDED_ROWS);
           else if (test.key !== 'termografia') expect(test.added_rows, where).toBeUndefined();
         }
@@ -2911,7 +3152,8 @@ describe('25.18-UNIT seed v16 (Story 25.18): the TC asks its secondary as item 7
     // Asked on every TC: no subtype marks it NA and the oil rule does not name it.
     expect(v16.blocks.tc.subtypes.flatMap((subtype) => subtype.na_defaults)).not.toContain(STORY_25_18_TC_ITEM.key);
     expect(v16.blocks.tc.oil_rule!.items).toEqual(v15.blocks.tc.oil_rule!.items);
-    expect(ITEM_KEYS.at(-1)).toBe(STORY_25_18_TC_ITEM.key);
+    // Batch e28a (Story 28.4) appended the v18 transformer's two items after it.
+    expect(ITEM_KEYS.at(-3)).toBe(STORY_25_18_TC_ITEM.key);
   });
 
   it('the v16 TP is the v15 list (its rule is the opposite one)', () => {
@@ -2986,7 +3228,7 @@ describe('25.19-UNIT seed v16 (Story 25.19, the "A SECO" half): the dry option a
 
   // Seed v17 (batch e27b) keeps v16's "A SECO".
   it('every seed of v1 to v15 still reads "Á SECO" in its options and its subtypes', () => {
-    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v16' && one !== 'v17')) {
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v16' && one !== 'v17' && one !== 'v18')) {
       const seed = getSeed(version, 'cabine_primaria');
       for (const type of STORY_25_19_TYPES) {
         const options = seed.blocks[type].nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')?.options;

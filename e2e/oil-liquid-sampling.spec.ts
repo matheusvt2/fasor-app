@@ -22,7 +22,9 @@ test.beforeEach(({ seed }) => {
 
 test('@p0 23.17-E2E-001 the liquid fields follow NATUREZA DO LÍQUIDO, the sampling asks a reason for "Não coletado" without raising the conclusion, a dry unit excuses both and drops the sampling, the disjuntor\'s follows its oil; the DOCX prints neither', async ({ page }) => {
   test.setTimeout(300_000);
-  const { relatorioId, sheets } = await setUpRelatorio(page, account, database);
+  // Pinned to v17 since seed v18 (batch e28a, Story 28.3): v18 reads "A ÓLEO" and hides the liquid on a dry unit
+  // (`seed-v18-insulation.spec.ts`); this walk asserts v13 to v17's ÓLEO ISOLANTE.
+  const { relatorioId, sheets } = await setUpRelatorio(page, account, database, undefined, 'v17');
   const tf = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const dj = sheets.find((sheet) => sheet.blockType === 'disjuntor_mt')!;
   const select = (key: string) => plateField(page, key).locator('select');

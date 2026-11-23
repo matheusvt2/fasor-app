@@ -272,6 +272,11 @@ export const ITEM_KEYS = [
   // Appended (seed v16, batch e25s, Story 25.18, contract 54): the TC's item 7, on its secondary
   // (`docs/nc-chip-phrases.md`, "TC on seed v16"); a key shorter than its label.
   'secundario_fechado_ou_curto_circuitado',
+  // Appended (seed v18, batch e28a, Story 28.4 with Bruno's Q-3, contract 58): the transformer's items 18 and 19, asked
+  // on both kinds, each with a label per insulation kind (`dry_label`; `docs/nc-chip-phrases.md`, "Transformer on seed v18").
+  // Keys shorter than their labels, named for both kinds.
+  'temperatura_alarme_e_desligamento',
+  'aterramento_carcaca_tanque_e_neutro',
 ] as const;
 
 export const itemKeySchema = z.enum(ITEM_KEYS);

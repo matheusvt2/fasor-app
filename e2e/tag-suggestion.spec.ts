@@ -48,6 +48,8 @@ const eqRow = (page: Page, tag: string) => page.locator('li.s9-eq').filter({ has
 const menuOf = (page: Page, name: string) => page.getByRole('button', { name: `Mais opções de ${name}`, exact: true });
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
 const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+/** Batch e28a (Story 28.3): the current seed's oil option, the kernel's ("A ÓLEO" since v18, ÓLEO ISOLANTE on v13 to v17). */
+const OIL_VALUE = TRANSFORMER.oil_rule!.oil_values[0]!;
 const FIRST = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 /** `60-ficha.html` TAG field helper (Story 24.8). */
 const TAG_HELPER = 'Sugestão do app. Troque pela TAG da placa, do diagrama unifilar ou a usada no local.';
@@ -149,7 +151,7 @@ test('@p0 24.8-E2E-002 an obra with the old TAGs issued once; a second relatóri
   const trEquipmentId = (a.drafts.find((draft) => draft.path === `block/${trA.blockId}`)!.value as { equipment_id: string }).equipment_id;
   await pushDrafts(page, database, [
     ...a.drafts,
-    officeDraft(account, { relatorioId: a.relatorioId }, `sheet/${trA.blockId}/nameplate/tipo_de_isolacao`, 'ÓLEO ISOLANTE'),
+    officeDraft(account, { relatorioId: a.relatorioId }, `sheet/${trA.blockId}/nameplate/tipo_de_isolacao`, OIL_VALUE),
     officeDraft(account, { relatorioId: a.relatorioId }, `sheet/${trA.blockId}/test/isolacao/cell/${FIRST.row}/${FIRST.col}`, { raw: '4.9', unit: 'GΩ', state: 'measured' }),
   ]);
   await issue(page, a.relatorioId);

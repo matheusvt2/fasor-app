@@ -2,6 +2,7 @@ import { isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-
 import type { BlockRow, RegistryRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { cabineOf } from '../relatorio/cabine.ts';
+import { checklistItemLabel } from '../relatorio/oil-rule.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import type { SheetStep } from '../relatorio/sheet-progress.ts';
 import { siteLocalOf, siteResultOf } from '../relatorio/site-checklist.ts';
@@ -123,7 +124,10 @@ function definitionOf(block: BlockRow, snapshot: Pick<RelatorioSnapshot, 'equipm
 
 function activityOf(photo: { item_key: string | null }, block: BlockRow, meta: ContextCaptionMeta, snapshot: Pick<RelatorioSnapshot, 'equipment_types'>): CaptionWord | null {
   if (photo.item_key !== null) {
-    const label = definitionOf(block, snapshot)?.checklist?.find((item) => item.key === photo.item_key)?.label ?? null;
+    const definition = definitionOf(block, snapshot);
+    const item = definition?.checklist?.find((candidate) => candidate.key === photo.item_key);
+    // Seed v18 (Story 28.4): the item's words by the unit's kind.
+    const label = item === undefined ? null : checklistItemLabel(item, definition ?? null, block);
     if (label === null) return null;
     // Story 27.9 (F40): on a seed whose `wording_pass` is on, a row answered NC names the non-conformity. The stored
     // answer is read (`checklistResultOf` is not imported here: it closes an import cycle through the print).

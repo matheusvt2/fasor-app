@@ -123,9 +123,10 @@ describe('contract constants', () => {
   // e26a (Story 26.2, the role families and the user's role and status, 2026-11-21): 55, after e25s's 54; MIN follows.
   // e27a (Stories 27.1 and 27.2, the second empresa and the new value refusals, 2026-11-21): 56, after e26a's 55; MIN follows.
   // e27b (Story 27.8, seed v17 opens equal to v16, 2026-11-22): 57, after e27a's 56; MIN follows.
-  it('speaks version 57 and refuses version 56 (batch e27b, Story 27.8: a version-56 bundle ships no seed v17)', () => {
-    expect(CONTRACT_VERSION).toBe(57);
-    expect(MIN_CONTRACT_VERSION).toBe(57);
+  // e28a (Stories 28.2 to 28.4, seed v18 and its item and reason keys, 2026-11-23): 58, after e27b's 57; MIN follows.
+  it('speaks version 58 and refuses version 57 (batch e28a, Story 28.2: a version-57 bundle ships no seed v18)', () => {
+    expect(CONTRACT_VERSION).toBe(58);
+    expect(MIN_CONTRACT_VERSION).toBe(58);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

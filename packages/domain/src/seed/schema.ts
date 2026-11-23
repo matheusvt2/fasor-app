@@ -78,6 +78,24 @@ export const fieldDefSchema = z
      * (`relatorio/oil-rule.ts` `isFieldHidden`). Optional and never defaulted.
      */
     excused_unless: z.object({ field: seedKey, in: z.array(z.string().min(1)).min(1) }).optional(),
+    /*
+     * Seed v18, batch e28a (Story 28.3, Bruno's Q-1 and Matheus's decision on the frames of 2026-11-23). Both optional
+     * and never defaulted, so v1 to v17 parse to the bytes they shipped with.
+     */
+    /**
+     * Seed v18 (Story 28.3): on the sheet the field is drawn right after the field of this key; the nameplate's order
+     * (its place in `nameplate`) stays the printed order, so a field appended to the plate fills its empty last pair
+     * and no printed row moves (CONSTRUÇÃO after TIPO DE ISOLAÇÃO on screen, after CLASSE TÉRMICA in print;
+     * `nameplateScreenOrder`).
+     */
+    screen_after: seedKey.optional(),
+    /**
+     * Seed v18 (Story 28.3): on a select, the option a value copied or read from another sheet takes when that sheet
+     * held no value here and its select `field` held one of `values`' keys (matched ignoring case and accents): a
+     * transformer copied from a sheet that said EPÓXI arrives with CONSTRUÇÃO "ENCAPSULADO EM RESINA EPÓXI"
+     * (`impliedNameplateValue`).
+     */
+    implied_by: z.object({ field: seedKey, values: z.record(z.string().min(1), z.string().min(1)) }).optional(),
   })
   .refine((f) => (f.kind === 'select') === (f.options !== undefined), {
     message: 'options exist exactly on a select field',
@@ -96,6 +114,9 @@ export const fieldDefSchema = z
   })
   .refine((f) => f.dash_ratio === undefined || f.kind === 'text', {
     message: 'dash_ratio belongs to a text field',
+  })
+  .refine((f) => f.implied_by === undefined || (f.kind === 'select' && Object.values(f.implied_by.values).every((target) => (f.options ?? []).includes(target))), {
+    message: 'implied_by belongs to a select and names its options',
   });
 export type FieldDef = z.infer<typeof fieldDefSchema>;
 
@@ -110,6 +131,12 @@ export const checklistItemSchema = z.object({
    * OBSERVAÇÕES. Optional, so v1 to v5 parse to the bytes they shipped with.
    */
   hint: z.string().min(1).optional(),
+  /**
+   * Seed v18, batch e28a (Story 28.4, Bruno's Q-3): the item's words on a dry unit (the definition's oil rule reads it
+   * non-oil), where `label` is the oil unit's; an oil or unknown unit reads `label`. The answer, the key and the place
+   * stay one; the kernel picks the words (`checklistItemLabel`). Optional and never defaulted.
+   */
+  dry_label: z.string().min(1).optional(),
 });
 /**
  * A checklist item as every reader takes it. Story 14.6: on a company type's definition the key is
@@ -788,6 +815,17 @@ function checkE23tDefinition(
       issue(['nameplate', f, 'excused_unless'], `excused_unless names another select of the nameplate and only its options ("${condition.field}")`);
     }
   });
+  // Seed v18, batch e28a (Story 28.3): `screen_after` names another field of the plate; `implied_by` another select.
+  definition.nameplate.forEach((candidate, f) => {
+    if (candidate.screen_after !== undefined) {
+      const target = field(candidate.screen_after);
+      if (target === undefined || target.key === candidate.key) issue(['nameplate', f, 'screen_after'], `screen_after names another field of the nameplate ("${candidate.screen_after}")`);
+    }
+    if (candidate.implied_by !== undefined) {
+      const target = field(candidate.implied_by.field);
+      if (target === undefined || target.key === candidate.key || target.kind !== 'select') issue(['nameplate', f, 'implied_by'], `implied_by names another select of the nameplate ("${candidate.implied_by.field}")`);
+    }
+  });
 }
 
 /** The winding materials a `winding_correction` reads (`windingResistanceTo75`). */
@@ -966,6 +1004,13 @@ export const notTestedReasonSchema = z.object({
    * (`isDefectReason`). Seed v12 (Story 22.7) sets it on "Defeito no equipamento", the first.
    */
   defect: z.boolean().optional(),
+  /**
+   * Seed v18, batch e28a (Story 28.4, Bruno's Q-4): the reason names the utility's equipment, so the mark asks the
+   * utility's name (`utility_name` of the mark) and the justification fills `{tag}` with the sheet's TAG and
+   * `{concessionaria}` with that name (`notTestedJustification`); the engineer may rewrite the whole text on the ficha
+   * (the mark's `text`). Optional and never defaulted.
+   */
+  utility: z.literal(true).optional(),
 });
 export type NotTestedReason = z.infer<typeof notTestedReasonSchema>;
 
