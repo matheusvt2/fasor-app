@@ -343,7 +343,8 @@ describe('23.20-UNIT thermography by NETA MTS-2023 Table 100.18, applicable whil
     const applied = structuredClone(block);
     applied.sheet.test.termografia!.applicability = cell(APPLICABILITY_APPLIED);
     const live = measurement(applied, 'termografia');
-    expect(live.applicability).toMatchObject({ state: 'applied', appliedText: 'Equipamento fora de carga.' });
+    // ~~appliedText: 'Equipamento fora de carga.'~~ Story 28.10 (B-3, every seed, screen only): Bruno's band sentence.
+    expect(live.applicability).toMatchObject({ state: 'applied', appliedLead: 'Ensaio aplicado por você.', appliedText: 'O app tinha marcado N.A.: equipamento fora de carga.' });
     expect(live.rows[0]!.cells[0]!.verdict).toBe('out');
   });
 

@@ -1,5 +1,6 @@
 import {
   effectiveParecer,
+  offersAdditionalItems,
   PARECER_VERDICTS,
   parecerBoxText,
   parecerAbsentTexts,
@@ -24,6 +25,8 @@ import { GeneratedTextField } from '../../../components/generated-text-field.tsx
 import { useLatestChoice } from '../../../components/use-latest-choice.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import type { BandRef } from './setup-fields.ts';
+import type { UndoableEdits } from '../../../state/use-undoable-edits.ts';
+import { AdditionalItems } from './additional-items.tsx';
 import { spriteHref } from '../../../styles/sprite.ts';
 
 /*
@@ -46,6 +49,9 @@ import { spriteHref } from '../../../styles/sprite.ts';
 /** Builds the next parecer from the one the store holds now; null writes nothing. */
 export type WriteParecer = (build: (current: RelatorioParecer | null) => RelatorioParecer | null, options?: { toast?: string }) => Promise<void>;
 
+/** A relatório row stored before contract 59 holds no list: read as none. */
+const NO_ITEMS: readonly string[] = [];
+
 /** The segments in the mock's order; the value attribute is the box tone (`components.css`). */
 const SEGMENTS: readonly ParecerVerdict[] = PARECER_VERDICTS;
 
@@ -54,11 +60,16 @@ export function Etapa6Parecer({
   snapshot,
   onWriteParecer,
   onBackToExport,
+  onWriteAdditionalItems,
+  undoable,
   bandRef,
 }: {
   relatorioId: string;
   snapshot: RelatorioSnapshot;
   onWriteParecer: WriteParecer;
+  /** Story 28.9: writes the whole `setup.additional_items` now, as its own batch; resolves to the batch id. */
+  onWriteAdditionalItems: (value: string[]) => Promise<string | null>;
+  undoable: UndoableEdits['undoable'];
   /** Shown when the band was opened from the Export dialog (`?volta=exportar`). */
   onBackToExport: (() => void) | null;
   bandRef: BandRef;
@@ -207,6 +218,11 @@ export function Etapa6Parecer({
             <span className="pb-text">{parecerBoxText(snapshot)}</span>
           </div>
         )}
+
+        {/* Story 28.9 (seed v18, B-15): the relatório's additional items under the parecer; none on an older seed. */}
+        {offersAdditionalItems(snapshot.relatorio.seed_version) ? (
+          <AdditionalItems stored={snapshot.relatorio.setup.additional_items ?? NO_ITEMS} onWrite={onWriteAdditionalItems} undoable={undoable} />
+        ) : null}
       </div>
     </section>
   );

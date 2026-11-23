@@ -38,6 +38,12 @@ export interface TestApplicability {
   /** The applied band's sentence, "A placa diz sem fusíveis."; null with `reason`. */
   appliedText: string | null;
   /**
+   * Story 28.10 (B-3): the applied band's own lead over a condition over the test's own value, "Ensaio aplicado por
+   * você." (its sentence then "O app tinha marcado N.A.: equipamento fora de carga."); absent over a plate condition,
+   * whose band keeps the screen's lead "Aplicado por você.".
+   */
+  appliedLead?: string;
+  /**
    * Seed v13, batch e23e (Story 23.20): the key of the test's own value the condition reads
    * ("em_carga"), so the screen keeps that value's control in the NA band; absent on a condition
    * over the plate and on a test with none.
@@ -50,6 +56,19 @@ export const APPLICABILITY_APPLIED = 'applied';
 
 // authored (Story 23.9, listed for Bruno): the reason's lead, as the mock's band draws it (`60-ficha.html` #/ficha/SEC-C05).
 export const NA_REASON_LEAD = 'Não se aplica:';
+
+// Story 28.10 (B-3, Bruno's sentence, verbatim): the band over a test the app marked N.A. by its own value and the
+// technician applied anyway, "Ensaio aplicado por você. O app tinha marcado N.A.: ⟨reason in lowercase⟩".
+export const APPLIED_OVER_VALUE_LEAD = 'Ensaio aplicado por você.';
+export const APPLIED_OVER_VALUE_MARKED = 'O app tinha marcado N.A.:';
+
+/** Story 28.10: the reason after the colon with its first letter in lowercase, "equipamento fora de carga."; a leading acronym ("TC", "PT100") keeps its case. */
+function lowerFirst(phrase: string): string {
+  const firstWord = phrase.split(/\s/u, 1)[0] ?? '';
+  const letters = firstWord.replace(/[^\p{L}]/gu, '');
+  if (letters.length > 1 && letters === letters.toLocaleUpperCase('pt-BR')) return phrase;
+  return phrase.charAt(0).toLocaleLowerCase('pt-BR') + phrase.slice(1);
+}
 
 const ALWAYS: TestApplicability = Object.freeze({ state: 'always', reason: null, phrase: null, appliedText: null });
 const MET: TestApplicability = Object.freeze({ state: 'met', reason: null, phrase: null, appliedText: null });
@@ -192,7 +211,10 @@ function valueApplicability(block: Pick<BlockRow, 'sheet'>, definition: Pick<Blo
     phrase,
     // ~~authored (Story 23.20, listed for Bruno): the applied band's sentence of a condition over the test's own value,
     // "Aplicado mesmo assim: ⟨phrase⟩"~~ Story 24.9 (F11): one lead ("Aplicado por você.", the band's) and the reason once.
-    appliedText: phrase,
+    // ~~appliedText: phrase,~~ Story 28.10 (B-3, Bruno's sentence; on every seed, screen only): "Ensaio aplicado por
+    // você. O app tinha marcado N.A.: equipamento fora de carga.", the reason in lowercase after the colon.
+    appliedLead: APPLIED_OVER_VALUE_LEAD,
+    appliedText: `${APPLIED_OVER_VALUE_MARKED} ${lowerFirst(phrase)}`,
     value: condition.value,
   };
 }

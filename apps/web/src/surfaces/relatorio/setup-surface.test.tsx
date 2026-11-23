@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { EMPTY_DEFINITION_CONTEXT, defaultEmpresaRow, instantiateTemplate, standardTemplate, type BlockRow, type RelatorioRow, type UserRow } from '@app/domain';
+import { EMPTY_DEFINITION_CONTEXT, defaultEmpresaRow, entityKey, instantiateTemplate, standardTemplate, systemRoleRow, type BlockRow, type RelatorioRow, type RoleRow, type UserRow } from '@app/domain';
 import { INSTRUMENT_MEGOHMETRO_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -16,6 +16,7 @@ import { SyncContext } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
+import { PermissionsFixture } from '../../state/permissions.tsx';
 import { SetupSurface } from './setup-surface.tsx';
 import { loadIndependentWaits, untilStored } from '../../test/load.ts';
 
@@ -101,7 +102,14 @@ function Probe({ testId }: { testId: string }) {
   return <p data-testid={testId}>{`${location.pathname}${location.search} ${JSON.stringify(location.state)}`}</p>;
 }
 
-function tree(id: string, search = '') {
+function tree(id: string, search = '', role?: RoleRow) {
+  const routed = (
+    <Routes>
+      <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
+      <Route path="/relatorio/:id" element={<Probe testId="sumario-route" />} />
+      <Route path="/cadastros" element={<Probe testId="cadastros-route" />} />
+    </Routes>
+  );
   return (
     // pt-BR orders the DateField segments day/month/year, as `app.tsx`'s own root
     // `I18nProvider` does for the real app; without it jsdom's default locale would
@@ -114,11 +122,8 @@ function tree(id: string, search = '') {
         <ToastProvider>
           {/* The shell's status toaster: what "Concluir" says is the status change itself. */}
           <StatusToaster />
-          <Routes>
-            <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
-            <Route path="/relatorio/:id" element={<Probe testId="sumario-route" />} />
-            <Route path="/cadastros" element={<Probe testId="cadastros-route" />} />
-          </Routes>
+          {/* Story 28.9: a known role (`PermissionsFixture`) where a test names one; else every key, as before Epic 26. */}
+          {role === undefined ? routed : <PermissionsFixture role={role}>{routed}</PermissionsFixture>}
           <ToastOutlet />
         </ToastProvider>
         </SyncContext>
@@ -127,8 +132,8 @@ function tree(id: string, search = '') {
   );
 }
 
-function renderSetup(id = RELATORIO, search = '') {
-  return render(tree(id, search));
+function renderSetup(id = RELATORIO, search = '', role?: RoleRow) {
+  return render(tree(id, search, role));
 }
 
 afterEach(() => {
@@ -1133,5 +1138,73 @@ describe('Story 17.6: "Altitude do local" takes N/A and says when the device gav
     } finally {
       unstub();
     }
+  });
+});
+
+/*
+ * 28.9-UNIT-WEB (batch e28c, Story 28.9, contract 59; `50-relatorio-setup.html` `#setup-e28-items`): Etapa 6's additional
+ * items. The fixture's relatório, moved to seed v18 with two stored items, shows them in order under the parecer; on its
+ * own seed no list shows; under a role without `relatorio.fill` the list is read-only and nothing is written; a typed list
+ * is stored without its blank rows. Every text is invented.
+ */
+describe('28.9 Etapa 6\'s additional items', () => {
+  const ITEMS = ['Ensaio feito pelo barramento.', 'Seletividade não revisada.'];
+
+  async function onV18(items: string[]): Promise<AppDatabase> {
+    const db = await seeded();
+    const key = entityKey('relatorio', RELATORIO);
+    const row = (await db.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow;
+    await db.entities.put(toRecord(key, { ...row, seed_version: 'v18', setup: { ...row.setup, additional_items: items } }));
+    return db;
+  }
+  const band = () => screen.getByRole('group', { name: 'Itens adicionais' });
+
+  it('on v18 the items show in order under the parecer, with the frame\'s words; on the fixture\'s own seed no list', async () => {
+    database = await onV18(ITEMS);
+    const { container, unmount } = renderSetup();
+    await waitFor(() => expect(band()).toBeVisible());
+    expect(within(band()).getAllByRole('textbox').map((box) => [box.getAttribute('aria-label'), (box as HTMLTextAreaElement).value])).toEqual([
+      ['Item adicional 1', ITEMS[0]],
+      ['Item adicional 2', ITEMS[1]],
+    ]);
+    expect(band()).toHaveTextContent('Observações do relatório inteiro. Cada item sai como um tópico na seção 10, depois dos itens fixos.');
+    expect(within(band()).getByText('Um item vazio não é guardado.')).toBeVisible();
+    expect(within(band()).getByRole('button', { name: 'Mais opções do item adicional 2' })).toBeVisible();
+    expect(await axe(container)).toHaveNoViolations();
+    unmount();
+    database.close();
+
+    database = await seeded();
+    renderSetup();
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeVisible());
+    expect(screen.queryByRole('group', { name: 'Itens adicionais' })).toBeNull();
+  });
+
+  it('typing writes the list without its blank rows, in one put; an empty list says so', async () => {
+    database = await onV18([]);
+    renderSetup();
+    await waitFor(() => expect(band()).toBeVisible());
+    expect(within(band()).getByText('Nenhum item adicional.')).toBeVisible();
+    await userEvent.click(within(band()).getByRole('button', { name: 'Adicionar item' }));
+    const first = within(band()).getByRole('textbox', { name: 'Item adicional 1' });
+    expect(first).toHaveFocus();
+    await userEvent.type(first, ITEMS[0]!);
+    await userEvent.click(within(band()).getByRole('button', { name: 'Adicionar item' }));
+    expect(within(band()).getByRole('textbox', { name: 'Item adicional 2' })).toHaveFocus();
+    await userEvent.tab();
+    const puts = () => database!.outbox.where('path').equals('relatorio/setup/additional_items').toArray();
+    await untilStored(async () => (await puts()).length, (count) => expect(count).toBe(1));
+    expect((await puts())[0]!.value).toEqual([ITEMS[0]]);
+  });
+
+  it('under a role without relatorio.fill the items are read-only and nothing is written', async () => {
+    database = await onV18(ITEMS);
+    renderSetup(RELATORIO, '', systemRoleRow('consulta'));
+    await waitFor(() => expect(band()).toBeVisible());
+    for (const box of within(band()).getAllByRole('textbox')) expect(box).toBeDisabled();
+    expect(within(band()).getByRole('button', { name: 'Adicionar item' })).toBeDisabled();
+    await userEvent.click(within(band()).getByRole('button', { name: 'Adicionar item' }));
+    expect(within(band()).getAllByRole('textbox')).toHaveLength(2);
+    expect(await database.outbox.where('path').equals('relatorio/setup/additional_items').count()).toBe(0);
   });
 });

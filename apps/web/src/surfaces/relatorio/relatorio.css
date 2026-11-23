@@ -269,6 +269,14 @@
 [data-route="/relatorio/:id/setup"] .exclusion-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
 [data-route="/relatorio/:id/setup"] .exclusion-list li { display: flex; align-items: center; gap: var(--sp-2); }
 [data-route="/relatorio/:id/setup"] .exclusion-list .exclusion-num { width: 28px; color: var(--ink-secondary); font-variant-numeric: tabular-nums; flex: none; }
+/* Story 28.9: the additional items under the parecer, as `50-relatorio-setup.html` lays out `#setup-e28-items`
+   (its page CSS, the route scope translated). The item is a textarea that grows with its text (authored: an item
+   is often a sentence or two; `field-sizing` where the browser has it, else it resizes by hand). */
+[data-route="/relatorio/:id/setup"] .e28-items { margin-top: var(--sp-5); display: flex; flex-direction: column; gap: var(--field-gap); }
+[data-route="/relatorio/:id/setup"] .e28-items .exclusion-list .input { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+[data-route="/relatorio/:id/setup"] .e28-items .exclusion-list li { align-items: flex-start; }
+[data-route="/relatorio/:id/setup"] .e28-items .exclusion-list .exclusion-num { padding-top: var(--sp-3); }
+[data-route="/relatorio/:id/setup"] .e28-items textarea.input { resize: vertical; field-sizing: content; min-height: var(--field-min-height); }
 [data-route="/relatorio/:id/setup"] .instrument-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
 [data-route="/relatorio/:id/setup"] .instrument-list li { border-bottom: 1px solid var(--border-hairline); padding: var(--sp-2) 0; }
 [data-route="/relatorio/:id/setup"] .instrument-list .checkbox .ip-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }

@@ -120,8 +120,10 @@ test('@p0 24.9-E2E-001 TAPS names its separator, "Foto térmica" counts its shot
   await testSection(page, THERMO).getByRole('button', { name: 'Aplicar este ensaio' }).click();
   await expect.poll(async () => (await outboxValues(database, page, `sheet/${tp.blockId}/test/${THERMO}/applicability`)).at(-1)).toBe('applied');
   const applied = (await kernelOf(page, database, relatorioId, tp.blockId)).measurement(THERMO).applicability;
-  expect(applied.appliedText).toBe('Equipamento fora de carga.');
-  await expect(testSection(page, THERMO).locator('.v13-applied-band .band-text')).toHaveText('Aplicado por você. Equipamento fora de carga.');
+  // ~~'Equipamento fora de carga.' and 'Aplicado por você. Equipamento fora de carga.'~~ 2026-11-23, batch e28c (Story 28.10,
+  // B-3, every seed, screen only): Bruno's band sentence, the reason once, in lowercase after the colon.
+  expect(applied.appliedText).toBe('O app tinha marcado N.A.: equipamento fora de carga.');
+  await expect(testSection(page, THERMO).locator('.v13-applied-band .band-text')).toHaveText('Ensaio aplicado por você. O app tinha marcado N.A.: equipamento fora de carga.');
 
   // The TP's insulation with TIPO DE ISOLAÇÃO empty: the fallback sentence under the criterion, "Fonte do critério" closed.
   const fallback = (await kernelOf(page, database, relatorioId, tp.blockId)).test('isolacao').fallbackLines ?? [];

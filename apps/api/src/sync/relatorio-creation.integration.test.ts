@@ -438,7 +438,8 @@ describe('28.2-API-001 seed v18 through the sync route', () => {
     'a relatório created from the standard template is born on v18, every sheet on v18; a version-57 client is refused its stream with 426 contract_outdated, a current one reads it',
     async () => {
       expect(SEED_VERSION).toBe('v18');
-      expect(MIN_CONTRACT_VERSION).toBe(58);
+      // Batch e28c (Story 28.9, contract 59): the minimum moved on to 59; a version-57 client stays refused.
+      expect(MIN_CONTRACT_VERSION).toBe(59);
       const projectId = newId();
       const projectDraft: OpDraft = {
         kind: 'create',

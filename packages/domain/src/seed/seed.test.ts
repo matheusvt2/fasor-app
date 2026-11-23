@@ -55,6 +55,7 @@ import {
   STORY_28_4_THERMOGRAPHY_TYPES,
   STORY_28_4_TRANSFORMER_ITEMS,
   STORY_28_4_UTILITY_REASON,
+  STORY_28_10_SECTION_1_EDIT,
 } from './v18.ts';
 import { selectOptionFor } from './select-option.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
@@ -2297,6 +2298,8 @@ const E27B8_NEW_FLAGS = ['caption_para_raios'] as const;
 const E27B9_FLAGS = ['wording_pass'] as const;
 /** Batch e28b (Stories 28.5 to 28.8, seed v18): the wave-2 rule flags. */
 const E28B_FLAGS = ['point_start_priority', 'deadline_from_issue', 'row_voltage_from_header', 'over_range_note', 'history_note_relevant'] as const;
+/** Batch e28c (Stories 28.9 and 28.10, seed v18): the additional items in section 10 and section 2's paragraph with a Malha. */
+const E28C_FLAGS = ['additional_items', 'earth_paragraph_with_malha'] as const;
 
 /** Batch e24s (Story 24.11): the transformer's appended items, in order. */
 const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
@@ -2370,7 +2373,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
   it('names the five flags of batch e24a, the three of batch e24p, the three of fix batch e24y and the v15 flags of Epic 25, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS]);
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2399,7 +2402,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
     expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
     expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS]);
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS]);
     for (const flag of [...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]) expect(seedRule('v14', flag), flag).toBe(true);
     // Story 25.6: a v15 flag is off on v14.
     for (const flag of E25C6_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
@@ -2797,7 +2800,9 @@ describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v
  * Batch e28a, first commit (2026-11-23, Story 28.2): v18 opens equal to v17, the same content and the same rule flags.
  */
 // Batch e28b (2026-11-23, Stories 28.5 to 28.8): the five wave-2 rule flags (was bd769c9f… after batch e28a).
-const V18_HASH = '01470e099d41662787442513ce5a64c67b05d71709f6d64e0277ddf275d89b74';
+// Batch e28c (2026-11-23, Stories 28.9 and 28.10): the flags `additional_items` and `earth_paragraph_with_malha` and section
+// 1's "de {cliente}" (was 01470e09… after batch e28b).
+const V18_HASH = 'c5885d5e068f6147e8cb5fd3e551de0b43b6ec4d9aceb70a77351a07180710b4';
 
 /**
  * Batch e28a and the Epic 28 batches after it: each story's delta on v18, undone, in the order `seed/v18.ts` applies
@@ -2811,7 +2816,9 @@ const V18_HASH = '01470e099d41662787442513ce5a64c67b05d71709f6d64e0277ddf275d89b
 // Story 28.6 (batch e28b): the rule flag `row_voltage_from_header` (`withoutE286` below).
 // Story 28.7 (batch e28b): the rule flag `over_range_note` (`withoutE287` below).
 // Story 28.8 (batch e28b): the rule flag `history_note_relevant` (`withoutE288` below).
-const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE283, withoutE284, withoutE285, withoutE286, withoutE287, withoutE288];
+// Story 28.9 (batch e28c): the rule flag `additional_items` (`withoutE289` below).
+// Story 28.10 (batch e28c): section 1's "de {cliente}" and the rule flag `earth_paragraph_with_malha` (`withoutE2810` below).
+const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE283, withoutE284, withoutE285, withoutE286, withoutE287, withoutE288, withoutE289, withoutE2810];
 
 /** A story's rule flags undone: the seed's `rules` without them. */
 function withoutRuleFlags(seed: ReportSeed, flags: readonly SeedRuleFlag[]): ReportSeed {
@@ -2840,6 +2847,21 @@ function withoutE287(seed: ReportSeed): ReportSeed {
 /** Story 28.8's delta undone: Story 24.16's variation note. */
 function withoutE288(seed: ReportSeed): ReportSeed {
   return withoutRuleFlags(seed, ['history_note_relevant']);
+}
+
+/** Story 28.9's delta undone: no additional items in Etapa 6 nor in section 10. */
+function withoutE289(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['additional_items']);
+}
+
+/** Story 28.10's delta undone: section 1 reads "da {cliente}" again, and section 2 never gains the paragraph on earth resistance. */
+function withoutE2810(seed: ReportSeed): ReportSeed {
+  const out = withoutRuleFlags(seed, ['earth_paragraph_with_malha']);
+  const edit = STORY_28_10_SECTION_1_EDIT;
+  const entry = out.sections.find((candidate) => candidate.section === edit.section && candidate.effective_from === '2000-01-01')!;
+  const block = entry.blocks!.find((candidate) => candidate.text.includes(edit.to))!;
+  block.text = block.text.replace(edit.to, edit.from);
+  return out;
 }
 
 /** Story 28.4's delta undone: v17's seventeen transformer items, four thermography reasons, five not-tested reasons and battery label. */
@@ -4301,6 +4323,23 @@ describe('seed v13, batch e23e (Stories 23.13, 23.18, 23.20 and 23.21): test-vol
     expect(band([{ up_to: 3, level: 'within', class: 'a' }, { up_to: 2, level: 'restricted', class: 'b' }, { level: 'out', class: 'c' }])).toBe(false);
     // A band table reads a number column of its test.
     expect(refused('tc', (copy) => ((thermo(copy).criteria[0] as { column: string }).column = 'outra'))).toBe(false);
+  });
+});
+
+describe('28.9-UNIT-SEED and 28.10-UNIT-SEED (batch e28c) the additional items, section 1 and the earth paragraph', () => {
+  it('turn on `additional_items` and `earth_paragraph_with_malha` in v18 and in no version before it', () => {
+    for (const flag of ['additional_items', 'earth_paragraph_with_malha'] as const) {
+      expect(seedRule('v18', flag), flag).toBe(true);
+      for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
+    }
+  });
+
+  it('section 1 reads "Transformação de {cliente}, unidade {obra}." on v18 and "da {cliente}" on v15 to v17; section 2 is v17\'s', () => {
+    const first = (version: string) => sectionText(version, 1, '2026-11-23')[0]!.text;
+    expect(first('v18')).toContain('Transformação de {cliente}, unidade {obra}.');
+    expect(first('v18')).not.toContain('da {cliente}');
+    for (const version of ['v15', 'v16', 'v17']) expect(first(version), version).toContain('Transformação da {cliente}, unidade {obra}.');
+    expect(sectionText('v18', 2, '2026-11-23')).toEqual(sectionText('v17', 2, '2026-11-23'));
   });
 });
 

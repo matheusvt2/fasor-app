@@ -437,7 +437,10 @@ test('@p0 14.7-E2E-005 (e22h S1): the Critérios tab of a Quadro elétrico copy 
   await expect(reason(page)).toHaveCount(0);
 });
 
-test('@p0 23g-E2E-002 (fix batch e23g, R2-2): a copy of the v13 transformer loses TAPS, TEMPERATURA DO ENROLAMENTO and CLASSE TÉRMICA through "Remover" and still publishes: no reason, no rows_from, no pick_from, no dry_fields', async ({ page, seed }) => {
+// 2026-11-23 (batch e28c): on seed v18 the transformer's oil rule names a third dry field, CONSTRUÇÃO (Story 28.3), which this
+// copy keeps; the removal still prunes the two it removes. Title and assertion follow v18's truth (the dry fields left are
+// exactly the ones not removed), not pinned to v17: the editor copies the current seed's library only.
+test('@p0 23g-E2E-002 (fix batch e23g, R2-2): a copy of the v13 transformer loses TAPS, TEMPERATURA DO ENROLAMENTO and CLASSE TÉRMICA through "Remover" and still publishes: no reason, no rows_from, no pick_from, ~~no dry_fields~~ no dry field of the removed ones (on v18 CONSTRUÇÃO alone)', async ({ page, seed }) => {
   test.setTimeout(150_000);
   const account = seed.companies[1];
   const database = deviceDatabaseName(account.userId);
@@ -453,7 +456,9 @@ test('@p0 23g-E2E-002 (fix batch e23g, R2-2): a copy of the v13 transformer lose
 
   // Each removal through the row menu, as a person does; the stored draft is the kernel's removal of the same field.
   let expected: CompanyTypeDraft = copy.draft;
-  for (const label of ['TAPS', 'TEMPERATURA DO ENROLAMENTO', 'CLASSE TÉRMICA']) {
+  const REMOVED = ['TAPS', 'TEMPERATURA DO ENROLAMENTO', 'CLASSE TÉRMICA'];
+  const removedKeys = REMOVED.map((label) => copy.draft.nameplate.find((entry) => entry.label === label)!.key);
+  for (const label of REMOVED) {
     const index = (expected.nameplate ?? []).findIndex((entry) => entry.label === label);
     expect(index, label).toBeGreaterThanOrEqual(0);
     expected = removeDraftEntry(expected, 'nameplate', index);
@@ -468,7 +473,14 @@ test('@p0 23g-E2E-002 (fix batch e23g, R2-2): a copy of the v13 transformer lose
   const json = JSON.stringify(draft);
   expect(json).not.toContain('"rows_from"');
   expect(json).not.toContain('"pick_from"');
-  expect(json).not.toContain('"dry_fields"');
+  // ~~expect(json).not.toContain('"dry_fields"');~~ (v13 to v17: the two removed were its only dry fields, so the key went.)
+  const dryOf = (one: CompanyTypeDraft): unknown => (one.oil_rule as { dry_fields?: unknown } | undefined)?.dry_fields;
+  const dryBefore = dryOf(copy.draft) as string[];
+  // TEMPERATURA DO ENROLAMENTO and CLASSE TÉRMICA were dry fields of the copy; what is left is exactly the rest.
+  expect(removedKeys.filter((key) => dryBefore.includes(key))).toHaveLength(2);
+  expect(dryBefore.filter((key) => !removedKeys.includes(key))).toEqual(['construcao']);
+  expect(dryOf(draft)).toEqual(['construcao']);
+  for (const key of removedKeys) expect(json, key).not.toContain(`"${key}"`);
   expect(validateTypeDraft(draft)).toEqual([]);
   await expect(reason(page)).toHaveCount(0);
   await expect(publishButton(page)).toHaveText('Publicar versão 1');

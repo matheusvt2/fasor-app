@@ -66,6 +66,8 @@ export const SETUP_FILL_FIELDS: readonly string[] = [
   'next_intervention_date',
   'next_intervention_justification',
   'instrument_ids',
+  // Story 28.9 (contract 59): the relatório's additional items, written in Etapa 6 beside the parecer.
+  'additional_items',
 ];
 
 const setupNeed = (path: OpPath): PermissionNeed =>

@@ -75,6 +75,8 @@ export * from './relatorio/section-position.ts';
 export * from './relatorio/project.ts';
 export * from './relatorio/setup-complete.ts';
 export * from './relatorio/section-variables.ts';
+// Story 28.9 (seed v18, contract 59): the relatório's additional items, Etapa 6 and section 10.
+export * from './relatorio/additional-items.ts';
 export * from './relatorio/status-advance.ts';
 export * from './relatorio/ops.ts';
 export * from './sync/streams.ts';

@@ -691,7 +691,16 @@
  * battery date's v18 label. A pre-issue row, `utility_name_missing`, blocks the issue while the utility's name is
  * empty. MIN follows to 58 (below).
  */
-export const CONTRACT_VERSION = 58;
+/*
+ * 59 (2026-11-23, batch e28c, Epic 28 wave 2, Story 28.9): no new op or path family. The relatório's setup gains
+ * one key, `additional_items` (`relatorioSetupSchema`, a list of texts, empty by default), so `RELATORIO_SETUP_KEYS`
+ * grows and `relatorio/setup/additional_items` becomes a path. It is written from Etapa 6 under `relatorio.fill`
+ * (`SETUP_FILL_FIELDS`), each text capped as the long texts are (`SETUP_VALUE_RULES`, `op_value_invalid` past it), and
+ * printed as topics in section 10 on a seed whose rules carry `additional_items` (v18). Story 28.10 adds the rule flag
+ * `earth_paragraph_with_malha` and section 1's v18 words and the kernel's applied band; neither needs a number.
+ * MIN follows to 59 (below).
+ */
+export const CONTRACT_VERSION = 59;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -1106,7 +1115,14 @@ export const CONTRACT_VERSION = 58;
  * item keys, the utility reason or the mark's `utility_name` (Story 28.4). Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 58;
+/*
+ * 59 (2026-11-23, batch e28c, Story 28.9): a version-58 (or older) bundle's path enum lacks
+ * `relatorio/setup/additional_items`, so a pulled put of it fails to fold (`materializeEntity` throws on a pulled op
+ * its fold refuses) and the relatório stops syncing on the first item written; its setup schema would also strip the
+ * list and its Etapa 6 and section 10 would never show or print it. Its pull answers `426 contract_outdated` and it
+ * updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 59;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -477,6 +477,10 @@ export const relatorioSetupSchema = z.object({
   // composed one is unconfirmed), `text_basis` the `composeParecer` basis it was confirmed
   // against. Null until a verdict is tapped; never set by the app.
   parecer: relatorioParecerSchema.nullable().default(null),
+  // Story 28.9 (contract 59, B-15; Etapa 6, section 10): the relatório's additional items, in order, one LWW list written
+  // whole. Empty by default; a blank row is never stored (`additionalItemsWithoutBlanks`). Read on a seed whose rules
+  // carry `additional_items` (v18 on); an older relatório neither shows nor prints them.
+  additional_items: z.array(z.string()).default([]),
 });
 export type RelatorioSetup = z.infer<typeof relatorioSetupSchema>;
 

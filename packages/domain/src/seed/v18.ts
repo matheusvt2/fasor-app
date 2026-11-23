@@ -35,6 +35,8 @@ function cabinePrimariaV18(): ReportSeed {
   story28_6(seed);
   story28_7(seed);
   story28_8(seed);
+  story28_9(seed);
+  story28_10(seed);
   return seed;
 }
 
@@ -256,6 +258,40 @@ function story28_7(seed: ReportSeed): void {
 function story28_8(seed: ReportSeed): void {
   if (seed.rules?.history_note_relevant !== undefined) throw new Error('seed v18: the Story 28.8 rule flag is already set');
   seed.rules = { ...(seed.rules ?? {}), history_note_relevant: true };
+}
+
+// --- Story 28.9: Etapa 6 takes the relatório's additional items, printed as topics in section 10 ---
+
+/**
+ * Story 28.9 (B-15): one rule flag, `additional_items`, read by `offersAdditionalItems` (`relatorio/additional-items.ts`)
+ * for Etapa 6 and by `section10Layout` (`print/section-10.ts`): the relatório's own items print as topics after section
+ * 10's fixed items. The items are the relatório's (`setup.additional_items`, contract 59), not the seed's.
+ */
+function story28_9(seed: ReportSeed): void {
+  if (seed.rules?.additional_items !== undefined) throw new Error('seed v18: the Story 28.9 rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), additional_items: true };
+}
+
+// --- Story 28.10: The fixed texts and the band: the earth paragraph with the Malha, "de ⟨cliente⟩", and the applied band ---
+
+/** Story 28.10 (B-14): section 1's one edit on v18, "da {cliente}" read "de {cliente}"; it replaces exactly one occurrence. */
+export const STORY_28_10_SECTION_1_EDIT = { section: 1, from: 'Transformação da {cliente}, unidade {obra}.', to: 'Transformação de {cliente}, unidade {obra}.' } as const;
+
+/**
+ * Story 28.10 (B-14, B-12; the band B-3 is screen-only, on every seed, and needs no seed change): section 1 reads "de
+ * {cliente}" in the text in force since the base date, and the rule flag `earth_paragraph_with_malha`, read by
+ * `section2Blocks` (`relatorio/section-variables.ts`), prints section 2's paragraph on earth resistance only with a live
+ * Malha de aterramento sheet. Section 2's seeded text itself stays v17's.
+ */
+function story28_10(seed: ReportSeed): void {
+  const BASE = '2000-01-01';
+  const edit = STORY_28_10_SECTION_1_EDIT;
+  const entry = seed.sections.find((candidate) => candidate.section === edit.section && candidate.effective_from === BASE);
+  const hits = entry?.blocks?.filter((block) => block.text.includes(edit.from)) ?? [];
+  if (hits.length !== 1 || hits[0]!.text.split(edit.from).length !== 2) throw new Error(`seed v18: section 1 holds "${edit.from}" ${hits.length} times`);
+  hits[0]!.text = hits[0]!.text.replace(edit.from, edit.to);
+  if (seed.rules?.earth_paragraph_with_malha !== undefined) throw new Error('seed v18: the Story 28.10 rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), earth_paragraph_with_malha: true };
 }
 
 export const CABINE_PRIMARIA_V18: ReportSeed = cabinePrimariaV18();

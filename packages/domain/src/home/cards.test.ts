@@ -97,6 +97,7 @@ function relatorio(
       next_intervention_date: null,
       next_intervention_justification: null,
       parecer: null,
+      additional_items: [],
       ...setup,
     },
     export: { scheme: 'por_local_e_tipo' },
