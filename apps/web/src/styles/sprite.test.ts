@@ -1,16 +1,20 @@
 // @vitest-environment node
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /*
  * AR-7: the sprite is a precachable file, not markup inside the hashed bundle. That only
- * holds while every `<use href="/sprite.svg#id">` under `src/` names a symbol the file
+ * holds while every `<use href={spriteHref('id')}>` under `src/` names a symbol the file
  * actually declares — otherwise an icon renders as nothing, offline and online alike.
+ *
+ * Fix batch e26u: and it is a file the build hashes. It lives under `src/` and is named by
+ * `sprite.ts` alone, so no page can ask for a path that another build's worker answers
+ * from its own cache (the blank "Usuários" icon on the first launch after v0.13.0).
  */
 
 const webRoot = resolve(__dirname, '../..');
-const spritePath = join(webRoot, 'public/sprite.svg');
+const spritePath = join(webRoot, 'src/styles/sprite.svg');
 const sprite = readFileSync(spritePath, 'utf8');
 
 /** Shipped source only: a test file may quote a pattern this test is looking for. */
@@ -74,12 +78,26 @@ describe('icon sprite', () => {
   it('holds every symbol referenced under apps/web/src', () => {
     const referenced = new Set<string>();
     for (const file of sourceFiles(join(webRoot, 'src'))) {
-      for (const match of readFileSync(file, 'utf8').matchAll(/href="\/sprite\.svg#([^"]+)"/g)) {
+      for (const match of readFileSync(file, 'utf8').matchAll(/spriteHref\('([^']+)'\)/g)) {
         referenced.add(match[1]!);
       }
     }
-    expect(referenced.size).toBeGreaterThan(0);
+    expect(referenced.size).toBeGreaterThan(30);
     for (const id of referenced) expect(declared, `sprite.svg is missing ${id}`).toContain(id);
+  });
+
+  it('is named by sprite.ts alone: no source file writes a sprite path of its own, and public/ serves no unhashed copy', () => {
+    const helper = join(webRoot, 'src/styles/sprite.ts');
+    for (const file of sourceFiles(join(webRoot, 'src'))) {
+      if (file === helper) continue;
+      const text = readFileSync(file, 'utf8');
+      expect(text, `${file} names a sprite file itself`).not.toMatch(/sprite[^'"`\s]*\.svg/);
+      expect(text, `${file} references a symbol without spriteHref`).not.toMatch(/href=["'`{][^>\n]*#i-/);
+    }
+    // The asset import is what makes the build emit `assets/sprite-<hash>.svg`; `?no-inline`
+    // keeps it a file, because a `<use>` cannot reference a `data:` URL.
+    expect(readFileSync(helper, 'utf8')).toContain("import spriteUrl from './sprite.svg?no-inline';");
+    expect(existsSync(join(webRoot, 'public/sprite.svg'))).toBe(false);
   });
 
   it('leaves no reference to the removed inline sprite', () => {

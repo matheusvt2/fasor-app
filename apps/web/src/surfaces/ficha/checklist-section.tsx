@@ -52,6 +52,7 @@ import type { Author } from '../relatorio/relatorio-ops.ts';
 import { DictatedSuggestion, DictationButton, useProseDictation, useSpeechAvailable } from '../../speech/dictation.tsx';
 import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { KEPT_KEY_PREFIX, LEGEND_KEY } from '../../state/user-storage.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 5.4 (FR-25, FR-26, UX-DR36-38, UX-DR44; `60-ficha.html` "Verificações gerais"):
@@ -191,7 +192,7 @@ export function BulkActionBar({
   const repeat = bulk.repeat;
   const markIcon = (
     <svg className="ico" aria-hidden="true">
-      <use href="/sprite.svg#i-check-all" />
+      <use href={spriteHref('i-check-all')} />
     </svg>
   );
   return (
@@ -206,7 +207,7 @@ export function BulkActionBar({
         <div className="bulk-action">
           <TextButton onPress={repeat} isDisabled={(bulk.source ?? null) === null} disabledReason={t.noConcluded}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-repeat" />
+              <use href={spriteHref('i-repeat')} />
             </svg>
             {t.repeat}
           </TextButton>
@@ -259,7 +260,7 @@ export function ChecklistSection({
       <details className="ficha-details ficha-legend" open={legendOpen}>
         <summary>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-down" />
+            <use href={spriteHref('i-chev-down')} />
           </svg>
           {t.legend}
         </summary>

@@ -7,6 +7,7 @@ import { manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import { WordRegistryPanel, type WordRegistryKindCopy } from './word-registry-panel.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 const NO_ROWS: WordRow[] = [];
 
@@ -38,7 +39,7 @@ function WordRowItem({ row, isOpen, onOpen }: WordRowItemProps) {
         <span className="rr-primary">{text.primary}</span>
       </div>
       <svg className="ico rr-chevron" aria-hidden="true">
-        <use href="/sprite.svg#i-chev-right" />
+        <use href={spriteHref('i-chev-right')} />
       </svg>
     </li>
   );

@@ -19,6 +19,7 @@ import { CabineBlock } from '../ficha/cabine-block.tsx';
 import type { FichaApi } from '../ficha/ficha-api.ts';
 import { SumarioSurface } from '../relatorio/sumario-surface.tsx';
 import { TreeSurface } from '../relatorio/tree-surface.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 14.3: the three ways into "Verificações do local", each drawn from the kernel's
@@ -158,7 +159,7 @@ describe('14.3 entry: the local\'s Sumário row', () => {
     expect(button).toHaveClass('s9-verif', 'eq-card-open');
     expect(button.querySelector('.eq-card-title .s9-site-name')).toHaveTextContent(/^Verificações do local$/);
     expect(button.querySelector('.eq-card-title .s9-site-count')).toHaveTextContent(/^12 de 19$/);
-    expect(button.querySelector('.eq-card-title svg.ico.ico-sm use')).toHaveAttribute('href', '/sprite.svg#i-check-all');
+    expect(button.querySelector('.eq-card-title svg.ico.ico-sm use')).toHaveAttribute('href', spriteHref('i-check-all'));
     const state = button.querySelector('.eq-card-status .s9-state')!;
     expect(state).toHaveAttribute('data-state', 'doing');
     expect(state).toHaveTextContent('● Em preenchimento');
@@ -226,7 +227,7 @@ describe('14.3 entry: the rail', () => {
     // Story 15.2: the fixture answers its first item NC once any is answered; the badge is part of the name.
     const body = within(line as HTMLElement).getByRole('button', { name: answered === 0 ? 'Verificações do local — Cabine de Testes' : 'Verificações do local · 1 NC — Cabine de Testes' });
     expect(body).toHaveClass('tree-body');
-    expect(body.querySelector('.tree-id use')).toHaveAttribute('href', '/sprite.svg#i-check-all');
+    expect(body.querySelector('.tree-id use')).toHaveAttribute('href', spriteHref('i-check-all'));
     expect(body.querySelector('.tree-id .tree-name')).toHaveTextContent(/^Verificações do local$/);
     expect(body.querySelector('.tree-id .tree-meta')).toHaveTextContent(new RegExp(`^${text}$`));
     const stateEl = line.querySelector('.eq-card-status .tree-state')!;
@@ -289,7 +290,7 @@ describe('14.3 entry: the line under the sheet\'s "Do local" block', () => {
     const { container } = await renderBlock(first);
     const line = within(container).getByRole('group', { name: 'Verificações do local' });
     expect(line).toHaveClass('cabine-line', 'ficha-local-line');
-    expect(line.querySelector('svg.ico.ico-sm use')).toHaveAttribute('href', '/sprite.svg#i-check-all');
+    expect(line.querySelector('svg.ico.ico-sm use')).toHaveAttribute('href', spriteHref('i-check-all'));
     expect(line.querySelector('.cl-name')).toHaveTextContent('Verificações do local');
     expect(line.querySelector('.cl-values')).toHaveTextContent('12 de 19');
     // Last of what the block draws, under the "Do local" line or sections.

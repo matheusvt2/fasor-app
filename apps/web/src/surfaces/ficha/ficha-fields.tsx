@@ -36,6 +36,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * The sheet's typed fields by kind (Stories 5.2, 5.3; AD-11/AR-10): text, number with its
@@ -735,7 +736,7 @@ function SelectField({ field, value, commit, missing, label, selectEmpty, helper
       </select>
       <span className="combobox-chevron" aria-hidden="true">
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-chev-down" />
+          <use href={spriteHref('i-chev-down')} />
         </svg>
       </span>
     </>

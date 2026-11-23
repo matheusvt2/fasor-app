@@ -1,6 +1,7 @@
 import type { PointLinkGroup } from '@app/domain';
 import { Button, Header, Label, ListBox, ListBoxItem, ListBoxSection, Popover, Select, SelectValue, type Key } from 'react-aria-components';
 import { copy } from '../../copy/pt-br.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 20.4: "Equipamento ou local" in the point editor, a React Aria Select over the
@@ -33,7 +34,7 @@ export function PointLinkPicker({
         <SelectValue className="poa-link-value" />
         <span className="combobox-chevron" aria-hidden="true">
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-down" />
+            <use href={spriteHref('i-chev-down')} />
           </svg>
         </span>
       </Button>

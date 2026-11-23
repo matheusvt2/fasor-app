@@ -45,6 +45,7 @@ import { TestHelpAction } from './test-help-dialog.tsx';
 import { TemperatureLine } from './corrected-value.tsx';
 import { ThermalPhotoButton } from './photo-openers.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 14.5 (`63-ficha-cta.html`): the measurement tests of a library type's sheet, the
@@ -222,7 +223,7 @@ function MeasurementTestSection({
         // Shown only while the test is off (`ficha.css`, the mock's `:has(.lib-test-switch[aria-checked="false"])` rule).
         <div className="lib-off-note">
           <svg className="ico ico-sm" aria-hidden="true">
-            <use href="/sprite.svg#i-block" />
+            <use href={spriteHref('i-block')} />
           </svg>
           <span>{test.offNote}</span>
         </div>
@@ -630,7 +631,7 @@ function MeasurementTestTable({ api, test, readOnly, onRun }: { api: FichaApi; t
         <details className="ficha-details mt-source">
           <summary>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-chev-down" />
+              <use href={spriteHref('i-chev-down')} />
             </svg>
             {t.ensaios.sourceSummary}
           </summary>
@@ -809,7 +810,7 @@ function AddedRowName({ api, test, row, readOnly, presentation }: { api: FichaAp
       </div>
       <button type="button" className="icon-btn" aria-label={addedRowRemoveLabel(view.key, row.label)} onClick={remove}>
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-trash" />
+          <use href={spriteHref('i-trash')} />
         </svg>
       </button>
     </div>
@@ -854,7 +855,7 @@ function AddedRowActions({ api, test }: { api: FichaApi; test: MeasurementTestEv
         <>
           <Button variant="secondary" onPress={() => add(fromPlate.names)}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-plus" />
+              <use href={spriteHref('i-plus')} />
             </svg>
             {addedRowsFromPlateLabel(view.key, fromPlate.names.length)}
           </Button>
@@ -863,7 +864,7 @@ function AddedRowActions({ api, test }: { api: FichaApi; test: MeasurementTestEv
       )}
       <TextButton data-add-row="" isDisabled={!view.canAdd} disabledReason={view.canAdd ? undefined : addedRowsAtMaxText(view.key)} onPress={() => add([view.nextName])}>
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-plus" />
+          <use href={spriteHref('i-plus')} />
         </svg>
         {view.label}
       </TextButton>

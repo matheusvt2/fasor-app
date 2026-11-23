@@ -57,6 +57,7 @@ import { PriorityPicker } from './priority-picker.tsx';
 import { insertPhotoChip, insertPlainText, quickTextAt, relabelPhotoChips, renderPointText } from './point-text-editor.ts';
 import { endRange, placeCaret } from '../templates/section-text-editor.ts';
 import './points.css';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /** Story 20.9: the kernel's caps of a point's text (long), action (medium) and owner (short). */
 const POINT_TEXT_CAP = textCapOf('point/field', 'text');
@@ -732,7 +733,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           ))}
           <Button variant="secondary" onPress={() => setPicking(true)}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-image" />
+              <use href={spriteHref('i-image')} />
             </svg>
             {t.choosePhotos}
           </Button>

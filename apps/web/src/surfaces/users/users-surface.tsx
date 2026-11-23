@@ -42,6 +42,7 @@ import { useToast } from '../../state/toast.tsx';
 import { ReactivateRoleDialog } from './reactivate-dialog.tsx';
 import { UserDialog, type UserDialogMode } from './user-dialog.tsx';
 import { UsersTabs } from './users-tabs.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 26.9 (AD-29; `mockups/prototype/screens/92-usuarios.html`): the Usuários screen, first tab.
@@ -233,7 +234,7 @@ export function UsersSurface() {
             onPress={() => openDialog({ kind: 'new' })}
           >
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-plus" />
+              <use href={spriteHref('i-plus')} />
             </svg>
             {t.newUser}
           </Button>

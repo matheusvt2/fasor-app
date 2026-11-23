@@ -36,6 +36,12 @@
  * plugin in `vite.config.ts`, which knows the hashed filenames and digests every emitted
  * file into the version (the same version it stamps into `index.html`). While they are
  * still strings this is the dev copy, and the fallback list keeps the dev server usable.
+ *
+ * Every path of the list but `/` carries a content hash, the icon sprite included
+ * (`/assets/sprite-<hash>.svg`, fix batch e26u). That is what lets a page get the files
+ * of its own build whichever worker is in control: on the first launch after a deploy
+ * the document comes from the network while the old worker still controls the page, and
+ * a hashed path that worker does not hold goes to the network, where that build is.
  */
 
 const PRECACHE = '__PRECACHE_MANIFEST__';
@@ -46,12 +52,21 @@ const SHELL_VERSION = '__SHELL_VERSION__';
  * `PRECACHE` is an array, and a stamped `SHELL_VERSION` is a hash that cannot begin with
  * the token's underscores.
  */
-const SHELL_URLS = typeof PRECACHE === 'string' ? ['/', '/sprite.svg'] : PRECACHE;
+const SHELL_URLS = typeof PRECACHE === 'string' ? ['/'] : PRECACHE;
 const SHELL_PREFIX = 'releng-shell-';
 const CACHE_NAME = `${SHELL_PREFIX}${SHELL_VERSION.startsWith('__') ? 'dev' : SHELL_VERSION}`;
 
 /** Same-origin paths of the precache list, for the cache-first lookup. */
 const SHELL_PATHS = new Set(SHELL_URLS);
+
+/**
+ * Shells built before fix batch e26u precached the icon sprite as `/sprite.svg`, one
+ * unhashed path for every build. A tab still running one of them (held on it by the pin,
+ * or open since before the update) keeps asking for that path, which no list names any
+ * more and the server no longer has. It stays a shell path, so that tab's own shell cache
+ * answers it, the pinned one first, online and offline. No page of this build asks for it.
+ */
+const LEGACY_SHELL_PATHS = new Set(['/sprite.svg']);
 
 /**
  * The directories the build writes its hashed files into (`/assets/`). A tab running an
@@ -364,6 +379,8 @@ self.addEventListener('message', (event) => {
  * `key` from the pinned shell, then this worker's, then any other shell cache still on
  * the device: hashed files are content-addressed, so any copy is the right copy, and an
  * open tab from an older shell keeps finding its assets for as long as they survive.
+ * The one unhashed key that reaches here is the legacy `/sprite.svg`, which this build's
+ * cache never holds: the pinned shell's copy answers first, then the oldest shell's.
  */
 async function fromShellCaches(key, pin) {
   const first = pin !== null && pin !== CACHE_NAME ? [pin, CACHE_NAME] : [CACHE_NAME];
@@ -450,7 +467,10 @@ self.addEventListener('fetch', (event) => {
     // themselves and fail as they always did; the worker never stands between them.
     isApi: url.pathname === '/api' || url.pathname.startsWith('/api/'),
     mode: request.mode,
-    isShellPath: SHELL_PATHS.has(url.pathname) || ASSET_DIRS.some((dir) => url.pathname.startsWith(dir)),
+    isShellPath:
+      SHELL_PATHS.has(url.pathname) ||
+      LEGACY_SHELL_PATHS.has(url.pathname) ||
+      ASSET_DIRS.some((dir) => url.pathname.startsWith(dir)),
   };
 
   // Whether a request is handled at all never depends on the hold (only *how* a

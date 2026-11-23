@@ -5,6 +5,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { PositionBox } from '../templates/reorder-controls.tsx';
 import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { useReorder, type Reorder } from '../templates/use-reorder.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 export interface RowActions {
   /** Moves the row to a 0-based index among the numbered rows; resolves once written. */
@@ -23,7 +24,7 @@ export interface RowActions {
 const Chevron = ({ onOpen }: { onOpen: () => void }) => (
   <span className="icon-btn sum-chev" aria-hidden="true" onClick={onOpen}>
     <svg className="ico" aria-hidden="true">
-      <use href="/sprite.svg#i-chev-right" />
+      <use href={spriteHref('i-chev-right')} />
     </svg>
   </span>
 );
@@ -197,7 +198,7 @@ export function Section9Row({ row, sectionName, actions, expanded, onToggle, chi
           ref={chevronRef}
         >
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-down" />
+            <use href={spriteHref('i-chev-down')} />
           </svg>
         </button>
         {row.virtual ? (

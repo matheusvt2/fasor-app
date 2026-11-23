@@ -2,6 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { SheetProgress } from '@app/domain';
 import { FichaHeader } from './ficha-header.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * E6-Q1: the attribution line keeps its height before the first commit, so the line that
@@ -71,7 +72,7 @@ describe('14.5 FichaHeader library pill', () => {
     );
     const pill = library.container.querySelector('.sheet-title .lib-pill');
     expect(pill).toHaveTextContent('Tipo da biblioteca');
-    expect(pill!.querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-book');
+    expect(pill!.querySelector('use')).toHaveAttribute('href', spriteHref('i-book'));
     library.unmount();
     expect(header(null).container.querySelector('.lib-pill')).toBeNull();
   });

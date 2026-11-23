@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { CharCount } from '../components/char-count.tsx';
 import { ui } from '../copy/ui.ts';
 import type { UseRichTextArea } from './use-rich-text-area.ts';
+import { spriteHref } from '../styles/sprite.ts';
 
 /*
  * Story 11.4, E11-Q5: the one rich editor of the product, the mock's `.rich-text`
@@ -109,7 +110,7 @@ function Toolbar({ tools }: { tools: readonly ToolSpec[] }) {
         >
           {tool.variable === undefined ? null : (
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-plus" />
+              <use href={spriteHref('i-plus')} />
             </svg>
           )}
           {tool.label}

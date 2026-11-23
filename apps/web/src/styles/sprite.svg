@@ -2,8 +2,9 @@
 <!--
   AR-7: the SVG icon sprite is one of the four things the service worker precaches, so
   it has to be a file of its own rather than markup inside the hashed bundle. Every
-  `<use href="/sprite.svg#i-...">` under `apps/web/src` resolves here, and a unit test
-  pins the referenced ids against this document.
+  `<use href={spriteHref('i-...')}>` under `apps/web/src` resolves here (`sprite.ts`
+  beside this file names its built, content-hashed address), and a unit test pins the
+  referenced ids against this document.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-back" viewBox="0 0 24 24">

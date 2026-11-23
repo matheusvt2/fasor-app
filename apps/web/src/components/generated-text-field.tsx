@@ -3,6 +3,7 @@ import { ui } from '../copy/ui.ts';
 import { useFieldCommit } from '../input/use-field-commit.ts';
 import { useDraftSource, type PersistOptions } from '../state/drafts.tsx';
 import { CharCount } from './char-count.tsx';
+import { spriteHref } from '../styles/sprite.ts';
 
 export type GeneratedTextState = 'unconfirmed' | 'confirmed' | 'edited' | 'stale';
 
@@ -252,7 +253,7 @@ export function GeneratedTextField({
           {suggested && !typing ? (
             <button type="button" className="btn btn-secondary confirm-action" onClick={onConfirm}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-check" />
+                <use href={spriteHref('i-check')} />
               </svg>
               {confirmLabel ?? t.confirm}
             </button>
@@ -271,7 +272,7 @@ export function GeneratedTextField({
               }}
             >
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-pencil" />
+                <use href={spriteHref('i-pencil')} />
               </svg>
               {t.edit}
             </button>

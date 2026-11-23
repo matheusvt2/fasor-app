@@ -3,6 +3,7 @@ import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { DateField as AriaDateField, DateInput, DateSegment, Label } from 'react-aria-components';
 import { ui } from '../copy/ui.ts';
 import { Chip } from './chip.tsx';
+import { spriteHref } from '../styles/sprite.ts';
 
 export interface DateFieldProps {
   label: string;
@@ -72,7 +73,7 @@ export function DateField({ label, value, onChange, isInvalid, describedBy, auto
         {(segment) => <DateSegment segment={segment} className="date-segment" />}
       </DateInput>
       <svg className="ico date-ico" aria-hidden="true">
-        <use href="/sprite.svg#i-calendar" />
+        <use href={spriteHref('i-calendar')} />
       </svg>
       {showToday ? (
         <div className="chip-row">

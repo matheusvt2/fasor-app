@@ -7,6 +7,7 @@ import {
 } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { ui } from '../copy/ui.ts';
+import { spriteHref } from '../styles/sprite.ts';
 
 /*
  * AD-7: the one tile every kind of upload is picked through -- the instrument
@@ -154,7 +155,7 @@ export function UploadTile({
           onClick={() => inputRef.current?.click()}
         >
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-image" />
+            <use href={spriteHref('i-image')} />
           </svg>
           {`${action} ${label.toLocaleLowerCase('pt-BR')}`}
         </button>
@@ -170,7 +171,7 @@ export function UploadTile({
       <span className="field-label">{label}</span>
       <div className="input file-input">
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-image" />
+          <use href={spriteHref('i-image')} />
         </svg>
         <span className={file === null ? 'file-name placeholder' : 'file-name'}>{line}</span>
         {file === null || onOpen === undefined ? null : (

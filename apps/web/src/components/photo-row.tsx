@@ -2,6 +2,7 @@ import { uploadPillText, type PhotoUploadState } from '@app/domain';
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { ui } from '../copy/ui.ts';
+import { spriteHref } from '../styles/sprite.ts';
 
 /*
  * Stories 6.1 and 6.2 (UX-DR50; `key-photos.html` `.photo-row`, `70-fotos.html`
@@ -41,7 +42,7 @@ export function UploadPill({ state, onRetry, id }: UploadPillProps) {
   if (text === null) return null;
   const glyph = (
     <svg className="ico ico-sm" aria-hidden="true">
-      <use href="/sprite.svg#i-up" />
+      <use href={spriteHref('i-up')} />
     </svg>
   );
   if (state === 'error') {
@@ -94,7 +95,7 @@ export function PhotoStamp({ text, gps, className = 'photo-stamp', id }: { text:
       {gps ? (
         <>
           <svg className="ico pin" aria-hidden="true">
-            <use href="/sprite.svg#i-pin" />
+            <use href={spriteHref('i-pin')} />
           </svg>
           <span className="visually-hidden">{ui.photoRow.gps}</span>
         </>
@@ -155,7 +156,7 @@ export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp,
         {onCaption === undefined ? null : (
           <AriaButton className="btn btn-text" onPress={onCaption}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-pencil" />
+              <use href={spriteHref('i-pencil')} />
             </svg>
             {ui.photoRow.caption}
           </AriaButton>

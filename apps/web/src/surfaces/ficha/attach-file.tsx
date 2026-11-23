@@ -4,6 +4,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { PHOTO_ACCEPT, type ImportResult, type ImportTarget } from '../../files/photo-import.ts';
 import { usePhotoImport } from '../photos/capture-sheet.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 22.1 (Matheus, 2026-11-06): "Anexar arquivo" beside every opener that asks a reading
@@ -136,7 +137,7 @@ export function AttachFileAction({ relatorioId, target, onSaved }: { relatorioId
     <>
       <AriaButton className="btn btn-text" onPress={() => picker.open(target())}>
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-image" />
+          <use href={spriteHref('i-image')} />
         </svg>
         {copy.photos.attachFile}
       </AriaButton>

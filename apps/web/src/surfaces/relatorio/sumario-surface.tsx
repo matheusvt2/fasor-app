@@ -95,6 +95,7 @@ import { useSumarioActions } from './sumario-actions.ts';
 import { FixedRow, NumberedRow, Section9Row } from './sumario-row.tsx';
 import './relatorio.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 const NO_TEMPLATES: TemplateRow[] = [];
 const NO_USERS: UserRow[] = [];
@@ -632,7 +633,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             onPress={preview.start}
           >
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-doc" />
+              <use href={spriteHref('i-doc')} />
             </svg>
             {preview.phase.kind === 'working' ? copy.export.previewing : t.preview}
           </Button>

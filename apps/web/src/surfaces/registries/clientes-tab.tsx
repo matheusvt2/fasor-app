@@ -7,6 +7,7 @@ import { clientRows, projectRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import { ClientPanel } from './client-panel.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 const NO_CLIENTS: ClientRow[] = [];
 const NO_PROJECTS: ProjectRow[] = [];
@@ -40,7 +41,7 @@ function ClientRowItem({ client, isOpen, onOpen }: ClientRowItemProps) {
         <span className="rr-secondary">{text.secondary}</span>
       </div>
       <svg className="ico rr-chevron" aria-hidden="true">
-        <use href="/sprite.svg#i-chev-right" />
+        <use href={spriteHref('i-chev-right')} />
       </svg>
     </li>
   );

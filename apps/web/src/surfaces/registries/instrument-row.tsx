@@ -1,4 +1,5 @@
 import { instrumentDetailSeparator, instrumentLacksText, instrumentRegistryRowText, type CalibrationStatus, type InstrumentRow as InstrumentRowType, type InstrumentTwinLines } from '@app/domain';
+import { spriteHref } from '../../styles/sprite.ts';
 
 export interface InstrumentRowProps {
   instrument: InstrumentRowType;
@@ -44,7 +45,7 @@ export function InstrumentRow({ instrument, status, isOpen, onOpen, twins }: Ins
         {twins === undefined || twins.model === null ? null : <span className="e25-rr-light">{twins.model}</span>}
       </div>
       <svg className="ico rr-chevron" aria-hidden="true">
-        <use href="/sprite.svg#i-chev-right" />
+        <use href={spriteHref('i-chev-right')} />
       </svg>
     </li>
   );

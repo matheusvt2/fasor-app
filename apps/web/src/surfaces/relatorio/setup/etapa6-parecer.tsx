@@ -24,6 +24,7 @@ import { GeneratedTextField } from '../../../components/generated-text-field.tsx
 import { useLatestChoice } from '../../../components/use-latest-choice.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import type { BandRef } from './setup-fields.ts';
+import { spriteHref } from '../../../styles/sprite.ts';
 
 /*
  * Etapa 6 — Conclusão e parecer (Story 7.4, `50-relatorio-setup.html` `#setup-parecer`):
@@ -159,7 +160,7 @@ export function Etapa6Parecer({
                 onKeyDown={(event) => onKeyDown(event, index)}
               >
                 <svg className="ico check" aria-hidden="true">
-                  <use href="/sprite.svg#i-check" />
+                  <use href={spriteHref('i-check')} />
                 </svg>
                 {parecerVerdictLabel(segment)}
               </button>

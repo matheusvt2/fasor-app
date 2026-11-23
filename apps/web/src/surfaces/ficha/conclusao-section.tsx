@@ -45,6 +45,7 @@ import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
 import { useSheetReadOnly, useSheetReadOnlyCause, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { DictatedSuggestion, DictationButton } from '../../speech/dictation.tsx';
 import { useSheetObservationDictation } from './sheet-observation-dictation.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * The "Conclusão" step (Story 5.8, FR-29/30, UX-DR43-47; `60-ficha.html` "Observações" and
@@ -180,7 +181,7 @@ function ConclusionPair<T extends string>({
           onKeyDown={(event) => onKeyDown(event, index)}
         >
           <svg className="ico check" aria-hidden="true">
-            <use href="/sprite.svg#i-check" />
+            <use href={spriteHref('i-check')} />
           </svg>
           {segment.label}
         </button>

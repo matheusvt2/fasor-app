@@ -45,6 +45,7 @@ import { useCan, usePermissions } from '../../state/permissions.tsx';
 import { StatusBoard } from './status-board.tsx';
 import './home.css';
 import { relatorioSnapshotOf } from '../../db/relatorio-snapshot.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /**
  * Home (`20-home.html`, `key-home.html`) — the status board, the two shortcuts and the
@@ -271,12 +272,12 @@ export function HomeSurface() {
                 <Label className="field-label visually-hidden">{copy.home.searchLabel}</Label>
                 <div className="input">
                   <svg className="ico" aria-hidden="true">
-                    <use href="/sprite.svg#i-search" />
+                    <use href={spriteHref('i-search')} />
                   </svg>
                   <Input placeholder={copy.home.searchPlaceholder} />
                   <AriaButton className="icon-btn home-search-clear" aria-label={copy.home.searchClear}>
                     <svg className="ico" aria-hidden="true">
-                      <use href="/sprite.svg#i-close" />
+                      <use href={spriteHref('i-close')} />
                     </svg>
                   </AriaButton>
                 </div>

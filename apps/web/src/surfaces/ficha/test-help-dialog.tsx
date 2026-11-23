@@ -4,6 +4,7 @@ import { Button, TextButton } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import './ficha.css';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 23.10 (batch e23h; `60-ficha.html` `#ficha-dlg-como-iso`, EXPERIENCE.md › "Como ensaiar"):
@@ -24,7 +25,7 @@ export function TestHelpAction({ definition, testKey, title }: { definition: Blo
     <>
       <TextButton aria-haspopup="dialog" data-test-help="" onPress={() => setOpen(true)}>
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-book" />
+          <use href={spriteHref('i-book')} />
         </svg>
         {copy.testHelp.open}
       </TextButton>
@@ -46,7 +47,7 @@ export function IndexHelpAction({ definition, testKey }: { definition: BlockDefi
     <p className="helper" data-index-help="">
       <TextButton aria-haspopup="dialog" onPress={() => setOpen(true)}>
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-book" />
+          <use href={spriteHref('i-book')} />
         </svg>
         {copy.testHelp.openIndex}
       </TextButton>
@@ -86,7 +87,7 @@ function TestHelpDialog({ title, typeLabel, help, onClose }: { title: string; ty
         </div>
         <button type="button" className="icon-btn" aria-label={t.close} onClick={onClose}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-close" />
+            <use href={spriteHref('i-close')} />
           </svg>
         </button>
       </div>

@@ -515,6 +515,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'solo',
     why: 'Story 27.14 (batch e27c): measures the template editor\'s local card meta line against the card at 768, 1024 and 1280 px, a layout measure under a quiet CPU',
   },
+  // Fix batch e26u (2026-11-23): e26u-E2E-001 deploys a next build to read which sprite its first launch is given.
+  {
+    file: 'shell-sprite.durability.spec.ts',
+    lane: 'solo',
+    why: 'Fix batch e26u: rewrites the built sw.js on disk and writes a next entry chunk and sprite beside it (serveNextBuild), as 1.8-E2E-006 of the parallel group does; beside another worker the two would read each other\'s rewritten files, so it runs with nothing beside it',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

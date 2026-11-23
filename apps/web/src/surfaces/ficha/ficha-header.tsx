@@ -2,6 +2,7 @@ import { SHEET_STEPS, savedStateText, sheetProgressState, sheetProgressText, she
 import { OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useServerReachable } from '../../state/sync.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /**
  * The Sheet header (UX-DR33, `key-equipment-sheet-v09.html` `.sheet-header`): type + TAG,
@@ -64,14 +65,14 @@ export function FichaHeader({
             <button type="button" className="tag-btn" aria-label={t.tagLabel(tag)} onClick={onRename}>
               {tag}
               <svg className="ico ico-sm" aria-hidden="true">
-                <use href="/sprite.svg#i-pencil" />
+                <use href={spriteHref('i-pencil')} />
               </svg>
             </button>
           )}
           {library || company ? (
             <span className="lib-pill">
               <svg className="ico ico-sm" aria-hidden="true">
-                <use href="/sprite.svg#i-book" />
+                <use href={spriteHref('i-book')} />
               </svg>
               {company ? t.companyPill : t.libraryPill}
             </span>

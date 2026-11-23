@@ -19,6 +19,7 @@ import { useId, type ReactNode } from 'react';
 import { UploadPill } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { SyncState } from '../../state/sync.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 10.4 (FR-60): the sections of `85-sync.html` below the headline, in its order. Each
@@ -43,7 +44,7 @@ export function HowItWorks() {
     <details className="sync-how">
       <summary className="sh-how">
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-chev-down" />
+          <use href={spriteHref('i-chev-down')} />
         </svg>
         {how.label}
       </summary>

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button } from '../../components/index.ts';
 import { useStickyBarScrollPadding } from '../../components/toast.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /**
  * The sheet's Sticky action bar (UX-DR16, `60-ficha.html`): the Section stepper row above
@@ -49,7 +50,7 @@ export function StickyActionBar({
           <Button variant="primary" onPress={onPrimary} id={primaryId} data-telemetry={primaryTelemetry}>
             {primaryLabel}
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-chev-right" />
+              <use href={spriteHref('i-chev-right')} />
             </svg>
           </Button>
         )}

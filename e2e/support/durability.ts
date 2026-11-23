@@ -1,6 +1,6 @@
-import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { expect, type BrowserContext, type Page, type Route } from '@playwright/test';
+import { expect, type BrowserContext, type Locator, type Page, type Route } from '@playwright/test';
 import { SEED_PASSWORD } from './merged-fixtures.ts';
 import { appOrigin } from './origin.ts';
 import { plainHttpCookie } from './plain-http-cookie.ts';
@@ -349,13 +349,27 @@ export const NEXT_BUILD_MARKER = '<meta name="shell-build" content="next">';
 /** The built worker `vite preview` serves; the test and the preview server share the disk. */
 const BUILT_WORKER = fileURLToPath(new URL('../../apps/web/dist/sw.js', import.meta.url));
 const BUILT_DOCUMENT = fileURLToPath(new URL('../../apps/web/dist/index.html', import.meta.url));
+/** A file of the built bundle, by its path on the server (`/assets/...`). */
+const builtFile = (path: string) => fileURLToPath(new URL(`../../apps/web/dist${path}`, import.meta.url));
+
+/**
+ * Fix batch e26u: the symbol only the next build's sprite declares (a copy of `i-users`
+ * under a new id), which the next build's Home draws on its "Usuários" shortcut: an icon a
+ * release added, as Story 26.9 added `i-users`.
+ */
+export const NEXT_BUILD_SYMBOL = 'i-users-next';
 
 /**
  * Simulates a deploy without a second build: from now on the server hands out a `sw.js`
  * whose stamped `SHELL_VERSION` differs (`<version>-next`, a new cache name) and whose
- * precache list names a distinct entry chunk (`index-<hash>-next.js`, a copy of the
- * current one), and a document carrying `NEXT_BUILD_MARKER` and that version in its
- * `shell-version` meta that loads that entry. Returns the undo, which the test must run.
+ * precache list names a distinct entry chunk (`index-<hash>-next.js`) and a distinct icon
+ * sprite (`sprite-<hash>-next.svg`), and a document carrying `NEXT_BUILD_MARKER` and that
+ * version in its `shell-version` meta that loads that entry. Returns the undo, which the
+ * test must run.
+ *
+ * The next entry chunk is the current one with two changes a real build makes when a
+ * release adds an icon (fix batch e26u): it names the next sprite, and its "Usuários"
+ * shortcut draws `NEXT_BUILD_SYMBOL`, which only the next sprite declares.
  *
  * The worker script is rewritten on disk rather than routed: the browser's update check
  * for a worker's main script never reaches Playwright's routing (no request event, no
@@ -364,20 +378,35 @@ const BUILT_DOCUMENT = fileURLToPath(new URL('../../apps/web/dist/index.html', i
  * worker makes itself (its precache and its network-first navigations).
  */
 export async function serveNextBuild(context: BrowserContext): Promise<() => Promise<void>> {
-  // A distinct entry chunk, as a real build has: a copy of the current one under a new
-  // name, named by the next worker's precache list and by the next document.
-  const entry = /src="(\/assets\/index-[^"]+\.js)"/.exec(await readFile(BUILT_DOCUMENT, 'utf8'))?.[1];
-  if (entry === undefined) throw new Error(`${BUILT_DOCUMENT} references no entry chunk`);
-  const nextEntry = entry.replace(/\.js$/, '-next.js');
-  const nextEntryFile = fileURLToPath(new URL(`../../apps/web/dist${nextEntry}`, import.meta.url));
-  await copyFile(fileURLToPath(new URL(`../../apps/web/dist${entry}`, import.meta.url)), nextEntryFile);
-
   const original = await readFile(BUILT_WORKER, 'utf8');
   const version = /const SHELL_VERSION = "([0-9a-f]+)";/.exec(original)?.[1];
   if (version === undefined) throw new Error(`${BUILT_WORKER} carries no stamped SHELL_VERSION`);
+
+  // A distinct sprite, as a build that adds an icon has: the current one plus one symbol,
+  // under a new hashed name.
+  const sprite = /"(\/assets\/sprite-[^"]+\.svg)"/.exec(original)?.[1];
+  if (sprite === undefined) throw new Error(`${BUILT_WORKER} precaches no hashed icon sprite`);
+  const nextSprite = sprite.replace(/\.svg$/, '-next.svg');
+  const symbols = await readFile(builtFile(sprite), 'utf8');
+  const users = /<symbol id="i-users"[\s\S]*?<\/symbol>/.exec(symbols)?.[0];
+  if (users === undefined) throw new Error(`${builtFile(sprite)} declares no i-users`);
+  await writeFile(builtFile(nextSprite), symbols.replace('</svg>', `${users.replace('"i-users"', `"${NEXT_BUILD_SYMBOL}"`)}\n</svg>`));
+
+  // A distinct entry chunk, as a real build has: the current one under a new name, named
+  // by the next worker's precache list and by the next document, drawing from the next sprite.
+  const entry = /src="(\/assets\/index-[^"]+\.js)"/.exec(await readFile(BUILT_DOCUMENT, 'utf8'))?.[1];
+  if (entry === undefined) throw new Error(`${BUILT_DOCUMENT} references no entry chunk`);
+  const nextEntry = entry.replace(/\.js$/, '-next.js');
+  const chunk = await readFile(builtFile(entry), 'utf8');
+  const nextChunk = chunk.replaceAll(sprite, nextSprite).replace(/(["'`])i-users\1/g, `$1${NEXT_BUILD_SYMBOL}$1`);
+  if (!nextChunk.includes(nextSprite)) throw new Error(`${builtFile(entry)} does not name the sprite ${sprite}`);
+  if (!nextChunk.includes(NEXT_BUILD_SYMBOL)) throw new Error(`${builtFile(entry)} draws no i-users`);
+  await writeFile(builtFile(nextEntry), nextChunk);
+
   const next = original
     .replace(`const SHELL_VERSION = "${version}";`, `const SHELL_VERSION = "${version}-next";`)
-    .replaceAll(`"${entry}"`, `"${nextEntry}"`);
+    .replaceAll(`"${entry}"`, `"${nextEntry}"`)
+    .replaceAll(`"${sprite}"`, `"${nextSprite}"`);
   if (!next.includes(`"${nextEntry}"`)) throw new Error(`${BUILT_WORKER} carries no entry to change`);
   await writeFile(BUILT_WORKER, next);
   const isDocument = (url: URL) => url.pathname === '/';
@@ -394,8 +423,44 @@ export async function serveNextBuild(context: BrowserContext): Promise<() => Pro
   return async () => {
     await context.unroute(isDocument, markDocument);
     await writeFile(BUILT_WORKER, original);
-    await rm(nextEntryFile, { force: true });
+    await rm(builtFile(nextEntry), { force: true });
+    await rm(builtFile(nextSprite), { force: true });
   };
+}
+
+/** The `<use>` of the icon of Home's "Usuários" shortcut (Story 26.9), never its chevron. */
+export const usuariosIcon = (page: Page): Locator => page.locator('.shortcut-card[href="/usuarios"] svg.ico:not(.chev) use');
+
+/**
+ * Whether a sprite `<use>` drew something: the box of what it references. A symbol the
+ * sprite the page was given does not declare, or a sprite that never arrived, leaves an
+ * empty box, which is the blank icon a person sees.
+ */
+export async function iconDrawn(use: Locator): Promise<boolean> {
+  return use.evaluate((element) => {
+    const box = (element as SVGUseElement).getBBox();
+    return box.width > 0 && box.height > 0;
+  });
+}
+
+/** Whether the sprite file a `<use>` names, as this page is given it, declares `symbol`. */
+export async function spriteDeclares(page: Page, use: Locator, symbol: string): Promise<boolean> {
+  const file = ((await use.getAttribute('href')) ?? '').split('#')[0]!;
+  return page.evaluate(async ([path, id]) => (await (await fetch(path!)).text()).includes(`id="${id}"`), [file, symbol]);
+}
+
+/** Waits until the next build's worker has precached its whole shell (installed, whether or not it still waits). */
+export async function waitForNextShellInstalled(page: Page, cacheName: string): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async (name) => {
+          const registration = await navigator.serviceWorker.getRegistration();
+          return registration !== undefined && registration.installing === null && (await caches.has(name));
+        }, cacheName),
+      { timeout: 60_000 },
+    )
+    .toBe(true);
 }
 
 /** The entry chunk the page is running, as the worker's pin names it. */

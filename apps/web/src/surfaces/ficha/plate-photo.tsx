@@ -14,6 +14,7 @@ import { PlateCaptureTile } from './photo-openers.tsx';
 import { usePlateFocusTarget, usePlateRowFocusHandoff } from './plate-focus.ts';
 import { CancelledReading, EmptyReading, FailedReading, ReadingWaitLine, useReadingCancelled, useRereadAt } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Stories 8.2 and 8.6 (`60-ficha.html` nameplate states "empty", "queued", "ready" and
@@ -93,7 +94,7 @@ export function PlatePendingRow() {
         ) : (
           <span className="queued-banner" role="status" tabIndex={-1}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-image" />
+              <use href={spriteHref('i-image')} />
             </svg>
             {t.queued}
           </span>
@@ -190,7 +191,7 @@ export function PlatePhotoRow({
         {shown === 'queued' && cancelled !== true ? (
           <span className="queued-banner" tabIndex={-1}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-image" />
+              <use href={spriteHref('i-image')} />
             </svg>
             {t.queued}
           </span>
