@@ -47,6 +47,8 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
   { file: 'seed-v18.spec.ts', lane: 'queue', why: 'Story 28.2: issues a revision of a new v18 relatório through the shared queue and LibreOffice to read its PDF' },
   { file: 'point-start-priority.spec.ts', lane: 'queue', why: 'Story 28.5: issues a revision through the shared queue and LibreOffice to read the deadlines of section 8 counted from the issue date in the DOCX' },
   { file: 'seed-v18-lists.spec.ts', lane: 'queue', why: 'Story 28.4: issues a revision through the shared queue and LibreOffice to read the v18 items, the thermography reason and the utility justification in the DOCX' },
+  { file: 'additional-items.spec.ts', lane: 'queue', why: 'Story 28.9: issues a revision through the shared queue and LibreOffice to read the additional items in section 10 of the PDF' },
+  { file: 'fixed-texts-v18.spec.ts', lane: 'queue', why: 'Story 28.10: issues two revisions through the shared queue and LibreOffice to read sections 1 and 2 of the PDF before and after a Malha de aterramento' },
   { file: 'seed-v18-insulation.spec.ts', lane: 'queue', why: 'Story 28.3: issues a revision through the shared queue and LibreOffice to read the v18 plates of the transformers and the TP in the DOCX' },
   { file: 'fuse-resistance.spec.ts', lane: 'queue', why: 'Story 23.19: issues a revision through the shared queue and LibreOffice to check the not-applicable fuse test is absent from the DOCX' },
   // Batch e23e (2026-11-09, Stories 23.13, 23.18, 23.20 and 23.21): each issues a revision to read its DOCX.

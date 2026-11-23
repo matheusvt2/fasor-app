@@ -31,6 +31,7 @@ const COMPLETE_SETUP: RelatorioSetup = {
   next_intervention_date: null,
   next_intervention_justification: null,
   parecer: null,
+  additional_items: [],
 };
 
 /** A minimal snapshot: only the fields `setupGaps` reads are given real shapes. */

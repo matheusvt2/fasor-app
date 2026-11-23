@@ -1982,6 +1982,26 @@ export const copy = {
     parecerOwnTextLabel: 'Observações do responsável',
     parecerOwnTextClear: 'Limpar',
     parecerKicker: (section: string) => `Como imprime na ${section}`,
+    // Story 28.9 (seed v18, B-15; `50-relatorio-setup.html` `#setup-e28-items`): the relatório's additional items under
+    // the parecer. "Itens adicionais" is the story's; the rest is the frame's (Story 28.1, MOCK-GUIDE § 2026-11-23).
+    additionalItemsLabel: 'Itens adicionais',
+    // authored (Story 28.1's frame, listed for Bruno).
+    additionalItemsNote: 'Observações do relatório inteiro. Cada item sai como um tópico na seção 10, depois dos itens fixos.',
+    // authored (Story 28.1's frame, listed for Bruno).
+    additionalItemsEmpty: 'Nenhum item adicional.',
+    // authored (Story 28.1's frame, listed for Bruno).
+    addAdditionalItem: 'Adicionar item',
+    // authored (Story 28.1's frame, listed for Bruno).
+    additionalItemPlaceholder: 'Escreva o item',
+    // authored (Story 28.1's frame, listed for Bruno).
+    additionalItemsHelper: 'Um item vazio não é guardado.',
+    // The frame's accessible names of one item's field and of its `.overflow-trigger`.
+    additionalItemFieldLabel: (n: number) => `Item adicional ${n}`,
+    additionalItemMenuLabel: (n: number) => `Mais opções do item adicional ${n}`,
+    // authored (Story 28.9, listed for Bruno): the one item of an item's menu, as the exclusion's.
+    removeAdditionalItem: 'Remover',
+    // The frame's toast after "Remover" (`data-toast`), with "Desfazer".
+    additionalItemRemoved: (n: number) => `Item ${n} removido`,
     // authored: the way back to the Export dialog when the band was opened from its blocking row.
     backToExport: 'Voltar para Gerar relatório',
     // Sticky action bar.

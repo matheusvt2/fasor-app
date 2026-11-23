@@ -89,7 +89,8 @@ const ETAPA_FIELDS: Readonly<Record<1 | 2 | 3 | 4 | 5 | 6, readonly string[]>> =
   3: ['responsible_user_id', 'art_trt_number'],
   4: ['instrument_ids'],
   5: ['site_altitude_m', 'site_altitude_na', 'site_altitude_confirmed', 'next_intervention_date', 'next_intervention_justification'],
-  6: ['parecer'],
+  // Story 28.9: and the additional items, under the parecer.
+  6: ['parecer', 'additional_items'],
 };
 
 /**
@@ -306,6 +307,8 @@ function SetupContent({ relatorioId, snapshot, users, instruments }: SetupConten
           snapshot={snapshot}
           onWriteParecer={writeParecer}
           onBackToExport={backToExport}
+          onWriteAdditionalItems={(value) => writeFields([['additional_items', value]], true)}
+          undoable={edits.undoable}
           bandRef={(el) => (bandRefs.current[6] = el)}
         />
       </SetupBand>

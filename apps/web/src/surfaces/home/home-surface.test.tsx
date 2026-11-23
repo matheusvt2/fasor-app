@@ -91,6 +91,7 @@ function relatorio(id: string, status: RelatorioStatus, local: string, start: st
       next_intervention_date: null,
       next_intervention_justification: null,
     parecer: null,
+    additional_items: [],
     },
     export: { scheme: 'por_local_e_tipo' },
     preview_file_id: null,

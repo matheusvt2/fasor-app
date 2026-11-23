@@ -82,7 +82,8 @@ describe('26.2-UNIT-007 the coordinator readings of Story 26.2', () => {
     }
     expect([...SETUP_CREATE_FIELDS, ...SETUP_FILL_FIELDS].sort()).toEqual([...RELATORIO_SETUP_KEYS].sort());
     expect([...SETUP_CREATE_FIELDS]).toEqual(['service_start', 'service_end', 'atividade', 'local', 'responsible_user_id', 'cover_photo_file_id', 'escopo', 'exclusions', 'additional_info', 'art_trt_number']);
-    expect([...SETUP_FILL_FIELDS]).toEqual(['parecer', 'site_altitude_m', 'site_altitude_na', 'site_altitude_confirmed', 'next_intervention_date', 'next_intervention_justification', 'instrument_ids']);
+    // Batch e28c (Story 28.9, contract 59): the relatório's additional items, written in Etapa 6, fill.
+    expect([...SETUP_FILL_FIELDS]).toEqual(['parecer', 'site_altitude_m', 'site_altitude_na', 'site_altitude_confirmed', 'next_intervention_date', 'next_intervention_justification', 'instrument_ids', 'additional_items']);
     for (const key of SETUP_CREATE_FIELDS) expect(permissionForPath(`relatorio/setup/${key}`, put()), key).toBe('relatorio.create');
     for (const key of SETUP_FILL_FIELDS) expect(permissionForPath(`relatorio/setup/${key}`, put()), key).toBe('relatorio.fill');
   });
@@ -203,9 +204,10 @@ describe('26.2-UNIT-009 contract 55 and the new codes', () => {
   // Fix batch e27a-review (R8): the exact numbers, and the refusal of 55 and 54 asserted, as the title says.
   // Batch e27b (Story 27.8, seed v17, 2026-11-22): the number moved on to 57; 55 and 54 stay refused.
   // Batch e28a (Stories 28.2 to 28.4, seed v18, 2026-11-23): the number moved on to 58; 55 and 54 stay refused.
-  it('speaks 58 with a minimum of 58: a 55 bundle is refused, and so is a 54 one (it cannot parse the role families)', () => {
-    expect(CONTRACT_VERSION).toBe(58);
-    expect(MIN_CONTRACT_VERSION).toBe(58);
+  // Batch e28c (Story 28.9, the setup key `additional_items`, 2026-11-23): the number moved on to 59; 55 and 54 stay refused.
+  it('speaks 59 with a minimum of 59: a 55 bundle is refused, and so is a 54 one (it cannot parse the role families)', () => {
+    expect(CONTRACT_VERSION).toBe(59);
+    expect(MIN_CONTRACT_VERSION).toBe(59);
     // A bundle is refused (426 contract_outdated) below MIN_CONTRACT_VERSION.
     expect(55 < MIN_CONTRACT_VERSION).toBe(true);
     expect(54 < MIN_CONTRACT_VERSION).toBe(true);
