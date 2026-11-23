@@ -41,6 +41,11 @@ import { applyOps } from '../../sync/apply.ts';
  * the batch's first commit. Story 27.8 then changes one line of every older golden's text, the group title "TPs e TCs
  * dos Cubículos de MT" (decision 2 of 2026-11-21), and nothing else of them. v17 joins the lock too, taken on the
  * Story 27.8 commit that puts its words in; its PDF text pins "ITEM" and "PARA-RAIOS" (below).
+ *
+ * Batch e28a, Story 28.2 (28.2-INT-001): seed v17 froze at the deploy of 886af55e and v18 opens equal to it. The v17
+ * goldens (`golden/layout-lock-v17/`, `golden/layout-lock-v17-epic25/`) were taken on the Story 27.8 commit; no commit
+ * between it and the deploy moved them, and main's product code at e685c1ae is the deployed one, so this lock checks
+ * them against the deployed commit as they are. Every golden stays byte-equal through Epic 28.
  */
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
@@ -145,7 +150,7 @@ afterAll(async () => {
   await sql.end();
 });
 
-describe('27.8-INT-LOCK (e25s-INT-LOCK, 25.5-INT-LOCK, 24.2-INT-LOCK, 23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
+describe('28.2-INT-001 (27.8-INT-LOCK, e25s-INT-LOCK, 25.5-INT-LOCK, 24.2-INT-LOCK, 23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
   it.each(locked.map(({ golden, fixture }) => [golden, fixture] as const))(
     '%s: the preview PDF of the synthetic relatório prints its golden text, page by page',
     async (golden, fixture) => {

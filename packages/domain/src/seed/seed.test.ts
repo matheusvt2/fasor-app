@@ -1769,7 +1769,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
     expect(keys('v9', 'transformador_forca')).toContain('potencia_nominal');
   });
 
-  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 to v17 (vector_group) transformador de força ratio table only', () => {
+  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 to v18 (vector_group) transformador de força ratio table only', () => {
     const factors: string[] = [];
     for (const version of Object.keys(SEED_VERSIONS)) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
@@ -1786,6 +1786,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
       'v15/transformador_forca/relacao_transformacao/vector_group',
       'v16/transformador_forca/relacao_transformacao/vector_group',
       'v17/transformador_forca/relacao_transformacao/vector_group',
+      'v18/transformador_forca/relacao_transformacao/vector_group',
     ]);
   });
 
@@ -2652,7 +2653,9 @@ describe('e25s-UNIT-V16 seed v16 (Epic 25 wave 3) opens equal to v15, and v15 is
 });
 
 /**
- * v17 as it ships (Epic 27 wave 2); until its deploy each batch of the wave re-pins it, after it a change is a new version.
+ * v17 as it ships (Epic 27 wave 2); until its deploy each batch of the wave re-pinned it. Frozen since the deploy of
+ * 886af55e (2026-11-22, with Epic 26): the value that commit's `seed.test.ts` holds, and a change to v17 is now a new
+ * version (seed v18, batch e28a).
  * Batch e27b, first commit (2026-11-22): v17 opens equal to v16, the same content and the same rule flags.
  */
 // Story 27.8 (batch e27b): "ITEM", "Para-raios", the participle of "limpeza e reaperto" and two flags (`withoutE27b8` below).
@@ -2696,10 +2699,10 @@ describe('27.8-UNIT seed v17 (Epic 27 wave 2) opens equal to v16, and v16 is fro
   const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
   const VERSIONS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16'];
 
-  it('is the version a new Template is created with, offering the types of v16', () => {
-    expect(SEED_VERSION).toBe('v17');
+  // Seed v18 (batch e28a) is the version a new Template is created with since Epic 28 wave 1; v17 ships as it did.
+  it('was the version a new Template is created with until v18, offering the types of v16', () => {
     expect(SEED_VERSIONS.v17!.version).toBe('v17');
-    expect(Object.keys(SEED_VERSIONS)).toEqual([...VERSIONS, 'v17']);
+    expect(Object.keys(SEED_VERSIONS).slice(0, 17)).toEqual([...VERSIONS, 'v17']);
     expect(equipmentTypesOf('v17')).toEqual(equipmentTypesOf('v16'));
   });
 
@@ -2711,7 +2714,7 @@ describe('27.8-UNIT seed v17 (Epic 27 wave 2) opens equal to v16, and v16 is fro
     expect(hash('v14'), 'seed v14 changed after it shipped: add a new version instead').toBe(V14_HASH);
     expect(hash('v15'), 'seed v15 changed after it shipped: add a new version instead').toBe(V15_HASH);
     expect(hash('v16'), 'seed v16 changed after it shipped: add a new version instead').toBe(V16_HASH);
-    expect(hash('v17'), 'seed v17 changed: before its first deploy update this pin, after it add a new version').toBe(V17_HASH);
+    expect(hash('v17'), 'seed v17 changed after it shipped: add a new version instead').toBe(V17_HASH);
   });
 
   it('stringifies equal to v16 once every batch e27b story\'s delta is undone', () => {
@@ -2726,7 +2729,8 @@ describe('27.8-UNIT seed v17 (Epic 27 wave 2) opens equal to v16, and v16 is fro
 
 describe('27.8-UNIT seed v17 (Story 27.8): the form\'s words "ITEM", "Para-raios" and "realizados"; v1 to v16 unchanged', () => {
   const v17 = getSeed('v17', 'cabine_primaria');
-  const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v17');
+  // Seed v18 (batch e28a) opens equal to v17 and keeps its words and flags.
+  const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v17' && version !== 'v18');
 
   it('the checklist header reads "ITEM" on v17 and "ÍTEM" on every older seed; the other columns are v16\'s', () => {
     expect(STORY_27_8_CHECKLIST_HEADER).toBe('ITEM');
@@ -2761,8 +2765,66 @@ describe('27.8-UNIT seed v17 (Story 27.8): the form\'s words "ITEM", "Para-raios
 });
 
 describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v17 only', () => {
-  it('turns on wording_pass on v17 and on no older seed', () => {
-    for (const version of Object.keys(SEED_VERSIONS)) expect(seedRule(version, 'wording_pass'), version).toBe(version === 'v17');
+  // Seed v18 (batch e28a) keeps v17's flags.
+  it('turns on wording_pass on v17 (and v18) and on no older seed', () => {
+    for (const version of Object.keys(SEED_VERSIONS)) expect(seedRule(version, 'wording_pass'), version).toBe(version === 'v17' || version === 'v18');
+  });
+});
+
+/**
+ * v18 as it ships (Epic 28); until its deploy each batch of the epic re-pins it, after it a change is a new version.
+ * Batch e28a, first commit (2026-11-23, Story 28.2): v18 opens equal to v17, the same content and the same rule flags.
+ */
+const V18_HASH = '6b5afa783a76892b485e83a4f6dfeea40f0201c5e08ecf78f679c2f078184fd1';
+
+/**
+ * Batch e28a and the Epic 28 batches after it: each story's delta on v18, undone, in the order `seed/v18.ts` applies
+ * them. A story that adds a v18 key, word or rule flag adds its own fenced section to `seed/v18.ts`
+ * (`// --- Story 28.N: ... ---`) and its own `withoutE28<N>` helper below this line (e.g. `withoutE283`), and names it
+ * here, so `withoutE28(v18)` stays v17 and "28.2-UNIT-001" keeps pinning that every other byte of v18 is v17's.
+ */
+const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [];
+
+/** v18 with every Epic 28 story's delta undone: v17 as it shipped. */
+function withoutE28(seed: ReportSeed): ReportSeed {
+  return E28_STRIPS.reduceRight((out, strip) => strip(out), structuredClone(seed));
+}
+
+describe('28.2-UNIT-001 seed v18 (Epic 28) opens equal to v17', () => {
+  const v17 = getSeed('v17', 'cabine_primaria');
+  const v18 = getSeed('v18', 'cabine_primaria');
+  const VERSIONS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17'];
+
+  it('is the version a new Template is created with, offering the types of v17', () => {
+    expect(SEED_VERSION).toBe('v18');
+    expect(SEED_VERSIONS.v18!.version).toBe('v18');
+    expect(Object.keys(SEED_VERSIONS)).toEqual([...VERSIONS, 'v18']);
+    expect(equipmentTypesOf('v18')).toEqual(equipmentTypesOf('v17'));
+  });
+
+  it('stringifies equal to v17 once every Epic 28 story\'s delta is undone', () => {
+    expect(JSON.stringify(withoutE28(v18))).toBe(JSON.stringify(v17));
+  });
+
+  it('keeps every rule flag v17 turns on (a v18 relatório concludes and prints as a v17 one until a story says otherwise)', () => {
+    expect(withoutE28(v18).rules).toEqual(v17.rules);
+    for (const flag of Object.keys(v17.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v18', flag), flag).toBe(true);
+  });
+});
+
+describe('28.2-UNIT-002 seed v17 is frozen as it shipped at the deploy of 886af55e; v18 is pinned until its own', () => {
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
+
+  it('V17_HASH is the value v17 shipped with at the deploy of 886af55e, and v11 to v16 hash as they shipped', () => {
+    expect(V17_HASH).toBe('c909f38ad394437eb2d5039d0fd1e373d85a7d1d4c4b2958fc79d209c051fcdb');
+    expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
+    expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
+    expect(hash('v13'), 'seed v13 changed after it shipped: add a new version instead').toBe(V13_HASH);
+    expect(hash('v14'), 'seed v14 changed after it shipped: add a new version instead').toBe(V14_HASH);
+    expect(hash('v15'), 'seed v15 changed after it shipped: add a new version instead').toBe(V15_HASH);
+    expect(hash('v16'), 'seed v16 changed after it shipped: add a new version instead').toBe(V16_HASH);
+    expect(hash('v17'), 'seed v17 changed after it shipped: add a new version instead').toBe(V17_HASH);
+    expect(hash('v18'), 'seed v18 changed: before its first deploy update this pin, after it add a new version').toBe(V18_HASH);
   });
 });
 
@@ -2886,7 +2948,7 @@ describe('25.16-UNIT seed v16 (Story 25.16): the Malha\'s continuity test takes 
       for (const block of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
         for (const test of block.measurement_tests ?? []) {
           const where = `${version} ${block.block_type}/${test.key}`;
-          if (version !== 'v16' && version !== 'v17') expect(test.added_rows, where).toBeUndefined();
+          if (version !== 'v16' && version !== 'v17' && version !== 'v18') expect(test.added_rows, where).toBeUndefined();
           else if (block.block_type === 'malha_aterramento' && test.key === STORY_25_16_TEST) expect(test.added_rows, where).toEqual(STORY_25_16_ADDED_ROWS);
           else if (test.key !== 'termografia') expect(test.added_rows, where).toBeUndefined();
         }
@@ -2986,7 +3048,7 @@ describe('25.19-UNIT seed v16 (Story 25.19, the "A SECO" half): the dry option a
 
   // Seed v17 (batch e27b) keeps v16's "A SECO".
   it('every seed of v1 to v15 still reads "Á SECO" in its options and its subtypes', () => {
-    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v16' && one !== 'v17')) {
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v16' && one !== 'v17' && one !== 'v18')) {
       const seed = getSeed(version, 'cabine_primaria');
       for (const type of STORY_25_19_TYPES) {
         const options = seed.blocks[type].nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')?.options;

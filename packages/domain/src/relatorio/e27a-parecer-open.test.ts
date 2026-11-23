@@ -166,9 +166,10 @@ describe('27.3-UNIT an open ficha with a reading out of criterion is named apart
 
 describe('27.3-UNIT the print keeps its bytes unless the seed turns parecer_open_apart on', () => {
   // Story 27.8 (batch e27b): seed v17 turns the flag on; every older seed leaves it off.
-  it('no shipped seed but v17 turns the flag on', async () => {
+  // Seed v18 (batch e28a) opens equal to v17 and keeps the flag.
+  it('no shipped seed but v17 (and v18) turns the flag on', async () => {
     const actual = await vi.importActual<typeof import('../seed/definitions.ts')>('../seed/definitions.ts');
-    for (const version of Object.keys(SEED_VERSIONS)) expect(actual.seedRule(version, 'parecer_open_apart'), version).toBe(version === 'v17');
+    for (const version of Object.keys(SEED_VERSIONS)) expect(actual.seedRule(version, 'parecer_open_apart'), version).toBe(version === 'v17' || version === 'v18');
   });
 
   it('v16, flag off: parecerTextForPrint is the sentence printed before Story 27.3', () => {

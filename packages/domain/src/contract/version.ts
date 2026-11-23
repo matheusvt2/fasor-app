@@ -679,7 +679,13 @@
  * reaperto" with its participle in the masculine plural, the surge arrester's caption word) through v17 keys
  * and rule flags (decision 2 of 2026-11-21). MIN follows to 57 (below).
  */
-export const CONTRACT_VERSION = 57;
+/*
+ * 58 (2026-11-23, batch e28a, Epic 28 wave 1, Stories 28.2 to 28.4): seed v18 opens equal to v17 (the same
+ * content and the same rule flags; v17 froze at the deploy of 886af55e) and becomes the version a new Template
+ * is created with (`SEED_VERSION`); the server's boot step moves every template to it, so every relatório
+ * created afterwards is born on v18 and every one already made keeps its seed. MIN follows to 58 (below).
+ */
+export const CONTRACT_VERSION = 58;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -1088,7 +1094,12 @@ export const CONTRACT_VERSION = 57;
  * checklist or tests, nor print the words Story 27.8 puts right on v17. Its pull answers `426
  * contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 57;
+/*
+ * 58 (2026-11-23, batch e28a, Story 28.2): a version-57 (or older) bundle ships no seed v18, so it cannot
+ * resolve a single definition of a v18 relatório or of a template the server moved to v18. Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 58;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

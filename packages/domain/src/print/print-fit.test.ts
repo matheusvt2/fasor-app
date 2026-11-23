@@ -227,8 +227,8 @@ describe('e22g B1: the reading tables of every seed version hold every word whol
 
   it('v1 to v11 with one unit and no previous visit print every reading table at 9 pt, as before; v12 steps its wide insulation tables down', () => {
     const smaller = Object.keys(SEED_VERSIONS)
-      // Seed v13 (Epic 23) carries v12's TENSÃO column, so it steps as v12 does; v14 (Story 24.2) opens equal to v13, v15 (Story 25.5) to v14, v16 (batch e25s) to v15, v17 (batch e27b) to v16.
-      .filter((v) => v !== 'v12' && v !== 'v13' && v !== 'v14' && v !== 'v15' && v !== 'v16' && v !== 'v17')
+      // Seed v13 (Epic 23) carries v12's TENSÃO column, so it steps as v12 does; v14 (Story 24.2) opens equal to v13, v15 (Story 25.5) to v14, v16 (batch e25s) to v15, v17 (batch e27b) to v16, v18 (batch e28a) to v17.
+      .filter((v) => v !== 'v12' && v !== 'v13' && v !== 'v14' && v !== 'v15' && v !== 'v16' && v !== 'v17' && v !== 'v18')
       .flatMap((version) =>
         section9Layout(snapshotOf(version, false, false), 9, 'RELATÓRIOS DOS ENSAIOS')!
           .subsections.flatMap((s) => s.sheets)
