@@ -48,6 +48,15 @@ Fix the wave 3 review findings X1 to X7 with the smallest change each, after che
 - X3 (b): closing the Clientes panel while a repeated name is held drops the fields that waited, with no word; the panel has no leave or discard confirmation to reuse.
 - X3: a new client whose first field is not the name still creates the client on that field with an empty name, as before (Story 2.1's pattern, `client-panel.test.tsx` "with no repeated name the first field still creates the client").
 
+## Added by the coordinator (2026-11-22, the shared final gate on 64ddc634)
+
+- `test-applicability.durability.spec.ts` 23.9-E2E-001: the expectation takes Story 27.9's sentence-case label (the kernel test `27.9-UNIT applicability in sentence case (F37)` is the intended text).
+- `ficha.spec.ts` 12.1-E2E-012: rewritten for X2; the keyboard press waits until the button holds the focus (red 1 of 3 without it, at the line main's run went red on; 6 of 6 with it).
+- `ttr-per-tap.spec.ts` 23.8-E2E-001 (red alone on 64ddc634): `focusCell` brings the focused cell's row whole above the Sticky action bar (`ensaios-section.tsx`).
+
 ## Auto Run Result
 
-(filled at the end of the batch)
+- Implemented by the orchestrator directly; no implementation subagent, no review loop (token economy; the wave review covers it). No orchestrator cut; handoff file `.scratch-e27d/HANDOFF.md`.
+- X7 before the fix (main's `docx.ts`, api container): the PDF read "Manutenção preventiva da cabine primária Ensaios elétricos nos" / "transformadores Termografia dos painéis", the breaks lost; green after.
+- Mutation runs: X1 and X4 red with their fixes reverted (27.13-E2E-002 at the remount check; 27.11-E2E-003 button bottom 878.3 against foot bottom 845 at 390x844).
+- Gate on the merge of main `9f2c1612` (`40a77335`): lint, static, test:api 1175 passed (7 skipped), test:unit 7751 passed, 35 specs 205 of 205, matrix 25 of 26 (1 skipped as on main); no lock wait, load 2.3 to 7.4. Details in the PR body.
