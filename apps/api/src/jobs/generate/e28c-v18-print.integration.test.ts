@@ -22,7 +22,7 @@ import { placeholderPages } from './toc.ts';
  */
 
 const ISSUED_AT = '2026-12-10T15:00:00.000Z';
-const NBSP = / /gu;
+const NBSP = /\u00a0/gu;
 const ITEMS = [
   'O ensaio de isolação dos cabos de saída da Coluna 4 foi feito em conjunto, pelo barramento, com as duas chaves fechadas.',
   'Os ajustes dos relés seguem o estudo de seletividade fornecido pelo cliente, que não foi revisado nesta manutenção.',
