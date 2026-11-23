@@ -14,7 +14,7 @@ import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
  * - a TP's thermography "Não realizada" offers six reasons, "Carga insuficiente para avaliação" chosen;
  * - a TC marked not tested for "Equipamento da concessionária" shows the justification with its TAG and the slot of the
  *   name; while the name is empty the Gerar dialog names it as blocking; the typed name fills the text;
- * - the No-break de comando's battery date names the exchange;
+ * - the No-break de comando's battery date names the exchange (from the kernel: the standard template has none);
  * - the issued DOCX prints rows 18 and 19 (18 marked NC), the thermography's reason and the TC's justification.
  * It issues a revision through the api's one queue and LibreOffice, so it runs in the queue lane.
  */
@@ -43,7 +43,6 @@ test('@p0 28.4-E2E-001 v18 lists: items 18 and 19 in the dry words with NC, a ne
   const tf = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;
   const tp = sheets.find((sheet) => sheet.blockType === 'tp')!;
   const tc = sheets.find((sheet) => sheet.blockType === 'tc')!;
-  const noBreak = sheets.find((sheet) => sheet.blockType === 'no_break_comando')!;
 
   // --- the dry transformer: nineteen items, 18 and 19 in the dry words; 18 NC offers its phrases and a point ---
   await page.goto(`/relatorio/${relatorioId}/ficha/${tf.blockId}`);
@@ -104,9 +103,9 @@ test('@p0 28.4-E2E-001 v18 lists: items 18 and 19 in the dry words with NC, a ne
   await expect(text).toHaveValue(new RegExp(`concessionária ${UTILITY} e destinado`));
   await expect(justification.first().getByText('Digitado nesta ficha · entra no texto abaixo')).toBeVisible();
 
-  // --- the No-break de comando's battery date ---
-  await page.goto(`/relatorio/${relatorioId}/ficha/${noBreak.blockId}`);
-  await expect(page.locator('#ficha-nameplate [data-field-key="baterias_data_de_fabricacao_ou_instalacao"]')).toContainText('Baterias: data de fabricação, instalação ou troca');
+  // --- the No-break de comando's battery date: the standard template places no No-break de comando, so its v18 label is
+  // read from the kernel here (28.4-UNIT-001 pins it in the seed); the sheet draws the seed's label as every field's.
+  expect(getDefinition(SEED_VERSION, 'cabine_primaria', 'no_break_comando').nameplate.find((field) => field.key === 'baterias_data_de_fabricacao_ou_instalacao')!.label).toBe('BATERIAS: DATA DE FABRICAÇÃO, INSTALAÇÃO OU TROCA');
 
   // --- the DOCX ---
   await setParecer(page, relatorioId, 'Apto');
