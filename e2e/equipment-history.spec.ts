@@ -48,6 +48,8 @@ const tagsIn = (li: Locator) => li.locator(':scope > .s9-eqs > li.s9-eq .block-t
 const menuOf = (page: Page, name: string) => page.getByRole('button', { name: `Mais opções de ${name}`, exact: true });
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
 const TRANSFORMER = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca');
+/** Batch e28a (Story 28.3): the current seed's oil option, the kernel's ("A ÓLEO" since v18, ÓLEO ISOLANTE on v13 to v17). */
+const OIL_VALUE = TRANSFORMER.oil_rule!.oil_values[0]!;
 const FIRST = cellAddressesOf(TRANSFORMER, 'isolacao')[0]!;
 
 /** Opens section 9 of the Sumário and the 1º Subsolo local. */
@@ -111,7 +113,7 @@ test('@p0 24.21-E2E-001 a transformer born TR-01 through "Novo relatório" and r
   // The office fills the transformer's plate and its first insulation row, once A reached the server.
   await syncNowAndReturn(page);
   await pushDrafts(page, database, [
-    officeDraft(account, { relatorioId: a }, `sheet/${trSheet.id}/nameplate/tipo_de_isolacao`, 'ÓLEO ISOLANTE'),
+    officeDraft(account, { relatorioId: a }, `sheet/${trSheet.id}/nameplate/tipo_de_isolacao`, OIL_VALUE),
     officeDraft(account, { relatorioId: a }, `sheet/${trSheet.id}/test/isolacao/cell/${FIRST.row}/${FIRST.col}`, { raw: '4.9', unit: 'GΩ', state: 'measured' }),
   ]);
 

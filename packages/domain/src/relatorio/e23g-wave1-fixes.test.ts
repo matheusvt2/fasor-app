@@ -194,7 +194,8 @@ describe('e23g R2-1: "Ler visor" on a v13 TTR lands on the tap rows', () => {
 // --- removing a nameplate field -----------------------------------------------------------------
 
 describe('e23g R2-2: removing a nameplate field of a v13 copy prunes every key naming it', () => {
-  const copy = () => duplicateSeededType(SEED_VERSION, 'transformador_forca').draft;
+  // Pinned to v17 since seed v18 (batch e28a, Story 28.3) adds CONSTRUÇÃO to the transformer's dry fields; 28.3-UNIT-009 covers v18.
+  const copy = () => duplicateSeededType('v17', 'transformador_forca').draft;
   const indexOf = (draft: CompanyTypeDefinition, key: string) => draft.nameplate.findIndex((field) => field.key === key);
   const ratioTable = (draft: CompanyTypeDefinition) => draft.tests.find((test) => test.key === TEST_KEY)!.tables[0]!;
 

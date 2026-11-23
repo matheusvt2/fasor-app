@@ -1,4 +1,4 @@
-import { dryFieldExcusedReason, EMPTY_DEFINITION_CONTEXT, getDefinition, oilCrossingToastText, screenLabel, SEED_VERSION, type BlockRow } from '@app/domain';
+import { dryFieldExcusedReason, EMPTY_DEFINITION_CONTEXT, getDefinition, oilCrossingToastText, screenLabel, type BlockRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -44,6 +44,11 @@ interface EntityRecord<T> {
   row: T;
 }
 
+/**
+ * Pinned to v17 since seed v18 (batch e28a, Story 28.3): v18's transformer offers "A SECO" and "A ÓLEO" only and adds
+ * CONSTRUÇÃO; these tests pin the oil rule as v13 to v17 ask it (`e2e/seed-v18-insulation.spec.ts` covers v18).
+ */
+const SEED_VERSION = 'v17';
 const OIL = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.items;
 /** Story 22.7 (seed v12): the oil value of TIPO DE ISOLAÇÃO is the kernel's (ÓLEO MINERAL since v12), never a literal. */
 const OIL_VALUE = getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.oil_values[0]!;
@@ -72,7 +77,7 @@ async function openSheet(page: Page, type: string, extra: (relatorioId: string, 
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
-  const built = newRelatorioDrafts(account);
+  const built = newRelatorioDrafts(account, { seedVersion: SEED_VERSION });
   const sheet = built.sheets.find((s) => s.blockType === type)!;
   await pushDrafts(page, database, [...built.drafts, emCampoDraft(account, built.relatorioId), ...extra(built.relatorioId, sheet)]);
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${sheet.blockId}`);

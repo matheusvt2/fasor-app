@@ -12,6 +12,7 @@ import {
   nameplateTitleOf,
   nameplateCopyFields,
   nameplateIsEmpty,
+  nameplateScreenOrder,
   nameplateTagPrefill,
   oilFieldExcusedReason,
   oilItemsNaText,
@@ -475,7 +476,7 @@ export function NameplateSection({
         </>
       ) : null}
       <div className="nameplate-grid" onFocus={trackFocus} onBlur={dropFocus}>
-        {definition.nameplate.map((field) => {
+        {nameplateScreenOrder(definition.nameplate).map((field) => {
           // Batch e23t (Story 23.17): a field whose `excused_unless` the plate does not meet (TIPO (ANP) on a liquid other than mineral) is not drawn.
           if (isFieldHidden(block, field.key, definitions)) return null;
           // Fix batch e23p (P4): a dry field of an oil unit is drawn read-only and empty, with the kernel's reason; a value

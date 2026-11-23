@@ -261,7 +261,8 @@ export function removeDraftEntryRefusal(draft: CompanyTypeDraft | null, part: Dr
  * leaves no criterion only it named. Fix batch e23g (R2-2), the v13 keys: a removed nameplate field
  * leaves the oil rule's `dry_fields` (the key goes when empty), no field's `pick_from`, no table's
  * `rows_from` (the table falls back to its seeded row) and no test's `applies_when` (the test applies
- * always) naming it, so the copy stays publishable.
+ * always) naming it, so the copy stays publishable. Batch e28a (seed v18): nor a field's `screen_after`,
+ * `implied_by` or `excused_unless`.
  */
 export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftListPart, index: number): CompanyTypeDraft {
   const next = asDraft(draft);
@@ -311,6 +312,13 @@ export function removeDraftEntry(draft: CompanyTypeDraft | null, part: DraftList
     }
     // Fix batch e23g (R2-2): a picker whose list went is a plain number field again (TAP ATUAL without TAPS).
     for (const field of listOf(next, 'nameplate')) if (field.pick_from === key) delete field.pick_from;
+    // Batch e28a (Story 28.3, seed v18): a field drawn after, implied by or shown only by the removed one (a copy's
+    // CONSTRUÇÃO without TIPO DE ISOLAÇÃO) is drawn in its place, implied by nothing and always shown.
+    for (const field of listOf(next, 'nameplate')) {
+      if (field.screen_after === key) delete field.screen_after;
+      if ((field.implied_by as Entry | undefined)?.field === key) delete field.implied_by;
+      if ((field.excused_unless as Entry | undefined)?.field === key) delete field.excused_unless;
+    }
     for (const test of listOf(next, 'tests')) {
       // A table whose rows came from the removed list keeps its seeded row, as with the list empty.
       for (const table of (Array.isArray(test.tables) ? test.tables : []) as Entry[]) if (table.rows_from === key) delete table.rows_from;

@@ -38,6 +38,17 @@ import {
   STORY_27_8_PARA_RAIO_LABEL,
   STORY_27_8_PARA_RAIO_LABEL_BEFORE,
 } from './v17.ts';
+import {
+  STORY_28_3_CONSTRUCAO,
+  STORY_28_3_DRY,
+  STORY_28_3_EPOXY,
+  STORY_28_3_INSTRUMENT_TYPES,
+  STORY_28_3_OIL,
+  STORY_28_3_OIL_BEFORE,
+  STORY_28_3_TRANSFORMER_ALIASES,
+  STORY_28_3_TRANSFORMER_OPTIONS,
+  STORY_28_3_VEGETAL,
+} from './v18.ts';
 import { selectOptionFor } from './select-option.ts';
 import { measurementCriterionSchema, measurementTestSchema, type MeasurementTest } from './measurement.ts';
 import { blockDefinitionSchema, fieldDefSchema, reportSeedSchema, seedBundleSchema, seedRulesSchema, type BlockDefinition, type FieldDef, type ReportSeed, type SeedRuleFlag, type TableDef, type TestDef } from './schema.ts';
@@ -2775,7 +2786,7 @@ describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v
  * v18 as it ships (Epic 28); until its deploy each batch of the epic re-pins it, after it a change is a new version.
  * Batch e28a, first commit (2026-11-23, Story 28.2): v18 opens equal to v17, the same content and the same rule flags.
  */
-const V18_HASH = '6b5afa783a76892b485e83a4f6dfeea40f0201c5e08ecf78f679c2f078184fd1';
+const V18_HASH = 'e47f2fd2a90498a08909908583c35431c1ab70ba263361444814fe360985fd7e';
 
 /**
  * Batch e28a and the Epic 28 batches after it: each story's delta on v18, undone, in the order `seed/v18.ts` applies
@@ -2783,7 +2794,30 @@ const V18_HASH = '6b5afa783a76892b485e83a4f6dfeea40f0201c5e08ecf78f679c2f078184f
  * (`// --- Story 28.N: ... ---`) and its own `withoutE28<N>` helper below this line (e.g. `withoutE283`), and names it
  * here, so `withoutE28(v18)` stays v17 and "28.2-UNIT-001" keeps pinning that every other byte of v18 is v17's.
  */
-const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [];
+// Story 28.3 (batch e28a): the transformer's "A SECO" / "A ÓLEO", CONSTRUÇÃO, the TP's and the TC's ÓLEO VEGETAL (`withoutE283` below).
+const E28_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE283];
+
+/** Story 28.3's delta undone: v17's three transformer options and aliases, no CONSTRUÇÃO, v17's oil value and sampling, the TP and TC without ÓLEO VEGETAL. */
+function withoutE283(seed: ReportSeed): ReportSeed {
+  const out = structuredClone(seed);
+  const transformer = out.blocks.transformador_forca;
+  const insulation = transformer.nameplate.find((field) => field.key === 'tipo_de_isolacao')!;
+  insulation.options = [STORY_28_3_EPOXY, STORY_28_3_DRY, STORY_28_3_OIL_BEFORE];
+  insulation.option_aliases = { ÓLEO: STORY_28_3_OIL_BEFORE, 'ÓLEO MINERAL': STORY_28_3_OIL_BEFORE, 'Á SECO': STORY_28_3_DRY };
+  delete transformer.nameplate.find((field) => field.key === 'natureza_liquido')!.excused_unless;
+  transformer.nameplate = transformer.nameplate.filter((field) => field.key !== STORY_28_3_CONSTRUCAO.key);
+  transformer.oil_rule!.oil_values = [STORY_28_3_OIL_BEFORE];
+  transformer.oil_rule!.dry_fields = transformer.oil_rule!.dry_fields!.filter((key) => key !== STORY_28_3_CONSTRUCAO.key);
+  const condition = transformer.measurement_tests!.find((test) => test.key === 'coleta_oleo')!.applies_when as { values: string[] };
+  condition.values = [STORY_28_3_OIL_BEFORE];
+  for (const type of STORY_28_3_INSTRUMENT_TYPES) {
+    const definition = out.blocks[type];
+    const field = definition.nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')!;
+    field.options = field.options!.filter((option) => option !== STORY_28_3_VEGETAL);
+    definition.oil_rule!.oil_values = definition.oil_rule!.oil_values.filter((value) => value !== STORY_28_3_VEGETAL);
+  }
+  return out;
+}
 
 /** v18 with every Epic 28 story's delta undone: v17 as it shipped. */
 function withoutE28(seed: ReportSeed): ReportSeed {
@@ -2809,6 +2843,70 @@ describe('28.2-UNIT-001 seed v18 (Epic 28) opens equal to v17', () => {
   it('keeps every rule flag v17 turns on (a v18 relatório concludes and prints as a v17 one until a story says otherwise)', () => {
     expect(withoutE28(v18).rules).toEqual(v17.rules);
     for (const flag of Object.keys(v17.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v18', flag), flag).toBe(true);
+  });
+});
+
+describe('28.3-UNIT-001 seed v18 (Story 28.3): the oil\'s names on the transformer, the TP and the TC; v17 unchanged', () => {
+  const v17 = getSeed('v17', 'cabine_primaria');
+  const v18 = getSeed('v18', 'cabine_primaria');
+  const field = (seed: ReportSeed, type: string, key: string) => (seed.blocks as Record<string, BlockDefinition>)[type]!.nameplate.find((candidate) => candidate.key === key);
+
+  it('the transformer offers "A SECO" and "A ÓLEO" only, its v1 to v17 spellings aliases; v17 keeps EPÓXI, A SECO and ÓLEO ISOLANTE', () => {
+    const insulation = field(v18, 'transformador_forca', 'tipo_de_isolacao')!;
+    expect(insulation.options).toEqual(['A SECO', 'A ÓLEO']);
+    expect(STORY_28_3_TRANSFORMER_OPTIONS).toEqual([STORY_28_3_DRY, STORY_28_3_OIL]);
+    expect(insulation.option_aliases).toEqual({ ÓLEO: 'A ÓLEO', 'ÓLEO MINERAL': 'A ÓLEO', 'Á SECO': 'A SECO', 'ÓLEO ISOLANTE': 'A ÓLEO', EPÓXI: 'A SECO' });
+    expect(STORY_28_3_TRANSFORMER_ALIASES).toEqual(insulation.option_aliases);
+    for (const spelling of ['ÓLEO', 'óleo mineral', 'ÓLEO ISOLANTE', 'Oleo Isolante']) expect(selectOptionFor(insulation, spelling), spelling).toBe('A ÓLEO');
+    for (const spelling of ['EPÓXI', 'epoxi', 'Á SECO', 'A SECO']) expect(selectOptionFor(insulation, spelling), spelling).toBe('A SECO');
+    expect(field(v17, 'transformador_forca', 'tipo_de_isolacao')!.options).toEqual(['EPÓXI', 'A SECO', 'ÓLEO ISOLANTE']);
+  });
+
+  it('the oil rule and the oil sampling read "A ÓLEO"; CONSTRUÇÃO is a dry field; v17 reads ÓLEO ISOLANTE', () => {
+    const rule = v18.blocks.transformador_forca.oil_rule!;
+    expect(rule.oil_values).toEqual(['A ÓLEO']);
+    expect(rule.dry_fields).toEqual(['temperatura_enrolamento_c', 'classe_termica', 'construcao']);
+    expect(rule.items).toEqual(v17.blocks.transformador_forca.oil_rule!.items);
+    expect(v18.blocks.transformador_forca.measurement_tests!.find((test) => test.key === 'coleta_oleo')!.applies_when).toEqual({ op: 'in', values: ['A ÓLEO'], field: 'tipo_de_isolacao' });
+    expect(v17.blocks.transformador_forca.oil_rule!.oil_values).toEqual(['ÓLEO ISOLANTE']);
+  });
+
+  it('NATUREZA DO LÍQUIDO hangs on "A ÓLEO"; CONSTRUÇÃO is the plate\'s last field, optional, drawn after TIPO DE ISOLAÇÃO, asked on "A SECO", EPÓXI implying the encapsulated one', () => {
+    expect(field(v18, 'transformador_forca', 'natureza_liquido')!.excused_unless).toEqual({ field: 'tipo_de_isolacao', in: ['A ÓLEO'] });
+    expect(field(v17, 'transformador_forca', 'natureza_liquido')!.excused_unless).toBeUndefined();
+    const nameplate = v18.blocks.transformador_forca.nameplate;
+    expect(nameplate.at(-1)).toEqual(STORY_28_3_CONSTRUCAO);
+    expect(STORY_28_3_CONSTRUCAO).toEqual({
+      key: 'construcao',
+      label: 'CONSTRUÇÃO',
+      kind: 'select',
+      options: ['ENCAPSULADO EM RESINA EPÓXI', 'IMPREGNADO A VÁCUO (VPI)'],
+      optional: true,
+      help: 'Opcional',
+      excused_unless: { field: 'tipo_de_isolacao', in: ['A SECO'] },
+      screen_after: 'tipo_de_isolacao',
+      implied_by: { field: 'tipo_de_isolacao', values: { EPÓXI: 'ENCAPSULADO EM RESINA EPÓXI' } },
+    });
+    expect(nameplate.slice(0, -1).map((one) => one.key)).toEqual(v17.blocks.transformador_forca.nameplate.map((one) => one.key));
+    // The subtypes (template config keys) are v17's.
+    expect(v18.blocks.transformador_forca.subtypes).toEqual(v17.blocks.transformador_forca.subtypes);
+  });
+
+  it('the TP and the TC offer EPÓXI, A SECO, ÓLEO MINERAL and ÓLEO VEGETAL, both oils; v17 offers three', () => {
+    for (const type of STORY_28_3_INSTRUMENT_TYPES) {
+      expect(field(v18, type, 'tipo_de_isolacao')!.options, type).toEqual(['EPÓXI', 'A SECO', 'ÓLEO MINERAL', STORY_28_3_VEGETAL]);
+      expect(v18.blocks[type].oil_rule!.oil_values, type).toEqual(['ÓLEO MINERAL', 'ÓLEO VEGETAL']);
+      expect(field(v17, type, 'tipo_de_isolacao')!.options, type).toEqual(['EPÓXI', 'A SECO', 'ÓLEO MINERAL']);
+      expect(v17.blocks[type].oil_rule!.oil_values, type).toEqual(['ÓLEO MINERAL']);
+    }
+  });
+
+  it('no seed before v18 carries `screen_after` or `implied_by`', () => {
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) {
+      for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
+        for (const one of definition.nameplate) expect(one.screen_after === undefined && one.implied_by === undefined, `${version} ${definition.block_type}/${one.key}`).toBe(true);
+      }
+    }
   });
 });
 

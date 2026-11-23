@@ -16,6 +16,8 @@ const SCREEN_FORMS: Record<string, string> = {
   'TEMPERATURA DO ÓLEO': 'Temperatura do óleo',
   'TEMPERATURA DO ENROLAMENTO': 'Temperatura do enrolamento',
   'CLASSE TÉRMICA': 'Classe térmica',
+  // Seed v18 (batch e28a, Story 28.3): the dry transformer's construction.
+  'CONSTRUÇÃO': 'Construção',
   MONTAGEM: 'Montagem',
   'TENSÃO DE COMANDO': 'Tensão de comando',
   'CONTADOR DE OPERAÇÕES': 'Contador de operações',

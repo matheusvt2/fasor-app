@@ -2,7 +2,7 @@ import { fileFieldPath, sheetChecklistPath, sheetNameplatePath } from '../ops/pa
 import type { BlockRow, Cell } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext, type DefinitionContext } from '../seed/definitions.ts';
-import type { OilRule } from '../seed/schema.ts';
+import type { FieldDef, OilRule } from '../seed/schema.ts';
 import { selectOptionFor } from '../seed/select-option.ts';
 import { plural } from '../text/plural.ts';
 import { sentenceCase } from './reading-cells.ts';
@@ -178,12 +178,23 @@ export function oilFieldExcusedReason(block: StateBlock, fieldKey: string, ctx: 
  */
 export function isFieldHidden(block: Pick<BlockRow, 'seed_version' | 'block_type' | 'config' | 'sheet'>, fieldKey: string, ctx: DefinitionContext): boolean {
   const definition = blockDefinitionIn(ctx, { seed_version: block.seed_version, block_type: block.block_type, config: block.config });
-  const field = definition?.nameplate.find((candidate) => candidate.key === fieldKey);
-  const condition = field?.excused_unless;
-  if (definition === null || condition === undefined) return false;
-  const select = definition.nameplate.find((candidate) => candidate.key === condition.field);
+  if (definition === null) return false;
+  return isFieldHiddenUnder(definition.nameplate, block, fieldKey, 0);
+}
+
+/**
+ * `isFieldHidden` on the definition's plate. Seed v18, batch e28a (Story 28.3): a field whose condition names a field
+ * that is itself hidden is hidden too (TIPO (ANP) hangs on NATUREZA DO LÍQUIDO, which v18 hides on a dry unit). No
+ * field of v13 to v17 hangs on a field with a condition of its own, so they read as before.
+ */
+function isFieldHiddenUnder(nameplate: readonly FieldDef[], block: Pick<BlockRow, 'sheet'>, fieldKey: string, depth: number): boolean {
+  const condition = nameplate.find((candidate) => candidate.key === fieldKey)?.excused_unless;
+  if (condition === undefined || depth > nameplate.length) return false;
+  const select = nameplate.find((candidate) => candidate.key === condition.field);
+  if (select === undefined) return false;
+  if (select.excused_unless !== undefined && isFieldHiddenUnder(nameplate, block, select.key, depth + 1)) return true;
   const value = block.sheet.nameplate[condition.field]?.value;
-  if (select === undefined || typeof value !== 'string' || value.trim() === '') return false;
+  if (typeof value !== 'string' || value.trim() === '') return false;
   const option = selectOptionFor(select, value);
   return option !== null && !condition.in.includes(option);
 }

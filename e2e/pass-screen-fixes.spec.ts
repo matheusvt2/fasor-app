@@ -146,7 +146,8 @@ test('24.9-E2E-002 the winding resistance names each criterion by its medium and
 
   // Oil, copper: phase C 5,01 % over the lowest is out; its helper is built as the restricted one.
   await pushDrafts(page, database, [
-    officeDraft(account, { relatorioId }, `sheet/${tr.blockId}/nameplate/tipo_de_isolacao`, 'ÓLEO ISOLANTE'),
+    // Batch e28a (Story 28.3): the current seed's oil option, the kernel's ("A ÓLEO" since v18).
+    officeDraft(account, { relatorioId }, `sheet/${tr.blockId}/nameplate/tipo_de_isolacao`, getDefinition(SEED_VERSION, 'cabine_primaria', 'transformador_forca').oil_rule!.oil_values[0]!),
     officeDraft(account, { relatorioId }, `sheet/${tr.blockId}/nameplate/material_enrolamento`, 'Cu'),
   ]);
   await syncNowAndReturn(page);
