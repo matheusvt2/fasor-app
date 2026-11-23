@@ -189,7 +189,8 @@ afterAll(async () => {
 });
 
 describe('20.13-INT the better-auth allowlist (S7)', () => {
-  it('update-user, list-sessions, revoke-other-sessions and change-password are 404s; the name and the sessions are unchanged', async () => {
+  // Story 29.1 (batch e29a): change-password left this list; `change-password.integration.test.ts` covers it.
+  it('update-user, list-sessions and revoke-other-sessions are 404s; the name and the sessions are unchanged', async () => {
     const before = await nameOf();
     const renamed = await call('/api/auth/update-user', { ...jsonInit({ name: 'Renomeado por fora' }), cookie });
     expect(renamed.status).toBe(404);
@@ -200,7 +201,6 @@ describe('20.13-INT the better-auth allowlist (S7)', () => {
     expect(sessions.status).toBe(404);
     expect(await sessions.text()).not.toContain('token');
     expect((await call('/api/auth/revoke-other-sessions', { ...jsonInit({}), cookie })).status).toBe(404);
-    expect((await call('/api/auth/change-password', { ...jsonInit({ currentPassword: TEST_SEED.password, newPassword: 'outra-senha-123456' }), cookie })).status).toBe(404);
 
     // The three the app uses still answer, and the session they read is the same one.
     const session = await call('/api/auth/get-session', { method: 'GET', cookie });

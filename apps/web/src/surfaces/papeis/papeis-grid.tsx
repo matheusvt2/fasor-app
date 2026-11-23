@@ -17,6 +17,7 @@ import {
   type PermissionModule,
 } from '@app/domain';
 import { Button as AriaButton, Menu, MenuItem, MenuSection, MenuTrigger, Popover } from 'react-aria-components';
+import { OverlayHistory } from '../../state/overlay-history.ts';
 import { relabelDismissButtons } from '../../components/dismiss-label.ts';
 import { OVERFLOW_MENU_PLACEMENT } from '../../components/overflow-menu.tsx';
 import { copy } from '../../copy/pt-br.ts';
@@ -274,6 +275,8 @@ function RoleMenu({
         <ChevronDown />
       </AriaButton>
       <Popover ref={relabelDismissButtons} placement={OVERFLOW_MENU_PLACEMENT} className="overflow-menu pp-role-menu">
+        {/* Story 29.2: the device's back closes the open menu and nothing else. */}
+        <OverlayHistory />
         {seeded ? (
           <>
             <Menu onAction={() => onRestore(role)}>

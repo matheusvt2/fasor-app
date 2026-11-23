@@ -1,4 +1,5 @@
 import { Button, Menu, MenuItem, MenuTrigger, Popover, Tab, TabList, TabPanel, Tabs as AriaTabs } from 'react-aria-components';
+import { OverlayHistory } from '../state/overlay-history.ts';
 import { relabelDismissButtons } from './dismiss-label.ts';
 
 export interface TabItem {
@@ -49,6 +50,8 @@ export function Tabs({ items, selectedId, onSelectionChange, 'aria-label': ariaL
             </svg>
           </Button>
           <Popover ref={relabelDismissButtons}>
+            {/* Story 29.2: the device's back closes the open menu and nothing else. */}
+            <OverlayHistory />
             {/* React Aria labels the menu by its trigger (the current tab's name)
                 automatically, the same as `OverflowMenu`'s Popover -- no extra `aria-label`. */}
             <Menu

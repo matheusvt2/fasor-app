@@ -91,3 +91,10 @@
 .camera-app-row .helper {
   display: block;
 }
+
+/* Story 29.1: the "Alterar senha" Form dialog wraps its fields in a <form> (Enter submits, the
+   browser's password manager sees the three fields); `display: contents` keeps the fields the
+   direct flex children of `.form-dialog`, as `#acc-dlg-senha` in `90-account.html` draws them. */
+.change-password-form {
+  display: contents;
+}

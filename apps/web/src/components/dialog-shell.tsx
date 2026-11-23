@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
+import { OverlayHistory } from '../state/overlay-history.ts';
 
 export interface DialogShellProps {
   /** The mock's dialog class: `confirm-dialog` or `form-dialog`. */
@@ -19,6 +20,12 @@ export interface DialogShellProps {
   'aria-describedby'?: string;
   /** Story 26.9: `alertdialog` for a refusal that only informs (the last-Admin "Não é possível"); `dialog` by default. */
   role?: 'dialog' | 'alertdialog';
+  /**
+   * Story 29.2: the open dialog owns a history entry, so the device's back closes it and leaves the
+   * screen under it (`state/overlay-history.ts`). False for a dialog whose open state is already an
+   * address of its own (the Export dialog's `?exportar=1`).
+   */
+  history?: boolean;
   children: ReactNode | ((options: { close: () => void }) => ReactNode);
 }
 
@@ -47,12 +54,12 @@ const TABBABLE = [
  * - Initial focus on the first control a keyboard user can reach: "Cancelar", first in a
  *   Confirm dialog's reading order, or the first field of a Form dialog. React Aria
  *   focuses the dialog container when nothing claims the focus, so this has the last word.
- * - Esc and a tap on the scrim cancel; focus returns to the element that opened the
+ * - Esc, a tap on the scrim and (Story 29.2) the device's back cancel; focus returns to the element that opened the
  *   dialog, on cancel and on save alike. React Aria restores it when the overlay unmounts;
  *   when the dialog closes from inside (a save that re-renders the surface) and the focus
  *   ends on `<body>` instead, the opener recorded here takes it back.
  */
-export function DialogShell({ className, overlayClassName, isOpen, onOpenChange, role, children, ...aria }: DialogShellProps) {
+export function DialogShell({ className, overlayClassName, isOpen, onOpenChange, role, history = true, children, ...aria }: DialogShellProps) {
   useReturnFocus(isOpen);
 
   const markModal = useCallback((element: HTMLElement | null) => {
@@ -74,6 +81,7 @@ export function DialogShell({ className, overlayClassName, isOpen, onOpenChange,
       onOpenChange={onOpenChange}
     >
       <Modal className="dialog-modal">
+        {history ? <OverlayHistory /> : null}
         <Dialog className={className} {...(role === undefined ? {} : { role })} {...aria} ref={markModal}>
           {children}
         </Dialog>
@@ -105,7 +113,10 @@ function useReturnFocus(isOpen: boolean | undefined) {
       requestAnimationFrame(() => {
         if (target === null || !target.isConnected) return;
         const active = document.activeElement;
-        if (active === null || active === document.body || !active.isConnected) target.focus();
+        // Story 29.2: without scrolling, as React Aria's own restore does. A plain focus on an opener
+        // inside a sticky bar (the Sumário's "Gerar relatório") scrolled the page to the bar's place
+        // in the flow, so closing the Export dialog on a phone moved the Sumário.
+        if (active === null || active === document.body || !active.isConnected) target.focus({ preventScroll: true });
       });
     };
   }, [isOpen]);

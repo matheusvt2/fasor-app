@@ -8419,6 +8419,8 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
         <li class="settings-row"><span class="grow"><span class="sr-label">Nome</span><br><span class="sr-value">Bruno Matsui</span></span><span class="btn-reason">Fornecido pela empresa</span></li>
         <li class="settings-row"><span class="grow"><span class="sr-label">E-mail</span><br><span class="sr-value">bruno@fasor.eng.br</span></span><span class="btn-reason">Fornecido pela empresa</span></li>
         <li class="settings-row"><span class="grow"><span class="sr-label">Empresa</span><br><span class="sr-value">Fasor Engenharia</span></span></li>
+        <!-- 2026-11-23, Story 29.1: "Alterar senha", every role; offline the action is disabled with "Alterar senha precisa de conexão" in its btn-reason -->
+        <li class="settings-row" id="acc-senha-row"><span class="grow"><span class="sr-label">Senha</span><br><span class="sr-value">Ao trocar, os outros aparelhos saem desta conta.</span></span><button class="btn btn-text" data-open="#acc-dlg-senha">Alterar senha</button></li>
       </ul>
     </section>
 
@@ -8536,6 +8538,75 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
     </section>
 
   </div><!-- /content -->
+
+  <!-- ---------------- 2026-11-23, Story 29.1: Form dialog "Alterar senha" (data-open="#acc-dlg-senha"). The fields, the rule and
+       the messages of "Criar senha" (13-definir-senha.html); "Simular: senha atual errada" opens the error state ---------------- -->
+  <div class="dialog-scrim" id="acc-dlg-senha" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="acc-senha-title">
+      <h2 class="dialog-title" id="acc-senha-title">Alterar senha</h2>
+      <div class="field">
+        <span class="field-label" id="acc-senha-atual-l">Senha atual</span>
+        <div class="input is-focus">
+          <span class="grow" role="textbox" aria-labelledby="acc-senha-atual-l" style="letter-spacing:2px">••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="field-label" id="acc-senha-nova-l">Nova senha</span>
+        <div class="input">
+          <span class="grow" role="textbox" aria-labelledby="acc-senha-nova-l" style="letter-spacing:2px">••••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+        <span class="helper">Pelo menos 8 caracteres.</span>
+      </div>
+      <div class="field">
+        <span class="field-label" id="acc-senha-rep-l">Repita a senha</span>
+        <div class="input">
+          <span class="grow" role="textbox" aria-labelledby="acc-senha-rep-l" style="letter-spacing:2px">••••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+      </div>
+      <button type="button" class="btn btn-text" data-close data-open="#acc-dlg-senha-errada">Simular: senha atual errada</button>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Senha alterada. Os outros aparelhos saíram desta conta.">Salvar senha</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Story 29.1: the current password refused; the line sits under its field, the new password is not stored -->
+  <div class="dialog-scrim" id="acc-dlg-senha-errada" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="acc-senha-e-title">
+      <h2 class="dialog-title" id="acc-senha-e-title">Alterar senha</h2>
+      <div class="field">
+        <span class="field-label" id="acc-senha-e-atual-l">Senha atual</span>
+        <div class="input is-invalid is-focus">
+          <span class="grow" role="textbox" aria-labelledby="acc-senha-e-atual-l" aria-invalid="true" style="letter-spacing:2px">••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+        <span class="login-error" role="alert">A senha atual não confere.</span>
+      </div>
+      <div class="field">
+        <span class="field-label" id="acc-senha-e-nova-l">Nova senha</span>
+        <div class="input">
+          <span class="grow" role="textbox" aria-labelledby="acc-senha-e-nova-l" style="letter-spacing:2px">••••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+        <span class="helper">Pelo menos 8 caracteres.</span>
+      </div>
+      <div class="field">
+        <span class="field-label" id="acc-senha-e-rep-l">Repita a senha</span>
+        <div class="input">
+          <span class="grow" role="textbox" aria-labelledby="acc-senha-e-rep-l" style="letter-spacing:2px">••••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Senha alterada. Os outros aparelhos saíram desta conta.">Salvar senha</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ---------------- Confirm dialog: sign out with pending sync (data-open="#acc-dlg-sair") ---------------- -->
   <div class="dialog-scrim" id="acc-dlg-sair" hidden>

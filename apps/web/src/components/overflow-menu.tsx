@@ -1,4 +1,5 @@
 import { Button, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Text } from 'react-aria-components';
+import { OverlayHistory } from '../state/overlay-history.ts';
 import { relabelDismissButtons } from './dismiss-label.ts';
 import { ui } from '../copy/ui';
 
@@ -66,6 +67,8 @@ export function OverflowMenu({ name, items, destructiveItems = [], label }: Over
           edge, as the mock's `.overflow-menu.is-open { position: absolute; right: var(--sp-2) }`
           draws it, so a trigger near the right edge never pushes it past the viewport. */}
       <Popover ref={relabelDismissButtons} placement={OVERFLOW_MENU_PLACEMENT}>
+        {/* Story 29.2: the device's back closes the open menu and nothing else. */}
+        <OverlayHistory />
         <Menu
           className="overflow-menu"
           {...(disabledKeys.length === 0 ? {} : { disabledKeys })}

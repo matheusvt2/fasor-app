@@ -31,7 +31,7 @@ import { createHealthRoutes, type HealthProbes } from './health.ts';
 import { originGuard, type OriginGuardOptions } from './origin-guard.ts';
 import { createReadingRoutes } from './reading.ts';
 import { createTelemetryRoutes } from './telemetry.ts';
-import { addressRateLimit, passwordResetRateLimit, pushRateLimit, signInRateLimit, type RateLimitRule } from './rate-limit.ts';
+import { addressRateLimit, changePasswordRateLimit, passwordResetRateLimit, pushRateLimit, signInRateLimit, type RateLimitRule } from './rate-limit.ts';
 import { htmlContentSecurityPolicy, securityHeaders } from './security-headers.ts';
 import {
   type AppEnv,
@@ -212,8 +212,9 @@ const notFoundBody: ErrorResponse = { code: 'not_found', message: 'No such route
 
 /**
  * Story 20.13 (security pass S7): the only better-auth endpoints the app uses. Every other path
- * under `/api/auth/` (update-user, list-sessions, revoke-other-sessions, change-password, ...)
- * answers `404 not_found` and never reaches better-auth.
+ * under `/api/auth/` (update-user, list-sessions, revoke-other-sessions, change-email, ...)
+ * answers `404 not_found` and never reaches better-auth. Story 29.1 (2026-11-23) adds
+ * change-password, behind its own limits and the active-user guard.
  */
 export const AUTH_ROUTES: ReadonlyArray<{ method: 'GET' | 'POST'; path: string }> = [
   { method: 'POST', path: '/api/auth/sign-in/email' },
@@ -222,11 +223,33 @@ export const AUTH_ROUTES: ReadonlyArray<{ method: 'GET' | 'POST'; path: string }
   // Story 26.6 (2026-11-21): "Esqueci minha senha" and the set-password page of a link.
   { method: 'POST', path: '/api/auth/request-password-reset' },
   { method: 'POST', path: '/api/auth/reset-password' },
+  // Story 29.1 (2026-11-23): "Alterar senha" on the Conta screen, a signed-in user's own password.
+  { method: 'POST', path: '/api/auth/change-password' },
 ];
 
 /** Story 26.6: the two password routes, limited whatever `rateLimits` says. */
 const PASSWORD_RESET_REQUEST_PATH = '/api/auth/request-password-reset';
 const PASSWORD_RESET_PATH = '/api/auth/reset-password';
+/** Story 29.1: the signed-in user's password change, limited and guarded like the two above. */
+const CHANGE_PASSWORD_PATH = '/api/auth/change-password';
+
+/**
+ * Story 29.1: a password change always ends every other session of the user, whatever the body
+ * asked (better-auth's `revokeOtherSessions`, which also gives this device a new session cookie).
+ * A body that is not a JSON object goes on unchanged, for better-auth to refuse.
+ */
+async function revokingOtherSessions(request: Request): Promise<Request> {
+  let body: unknown;
+  try {
+    body = await request.clone().json();
+  } catch {
+    return request;
+  }
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return request;
+  const headers = new Headers(request.headers);
+  headers.delete('content-length');
+  return new Request(request.url, { method: request.method, headers, body: JSON.stringify({ ...body, revokeOtherSessions: true }) });
+}
 
 function isAuthRoute(method: string, path: string): boolean {
   return AUTH_ROUTES.some((route) => route.method === method && route.path === path);
@@ -314,13 +337,29 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   // the session hook of `auth.ts`. 2026-11-22 (e26r): this read never slides the session; for an
   // active user better-auth's own get-session, right after, slides it and sets the cookie.
   const readSession = sessionMiddleware(options.auth, options.db, { refresh: false });
-  app.use('/api/auth/get-session', async (c, next) => {
+  const activeOnly: MiddlewareHandler<AppEnv> = async (c, next) => {
     await readSession(c, async () => {});
     const session = c.get('session');
     if (session !== null && !activeUser(session)) throw new UserInactiveError();
     await next();
+  };
+  app.use('/api/auth/get-session', activeOnly);
+  // Story 29.1: a paused or removed user changes no password (the same `401 user_inactive`); then
+  // the limits per address and per user, before better-auth checks the current password.
+  app.use(CHANGE_PASSWORD_PATH, activeOnly);
+  app.use(
+    CHANGE_PASSWORD_PATH,
+    changePasswordRateLimit({
+      address: emailLimits.passwordResetAddress,
+      user: emailLimits.passwordResetEmail,
+      trustProxy: emailLimits.trustProxy,
+      ...(limitNow === undefined ? {} : { now: limitNow }),
+    }),
+  );
+  app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
+    if (!isAuthRoute(c.req.method, c.req.path)) return c.json(notFoundBody, 404);
+    return options.auth.handler(c.req.path === CHANGE_PASSWORD_PATH ? await revokingOtherSessions(c.req.raw) : c.req.raw);
   });
-  app.on(['GET', 'POST'], '/api/auth/*', (c) => (isAuthRoute(c.req.method, c.req.path) ? options.auth.handler(c.req.raw) : c.json(notFoundBody, 404)));
 
   app.route('/', createHealthRoutes(options.probes));
 

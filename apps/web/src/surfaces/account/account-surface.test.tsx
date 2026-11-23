@@ -9,6 +9,7 @@ import { toRecord } from '../../db/commit.ts';
 import { CAMERA_APP_PREF } from '../../db/prefs.ts';
 import { GEOLOCATION_DENIED_PREF, openDatabase } from '../../db/schema.ts';
 import { ThemeProvider } from '../../state/theme.tsx';
+import { ToastProvider } from '../../state/toast.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
@@ -74,7 +75,10 @@ const renderAccount = (sync: SyncState) =>
     <MemoryRouter>
       <SyncContext value={sync}>
         <ThemeProvider>
-          <AccountSurface />
+          {/* Story 29.1: the surface says a changed password in a Toast. */}
+          <ToastProvider>
+            <AccountSurface />
+          </ToastProvider>
         </ThemeProvider>
       </SyncContext>
     </MemoryRouter>,

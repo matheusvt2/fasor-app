@@ -231,3 +231,35 @@ export function addressRateLimit(options: { rule: RateLimitRule; trustProxy: boo
     return next();
   };
 }
+
+export interface ChangePasswordLimitOptions {
+  /** Requests per client address. */
+  address: RateLimitRule;
+  /** Requests per signed-in user (the session read before this middleware). */
+  user: RateLimitRule;
+  trustProxy: boolean;
+  now?: () => number;
+}
+
+/**
+ * Story 29.1: limits `POST /api/auth/change-password` ("Alterar senha" on the Conta screen) as the
+ * other password routes are limited: per client address, then per the signed-in user the session
+ * read before it names, either one over its rule answering `429 rate_limited` before better-auth
+ * checks the current password, so a stolen session cannot guess it quickly. A request with no
+ * session counts against its address only; better-auth then answers 401. Always on.
+ */
+export function changePasswordRateLimit(options: ChangePasswordLimitOptions): MiddlewareHandler<AppEnv> {
+  const byAddress = new FixedWindowLimiter(options.address, options.now);
+  const byUser = new FixedWindowLimiter(options.user, options.now);
+  return async (c, next) => {
+    if (c.req.method !== 'POST') return next();
+    const address = byAddress.consume(clientAddress(c, options.trustProxy));
+    if (!address.allowed) return tooMany(c, address.retryAfterSeconds);
+    const session = c.get('session');
+    if (session !== null && session !== undefined) {
+      const decision = byUser.consume(session.userId);
+      if (!decision.allowed) return tooMany(c, decision.retryAfterSeconds);
+    }
+    return next();
+  };
+}
