@@ -1,6 +1,7 @@
 import { entityKey, splitEntityKey, type EntityState } from '../ops/apply.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
 import { livePoints } from '../points/checks.ts';
+import { deadlineTerm } from '../points/priority.ts';
 import type { BlockRow, EquipmentRow, LocationRow, PointRow, RegistryRow } from '../schemas/entities.ts';
 import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
 import { listPtBr } from '../text/plural.ts';
@@ -31,11 +32,17 @@ export function deadlineOverdue(deadline: string, today: string): boolean {
   return false;
 }
 
-/** The 1-based places, in section 8's order, of the live points whose deadline is past on `today`. */
-export function overduePointPositions(points: readonly PointRow[], today: string): number[] {
+/**
+ * The 1-based places, in section 8's order, of the live points whose deadline is past on `today`. Story 28.5 (seed v18
+ * `deadline_from_issue`, Q-6): with `issue` (the relatório's seed version and next intervention), a deadline that is its
+ * priority's suggestion counts from the issue date (`deadlineTerm`), so it is never past and is skipped; a typed date is
+ * still judged. Without `issue`, or on an older seed, every deadline is judged as before.
+ */
+export function overduePointPositions(points: readonly PointRow[], today: string, issue?: { seedVersion: string; nextIntervention: string | null }): number[] {
   return livePoints(points)
     .map((point, i) => ({ point, position: i + 1 }))
     .filter(({ point }) => point.deadline !== null && deadlineOverdue(point.deadline, today))
+    .filter(({ point }) => issue === undefined || deadlineTerm(point, issue.seedVersion, issue.nextIntervention) === null)
     .map(({ position }) => position);
 }
 

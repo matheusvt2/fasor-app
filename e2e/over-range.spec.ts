@@ -1,11 +1,12 @@
-import type { OpDraft } from '@app/domain';
+import { overRangeNoteText, SEED_VERSION, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { escapeDialog } from './support/dialogs.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { confirmIssue } from './support/relatorio-flow.ts';
+import { pdfTextItems } from './support/pdf-text.ts';
+import { confirmIssue, setParecer } from './support/relatorio-flow.ts';
 import { emCampoDraft, newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
@@ -40,8 +41,8 @@ const cellInput = (page: Page, name: string) => page.getByRole('textbox', { name
 const cellBox = (page: Page, key: string): Locator => page.locator(`.ficha-cell[data-cell="${key}"]`).filter({ visible: true });
 const toast = (page: Page) => page.getByTestId('toast');
 
-/** The 10 kV megger and micro-ohmmeter of the test, no limits yet: Cadastros sets them. */
-function instrumentDraft(id: string): OpDraft {
+/** The 10 kV megger and micro-ohmmeter of the test, no limits yet: Cadastros sets them (28.7-E2E-001 gives the insulation's). */
+function instrumentDraft(id: string, limits: Record<string, unknown> = {}): OpDraft {
   return {
     kind: 'create',
     scope: 'company',
@@ -67,6 +68,7 @@ function instrumentDraft(id: string): OpDraft {
       test_relacao_transformacao: null,
       certificate_file_id: null,
       removed_at: null,
+      ...limits,
     },
     prev_op_id: null,
     batch_id: null,
@@ -206,4 +208,61 @@ test('@p0 22.10-E2E-001 Cadastros sets the instrument limits; "OL" stores the 2 
   expect(insulation!.find((row) => row[0] === 'T3')?.[4]).toBe('150 GΩ');
   const contactTable = tables.find((table) => table.some((row) => row.includes('VALORES (µΩ)')) && table.some((row) => row[0] === 'T1-T2' && row[3] !== '-'));
   expect(contactTable?.find((row) => row[0] === 'T1-T2')).toEqual(['T1-T2', 'FASE A', 'MASSA', '> 2.000']);
+});
+
+/*
+ * 28.7-E2E-001 (batch e28b, Story 28.7, B-6). On a v18 relatório at 1280 px, the megger's insulation limit 2 TΩ registered: "OL"
+ * typed on the seccionadora's T1 stores the limit; the issued DOCX keeps "> 2 TΩ" in the cell and prints Bruno's line under the
+ * insulation test, naming "2 TΩ"; the PDF reads it too. It issues a revision, so it runs in the queue lane.
+ */
+test('@p0 28.7-E2E-001 v18: "OL" on an insulation reading prints "> 2 TΩ" and, under the test, Bruno\'s line naming the instrument\'s limit, in the DOCX and the PDF', async ({ page }) => {
+  test.setTimeout(300_000);
+  expect(SEED_VERSION).toBe('v18');
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const megId = newId();
+  const built = newRelatorioDrafts(account);
+  await pushDrafts(page, database, [instrumentDraft(megId, { range_isolacao: { raw: '2', unit: 'TΩ' } }), ...built.drafts, emCampoDraft(account, built.relatorioId)]);
+  await syncNowAndReturn(page);
+  const chave = built.sheets.find((sheet) => sheet.blockType === 'chave_seccionadora' && sheet.locationName === 'Cubículo Enel')!;
+
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${chave.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await pick(page, 'isolacao', 'MEG-10');
+  const t1 = cellInput(page, 'T1, Valor');
+  await t1.click();
+  await page.keyboard.type('OL');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => written(page, `sheet/${chave.blockId}/test/isolacao/cell/0/0`)).toEqual([{ raw: '2', unit: 'TΩ', state: 'over_range' }]);
+  await expect(t1).toHaveValue('> 2');
+
+  await syncNowAndReturn(page);
+  await setParecer(page, built.relatorioId);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+  const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  await dialog.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' }).click();
+  await confirmIssue(dialog);
+  await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: 150_000 });
+  await escapeDialog(page, dialog);
+  const revision = (await readStore<{ entity: string; row: { id: string; number: number; relatorio_id: string } }>(page, database, 'entities')).find(
+    (record) => record.entity === 'revision' && record.row.number === 1 && record.row.relatorio_id === built.relatorioId,
+  )!;
+  const note = overRangeNoteText('2', 'TΩ');
+  expect(note.replace(/\u00a0/gu, ' ')).toBe('Valores de resistência de isolação superiores a 2 TΩ, limite de leitura do instrumento na tensão de ensaio aplicada.');
+  const docx = await page.request.get(`/api/revisions/${revision.row.id}/docx`);
+  expect(docx.status()).toBe(200);
+  const structure = extractStructure(Buffer.from(await docx.body()));
+  // The seccionadora's insulation: T1 prints the limit ("> 2", its unit in VALORES (TΩ) when no other reading names another).
+  const insulation = structure.tables.find((table) => table.some((row) => row[0] === 'T1' && row.some((cell) => cell.replace(/\u00a0/gu, ' ').startsWith('> 2'))));
+  expect(insulation).toBeDefined();
+  expect(structure.paragraphs.filter((text) => text === note)).toHaveLength(1);
+  expect(structure.paragraphs.some((text) => text.startsWith('Valores de resistência de isolamento'))).toBe(false);
+  const pdf = await page.request.get(`/api/revisions/${revision.row.id}/pdf`);
+  expect(pdf.status()).toBe(200);
+  const text = (await pdfTextItems(new Uint8Array(await pdf.body()))).join(' ').replace(/\s+/gu, ' ');
+  expect(text).toContain('Valores de resistência de isolação superiores a 2 TΩ, limite de leitura do instrumento');
+  expect(text).toContain('na tensão de ensaio aplicada.');
 });

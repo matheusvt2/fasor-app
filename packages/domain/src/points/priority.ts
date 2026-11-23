@@ -1,5 +1,6 @@
 import { calendarDateOfInstant, uuidV7Instant } from '../format/datetime.ts';
 import type { PointRow } from '../schemas/entities.ts';
+import { seedRule } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 import { livePoints } from './checks.ts';
 
@@ -127,6 +128,94 @@ export function priorityPickWrites(point: PointDeadlineFields, next: PointPriori
 export function replaceDeadlineWrite(point: PointDeadlineFields, nextIntervention: string | null): PointPriorityWrites | null {
   const { replace } = deadlineState(point, nextIntervention);
   return replace === null ? null : { deadline: replace };
+}
+
+// --- Story 28.5 (seed v18, B-8): the starting priority and the deadline from the issue date ---------------
+
+/**
+ * Story 28.5 (seed v18 `point_start_priority`, B-8): the priority a point tapped from each origin starts with; a manual
+ * point starts with none. Every field stays editable: the start is a pick the editor holds until the point is stored.
+ */
+const START_PRIORITY: Readonly<Record<PointRow['origin'], PointPriority | null>> = {
+  reading: 'P1',
+  restricao: 'P4',
+  nc: 'P2',
+  not_tested: 'P4',
+  reprovado: 'P1',
+  manual: null,
+};
+
+/** The priority a new point of `origin` starts with on a seed whose `point_start_priority` is on; null otherwise (v17 and older start unset). */
+export function pointStartPriority(seedVersion: string, origin: PointRow['origin']): PointPriority | null {
+  return seedRule(seedVersion, 'point_start_priority') ? START_PRIORITY[origin] : null;
+}
+
+/**
+ * The priority and the deadline it suggests that a new point starts with, as a pick of that priority would write them
+ * (`priorityPickWrites` on the empty row): `{}` when it starts unset.
+ */
+export function pointStartWrites(seedVersion: string, origin: PointRow['origin'], pointId: string, nextIntervention: string | null): PointPriorityWrites {
+  const priority = pointStartPriority(seedVersion, origin);
+  return priority === null ? {} : priorityPickWrites({ id: pointId, priority: null, deadline: null }, priority, nextIntervention);
+}
+
+/** Why a point starts at its priority, by origin: the frame's "leitura fora do critério" and the batch's other four. */
+const START_REASONS: Readonly<Record<Exclude<PointRow['origin'], 'manual'>, string>> = {
+  // `60-ficha.html` `#ficha-dlg-ponto-v18`, verbatim.
+  reading: 'leitura fora do critério',
+  // authored (Story 28.5, listed for Bruno): the reasons of the other four origins.
+  restricao: 'leitura com restrição',
+  nc: 'item não conforme',
+  not_tested: 'equipamento não ensaiado',
+  reprovado: 'ficha reprovada',
+};
+
+/** "Começa em P1: leitura fora do critério. Troque se precisar." (the frame's line under the picker); null when the point starts unset. */
+export function pointStartLine(seedVersion: string, origin: PointRow['origin']): string | null {
+  const priority = pointStartPriority(seedVersion, origin);
+  if (priority === null || origin === 'manual') return null;
+  return `Começa em ${priority}: ${START_REASONS[origin]}. Troque se precisar.`;
+}
+
+/** Story 28.5 (seed v18 `deadline_from_issue`, Matheus's Q-6): the Prazo of a suggested deadline before the issue, by priority (the frame's words). */
+const PRIORITY_TERMS: Readonly<Record<PointPriority, string>> = {
+  P0: 'Na data da emissão',
+  P1: '30 dias após a emissão',
+  P2: '90 dias após a emissão',
+  P3: '180 dias após a emissão',
+  P4: 'Na próxima manutenção',
+};
+
+/** Whether a relatório of `seedVersion` counts a suggested deadline from its issue date (`deadline_from_issue`). */
+export function deadlineCountsFromIssue(seedVersion: string): boolean {
+  return seedRule(seedVersion, 'deadline_from_issue');
+}
+
+/** The stored deadline is its priority's suggestion (a pick wrote it, nothing typed over it): what counts from the issue date on v18. */
+function suggestedDeadline(point: PointDeadlineFields, nextIntervention: string | null): boolean {
+  if (point.priority === null || point.deadline === null) return false;
+  return point.deadline === deadlineFromPriority(point.priority, pointCreatedDate(point.id), nextIntervention);
+}
+
+/**
+ * The term a v18 Prazo reads before the issue ("30 dias após a emissão"): set while the stored deadline is its priority's
+ * suggestion on a seed whose `deadline_from_issue` is on; null for a typed date, an unset priority or an older seed.
+ */
+export function deadlineTerm(point: PointDeadlineFields, seedVersion: string, nextIntervention: string | null): string | null {
+  if (!deadlineCountsFromIssue(seedVersion) || !suggestedDeadline(point, nextIntervention)) return null;
+  return PRIORITY_TERMS[point.priority!];
+}
+
+/**
+ * The deadline section 8 prints (`YYYY-MM-DD`, or `YYYY-MM` for a P4 month): on a seed whose `deadline_from_issue` is on, a
+ * suggested deadline counts from `issueDate` (the São Paulo calendar date of the issue): P0 the issue date, P1 to P3 its
+ * days after it, P4 the next intervention as before. A typed date, and every deadline of an older seed, prints as stored.
+ */
+export function printedDeadline(point: PointDeadlineFields, seedVersion: string, nextIntervention: string | null, issueDate: string): string | null {
+  if (deadlineTerm(point, seedVersion, nextIntervention) === null) return point.deadline;
+  const priority = point.priority!;
+  if (priority === 'P4') return point.deadline;
+  return addCalendarDays(issueDate, PRIORITY_DAYS[priority]) ?? point.deadline;
 }
 
 /** The live points with no deadline (section 8's "pontos sem prazo", information only). */

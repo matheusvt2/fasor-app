@@ -1,4 +1,4 @@
-import { hasNotTestedPoint, isUtilityNotTested, notTestedJustification, notTestedPointText, notTestedReasonText, textCapOf, type BlockRow, type RelatorioSnapshot } from '@app/domain';
+import { hasNotTestedPoint, isUtilityNotTested, notTestedJustification, notTestedOffersPoint, notTestedPointText, notTestedReasonText, textCapOf, type BlockRow, type RelatorioSnapshot } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { ConfirmDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -63,19 +63,22 @@ export function NotTestedBand({
           {t.desfazer}
         </button>
       </div>
+      {/* Story 28.5 (B-8, Q-4): a sheet not tested for the utility's equipment offers no point (the kernel's rule). */}
       {/* Fix batch e24x (D1): the action stays mounted (in an unstyled, empty wrapper once the point stands), so the
           editor its tap opened stays open when its own autosave stores the point; only the button goes. */}
       {/* Review of e24x: hidden once the point stands, so the empty wrapper adds no gap to the sheet's column (the dialog is portaled). */}
-      <div className={standing ? undefined : 'row-wrap not-tested-point'} ref={standing ? undefined : createRef} hidden={standing || undefined}>
-        <CreatePointAction
-          relatorioId={api.relatorioId}
-          snapshot={snapshot}
-          seed={() => ({ text: notTestedPointText(block, tag), equipmentId: block.equipment_id, origin: 'not_tested' })}
-          // The saved point takes this button away: the focus stays on the band.
-          focusAfterSave={() => (createRef.current?.isConnected === true ? null : desfazerRef.current)}
-          hideButton={standing}
-        />
-      </div>
+      {notTestedOffersPoint(block) ? (
+        <div className={standing ? undefined : 'row-wrap not-tested-point'} ref={standing ? undefined : createRef} hidden={standing || undefined}>
+          <CreatePointAction
+            relatorioId={api.relatorioId}
+            snapshot={snapshot}
+            seed={() => ({ text: notTestedPointText(block, tag), equipmentId: block.equipment_id, origin: 'not_tested' })}
+            // The saved point takes this button away: the focus stays on the band.
+            focusAfterSave={() => (createRef.current?.isConnected === true ? null : desfazerRef.current)}
+            hideButton={standing}
+          />
+        </div>
+      ) : null}
       {/* Seed v18 (Story 28.4, Bruno's Q-4): the utility's name and the editable justification, the frame's `#/ficha/TP-04`. */}
       {isUtilityNotTested(block) ? <UtilityJustification key={block.id} api={api} block={block} tag={tag} /> : null}
       <ConfirmDialog

@@ -36,7 +36,8 @@ import { previousReadingsByAddress, previousResultsFor, previousRowText, type La
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
 import { documentPhotoOrder, sheetChecklistPrinted, type DocumentPhotoOrder } from './photo-order.ts';
 import { printTextEm } from './text-metrics.ts';
-import { measurementHistoryNote, testHistoryNote } from './history-note.ts';
+import { measurementHistoryNote, sheetVariationNotes, testHistoryNote, type SheetVariationNotes } from './history-note.ts';
+import { overRangeNoteLines, overRangeNoteOn } from './over-range-note.ts';
 import { PREVIOUS_HEADER, previousHeaderText, relatorioVisitDate } from './visit-date.ts';
 
 /*
@@ -1263,7 +1264,7 @@ function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefi
   return readings.size === 0 ? null : { readings, header: previousHeaderText(entry, block.seed_version) };
 }
 
-function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<string>, previous: PreviousReadings): SheetPart[] {
+function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<string>, previous: PreviousReadings, variations: SheetVariationNotes | null = null): SheetPart[] {
   const test = definition.tests.find((candidate) => candidate.key === evaluation.testKey);
   if (test === undefined) return [];
   // FO.SERV-03 prints the seccionadora's and the disjuntor's contato aberto and contato
@@ -1300,7 +1301,11 @@ function testParts(block: BlockRow, definition: BlockDefinition, evaluation: Tes
   // Story 23.4 (seed v13): the instrument-limit note, a paragraph right after the test's last table, kept with it.
   // Batch e23e (Story 23.18, seed v13): the test's print note (the ratio check is not an accuracy test), the same way.
   // Batch e24p (Story 24.16, seed v14): the rows a previous-visit rule flagged, one line after the test's other notes.
-  const notes = [evaluation.limitNote ?? null, evaluation.printNote ?? null, testHistoryNote(block.seed_version, evaluation)].filter((text): text is string => text !== null);
+  // Story 28.7 (seed v18 `over_range_note`): Bruno's line per limit under the insulation test, in the place of Story 23.4's note.
+  // Story 28.8 (seed v18 `history_note_relevant`): the variation note by Bruno's numbers (`variations`), in the place of Story 24.16's.
+  const limitNotes = overRangeNoteOn(block.seed_version) ? overRangeNoteLines(block.seed_version, evaluation) : [evaluation.limitNote ?? null];
+  const historyNote = variations === null ? testHistoryNote(block.seed_version, evaluation) : (variations.byTest.get(evaluation.testKey) ?? null);
+  const notes = [...limitNotes, evaluation.printNote ?? null, historyNote].filter((text): text is string => text !== null);
   // Fix batch e24y (P1, seed v14): the pair is fitted whole, each value with its unit.
   const pairWhole = seedRule(block.seed_version, 'paired_tables_fit_whole');
   const printed = (paired ? [sideBySide(tables[0]!, tables[1]!, pairWhole)] : tables).map((one, i, all): SheetPart =>
@@ -1518,17 +1523,18 @@ function measurementTestPart(block: BlockRow, definition: BlockDefinition, test:
  * slot of the rows its history rule flagged (`measurementHistoryNote`), the table kept with the line.
  * Every other test, and every test of v1 to v13, prints its table alone, as before.
  */
-function measurementTestParts(block: BlockRow, definition: BlockDefinition, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart[] {
+function measurementTestParts(block: BlockRow, definition: BlockDefinition, test: MeasurementTestEvaluation, previous: PreviousReadings, variations: SheetVariationNotes | null = null): SheetPart[] {
   const part = measurementTestPart(block, definition, test, previous);
   if (part === null) return [];
-  const note = measurementHistoryNote(block.seed_version, test);
+  // Story 28.8 (seed v18): the variation note by Bruno's numbers, in the place of Story 24.16's.
+  const note = variations === null ? measurementHistoryNote(block.seed_version, test) : (variations.byTest.get(test.testKey) ?? null);
   return note === null ? [part] : [{ ...part, keepWithNext: true }, { kind: 'paragraph', text: note }];
 }
 
 /** The measurement tests of a sheet that print, in the definition's order. */
-function measurementParts(block: BlockRow, definition: BlockDefinition, previous: PreviousReadings, visit: VisitContext): SheetPart[] {
-  // Batch e23t (Story 23.15): judged and corrected under the sheet's visit context, as on screen.
-  return evaluateSheetMeasurements(block, definition, visit).flatMap((test) => measurementTestParts(block, definition, test, previous));
+function measurementParts(block: BlockRow, definition: BlockDefinition, previous: PreviousReadings, measurements: readonly MeasurementTestEvaluation[], variations: SheetVariationNotes | null): SheetPart[] {
+  // Batch e23t (Story 23.15): judged and corrected under the sheet's visit context, as on screen (`sheetOf` evaluates them once).
+  return measurements.flatMap((test) => measurementTestParts(block, definition, test, previous, variations));
 }
 
 // --- OBSERVAÇÕES and CONCLUSÃO ----------------------------------------------------------------
@@ -1660,8 +1666,16 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   const previous = previousReadingsOf(ctx, block, definition);
   // Batch e23v (Stories 23.5 and 23.6, seed v13): the sheet judged under its visit context (the cabine's ambient, the previous visit).
   const visit = visitContextOf(ctx.snapshot, block);
-  for (const evaluation of evaluateSheetReadings(block, definition, visit)) parts.push(...testParts(block, definition, evaluation, enabled, previous));
-  parts.push(...measurementParts(block, definition, previous, visit));
+  const evaluations = evaluateSheetReadings(block, definition, visit);
+  const measurements = evaluateSheetMeasurements(block, definition, visit);
+  // Story 28.8 (seed v18 `history_note_relevant`): the variation notes of the whole sheet, decided once; null on v1 to v17.
+  const variations = sheetVariationNotes(block, definition, visit, evaluations, measurements);
+  for (const evaluation of evaluations) parts.push(...testParts(block, definition, evaluation, enabled, previous, variations));
+  parts.push(...measurementParts(block, definition, previous, measurements, variations));
+  // Story 28.8: three or more variations on the equipment print as one line after its last table, kept with it.
+  if (variations?.line !== null && variations?.line !== undefined && parts.length > 0) {
+    parts.push({ ...parts.pop()!, keepWithNext: true }, { kind: 'paragraph', text: variations.line });
+  }
   const observations = enabled.has('observations') ? observationsPart(block) : null;
   if (observations !== null) parts.push(observations);
   if (printsConclusionRow(block, definition)) {

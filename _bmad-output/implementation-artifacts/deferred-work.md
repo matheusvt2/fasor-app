@@ -3762,7 +3762,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: the note line under a table names each flagged cell with the kernel's reason as it stands ("alta de 53 % sobre 40 µΩ da manutenção anterior, rev. 1 de 14/03/2026, acima do limite de 50 %"; "queda de mais de 50 % desde a manutenção anterior (de 16,4 GΩ para 7,9 GΩ, a 20 °C)"), as the story says; the approved frame's sample was shorter ("subiu 53 % (40 µΩ)"). A risen pole is named where the conclusion names it ("T1-T2–Fase A").
   evidence: `packages/domain/src/print/history-note.ts`; `key-print-section-9-v14.html` (sample text).
   class: decision
-  state: open (owner: Bruno, through Matheus, with the authored sentences)
+  state: ~~open (owner: Bruno, through Matheus, with the authored sentences)~~ closed on seed v18 (2026-11-23, batch e28b, Story 28.8, B-7): a v18 sheet's note names only a cell past Bruno's numbers or that changed level, in the short form of the frame ("T1-T2 subiu 30 % (antes 40 µΩ)"), named by its row ("T1-T2", not "T1-T2–Fase A"), and three or more on one equipment become one line (`sheetVariationNotes`, `print/history-note.ts`); v14 to v17 keep this row's form, as their goldens hold it.
 - source_spec: `spec-e24p-print.md` (Design Notes D5; Story 24.17)
   summary: a reading back within its criterion does not ask about the point written from its test, as an NC row back to Conforme asks (Story 24.7): the story does not ask for it. The point keeps "Origem resolvida" and the card's "Remover ponto".
   evidence: `packages/domain/src/points/derived.ts` `resolvedOriginPoints`; `apps/web/src/surfaces/ficha/point-place.tsx`.
@@ -3787,7 +3787,7 @@ Seen by the coordinator in the preview PDF of a real relatório on seed v5 (revi
   summary: the note line wraps where LibreOffice finds a space, so a value and its unit can part across lines ("limite de 50" / "% ...", "a 20" / "°C"). The kernel's reasons use plain spaces before "%" and "°C" everywhere; a no-break space in the note alone would make its text differ from the same reason elsewhere.
   evidence: `e24p-pdf-crops/v14-dated-header-and-rise-note.png`, `e24p-pdf-crops/v14-insulation-dated-header-and-drop-note.png`.
   class: note
-  state: open (owner: Matheus, with the note's wording; low) *(2026-11-11, fix batch e24y: still open. P1's no-break space joins a value to its unit inside the paired tables and the measurement tables only; the note line is a paragraph whose reasons are the kernel's own texts, so the same rule there would make them differ from the conclusion's and the point's.)*
+  state: open (owner: Matheus, with the note's wording; low) *(2026-11-11, fix batch e24y: still open. P1's no-break space joins a value to its unit inside the paired tables and the measurement tables only; the note line is a paragraph whose reasons are the kernel's own texts, so the same rule there would make them differ from the conclusion's and the point's.)* *(2026-11-23, batch e28b, Story 28.8: closed on seed v18. The v18 note is composed of its own short forms, not the kernel's reasons, so each value keeps its unit with a no-break space ("40 µΩ", "30 %", "a 20 °C"); the PDF of `e28b-v18-print.integration.test.ts` reads them whole. v14 to v17 keep their note as their goldens hold it.)*
 
 ## Deferred from: Epic 24 batch e24s (2026-11-11)
 

@@ -1,7 +1,7 @@
-import { formatCalendarDate } from '../format/datetime.ts';
+import { calendarDateOfInstant, formatCalendarDate } from '../format/datetime.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { livePoints } from '../points/checks.ts';
-import { priorityLabel } from '../points/priority.ts';
+import { printedDeadline, priorityLabel } from '../points/priority.ts';
 import { extractPhotoRefs, pointTextTokens } from '../points/refs.ts';
 import { POINT_TITLE_GENERAL, pointTitle } from '../points/summary.ts';
 import type { PointRow } from '../schemas/entities.ts';
@@ -255,15 +255,20 @@ function pointLocal(point: Pick<PointRow, 'equipment_id' | 'location_id'>, snaps
  * The action-plan rows, one per section 8 bullet in the same order (`resolveSection8`): the live
  * points (fix batch e24h: ~~then the derived groups~~ only they), numbered 1..n.
  */
-export function resolveActionPlan(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): ActionPlanRow[] {
+export function resolveActionPlan(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>, issuedAt?: string): ActionPlanRow[] {
   const spaced = v14Points(snapshot);
   const runs = wordingPass(snapshot);
+  // Story 28.5 (seed v18 `deadline_from_issue`, Q-6): a suggested deadline prints counted from the issue date; without
+  // the issue instant (or on an older seed) the stored deadline prints, as before.
+  const issueDate = issuedAt === undefined || Number.isNaN(Date.parse(issuedAt)) ? null : calendarDateOfInstant(new Date(issuedAt));
+  const seedVersion = snapshot.relatorio.seed_version;
+  const nextIntervention = issueDate === null ? null : (snapshot.relatorio.setup?.next_intervention_date ?? null);
   return livePoints(snapshot.points).map((point, i) => ({
     number: String(i + 1),
     point: cell(runs(resolvePhotoTokens(point.text, numbering, spaced))),
     local: pointLocal(point, snapshot),
     priority: point.priority === null ? ACTION_PLAN_NONE : priorityLabel(point.priority),
-    deadline: cell(formatCalendarDate(point.deadline)),
+    deadline: cell(formatCalendarDate(issueDate === null ? point.deadline : printedDeadline(point, seedVersion, nextIntervention, issueDate))),
     action: cell(runs(resolvePhotoTokens(point.action ?? '', numbering, spaced))),
     owner: cell(point.owner),
     images: pointImages(point, numbering),
@@ -271,7 +276,7 @@ export function resolveActionPlan(snapshot: Section8Snapshot, numbering: Readonl
 }
 
 /** Section 8's layout under its heading; null when there is no live point (the section prints the empty note). */
-export function section8Layout(snapshot: Section8Snapshot & NumberingSnapshot, heading: { number: number; title: string }): LayoutSectionPoints | null {
+export function section8Layout(snapshot: Section8Snapshot & NumberingSnapshot, heading: { number: number; title: string }, issuedAt?: string): LayoutSectionPoints | null {
   const numbering = numberPhotos(snapshot);
   const bullets = resolveSection8(snapshot, numbering).map((bullet) => bullet.text);
   if (bullets.length === 0) return null;
@@ -280,7 +285,7 @@ export function section8Layout(snapshot: Section8Snapshot & NumberingSnapshot, h
     title: heading.title,
     kind: 'points',
     bullets,
-    table: resolveActionPlan(snapshot, numbering),
+    table: resolveActionPlan(snapshot, numbering, issuedAt),
     // Batch e24p (Story 24.17, seed v14): the renderer keeps each body row whole.
     ...(v14Points(snapshot) ? { keepRowsWhole: true as const } : {}),
   };

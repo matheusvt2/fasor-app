@@ -1,4 +1,5 @@
 import {
+  deadlineTerm,
   extractPhotoRefs,
   formatCalendarDate,
   moveLandingIndex,
@@ -387,7 +388,8 @@ function PointCard({
             {shows('prazo') && deadline !== null ? (
               <div>
                 <dt>{t.deadlineDt}</dt>
-                <dd className="tabular">{formatCalendarDate(deadline)}</dd>
+                {/* Story 28.5 (seed v18): a suggested deadline reads as its term until the issue prints its date. */}
+                <dd className="tabular">{deadlineTerm(point, snapshot.relatorio.seed_version, snapshot.relatorio.setup.next_intervention_date) ?? formatCalendarDate(deadline)}</dd>
               </div>
             ) : null}
             {shows('prioridade') && priority !== null ? (

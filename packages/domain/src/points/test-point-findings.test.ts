@@ -31,7 +31,8 @@ import { hasPointSource, resolvedOriginPoints, sheetPointFindings, type SheetPoi
  */
 
 const VERSIONS = ['v14', 'v13'] as const;
-type Version = (typeof VERSIONS)[number];
+/** Batch e28b (Story 28.5): v18 and v17 join for the default action. */
+type Version = (typeof VERSIONS)[number] | 'v18' | 'v17';
 
 const id = (n: number) => `019966b0-2417-7000-8000-${n.toString(16).padStart(12, '0')}`;
 const TYPE_ID = id(1);
@@ -417,5 +418,43 @@ describe('e24x-UNIT D2 the recommendations as the action only while they fit its
   it('a recommendation the text cannot hold either: the finding alone, the action empty', () => {
     const [one] = findings(build(terminated(TEXT_CAPS.long)));
     expect(one).toMatchObject({ action: '', actionHelper: null, text: finding });
+  });
+});
+
+describe('28.5-UNIT-006 seed v18: a point from a test with no recommendation starts with Bruno\'s action', () => {
+  const DEFAULT = 'Inspecionar o equipamento, corrigir a causa e repetir o ensaio.';
+  const HELPER_DEFAULT = 'Ação padrão: o ensaio não tem recomendação · editável';
+  const outCable = (version: Version, texts: Readonly<Record<string, TestTexts>>) =>
+    editCopy(withCopy(version, 'cabos_entrada', texts), (block) => {
+      const [first] = cellAddressesOf(findDefinition(version, 'cabos_entrada')!, 'isolacao');
+      cells(block, 'isolacao', { [`${first!.row}/${first!.col}`]: measured('300', 'MΩ') });
+    });
+
+  it('a failed reading of a test with none: the default action, with its helper; with one: the recommendation, as on v17', () => {
+    const [none] = findings(outCable('v18', { isolacao: { recommendation: undefined } }));
+    expect(none).toMatchObject({ origin: 'reading', testKey: 'isolacao', action: DEFAULT, actionHelper: HELPER_DEFAULT });
+    expect(none!.text).toContain('300 MΩ');
+    const [kept] = findings(outCable('v18', { isolacao: { recommendation: REC } }));
+    expect(kept).toMatchObject({ action: `${REC}.`, actionHelper: HELPER_ONE });
+    const [v17] = findings(outCable('v17', { isolacao: { recommendation: undefined } }));
+    expect(v17).toMatchObject({ action: '', actionHelper: null });
+  });
+
+  it('a restricted test starts with the default action on v18 and an empty one on v17', () => {
+    const build = (version: Version) =>
+      editCopy(withCopy(version, 'cabos_entrada', { isolacao: { recommendation: REC } }), (block) => {
+        const [a, b, c] = cellAddressesOf(findDefinition(version, 'cabos_entrada')!, 'isolacao');
+        cells(block, 'isolacao', { [`${a!.row}/${a!.col}`]: measured('5', 'GΩ'), [`${b!.row}/${b!.col}`]: measured('5', 'GΩ'), [`${c!.row}/${c!.col}`]: measured('1.5', 'GΩ') });
+      });
+    expect(findings(build('v18'))[0]).toMatchObject({ origin: 'restricao', action: DEFAULT, actionHelper: HELPER_DEFAULT });
+    expect(findings(build('v17'))[0]).toMatchObject({ origin: 'restricao', action: '', actionHelper: null });
+  });
+
+  it('a Reprovado chosen by hand is not a test: no default action', () => {
+    const build = (version: Version) =>
+      editCopy(withCopy(version, 'cabos_entrada', { isolacao: { recommendation: undefined } }), (block) => {
+        block.sheet.conclusion = { ...block.sheet.conclusion, result: cell('reprovado') };
+      });
+    expect(findings(build('v18'))).toEqual([expect.objectContaining({ origin: 'reprovado', action: '', actionHelper: null })]);
   });
 });

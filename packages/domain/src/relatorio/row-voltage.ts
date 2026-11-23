@@ -1,6 +1,7 @@
 import { canonicalDecimal, formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { classU0UKv, type BlockDefinition, type TableDef, type TestDef } from '../seed/schema.ts';
+import { seedRule } from '../seed/definitions.ts';
 import { TEST_VOLTAGE_OPTIONS_KV } from '../seed/test-voltages.ts';
 import { storedInstrumentHeader } from './instrument-pick.ts';
 import { DECIMAL, readingLabelText } from './reading-cells.ts';
@@ -38,8 +39,11 @@ const LOW_VOLTAGE_TEST_LIMIT_V = 1000;
 /** The rating, in V, at or under which a winding is a low-voltage one. */
 const LOW_VOLTAGE_WINDING_V = 1000;
 
-/** Where a row's effective voltage came from. */
-export type RowVoltageSource = 'typed' | 'default';
+/**
+ * Where a row's effective voltage came from. Story 28.6 (seed v18 `row_voltage_from_header`, B-16): `header` when it is the
+ * instrument header's TENSÃO ENSAIO; on v17 and older that fallback reads `default`, as before.
+ */
+export type RowVoltageSource = 'typed' | 'default' | 'header';
 
 /** A row's test voltage: its column, the effective kV (dot-decimal) and its pt-BR text, its source and the notice. */
 export interface RowTestVoltage {
@@ -208,23 +212,44 @@ function tableDefaultKv(block: Pick<BlockRow, 'sheet'>, table: TableDef, definit
  * `voltage_default` (seed v13) applies after the row's own and its winding's defaults, before the
  * instrument's TENSÃO ENSAIO.
  */
-export function rowTestVoltage(block: Pick<BlockRow, 'sheet'>, test: TestDef, row: number, definition?: Pick<BlockDefinition, 'nameplate'>): RowTestVoltage | null {
+export function rowTestVoltage(block: Pick<BlockRow, 'sheet'> & Partial<Pick<BlockRow, 'seed_version'>>, test: TestDef, row: number, definition?: Pick<BlockDefinition, 'nameplate'>): RowTestVoltage | null {
   const home = tableOfRow(test, row);
   if (home === null) return null;
   const col = voltageColumnOf(home.table);
   if (col === -1) return null;
   const seeded = home.table.voltage_rows?.[home.r] ?? { default_kv: null, winding: null };
   const typed = typedKv(block.sheet.test[test.key]?.cells[String(row)]?.[String(col)]?.value);
-  const rated = seeded.default_kv === null ? ratingDefaultKv(block, seeded.winding) : null;
-  const fallback = seeded.default_kv ?? rated ?? tableDefaultKv(block, home.table, definition) ?? instrumentKv(block, test);
+  // Story 28.6 (seed v18, B-16): the header's TENSÃO ENSAIO comes before the rating defaults, so a row with no voltage of
+  // its own follows the header; v17 and older keep the header last.
+  const headerFirst = block.seed_version !== undefined && seedRule(block.seed_version, 'row_voltage_from_header');
+  const header = instrumentKv(block, test);
+  const fromHeader = headerFirst && seeded.default_kv === null && header !== null;
+  const rated = seeded.default_kv === null && !fromHeader ? ratingDefaultKv(block, seeded.winding) : null;
+  const fallback = headerFirst ? (seeded.default_kv ?? header ?? rated ?? tableDefaultKv(block, home.table, definition)) : (seeded.default_kv ?? rated ?? tableDefaultKv(block, home.table, definition) ?? header);
   const kv = typed ?? fallback;
-  const source: RowVoltageSource | null = typed !== null ? 'typed' : fallback !== null ? 'default' : null;
+  const source: RowVoltageSource | null = typed !== null ? 'typed' : fromHeader ? 'header' : fallback !== null ? 'default' : null;
   const linha = home.table.rows[home.r]?.[0] ?? '';
   // e22g (review loop): a voltage the winding's own rating chose (an AT rated 601 V to 1000 V starts at 2,5 kV) never warns
   // that the winding does not support it; a typed or instrument voltage on that winding still does.
   const notice = typed === null && rated !== null ? null : rowVoltageNotice(block, seeded.winding, kv, linha);
   return { col, kv, text: kv === null ? '-' : kvText(kv), source, notice };
 }
+
+/**
+ * Story 28.6 (seed v18 `row_voltage_from_header`; `60-ficha.html` `#/ficha/TR-04`, the frame's words): what the line under
+ * a row's voltage says of where it comes from: "Do cabeçalho", "Digitada", "Padrão da linha". Null on a seed without the
+ * flag (no line is drawn there) and for a row with no voltage.
+ */
+export function rowVoltageSourceText(voltage: Pick<RowTestVoltage, 'source'> | null, seedVersion: string): string | null {
+  if (voltage === null || voltage.source === null || !seedRule(seedVersion, 'row_voltage_from_header')) return null;
+  return ROW_VOLTAGE_SOURCE_TEXT[voltage.source];
+}
+
+const ROW_VOLTAGE_SOURCE_TEXT: Readonly<Record<RowVoltageSource, string>> = {
+  header: 'Do cabeçalho',
+  typed: 'Digitada',
+  default: 'Padrão da linha',
+};
 
 /**
  * The stored cell of a voltage the select offers ("0,5" -> `{raw: '0.5', unit: 'kV', state:
