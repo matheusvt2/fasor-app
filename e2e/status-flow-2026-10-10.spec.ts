@@ -317,6 +317,13 @@ for (const viewport of WIDTHS) {
     const notSent = 'Em revisão: a revisão 1 ainda não foi enviada ao cliente. Depois de enviar, use "Marcar como enviado ao cliente".';
     await expect(step(page)).toHaveText(notSent);
     if (!onPhone(page)) await expect(footMarkSent(page)).toHaveAccessibleDescription(notSent);
+    else {
+      // Batch e27d (X5): the phone menu's item carries the same sentence as its description.
+      await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
+      await expect(page.getByRole('menuitem', { name: MARK_SENT })).toHaveAccessibleDescription(notSent);
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('menu')).toHaveCount(0);
+    }
     await expect(foot(page)).not.toContainText('Em revisão');
     // Decision 5: the bar is no taller than before plus one button row (48 px and its gap), and
     // nothing scrolls sideways (390 x 844 above all).

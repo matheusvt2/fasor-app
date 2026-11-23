@@ -22,6 +22,12 @@ export interface OverflowMenuAction {
    * removed), drawn under its label as the item's description (`aria-describedby`).
    */
   reason?: string;
+  /**
+   * Batch e27d (X5): what the item does next, drawn under its label in the same description slot
+   * (`aria-describedby`), as a foot button carries it ("Marcar como enviado ao cliente" and the
+   * status's next step). `reason` wins when both are given.
+   */
+  description?: string;
 }
 
 export interface OverflowMenuProps {
@@ -72,13 +78,13 @@ export function OverflowMenu({ name, items, destructiveItems = [], label }: Over
           {items.map((item) =>
             item.checked === undefined ? (
               <MenuItem key={item.id} id={item.id} className="menu-item" textValue={item.label}>
-                {item.reason === undefined ? (
+                {(item.reason ?? item.description) === undefined ? (
                   item.label
                 ) : (
                   <>
                     <Text slot="label">{item.label}</Text>
                     <Text slot="description" className="btn-reason">
-                      {item.reason}
+                      {item.reason ?? item.description}
                     </Text>
                   </>
                 )}

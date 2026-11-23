@@ -43,7 +43,7 @@ import { useFillAccess } from '../../state/permissions.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { CabineBlock } from '../ficha/cabine-block.tsx';
-import { BulkActionBar, ChecklistRow, type ChecklistPhotos, type ChecklistRowApi, type ChecklistRowTarget } from '../ficha/checklist-section.tsx';
+import { BulkActionBar, ChecklistRow, ConcludeAttemptedContext, type ChecklistPhotos, type ChecklistRowApi, type ChecklistRowTarget } from '../ficha/checklist-section.tsx';
 import type { LocalApi } from '../ficha/ficha-api.ts';
 import { useLocalIssuedBanner } from '../ficha/issued-banner.ts';
 import { useDirectPicker } from '../ficha/photo-openers.tsx';
@@ -270,7 +270,10 @@ function VerificacoesBody({
   const [missingAsked, setMissingAsked] = useState(false);
   const missingNow = missingAsked ? siteMissingText(snapshot, locationId) : null;
   const missingId = useId();
+  // Batch e27d (X1): once "Concluir verificações" was pressed (accepted or not), an NC row's empty observation shows its red reason.
+  const [concludeAttempted, setConcludeAttempted] = useState(false);
   const conclude = () => {
+    setConcludeAttempted(true);
     const missing = siteMissingText(snapshot, locationId);
     const first = siteFirstUnanswered(snapshot, locationId);
     if (missing === null || first === null) {
@@ -320,24 +323,26 @@ function VerificacoesBody({
           {canFill ? <BulkActionBar bulk={{ unset, markRest }} single label={t.bulkLabel} /> : null}
           <p className="checklist-legend">{copy.ficha.checklist.legendText}</p>
         </div>
-        {view.groups.map((group) => (
-          <SiteGroup key={group.key} label={group.label} counterText={group.counterText}>
-            {group.rows.map((row) => (
-              <ChecklistRow
-                key={row.key}
-                api={api}
-                target={siteRowTarget(snapshot, location, row)}
-                item={row}
-                label={row.label}
-                number={row.number}
-                readOnly={!canFill}
-                photos={photos}
-                snapshot={snapshot}
-                observationLine
-              />
-            ))}
-          </SiteGroup>
-        ))}
+        <ConcludeAttemptedContext.Provider value={concludeAttempted}>
+          {view.groups.map((group) => (
+            <SiteGroup key={group.key} label={group.label} counterText={group.counterText}>
+              {group.rows.map((row) => (
+                <ChecklistRow
+                  key={row.key}
+                  api={api}
+                  target={siteRowTarget(snapshot, location, row)}
+                  item={row}
+                  label={row.label}
+                  number={row.number}
+                  readOnly={!canFill}
+                  photos={photos}
+                  snapshot={snapshot}
+                  observationLine
+                />
+              ))}
+            </SiteGroup>
+          ))}
+        </ConcludeAttemptedContext.Provider>
       </div>
 
       <div className="sticky-action-bar">

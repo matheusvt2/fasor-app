@@ -33,7 +33,7 @@ import { newNumberedLists, NUMBERED_LIST_CONFIG, numberedItem, richRuns, type Nu
 import { section10Children } from './sections/section-10.ts';
 import { section11Children } from './sections/section-11.ts';
 import { section7Children } from './sections/section-7.ts';
-import { section8Children } from './sections/section-8.ts';
+import { lineRuns, section8Children } from './sections/section-8.ts';
 import { SECTION_9_PARAGRAPH_STYLES, section9Children } from './sections/section-9.ts';
 import type { TocPages } from './toc.ts';
 import { watermarkPng } from './watermark.ts';
@@ -186,7 +186,13 @@ function keyValueTable(rows: readonly { label: string; value: string }[], option
       new TableRow({
         children: [
           new TableCell({ borders, width: { size: options.labelWidth, type: WidthType.DXA }, children: [plain(row.label, { bold: true })] }),
-          new TableCell({ borders, width: { size: CONTENT_WIDTH_TWIPS - options.labelWidth, type: WidthType.DXA }, children: [plain(row.value)] }),
+          // Batch e27d (X7): a value typed on several lines ("Informações adicionais", a text area) prints each break as
+          // `<w:br/>` in its one paragraph, as section 8 does (`lineRuns`); a value with no break is the one run it was.
+          new TableCell({
+            borders,
+            width: { size: CONTENT_WIDTH_TWIPS - options.labelWidth, type: WidthType.DXA },
+            children: [new Paragraph({ children: lineRuns(row.value, (line) => text(line), (line) => new TextRun({ text: line, break: 1 })) })],
+          }),
         ],
       }),
     );

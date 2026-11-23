@@ -113,3 +113,46 @@ test('@p0 27.13-E2E-001 one hint at a time in the caption dialog, Confirmar butt
   await expect(result).toHaveCount(0);
   await expect(text).toBeVisible();
 });
+
+test('@p0 27.13-E2E-002 (batch e27d X1) "Obrigatória": hidden on the item just marked NC; at once on a row that opens NC and empty; on every such row after a conclude', async ({ page }) => {
+  test.setTimeout(180_000);
+  const REQUIRED = 'Obrigatória em item não conforme';
+  const { blockId } = await openChaveSheet(page, account, database, { width: 1024 });
+  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  const rows = page.locator('#ficha-step-verificacoes li.checklist-row');
+  const [first, second] = await rows.evaluateAll((items) => items.slice(0, 2).map((li) => li.getAttribute('data-item-key')!));
+  const row = (key: string) => page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${key!}"]`);
+  const fieldOf = (key: string) => row(key).getByRole('textbox', { name: /^Observação do item \d+$/ });
+  const markNc = async (key: string) => {
+    await row(key).getByRole('radio', { name: 'Não conforme', exact: true }).click();
+    await expect.poll(() => outboxValues(database, page, sheetChecklistPath(blockId, key, 'result'))).toEqual(['NC']);
+    await expect(fieldOf(key)).toBeVisible();
+  };
+
+  // Just marked NC, the field never touched: no red mark, still what a conclude finds.
+  await markNc(first!);
+  await expect(fieldOf(first!)).toHaveAttribute('data-missing-field', '');
+  await expect(fieldOf(first!)).not.toHaveAttribute('aria-invalid');
+  await expect(row(first!).getByText(REQUIRED)).toHaveCount(0);
+
+  // The ficha opened again: the row mounts NC and empty, so the mark shows at once, nothing touched.
+  await page.reload();
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  await expect(fieldOf(first!)).toHaveAttribute('aria-invalid', 'true');
+  await expect(fieldOf(first!)).toHaveAccessibleDescription(REQUIRED);
+
+  // A second item just marked NC: hidden on it, the first keeps its mark.
+  await markNc(second!);
+  await expect(fieldOf(second!)).not.toHaveAttribute('aria-invalid');
+  await expect(fieldOf(first!)).toHaveAttribute('aria-invalid', 'true');
+
+  // "Concluir ficha" (refused: the new sheet is incomplete, an empty NC observation is not what refuses it): every NC row still empty shows it.
+  await page.locator('.sheet-header').getByRole('button', { name: /^Mais opções da ficha/ }).click();
+  await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
+  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  for (const key of [first!, second!]) {
+    await expect(fieldOf(key)).toHaveAttribute('aria-invalid', 'true');
+    await expect(fieldOf(key)).toHaveAccessibleDescription(REQUIRED);
+  }
+});

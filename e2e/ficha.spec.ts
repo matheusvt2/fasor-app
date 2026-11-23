@@ -1306,7 +1306,7 @@ test('@p0 12.1-E2E-011 D-2: the NC chip completing the checklist keeps it open; 
   await expect(stepHost(page, 'placa')).toHaveClass(/is-collapsed/);
 });
 
-test('@p1 12.1-E2E-012 J-15, Story 27.11: the Sticky action bar holds no bulk bar; with one item left the bar stands above it in the list, and its keyboard press moves the focus to the list head, which keeps the disabled action with its reason', async ({ page }) => {
+test('@p1 12.1-E2E-012 J-15, Story 27.11, batch e27d (X2): the Sticky action bar holds no bulk bar; with one item left the bar stands at the head of the list, not above the item, and its keyboard press keeps the focus on it, which keeps the disabled action with its reason', async ({ page }) => {
   test.setTimeout(120_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -1317,19 +1317,26 @@ test('@p1 12.1-E2E-012 J-15, Story 27.11: the Sticky action bar holds no bulk ba
   await openEnel(page);
   await openSheet(page, rowOfType(page, 'Chave seccionadora'));
   await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
-  // Story 27.11 (F14): no mirror in the fixed bar; the bar stands in the list, above the one item left.
+  // Story 27.11 (F14): no mirror in the fixed bar. Batch e27d (X2): the bar at the list head, never inside a row.
   await expect(page.locator('.sticky-action-bar .bulk-action-bar')).toHaveCount(0);
-  const inFlow = page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${items.at(-1)!.key}"] > .bulk-action-bar`);
-  await expect(inFlow.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeVisible();
+  const head = page.locator('#ficha-step-verificacoes .section > .bulk-action-bar');
+  await expect(page.locator('#ficha-step-verificacoes li.checklist-row .bulk-action-bar')).toHaveCount(0);
+  await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeVisible();
 
-  // By keyboard it marks the last item and moves to the list head; the focus follows it there, never the page body.
-  await inFlow.getByRole('button', { name: 'Marcar os restantes como Conforme' }).focus();
+  // By keyboard it marks the last item; the bar does not move and the focus stays on it, never the page body.
+  // Batch e27d: the step jump's focus watch may still take the focus back for a few frames, so the press waits until
+  // the button holds it (12.1-E2E-012 went red once in three with the Enter landing elsewhere).
+  const markRest = head.getByRole('button', { name: 'Marcar os restantes como Conforme' });
+  await expect(async () => {
+    await markRest.focus();
+    await expect(markRest).toBeFocused({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
+  await page.waitForFunction(() => new Promise<boolean>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+  await expect(markRest).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
-  await expect(inFlow).toHaveCount(0);
-  await expect(page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeFocused();
+  await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeFocused();
   await expect(page.locator('.sticky-action-bar')).not.toContainText('Todos os itens já estão marcados');
-  const head = page.locator('#ficha-step-verificacoes .bulk-action-bar');
   await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toHaveAttribute('aria-disabled', 'true');
   await expect(head.getByText('Todos os itens já estão marcados')).toBeVisible();
 });

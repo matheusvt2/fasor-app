@@ -203,7 +203,8 @@ test('@p0 23.9-E2E-001 a company copy of the v13 seccionadora whose contact resi
   await expect.poll(() => written(`sheet/${blockId}/nameplate/tipo_seccionadora`)).toEqual([NO_FUSES]);
   const na = testApplicability(await deviceBlock(), definition, TEST_KEY);
   expect(na.state).toBe('na');
-  expect(na.reason).toBe(`${NA_REASON_LEAD} TIPO DE SECCIONADORA sem fusíveis.`);
+  // Story 27.9 (F37): the field in sentence case, not its printed capitals (batch e27d: the spec was missed).
+  expect(na.reason).toBe(`${NA_REASON_LEAD} Tipo de seccionadora sem fusíveis.`);
   const section = page.locator(`section.v13-na[data-test-key="${TEST_KEY}"][data-applicability="na"]`);
   await expect(section).toBeVisible();
   await expect(section.locator('.section-head .v13-na-pill')).toHaveText('Não se aplica');

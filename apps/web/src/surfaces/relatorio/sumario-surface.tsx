@@ -470,6 +470,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // Story 27.11 (F14): below 768 px the foot keeps "Gerar relatório" alone and its other actions
   // join the header menu, each with the foot button's disabled condition and reason.
   const markSentReason = canMarkSent || sentNeed === 'none' ? undefined : permissionRefusalText(sentNeed);
+  // Batch e27d (X5): the item carries the status's next step as its description, as the foot button does (`aria-describedby={stepId}`).
+  const markSentStep = editedRead ? { description: statusStepText(flow) } : {};
   const phoneItems: OverflowMenuAction[] = [
     ...headerItems,
     !canIssue
@@ -480,8 +482,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     ...(sent.offered
       ? [
           !canMarkSent
-            ? { id: 'mark-sent', label: MARK_SENT_LABEL, onAction: () => undefined, disabled: true, ...(markSentReason === undefined ? {} : { reason: markSentReason }) }
-            : { id: 'mark-sent', label: MARK_SENT_LABEL, onAction: () => void sent.markSent() },
+            ? { id: 'mark-sent', label: MARK_SENT_LABEL, onAction: () => undefined, disabled: true, ...markSentStep, ...(markSentReason === undefined ? {} : { reason: markSentReason }) }
+            : { id: 'mark-sent', label: MARK_SENT_LABEL, onAction: () => void sent.markSent(), ...markSentStep },
         ]
       : []),
   ];

@@ -8,7 +8,7 @@ import { useStickyBarScrollPadding } from '../../components/toast.tsx';
  * capture button (`.has-camera`), and Story 6.4 puts "Adicionar fotos" beside it (the import
  * path, `70-fotos.html`); a denied camera's reason and OS path go under the row
  * (`camera-denied`). Story 27.11 (F14): the Bulk action bar's mirror is gone from this bar; the
- * bar stands in the checklist's flow (`ChecklistSection`). It sits above the keyboard and unsticks
+ * bar stands at the head of the checklist (`ChecklistSection`). It sits above the keyboard and unsticks
  * below a 480 px viewport (`ficha.css`).
  */
 export function StickyActionBar({
