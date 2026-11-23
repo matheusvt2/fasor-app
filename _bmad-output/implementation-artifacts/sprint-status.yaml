@@ -374,6 +374,10 @@ development_status:
   28-8-the-variation-note-names-only-what-matters-by-brunos-numbers: backlog  # added 2026-11-22 (B-7; Story 25.21); wave 2, e28b, last; v18; no contract expected; Q-7 open, not blocking
   28-9-etapa-6-takes-the-additional-items-printed-in-section-10: backlog  # added 2026-11-22 (B-15); wave 2, e28c; v18; new setup key additional_items under relatorio.fill; contract main's plus one
   28-10-the-fixed-texts-and-the-band: backlog  # added 2026-11-22 (B-12, B-14, B-3); wave 2, e28c; the texts on v18, the band on every seed; no contract
+  epic-29: in-progress  # added 2026-11-23: Bruno via Matheus after v0.13.0, "investigar e corrigir agora"; one batch e29a, port base 26; no seed change
+  29-1-a-signed-in-user-changes-the-password: in-progress  # added 2026-11-23
+  29-2-closing-a-dialog-or-going-back-returns-to-the-screen-before: in-progress  # added 2026-11-23; investigation first
+  epic-29-retrospective: optional
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus

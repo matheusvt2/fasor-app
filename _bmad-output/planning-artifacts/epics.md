@@ -12926,6 +12926,98 @@ So that he stops correcting them (B-12, B-14, B-3).
 - **Q-6 (Story 28.5): agreed.** The deadline is computed in print from the stored suggestion and the issue date; nothing new is stored.
 - **Q-7 (Story 28.8): agreed.** A change of level is judged by today's criterion; no new key, no contract number for it.
 
+## Epic 29: Bruno's feedback of 2026-11-23: a signed-in user changes the password, and closing a dialog or going back returns to the screen before (Bruno via Matheus, 2026-11-23)
+
+Source: Matheus's message of 2026-11-23, relaying Bruno after the v0.13.0 deploy: "Opção de alterar senha (implementar)" and "Sempre que abre uma nova janela ou popup ao clicar fora/voltar a página volta para o inicio de tudo e não para tela anterior. Isso acontece em várias telas (investigar e corrigir)." Matheus: "investigar e corrigir agora". One batch (e29a), one PR. No seed change.
+
+### Story 29.1: A signed-in user changes the password
+
+**Dev model:** opus · **Effort:** high · api (better-auth change-password behind the existing rate limit) and web (the Conta screen)
+
+As a user who is signed in,
+I want to change my password from inside the app,
+So that I do not need to sign out and ask for a link by e-mail.
+
+**Today (verified 2026-11-23 on main `a2696e51`):**
+- A password is created or replaced only through a link by e-mail (Story 26.6: `apps/web/src/surfaces/login/set-password-surface.tsx`, `apps/api/src/admin/password-links.ts`, "Esqueci minha senha" at Login).
+- The Conta screen (`apps/web/src/surfaces/account/account-surface.tsx`) has no password action.
+- `emailAndPassword` is configured in `apps/api/src/auth/auth.ts` with `minPasswordLength: PASSWORD_MIN_LENGTH`.
+
+*(Definition of Ready, met 2026-11-23. Every line below is the coordinator's reading, open to Matheus.)*
+- The action "Alterar senha" lives on the Conta screen, for every role. It opens a dialog built with the mock's dialog and form classes and the fields of `13-definir-senha.html`; a frame for it is added to the mocks in the same change (MOCK-GUIDE dated note).
+- Three fields: "Senha atual", "Nova senha", "Repita a senha". The new password follows the same rule as Story 26.6 (length, the two equal), with the same messages.
+- A wrong current password is refused with a message under that field; the new password is not stored.
+- On success this device stays signed in, every other session of the user ends, and a toast says the password was changed.
+- The action needs connection: offline it is disabled with a reason, like "Salvar senha".
+- The route is rate limited like the other password routes. Nothing is written to the outbox; no sync op, no contract change unless the code proves one is needed.
+- Authored pt-BR strings are marked `// authored:` and listed in the PR for Bruno.
+
+**Acceptance Criteria:**
+
+**Given** a signed-in user on the Conta screen, online
+**When** they give the current password and a valid new one twice
+**Then** the password changes, they stay signed in on this device, and the old password no longer signs in while the new one does
+
+**Given** the same dialog
+**When** the current password is wrong
+**Then** the dialog says so under that field and the password is unchanged
+
+**Given** the same dialog
+**When** the new password is too short or the two do not match
+**Then** the same messages as "Criar senha" show and nothing is sent
+
+**Given** a second device signed in as the same user
+**When** the password changes on the first
+**Then** the second device's session ends
+
+**Given** the device is offline
+**When** the Conta screen renders
+**Then** "Alterar senha" is disabled with its reason
+
+**Definition of Done, in addition:**
+- api integration "29.1-API": success, wrong current password, short password, other sessions ended, rate limit.
+- `e2e/change-password.spec.ts` "29.1-E2E-001" (`@p0`): the whole flow as each of two roles, the wrong-password and mismatch cases, offline.
+- `docs/kbs` concept for the account surface and `log.md`.
+
+### Story 29.2: Closing a dialog or going back returns to the screen before
+
+**Dev model:** opus · **Effort:** high · web: navigation history, dialogs and overlays; investigation first
+
+As Bruno working on a tablet,
+I want the screen I was on to stay where it was when I close a dialog, tap outside it or go back,
+So that I do not lose my place and start again from the beginning.
+
+**Today (reported 2026-11-23, not yet reproduced):** Bruno says that whenever a new window or popup opens, tapping outside it or going back takes the page "to the start of everything" and not to the previous screen, on several screens. Two readings, both to be checked in the browser: the app leaves the screen (back goes to Home, or further, instead of closing the overlay or returning one screen), or the screen stays and its scroll returns to the top.
+
+*(Definition of Ready, met 2026-11-23 for the investigation; the fix is bounded by what the investigation proves.)*
+- Step 1, reproduce: on a phone and a tablet viewport (Android Chrome emulation, and the installed-app display mode), over every kind of overlay the app has (dialog, sheet, overflow menu, popover, photo viewer, the export dialog, a download or a new tab), record what each of these does: tap outside, Escape, the browser's or the device's back, the in-app back control. Record the screen, the scroll position and the history length before and after. The table goes in the PR.
+- Step 2, fix every case where the user ends anywhere but where they were. The rule: closing an overlay by any means leaves the screen under it as it was (same route, same scroll, same open ficha, same unsaved field text); the device's back with an overlay open closes the overlay and nothing else; back with no overlay goes to the screen the user came from, at the scroll it had; a download or a document opened in a new tab does not move the app.
+- No look changes: the mock's classes stay, behavior stays with React Aria Components.
+- If the proven cause is outside this rule (for example the service worker reloading the page on an update), stop, fix only what is safe and report the rest.
+
+**Acceptance Criteria:**
+
+**Given** any screen scrolled down with a dialog, sheet or menu open
+**When** the user taps outside it, presses Escape or closes it
+**Then** the same screen is shown at the same scroll position
+
+**Given** an overlay is open
+**When** the user presses the device's back
+**Then** the overlay closes and the screen under it stays, with the same route
+
+**Given** the user went Home, then a relatório, then a ficha
+**When** they go back twice with no overlay open
+**Then** they see the relatório, then Home, each at the scroll it had
+
+**Given** a document is downloaded or opened
+**When** the user returns to the app
+**Then** the app is on the screen it was on
+
+**Definition of Done, in addition:**
+- The reproduction table (before) and the same table after the fix, in the PR.
+- `e2e/overlay-back.spec.ts` "29.2-E2E-001" (`@p0`): one case per overlay kind found faulty, plus back across three screens; red on main, green on the branch.
+- `docs/kbs` and `log.md` where a summarized document changes.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
