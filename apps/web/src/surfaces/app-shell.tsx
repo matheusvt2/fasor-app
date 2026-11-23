@@ -19,6 +19,7 @@ import { useSession } from '../state/session.tsx';
 import { useCaptureRefused, useStorageReading } from '../state/storage-reading.ts';
 import { useSync } from '../state/sync.tsx';
 import { ToastOutlet } from '../state/toast.tsx';
+import { spriteHref } from '../styles/sprite.ts';
 
 /** The surface title the App bar shows; `titleHidden` is `key-home.html`'s Home rule. */
 export interface RouteTitle {
@@ -147,7 +148,7 @@ export function AppShell() {
           ) : (
             <AriaButton className="icon-btn" aria-label={ui.appBar.back} onPress={goBack}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-back" />
+                <use href={spriteHref('i-back')} />
               </svg>
             </AriaButton>
           )}

@@ -24,6 +24,7 @@ import { ui } from '../../copy/ui.ts';
 import type { CaptionRecents } from '../../db/photo-store.ts';
 import { DictationButton } from '../../speech/dictation.tsx';
 import './photos.css';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /**
  * Story 20.9: the kernel's cap of a photo's caption (medium text), and of one part the rows
@@ -272,7 +273,7 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
           <div className="caption-actions">
             <ToggleButton className="btn btn-text caption-edit-toggle" isSelected={editing} onChange={toggleEditing}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-pencil" />
+                <use href={spriteHref('i-pencil')} />
               </svg>
               {t.editText}
             </ToggleButton>
@@ -440,7 +441,7 @@ export function LegendarButton({ onPress }: { onPress: () => void }) {
   return (
     <AriaButton className="btn btn-secondary btn-block" onPress={onPress}>
       <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-pencil" />
+        <use href={spriteHref('i-pencil')} />
       </svg>
       {copy.captureSheet.caption}
     </AriaButton>

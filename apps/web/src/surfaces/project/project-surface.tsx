@@ -26,6 +26,7 @@ import { useCan } from '../../state/permissions.tsx';
 import { useSession } from '../../state/session.tsx';
 import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
 import '../relatorio/relatorio.css';
+import { spriteHref } from '../../styles/sprite.ts';
 
 const NO_CLIENTS: ClientRow[] = [];
 const NO_SHEETS: Record<string, { blocks: BlockRow[]; suggestions: SuggestionRow[]; locations: LocationRow[] }> = {};
@@ -119,7 +120,7 @@ export function ProjectSurface() {
       disabledReason={canCreate ? undefined : permissionRefusalText('relatorio.create')}
     >
       <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-plus" />
+        <use href={spriteHref('i-plus')} />
       </svg>
       {t.newRelatorio}
     </Button>
@@ -135,11 +136,11 @@ export function ProjectSurface() {
             <p className="crumbs">
               <Link to="/">{t.crumbsHome}</Link>
               <svg className="ico ico-sm" aria-hidden="true">
-                <use href="/sprite.svg#i-chev-right" />
+                <use href={spriteHref('i-chev-right')} />
               </svg>
               <span>{client?.name ?? ''}</span>
               <svg className="ico ico-sm" aria-hidden="true">
-                <use href="/sprite.svg#i-chev-right" />
+                <use href={spriteHref('i-chev-right')} />
               </svg>
               <span>{site}</span>
             </p>
@@ -204,7 +205,7 @@ export function ProjectSurface() {
                         </span>
                         <span className="lr-chev">
                           <svg className="ico" aria-hidden="true">
-                            <use href="/sprite.svg#i-chev-right" />
+                            <use href={spriteHref('i-chev-right')} />
                           </svg>
                         </span>
                       </Link>

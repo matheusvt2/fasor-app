@@ -38,6 +38,7 @@ import { assignPhotoBatch, removePhotos, toastPhotoWriteFailure } from './photo-
 import { useCaptionSources } from './use-caption-sources.ts';
 import './photos.css';
 import { useDialogTelemetry } from '../../telemetry/hooks.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 6.4 (FR-45; `70-fotos.html` "Photo capture sheet" and "De qual equipamento?",
@@ -167,7 +168,7 @@ export function DropHint({ dragging }: { dragging: boolean }) {
   return (
     <div className="drop-hint" aria-hidden="true">
       <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-image" />
+        <use href={spriteHref('i-image')} />
       </svg>
       {copy.photos.dropHint}
     </div>
@@ -439,13 +440,13 @@ function SheetBody({
       <div className="capture-choices">
         <Button variant="secondary" block onPress={() => input.current?.click()}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-image" />
+            <use href={spriteHref('i-image')} />
           </svg>
           {t.choose}
         </Button>
         <Button variant="secondary" block isDisabled disabledReasonId={deniedId}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-camera" />
+            <use href={spriteHref('i-camera')} />
           </svg>
           {copy.photos.takePhoto}
         </Button>

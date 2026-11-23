@@ -6,6 +6,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { cameraCapabilities, useCameraControls } from './camera-controls.ts';
 import { frameAtTap, grabFrame, takePhotoOrGrab } from './camera-single-shot.tsx';
 import { pendingStops, videoTrackOf } from './camera-stream.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * E13-A6: the camera view itself (`camera-view.tsx` says what the camera does): the finder on
@@ -111,19 +112,19 @@ export function CameraView({
           <div className="cam-top">
             <AriaButton className="icon-btn" aria-label={t.closeCamera} onPress={onClose}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-close" />
+                <use href={spriteHref('i-close')} />
               </svg>
             </AriaButton>
             <span className="cam-context">
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-layers" />
+                <use href={spriteHref('i-layers')} />
               </svg>
               <span className="cam-context-text">{cameraContextText(caption)}</span>
             </span>
             {capabilities.torch ? (
               <ToggleButton className="icon-btn cam-torch" aria-label={t.torch} isSelected={controls.torch} onChange={controls.setTorch}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-flash" />
+                  <use href={spriteHref('i-flash')} />
                 </svg>
               </ToggleButton>
             ) : null}
@@ -150,13 +151,13 @@ export function CameraView({
             <div className="cam-zoom" role="group" aria-label={t.zoomGroup}>
               <AriaButton className="icon-btn cam-zoom-out" aria-label={t.zoomOut} onPress={controls.zoomOut} isDisabled={controls.zoom <= capabilities.zoom.min}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-minus" />
+                  <use href={spriteHref('i-minus')} />
                 </svg>
               </AriaButton>
               <span className="cam-zoom-value">{cameraZoomText(controls.zoom)}</span>
               <AriaButton className="icon-btn cam-zoom-in" aria-label={t.zoomIn} onPress={controls.zoomIn} isDisabled={controls.zoom >= capabilities.zoom.max}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-plus" />
+                  <use href={spriteHref('i-plus')} />
                 </svg>
               </AriaButton>
             </div>

@@ -16,6 +16,7 @@ import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { DRAFT_SURFACE } from './ficha-fields.tsx';
 import { testManufacturerValueOp } from './ficha-ops.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Batch e23a (Story 23.3, absorbs 14.13; `60-ficha.html` #/ficha/TR1 `.v13-mfr`): the manufacturer's
@@ -157,7 +158,7 @@ export function ManufacturerValue({
             >
               <span className="unit-text">{shownUnit}</span>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-cycle" />
+                <use href={spriteHref('i-cycle')} />
               </svg>
             </button>
           ) : shownUnit === null ? null : (

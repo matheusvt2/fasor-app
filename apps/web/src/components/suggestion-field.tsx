@@ -1,5 +1,6 @@
 import { useId, type ReactNode } from 'react';
 import { ui } from '../copy/ui.ts';
+import { spriteHref } from '../styles/sprite.ts';
 
 export type SuggestionFieldState = 'suggested' | 'verify' | 'confirmed';
 
@@ -68,7 +69,7 @@ export function SuggestionBlock({ label, text, onConfirm, confirmLabel, announce
       <div className="suggestion-block">
         {kicker === undefined ? null : (
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-sparkles" />
+            <use href={spriteHref('i-sparkles')} />
           </svg>
         )}
         <span className="sv">
@@ -139,7 +140,7 @@ export function SuggestionField({
       {combobox ? (
         <span className="combobox-chevron" aria-hidden="true">
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-down" />
+            <use href={spriteHref('i-chev-down')} />
           </svg>
         </span>
       ) : null}

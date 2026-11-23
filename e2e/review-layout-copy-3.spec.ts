@@ -359,7 +359,7 @@ test('@p1 F-10 at 390 px "Adicionar fotos" is a 56 px square beside the camera a
   expect(box.width).toBeLessThanOrEqual(64);
   expect(box.width).toBeGreaterThanOrEqual(48);
   expect(box.height).toBeGreaterThanOrEqual(48);
-  await expect(add.locator('use')).toHaveAttribute('href', '/sprite.svg#i-image');
+  await expect(add.locator('use')).toHaveAttribute('href', /^\/assets\/sprite-[^/]+\.svg#i-image$/);
   const camera = (await buttons.getByRole('button', { name: 'Tirar foto' }).boundingBox())!;
   const primary = (await buttons.locator('#ficha-primary').boundingBox())!;
   for (const other of [camera, primary]) expect(Math.abs(other.y - box.y)).toBeLessThanOrEqual(2);

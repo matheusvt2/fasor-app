@@ -73,6 +73,7 @@ import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx'
 import { IndexHelpAction, TestHelpAction } from './test-help-dialog.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { DictationButton } from '../../speech/dictation.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * The "Ensaios" step (Stories 5.5-5.7, FR-27, UX-DR39/40/42; `60-ficha.html`): one section
@@ -585,7 +586,7 @@ function MeasurementTable({
         <details className="ficha-details mt-source">
           <summary>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-chev-down" />
+              <use href={spriteHref('i-chev-down')} />
             </svg>
             {t.sourceSummary}
           </summary>

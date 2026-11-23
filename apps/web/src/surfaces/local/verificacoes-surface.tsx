@@ -56,6 +56,7 @@ import { useRelatorioEditor, type Build } from '../relatorio/relatorio-editor.ts
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import { siteObservationOp, siteResultOp } from './local-ops.ts';
 import './verificacoes.css';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 14.3 (`61-verificacoes-local.html`): "Verificações do local", the site checklist of
@@ -354,7 +355,7 @@ function VerificacoesBody({
         <div className="bar-buttons">
           <Button variant="secondary" onPress={goTree}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-tree" />
+              <use href={spriteHref('i-tree')} />
             </svg>
             {t.verArvore}
           </Button>
@@ -362,7 +363,7 @@ function VerificacoesBody({
             <Button variant="primary" onPress={conclude} {...(missingNow === null ? {} : { 'aria-describedby': missingId })}>
               {t.concluir}
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-chev-right" />
+                <use href={spriteHref('i-chev-right')} />
               </svg>
             </Button>
           ) : null}

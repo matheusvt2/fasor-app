@@ -51,6 +51,7 @@ import { firstFocusable, PLAIN_TEXT } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp, withOilCrossing } from './ficha-ops.ts';
 import { now } from '../../clock.ts';
 import { newId } from '../../ids.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 8.1 (EXPERIENCE.md › Suggestion field, `60-ficha.html` nameplate lines ~312-341):
@@ -333,7 +334,7 @@ export function SuggestionGroupHead({ model }: { model: NameplateSuggestionsMode
       {counts.confirmable > 0 ? (
         <button type="button" className="btn btn-secondary" onClick={model.confirmAll}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-check-all" />
+            <use href={spriteHref('i-check-all')} />
           </svg>
           {confirmarTodosText(counts.confirmable)}
         </button>

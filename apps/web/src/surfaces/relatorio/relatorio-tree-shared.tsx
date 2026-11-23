@@ -5,6 +5,7 @@ import { copy } from '../../copy/pt-br.ts';
 import type { Reorder } from '../templates/use-reorder.ts';
 import type { PaletteTarget } from './block-palette-field.tsx';
 import type { TreeActions } from './tree-actions.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * E14-A7: what the relatório tree (`relatorio-tree.tsx`) shares with its two presentations,
@@ -54,7 +55,7 @@ export interface Shared {
 
 export const Chevron = () => (
   <svg className="ico" aria-hidden="true">
-    <use href="/sprite.svg#i-chev-down" />
+    <use href={spriteHref('i-chev-down')} />
   </svg>
 );
 

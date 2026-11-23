@@ -35,6 +35,7 @@ import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { CriteriaPanel, IdentityPanel, NameplatePanel, ChecklistPanel, PreviewPanel, TestsPanel, type DraftEdit } from './type-editor-parts.tsx';
 import { createVersionOp, putTypeDraftOp, putTypeStampOp } from './type-ops.ts';
 import './type-editor.css';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /**
  * Story 14.7 (`43-tipo-equipamento.html`; EXPERIENCE.md § IA › Tipo de equipamento): the editor of
@@ -200,7 +201,7 @@ function TypeEditor({ type, ctx }: { type: EquipmentTypeRow; ctx: NonNullable<Re
           ) : status === 'publicado' ? (
             <TextButton onPress={() => setRetiring(true)}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-archive" />
+                <use href={spriteHref('i-archive')} />
               </svg>
               {copy.typeEditor.retire}
             </TextButton>

@@ -33,6 +33,7 @@ import type { FichaApi, LocalApi } from './ficha-api.ts';
 import { envAfter, envLineField, EnvReadDisplayButton, EnvSuggestionFill, useEnvDisplay } from './read-display.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { useFillAccess } from '../../state/permissions.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
 
 /*
@@ -212,7 +213,7 @@ export function CabineBlock({
           {previous === null || !canFill ? null : (
             <Chip onPress={copyPrevious}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-repeat" />
+                <use href={spriteHref('i-repeat')} />
               </svg>
               {t.copyPrevious}
             </Chip>
@@ -247,7 +248,7 @@ function SiteLine({ relatorioId, snapshot, cabineId }: { relatorioId: string; sn
   return (
     <div className="cabine-line ficha-local-line" role="group" aria-label={SITE_CHECKLIST_LABEL}>
       <svg className="ico ico-sm" aria-hidden="true">
-        <use href="/sprite.svg#i-check-all" />
+        <use href={spriteHref('i-check-all')} />
       </svg>
       <span className="cl-name">{SITE_CHECKLIST_LABEL}</span>
       <span className="cl-values">{siteCounterText(progress)}</span>
@@ -260,7 +261,7 @@ function DaCabine({ name }: { name: string }) {
   return (
     <span className="ficha-da-cabine">
       <svg className="ico ico-sm" aria-hidden="true">
-        <use href="/sprite.svg#i-layers" />
+        <use href={spriteHref('i-layers')} />
       </svg>
       {copy.ficha.cabine.daCabine(name)}
     </span>

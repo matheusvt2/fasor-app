@@ -5,6 +5,7 @@ import { TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { downloadRevisionFile } from '../export/revision-file.ts';
 import { isUnauthorized } from '../export/session-expired.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * e26r (2026-11-22, Matheus "sim nos dois", AD-29): a role that downloads and does not issue (the
@@ -47,13 +48,13 @@ export function IssuedFiles({ revision }: { revision: RevisionRow }) {
         <span className="rev-files">
           <TextButton onPress={() => download('docx')}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-download" />
+              <use href={spriteHref('i-download')} />
             </svg>
             {label('docx', copy.export.revisionDocx)}
           </TextButton>
           <TextButton onPress={() => download('pdf')}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-download" />
+              <use href={spriteHref('i-download')} />
             </svg>
             {label('pdf', copy.export.revisionPdf)}
           </TextButton>

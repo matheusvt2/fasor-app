@@ -25,6 +25,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { testInstrumentOp } from './ficha-ops.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * The Instrument picker of a test sub-block (Story 5.7, UX-DR42; `60-ficha.html`
@@ -229,7 +230,7 @@ export function InstrumentPicker({
         {readOnly ? null : (
           <span className="combobox-chevron" aria-hidden="true">
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-chev-down" />
+              <use href={spriteHref('i-chev-down')} />
             </svg>
           </span>
         )}
@@ -252,7 +253,7 @@ export function InstrumentPicker({
         <details className="ficha-details">
           <summary>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-chev-down" />
+              <use href={spriteHref('i-chev-down')} />
             </svg>
             {t.instrumentDetails}
           </summary>

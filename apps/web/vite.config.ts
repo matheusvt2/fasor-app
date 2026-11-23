@@ -26,10 +26,11 @@ async function filesUnder(dir: string): Promise<string[]> {
 /**
  * Stamps a built shell in `outDir` and answers its version. The version digests every
  * emitted file's bytes — the document (with its version placeholder still in place), the
- * hashed chunks and assets, and everything copied from `public/` — as the sorted list of
- * `path sha256(bytes)`; only `sw.js` is left out, since it is about to carry the result.
- * So a deploy that changes nothing but markup, styles or `sprite.svg` is a new version:
- * a new `sw.js` (the browser installs a new worker) and a new cache name.
+ * hashed chunks and assets (the icon sprite among them), and everything copied from
+ * `public/` — as the sorted list of `path sha256(bytes)`; only `sw.js` is left out, since
+ * it is about to carry the result. So a deploy that changes nothing but markup, styles or
+ * the sprite is a new version: a new `sw.js` (the browser installs a new worker) and a new
+ * cache name.
  *
  * The version is then written into `index.html`'s `<meta name="shell-version">`, which
  * is how the page names its build to the worker (`currentShellVersion` in
@@ -61,12 +62,39 @@ export async function stampShell(outDir: string, precache: readonly string[]): P
   return version;
 }
 
+/** The icon sprite as the build emits it: `src/styles/sprite.svg` under its content-hashed name. */
+const HASHED_SPRITE = /^\/assets\/sprite-[^/]+\.svg$/;
+
+/**
+ * The precache list of a built shell, from the file names of its bundle: the document,
+ * once, as `/`, then every emitted chunk and asset (the hashed JS and CSS, the self-hosted
+ * Inter woff2 and the icon sprite). The sourcemaps are a debugging aid, not part of the
+ * shell, and `sw.js` comes from `public/`, so it is never in the bundle.
+ *
+ * Every path but `/` carries a content hash, the sprite included (fix batch e26u): a path
+ * two builds share is answered by whichever worker is in control, from its own cache,
+ * which is how a new build's page drew the old build's sprite on its first launch. So a
+ * bundle with no hashed sprite is refused, rather than shipped with icons that go blank
+ * offline.
+ */
+export function shellPrecacheList(fileNames: readonly string[]): string[] {
+  const emitted = fileNames
+    .filter((name) => !name.endsWith('.map') && !name.endsWith('.html'))
+    .map((name) => `/${name}`)
+    .sort();
+  if (!emitted.some((path) => HASHED_SPRITE.test(path))) {
+    throw new Error(
+      'the bundle emits no hashed icon sprite (assets/sprite-<hash>.svg); src/styles/sprite.ts must import it as an asset',
+    );
+  }
+  return ['/', ...emitted];
+}
+
 /**
  * AR-7: `public/sw.js` is copied verbatim by Vite, so the built copy is rewritten here,
  * after the bundle exists and its hashed filenames are known. The precache list is the
- * app shell and nothing else — the document, every emitted chunk and asset (the hashed
- * JS and CSS and the self-hosted Inter woff2), and `/sprite.svg`. The version, which
- * names the cache and is stamped into the document, is `stampShell`'s digest.
+ * app shell and nothing else (`shellPrecacheList`). The version, which names the cache
+ * and is stamped into the document, is `stampShell`'s digest.
  */
 function shellPrecache(): Plugin {
   let outDir = 'dist';
@@ -78,15 +106,11 @@ function shellPrecache(): Plugin {
       outDir = resolve(config.root, config.build.outDir);
     },
     generateBundle(_options, bundle) {
-      const emitted = Object.values(bundle)
-        .map((chunk) => chunk.fileName)
-        // `sw.js` and `sprite.svg` come from `public/`, so they are never in the bundle;
-        // the sourcemaps are a debugging aid, not part of the shell; and the document is
-        // precached once, as `/`.
-        .filter((name) => !name.endsWith('.map') && !name.endsWith('.html'))
-        .map((name) => `/${name}`)
-        .sort();
-      precache = ['/', ...emitted, '/sprite.svg'];
+      try {
+        precache = shellPrecacheList(Object.values(bundle).map((chunk) => chunk.fileName));
+      } catch (error) {
+        this.error(error instanceof Error ? error.message : String(error));
+      }
     },
     async closeBundle() {
       try {

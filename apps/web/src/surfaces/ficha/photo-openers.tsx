@@ -8,6 +8,7 @@ import type { PhotoTile } from '../../db/photo-store.ts';
 import { useCamera } from './camera-view.tsx';
 import { plateFocusTarget, plateScopeOf } from './plate-focus.ts';
 import type { CaptureTarget } from './use-photo-capture.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 6.1: the two openers of the burst camera on a sheet -- the 56 px Camera capture
@@ -37,7 +38,7 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
           onPress={camera.open}
         >
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-camera" />
+            <use href={spriteHref('i-camera')} />
           </svg>
           <span className="cam-word" aria-hidden="true">
             {t.camWord}
@@ -81,7 +82,7 @@ export function ThermalPhotoButton({ relatorioId, target, label }: { relatorioId
         onPress={camera.open}
       >
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-camera" />
+          <use href={spriteHref('i-camera')} />
         </svg>
         {/* Story 24.9 (F11): "Foto térmica · 2", the kernel's count of the photos taken through it (`thermalPhotoText`). */}
         {label}
@@ -154,7 +155,7 @@ export function PlateCaptureTile({ relatorioId, target, pendingRow }: { relatori
         }}
       >
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-camera" />
+          <use href={spriteHref('i-camera')} />
         </svg>
         {t.takePlate}
         {camera.opening ? <span className="camera-opening">{t.opening}</span> : null}
@@ -249,7 +250,7 @@ export function AddPhotosButton({ denied, onFiles, onOpenSheet }: { denied: bool
     <>
       <AriaButton className="btn btn-secondary add-photos-btn" data-telemetry="photos.add" onPress={direct ? picker.open : onOpenSheet}>
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-image" />
+          <use href={spriteHref('i-image')} />
         </svg>
         <span className="add-photos-word">{copy.photos.addPhotos}</span>
       </AriaButton>
@@ -288,7 +289,7 @@ export function RowPhotoAction({
           onPress={camera.open}
         >
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-camera" />
+            <use href={spriteHref('i-camera')} />
           </svg>
           {t.addPhoto}
         </AriaButton>

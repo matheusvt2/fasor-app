@@ -6,6 +6,7 @@ import { ncPhraseRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import { FrasesNcPanel } from './frases-nc-panel.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 14.12: Cadastros › Frases de NC, the office's review of the NC phrases the company
@@ -38,7 +39,7 @@ function PhraseRowItem({ entry, isOpen, onOpen }: { entry: NcPhraseRegistryRow; 
         <span className="rr-secondary">{entry.text.secondary}</span>
       </div>
       <svg className="ico rr-chevron" aria-hidden="true">
-        <use href="/sprite.svg#i-chev-right" />
+        <use href={spriteHref('i-chev-right')} />
       </svg>
     </li>
   );

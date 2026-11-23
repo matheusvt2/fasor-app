@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { I18nProvider } from 'react-aria-components';
 import { describe, expect, it, vi } from 'vitest';
 import { DateField } from './date-field.tsx';
+import { spriteHref } from '../styles/sprite.ts';
 
 function Harness({ onChange, initial = null }: { onChange: (v: string | null) => void; initial?: string | null }) {
   const [value, setValue] = useState<string | null>(initial);
@@ -31,7 +32,7 @@ describe('DateField', () => {
     const segments = screen.getAllByRole('spinbutton');
     // React Aria names each segment "dia, " (the field's name follows through aria-labelledby).
     expect(segments.map((s) => s.getAttribute('aria-label')?.replace(/,\s*$/, ''))).toEqual(['dia', 'mês', 'ano']);
-    expect(container.querySelector('use')?.getAttribute('href')).toBe('/sprite.svg#i-calendar');
+    expect(container.querySelector('use')?.getAttribute('href')).toBe(spriteHref('i-calendar'));
     expect(await axe(container)).toHaveNoViolations();
   });
 

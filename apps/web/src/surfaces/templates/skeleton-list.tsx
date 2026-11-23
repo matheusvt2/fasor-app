@@ -21,6 +21,7 @@ import { restoreFocus } from '../../input/focus-restore.ts';
 import { DragHandle, PositionBox } from './reorder-controls.tsx';
 import { useReorder } from './use-reorder.ts';
 import { useTypeNaming } from './type-naming.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 export interface SkeletonListProps {
   view: ComposerView;
@@ -51,7 +52,7 @@ export interface SkeletonListProps {
 
 const Plus = () => (
   <svg className="ico" aria-hidden="true">
-    <use href="/sprite.svg#i-plus" />
+    <use href={spriteHref('i-plus')} />
   </svg>
 );
 
@@ -195,7 +196,7 @@ function QtyGrid({ node, onSetQuantity, head }: QtyGridProps) {
 const CardChevron = ({ onToggle }: { onToggle: () => void }) => (
   <span className="icon-btn card-chev" aria-hidden="true" onClick={onToggle}>
     <svg className="ico">
-      <use href="/sprite.svg#i-chev-down" />
+      <use href={spriteHref('i-chev-down')} />
     </svg>
   </span>
 );

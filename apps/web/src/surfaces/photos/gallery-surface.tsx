@@ -73,6 +73,7 @@ import { PhotoViewer } from './photo-viewer.tsx';
 import { useCaptionSources } from './use-caption-sources.ts';
 import './photos.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * `/relatorio/:id/fotos` (Story 6.3; `70-fotos.html`, `key-photos.html`): every live photo of
@@ -322,7 +323,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           {suggested.size === 0 || !canFill ? null : (
             <div className="banner sug-banner" data-variant="info" role="status">
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-sparkles" />
+                <use href={spriteHref('i-sparkles')} />
               </svg>
               <span className="banner-text">
                 <strong>{legendasSugeridasText(suggested.size)}</strong>
@@ -331,7 +332,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
               <span className="banner-actions">
                 <AriaButton className="btn btn-text fotos-confirm-all" onPress={confirmAll}>
                   <svg className="ico" aria-hidden="true">
-                    <use href="/sprite.svg#i-check-all" />
+                    <use href={spriteHref('i-check-all')} />
                   </svg>
                   {t.confirmAll}
                 </AriaButton>
@@ -413,7 +414,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
             <span className="cam-reason">{t.camReason}</span>
             <Button variant="secondary" onPress={camera.denied ? () => setImporting({ files: null }) : picker.open}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-image" />
+                <use href={spriteHref('i-image')} />
               </svg>
               {copy.photos.addPhotos}
             </Button>

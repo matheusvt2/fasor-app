@@ -15,6 +15,7 @@ import { useServerReachable } from '../../state/sync.tsx';
 import { useSyncActions } from '../../state/sync-actions.ts';
 import { photoSaveFile, savePhotoToDevice } from './photo-file.ts';
 import './photos.css';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 6.3 (`70-fotos.html` "Photo viewer", DESIGN.md › Photo viewer, EXPERIENCE.md ›
@@ -189,7 +190,7 @@ function ViewerBody({
       <div className="viewer-top">
         <AriaButton className="icon-btn" aria-label={t.close} onPress={onClose}>
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-close" />
+            <use href={spriteHref('i-close')} />
           </svg>
         </AriaButton>
         {number === null ? null : (
@@ -237,13 +238,13 @@ function ViewerBody({
             <>
               <Button variant="secondary" block onPress={() => onEditCaption(tile)}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-pencil" />
+                  <use href={spriteHref('i-pencil')} />
                 </svg>
                 {t.editCaption}
               </Button>
               <Button variant="destructive" block onPress={() => setConfirming(true)}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-trash" />
+                  <use href={spriteHref('i-trash')} />
                 </svg>
                 {t.remove}
               </Button>
@@ -260,7 +261,7 @@ function ViewerBody({
             }}
           >
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-download" />
+              <use href={spriteHref('i-download')} />
             </svg>
             {t.save}
           </Button>
@@ -273,14 +274,14 @@ function ViewerBody({
         <div className="viewer-nav">
           <Button variant="secondary" isDisabled={previous === null} disabledReasonId={countId} onPress={() => previous !== null && onNavigate(previous.id)}>
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-chev-left" />
+              <use href={spriteHref('i-chev-left')} />
             </svg>
             {t.previous}
           </Button>
           <Button variant="secondary" isDisabled={next === null} disabledReasonId={countId} onPress={() => next !== null && onNavigate(next.id)}>
             {t.next}
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-chev-right" />
+              <use href={spriteHref('i-chev-right')} />
             </svg>
           </Button>
         </div>
@@ -362,7 +363,7 @@ function ZoomControls({ pinch, inCrop, onLeaveCrop }: { pinch: PinchZoom; inCrop
   const button = (label: string, icon: string, enabled: boolean, reasonId: string, onPress: () => void) => (
     <AriaButton className="icon-btn" aria-label={label} aria-disabled={enabled ? undefined : true} aria-describedby={enabled ? undefined : reasonId} onPress={() => enabled && onPress()}>
       <svg className="ico" aria-hidden="true">
-        <use href={`/sprite.svg#${icon}`} />
+        <use href={spriteHref(icon)} />
       </svg>
     </AriaButton>
   );

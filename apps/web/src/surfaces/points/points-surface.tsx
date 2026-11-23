@@ -49,6 +49,7 @@ import { usePointDraftRecovery } from './point-draft-recovery.ts';
 import { PointEditor, type PointSaved } from './point-editor.tsx';
 import './points.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * `/relatorio/:id/pontos` (Story 6.6, `72-pontos.html`, Sumário row 8): section 8 in print
@@ -232,7 +233,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
           <div className="bar-buttons">
             <Button variant="primary" isDisabled={editing !== null} disabledReason={t.editingReason} onPress={() => setEditing({ kind: 'new', id: newId() })}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-plus" />
+                <use href={spriteHref('i-plus')} />
               </svg>
               {t.create}
             </Button>
@@ -412,7 +413,7 @@ function PointCard({
           <div className="row-wrap">
             <TextButton aria-label={t.editLabel(title, position)} onPress={onEdit}>
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-pencil" />
+                <use href={spriteHref('i-pencil')} />
               </svg>
               {t.edit}
             </TextButton>

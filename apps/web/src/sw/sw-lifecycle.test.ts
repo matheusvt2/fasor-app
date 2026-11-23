@@ -262,20 +262,20 @@ type Worker = ReturnType<typeof startWorker>;
 
 const BUILD_A: Build = {
   version: 'aaaaaaaaaaaa',
-  precache: ['/', '/assets/index-a.js', '/sprite.svg'],
-  files: { '/': 'document A', '/assets/index-a.js': 'script A', '/sprite.svg': 'sprite A' },
+  precache: ['/', '/assets/index-a.js', '/assets/sprite-a.svg'],
+  files: { '/': 'document A', '/assets/index-a.js': 'script A', '/assets/sprite-a.svg': 'sprite A' },
 };
 
 const BUILD_B: Build = {
   version: 'bbbbbbbbbbbb',
-  precache: ['/', '/assets/index-b.js', '/sprite.svg'],
-  files: { '/': 'document B', '/assets/index-b.js': 'script B', '/sprite.svg': 'sprite B' },
+  precache: ['/', '/assets/index-b.js', '/assets/sprite-b.svg'],
+  files: { '/': 'document B', '/assets/index-b.js': 'script B', '/assets/sprite-b.svg': 'sprite B' },
 };
 
 const BUILD_C: Build = {
   version: 'cccccccccccc',
-  precache: ['/', '/assets/index-c.js', '/sprite.svg'],
-  files: { '/': 'document C', '/assets/index-c.js': 'script C', '/sprite.svg': 'sprite C' },
+  precache: ['/', '/assets/index-c.js', '/assets/sprite-c.svg'],
+  files: { '/': 'document C', '/assets/index-c.js': 'script C', '/assets/sprite-c.svg': 'sprite C' },
 };
 
 const A = `releng-shell-${BUILD_A.version}`;
@@ -381,7 +381,7 @@ describe('the browser activates the new worker while the job is pinned', () => {
     expect(await next.navigate()).toBe('document A');
     // The old document asks for the old hashed files, which the new list does not name.
     expect(await next.request('/assets/index-a.js')).toBe('script A');
-    expect(await next.request('/sprite.svg')).toBe('sprite A');
+    expect(await next.request('/assets/sprite-a.svg')).toBe('sprite A');
     expect(await caches.pin()).toEqual({ shell: A });
   });
 
@@ -616,9 +616,9 @@ describe('the pin names the build the page runs', () => {
     expect(await b.request(ENTRY_C)).toBe('script C');
 
     // C waiting. A later deploy on the server changes nothing: the job stays on C.
-    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/sprite.svg': 'sprite D' });
+    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/assets/sprite-d.svg': 'sprite D' });
     expect(await b.navigate()).toBe('document C');
-    expect(await b.request('/sprite.svg')).toBe('sprite C');
+    expect(await b.request('/assets/sprite-c.svg')).toBe('sprite C');
     expect(await startWorker(caches, network, BUILD_B).navigate()).toBe('document C');
 
     // B's own lifecycle and cleanup never take the pinned C.
@@ -657,7 +657,7 @@ describe('the pin names the build the page runs', () => {
     // C's worker installs: resolved at the next read, with no new message.
     const c = startWorker(caches, network, BUILD_C);
     await c.install();
-    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/sprite.svg': 'sprite D' });
+    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/assets/sprite-d.svg': 'sprite D' });
     expect(await b.navigate()).toBe('document C');
 
     await b.message({ type: 'hold-shell', hold: false });
@@ -775,9 +775,9 @@ describe('the pin names the build by its shell version', () => {
 
     const c = startWorker(caches, network, BUILD_C);
     await c.install();
-    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/sprite.svg': 'sprite D' });
+    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/assets/sprite-d.svg': 'sprite D' });
     expect(await b.navigate()).toBe('document C');
-    expect(await b.request('/sprite.svg')).toBe('sprite C');
+    expect(await b.request('/assets/sprite-c.svg')).toBe('sprite C');
 
     // Every tab closes: the browser activates C. Still C, and B's cache may go.
     await c.activate();
@@ -802,5 +802,87 @@ describe('the pin names the build by its shell version', () => {
     const b = await firstVisit(BUILD_B);
     await b.message(hold('__SHELL_VERSION__'));
     expect(await caches.pin()).toEqual({ shell: B });
+  });
+});
+
+/*
+ * Fix batch e26u (2026-11-23): a page gets the icon sprite of its own build.
+ *
+ * The sprite used to be `/sprite.svg`, one path for every build. On the first launch after
+ * a deploy nothing is held, so the document and its hashed chunks are the new build's
+ * (network-first navigation), but the worker in control is still the old one, and it
+ * answered that shared path cache-first from its own cache: a symbol the new build added
+ * drew nothing until a later launch (the "Usuários" card of Story 26.9, in production).
+ * The sprite now carries a content hash like every other file of the shell.
+ */
+describe('a page gets the icon sprite of its own build', () => {
+  /** A shell built before the fix: its sprite is the unhashed `/sprite.svg`. */
+  const OLD_A: Build = {
+    version: 'a0a0a0a0a0a0',
+    precache: ['/', '/assets/index-a.js', '/sprite.svg'],
+    files: { '/': 'document A', '/assets/index-a.js': 'script A', '/sprite.svg': 'old sprite A' },
+  };
+  const OLD_B: Build = {
+    version: 'b0b0b0b0b0b0',
+    precache: ['/', '/assets/index-b.js', '/sprite.svg'],
+    files: { '/': 'document B', '/assets/index-b.js': 'script B', '/sprite.svg': 'old sprite B' },
+  };
+
+  it('is what failed with one path for every build: the old worker hands the new page its own, older sprite', async () => {
+    const a = await firstVisit(OLD_A);
+    network.deploy(OLD_B.files);
+    expect(await a.navigate()).toBe('document B');
+    expect(await a.request('/assets/index-b.js')).toBe('script B');
+    // The page runs build B, and the sprite it is given is build A's.
+    expect(await a.request('/sprite.svg')).toBe('old sprite A');
+  });
+
+  it('gives the first launch after a deploy the new sprite, from the network, while the old worker still controls the page', async () => {
+    const a = await firstVisit(BUILD_A);
+    network.deploy(BUILD_B.files);
+    expect(await a.navigate()).toBe('document B');
+    expect(await a.request('/assets/sprite-b.svg')).toBe('sprite B');
+    // A tab of the old build, still open beside it, keeps its own.
+    expect(await a.request('/assets/sprite-a.svg')).toBe('sprite A');
+  });
+
+  it('does so under a worker whose own shell was built before the fix: a hashed sprite is one more file under /assets/ to it', async () => {
+    const a = await firstVisit(OLD_A);
+    network.deploy(BUILD_B.files);
+    expect(await a.navigate()).toBe('document B');
+    expect(await a.request('/assets/sprite-b.svg')).toBe('sprite B');
+  });
+
+  it('answers each build its own sprite offline, the waiting build from its own cache', async () => {
+    const a = await firstVisit(BUILD_A);
+    const b = await deployAndInstall(BUILD_B);
+    network.online = false;
+    expect(await a.request('/assets/sprite-a.svg')).toBe('sprite A');
+    expect(await a.request('/assets/sprite-b.svg')).toBe('sprite B');
+    // Every tab closes and the browser activates B: its page finds its sprite with no network.
+    await b.activate();
+    expect(await b.navigate()).toBe('document B');
+    expect(await b.request('/assets/sprite-b.svg')).toBe('sprite B');
+  });
+
+  it('keeps the sprite of a tab pinned on a shell built before the fix, which the server no longer has', async () => {
+    const first = await firstVisit(OLD_A);
+    await first.message({ type: 'hold-shell', hold: true, version: OLD_A.version });
+    const next = await deployAndInstall(BUILD_B);
+    // Every tab closed: the browser activates the new worker, whose list never names `/sprite.svg`.
+    await next.activate();
+    expect(await next.navigate()).toBe('document A');
+    expect(await next.request('/sprite.svg')).toBe('old sprite A');
+    expect(network.asked.filter((path) => path === '/sprite.svg')).toHaveLength(1);
+    network.online = false;
+    expect(await next.request('/sprite.svg')).toBe('old sprite A');
+    // A restarted worker, with nothing in its scope but the sentinel, answers the same.
+    expect(await startWorker(caches, network, BUILD_B).request('/sprite.svg')).toBe('old sprite A');
+  });
+
+  it('never answers the old path with a file of this build: with no older shell left, the network is asked', async () => {
+    const b = await firstVisit(BUILD_B);
+    expect(await b.request('/sprite.svg')).toBe('not found');
+    expect(network.asked.at(-1)).toBe('/sprite.svg');
   });
 });

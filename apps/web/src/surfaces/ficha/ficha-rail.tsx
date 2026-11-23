@@ -4,6 +4,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { useDefinitionContext } from '../../state/definition-context.ts';
 import type { RelatorioEditor } from '../relatorio/relatorio-editor.ts';
 import { RelatorioTree } from '../relatorio/relatorio-tree.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /** The rail's presentation, carried by the sheet body's `data-rail`. */
 export type RailState = 'auto' | 'open' | 'closed';
@@ -57,7 +58,7 @@ export function FichaRail({
           }}
         >
           <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-tree" />
+            <use href={spriteHref('i-tree')} />
           </svg>
         </button>
         <span className="rail-vlabel" aria-hidden="true">
@@ -78,7 +79,7 @@ export function FichaRail({
             }}
           >
             <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-back" />
+              <use href={spriteHref('i-back')} />
             </svg>
           </button>
         </div>

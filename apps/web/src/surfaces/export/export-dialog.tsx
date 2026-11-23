@@ -57,6 +57,7 @@ import { publishReAuth } from '../../api/auth-client.ts';
 import './export.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 import { useDialogTelemetry } from '../../telemetry/hooks.ts';
+import { spriteHref } from '../../styles/sprite.ts';
 
 export interface ExportDialogProps {
   relatorioId: string;
@@ -270,7 +271,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
     // Offline, the row's one reason ("Gerar relatório precisa de conexão") names both buttons.
     <Button variant="secondary" isDisabled={!online} disabledReasonId={online ? undefined : generateReasonId} data-telemetry="sumario.preview" onPress={preview.start}>
       <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-doc" />
+        <use href={spriteHref('i-doc')} />
       </svg>
       {preview.phase.kind === 'working' ? copy.export.previewing : copy.export.preview}
     </Button>
@@ -322,7 +323,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               onPress={() => docxRef !== null && download('result:docx', docxRef)}
             >
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-download" />
+                <use href={spriteHref('i-download')} />
               </svg>
               <span className="rr-text">{fileLabel('result:docx', copy.export.openDocx)}</span>
             </AriaButton>
@@ -333,7 +334,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
             ) : hasShareSheet() && docxRef !== null && canDownload ? (
               <AriaButton className="icon-btn" aria-label={shareLabel('docx', copy.export.shareDocx)} aria-busy={busy.has('share:docx') || undefined} onPress={() => share(docxRef, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-share" />
+                  <use href={spriteHref('i-share')} />
                 </svg>
               </AriaButton>
             ) : null}
@@ -347,14 +348,14 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               onPress={() => pdfRef !== null && download('result:pdf', pdfRef)}
             >
               <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-download" />
+                <use href={spriteHref('i-download')} />
               </svg>
               <span className="rr-text">{fileLabel('result:pdf', copy.export.openPdf)}</span>
             </AriaButton>
             {pdfRef !== null && hasShareSheet() && canDownload ? (
               <AriaButton className="icon-btn" aria-label={shareLabel('pdf', copy.export.sharePdf)} aria-busy={busy.has('share:pdf') || undefined} onPress={() => share(pdfRef, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-share" />
+                  <use href={spriteHref('i-share')} />
                 </svg>
               </AriaButton>
             ) : null}
@@ -603,7 +604,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                 <TextButton onPress={() => onEditInSetup(1)}>
                   {copy.export.editInSetup}
                   <svg className="ico ico-sm" aria-hidden="true">
-                    <use href="/sprite.svg#i-chev-right" />
+                    <use href={spriteHref('i-chev-right')} />
                   </svg>
                 </TextButton>
               )}
@@ -676,7 +677,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                       onPress={() => download(docxKey, { revisionId: row.id, number: row.number, format: 'docx' })}
                     >
                       <svg className="ico" aria-hidden="true">
-                        <use href="/sprite.svg#i-download" />
+                        <use href={spriteHref('i-download')} />
                       </svg>
                       {fileLabel(docxKey, copy.export.revisionDocx)}
                     </TextButton>
@@ -686,7 +687,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                       onPress={() => download(pdfKey, { revisionId: row.id, number: row.number, format: 'pdf' })}
                     >
                       <svg className="ico" aria-hidden="true">
-                        <use href="/sprite.svg#i-download" />
+                        <use href={spriteHref('i-download')} />
                       </svg>
                       {fileLabel(pdfKey, copy.export.revisionPdf)}
                     </TextButton>

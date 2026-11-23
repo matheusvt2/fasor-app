@@ -8,10 +8,12 @@ import {
   fixturePath,
   goToNeutralDocument,
   hideTab,
+  iconDrawn,
   installNextShell,
   installRefusedWrites,
   installWaitingShell,
   isApiRequest,
+  NEXT_BUILD_SYMBOL,
   readShellPin,
   runningEntry,
   runningVersion,
@@ -22,6 +24,7 @@ import {
   shellMessages,
   signInForDurability,
   stopServiceWorkers,
+  usuariosIcon,
   waitForSettledShell,
   waitForShellCache,
   withoutPageErrors,
@@ -127,9 +130,12 @@ test('@p0 1.8-AC-001 a cold open with no network serves the shell from the cache
   const cached = await waitForShellCache(page);
 
   // AD-8's precache list: the document, the hashed JS and CSS, the Inter woff2 and the
-  // SVG sprite, and nothing else.
+  // SVG sprite, and nothing else. Fix batch e26u: the sprite under its hashed name, and no
+  // path but the document that another build would also answer.
   expect(cached).toContain('/');
-  expect(cached).toContain('/sprite.svg');
+  expect(cached.some((url) => /^\/assets\/sprite-[^/]+\.svg$/.test(url))).toBe(true);
+  expect(cached).not.toContain('/sprite.svg');
+  expect(cached.filter((url) => url !== '/' && !url.startsWith('/assets/'))).toEqual([]);
   expect(cached.some((url) => /^\/assets\/.*\.js$/.test(url))).toBe(true);
   expect(cached.some((url) => /^\/assets\/.*\.css$/.test(url))).toBe(true);
   expect(cached.some((url) => url.endsWith('.woff2'))).toBe(true);
@@ -159,6 +165,8 @@ test('@p0 1.8-AC-001 a cold open with no network serves the shell from the cache
     await expect(offline.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
     await expect(offline.locator('.app-bar .wordmark')).toHaveText(PRODUTO);
     await expect(offline.locator('.login-form')).toHaveCount(0);
+    // Fix batch e26u: no icon goes blank offline; the sprite came from the shell cache too.
+    await expect.poll(() => iconDrawn(usuariosIcon(offline)), { timeout: 10_000 }).toBe(true);
   } finally {
     await context.setOffline(false);
   }
@@ -420,6 +428,12 @@ test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and
     expect(await readShellPin(tab)).toBe(version);
     expect(await runningVersion(tab)).toBe(version);
     expect(await runningEntry(tab)).toBe(entry);
+    // Fix batch e26u: the held tab keeps its shell's sprite as it keeps its chunks. It
+    // names the old sprite's symbol, never the one only the new build's sprite declares,
+    // and draws it under the new worker.
+    await expect(usuariosIcon(tab)).toHaveAttribute('href', /^\/assets\/sprite-[^/]+\.svg#i-users$/);
+    await expect(usuariosIcon(tab)).not.toHaveAttribute('href', /-next\.svg#/);
+    await expect.poll(() => iconDrawn(usuariosIcon(tab)), { timeout: 10_000 }).toBe(true);
 
     // The job finishes: the push goes through and the outbox drains.
     pushBlocked = false;
@@ -441,6 +455,9 @@ test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and
     await expect(tab.locator('meta[name="shell-build"]')).toHaveCount(1);
     expect(await runningEntry(tab)).toBe(entry.replace(/\.js$/, '-next.js'));
     expect(await runningVersion(tab)).toBe(`${version}-next`);
+    // Fix batch e26u: and with the new shell comes its sprite, with the icon it added.
+    await expect(usuariosIcon(tab)).toHaveAttribute('href', new RegExp(`-next\\.svg#${NEXT_BUILD_SYMBOL}$`));
+    await expect.poll(() => iconDrawn(usuariosIcon(tab)), { timeout: 10_000 }).toBe(true);
     await waitForSettledShell(tab);
     await expect.poll(() => shellCacheNames(tab), { timeout: 15_000 }).toEqual([`${original}-next`]);
   } finally {

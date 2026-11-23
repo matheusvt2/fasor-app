@@ -32,6 +32,7 @@ import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { createTemplateOp, putTemplateOp, removeTemplateOp } from './template-ops.ts';
 import { TypeListSection } from './type-list.tsx';
 import './templates.css';
+import { spriteHref } from '../../styles/sprite.ts';
 
 const NO_SUMMARIES: RelatorioSummary[] = [];
 const NO_RELATORIOS: RelatorioRow[] = [];
@@ -220,7 +221,7 @@ export function TemplatesSurface() {
                   onPress={createEmpty}
                 >
                   <svg className="ico" aria-hidden="true">
-                    <use href="/sprite.svg#i-plus" />
+                    <use href={spriteHref('i-plus')} />
                   </svg>
                   {copy.templates.newTemplate}
                 </Button>
@@ -248,13 +249,13 @@ export function TemplatesSurface() {
                         <>
                           <TextButton onPress={() => duplicate(row)}>
                             <svg className="ico" aria-hidden="true">
-                              <use href="/sprite.svg#i-copy" />
+                              <use href={spriteHref('i-copy')} />
                             </svg>
                             {copy.templates.duplicate}
                           </TextButton>
                           <TextButton onPress={() => void setArchived(row, true)}>
                             <svg className="ico" aria-hidden="true">
-                              <use href="/sprite.svg#i-archive" />
+                              <use href={spriteHref('i-archive')} />
                             </svg>
                             {copy.templates.archive}
                           </TextButton>
@@ -351,7 +352,7 @@ function TemplateListRow({ row, archived = false, useCount, removable, onOpen, o
   return (
     <li className={archived ? 'registry-row tpl-row is-archived' : 'registry-row tpl-row'} data-template-id={row.id}>
       <svg className="ico ink-secondary" aria-hidden="true">
-        <use href="/sprite.svg#i-template" />
+        <use href={spriteHref('i-template')} />
       </svg>
       {onOpen === undefined ? (
         <div className="rr-text">{text}</div>

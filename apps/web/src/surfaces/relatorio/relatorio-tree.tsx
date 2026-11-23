@@ -36,6 +36,7 @@ import { LocalDialog } from '../templates/local-dialog.tsx';
 import { RailLocation } from './relatorio-tree-rail.tsx';
 import type { Dialog, Shared } from './relatorio-tree-shared.tsx';
 import { SumarioLocation } from './relatorio-tree-sumario.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Stories 4.4 and 4.5: the location tree, ONE component in two presentations
@@ -347,7 +348,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
             <div className="s9-foot" ref={footRef}>
               <TextButton onPress={() => setDialog({ kind: 'local-add' })}>
                 <svg className="ico" aria-hidden="true">
-                  <use href="/sprite.svg#i-plus" />
+                  <use href={spriteHref('i-plus')} />
                 </svg>
                 {t.addLocal}
               </TextButton>

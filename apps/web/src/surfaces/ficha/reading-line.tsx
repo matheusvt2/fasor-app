@@ -14,6 +14,7 @@ import { useNowIso } from '../../state/now-iso.ts';
 import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle, useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { spriteHref } from '../../styles/sprite.ts';
 
 /*
  * Story 13.5 (WAIT-1, WAIT-2; review-field-ux-2026-10-06): the lines a pending or failed plate
@@ -101,7 +102,7 @@ export function ReadingWaitLine({ photoId, startedAt, variant }: ReadingWaitLine
     ) : (
       <span className="queued-banner">
         <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-image" />
+          <use href={spriteHref('i-image')} />
         </svg>
         {wait.text}
       </span>
