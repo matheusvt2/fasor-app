@@ -53,7 +53,10 @@ async function leaveWithoutBlur(page: Page, blockId: string, focused: Locator): 
 
 /** Back to the sheet through the app's history (no page load: offline too). */
 async function backToSheet(page: Page, blockId: string): Promise<void> {
-  await page.goBack();
+  // Fix batch e28w (N2): "Voltar" from a sheet opened from the Sumário steps back in history, so the sheet is the entry
+  // ahead; from a sheet opened after a reload it still pushes the Sumário, and the sheet is the entry behind.
+  await page.goForward();
+  if (!new RegExp(`/ficha/${blockId}$`).test(new URL(page.url()).pathname)) await page.goBack();
   await expect(page).toHaveURL(new RegExp(`/ficha/${blockId}$`));
   await expect(sheetTitle(page)).toBeVisible({ timeout: 30_000 });
 }

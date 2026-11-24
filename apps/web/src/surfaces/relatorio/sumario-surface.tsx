@@ -62,7 +62,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
-import { keepSumarioView, keptSumarioView, returnArrival } from '../../state/history-return.ts';
+import { endReturnArrival, keepSumarioView, keptSumarioView, returnArrival } from '../../state/history-return.ts';
 import { RETURN_PARAM, RETURN_TO_EXPORT, useBackTarget } from '../../state/back-target.tsx';
 import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
@@ -250,6 +250,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const navigationType = useNavigationType();
   // Fix batch e28w (N2): a "Voltar" that stepped back here hands over the state its push would have carried.
   const [arrival] = useState(() => arrivalOf(location.state ?? returnArrival(location.pathname)));
+  useEffect(() => endReturnArrival(location.pathname), [location.pathname]);
   // History keeps no arrival state: a reload or a browser back onto the Sumário opens it plain.
   useForgetArrivalState();
   // Fix batch e28w (S2; Story 29.2, third criterion): a step back onto this entry draws what it showed, in every

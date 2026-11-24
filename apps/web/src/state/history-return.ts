@@ -58,11 +58,13 @@ export function keptSumarioView(entryKey: string, relatorioId: string): SumarioV
 
 const origins = new Map<string, string>();
 let shown: { key: string; address: string } | null = null;
-let returning: { to: string; state: unknown } | null = null;
+/** A "Voltar" that stepped back: its destination, the state, and the entry it landed on (null until it lands). */
+let returning: { to: string; state: unknown; landed: string | null } | null = null;
 
 /**
  * Mounted once, in the App shell: records the address each pushed entry was pushed from, and ends a pending
- * return arrival once the screen it was for has rendered (a child's render reads it before this effect runs).
+ * return arrival when the person moves on from the entry it landed on (the screen may draw its content renders
+ * after the landing, behind its gate; it ends the arrival itself once read, `endReturnArrival`).
  */
 export function useEntryOrigins(): void {
   const location = useLocation();
@@ -75,7 +77,10 @@ export function useEntryOrigins(): void {
         const from = origins.get(shown.key);
         if (from !== undefined) keep(origins, location.key, from);
       }
-      returning = null;
+      if (returning !== null) {
+        if (returning.landed === null) returning.landed = location.key;
+        else if (returning.landed !== location.key) returning = null;
+      }
     }
     shown = { key: location.key, address };
   }, [location.key, location.pathname, location.search, navigationType]);
@@ -87,11 +92,16 @@ export function useEntryOrigins(): void {
  */
 export function returnToOrigin(entryKey: string, to: string, state: unknown): boolean {
   if (origins.get(entryKey) !== to) return false;
-  returning = { to, state };
+  returning = { to, state, landed: null };
   return true;
 }
 
 /** The arrival state of a "Voltar" that stepped back to `pathname`, or null. Pure: a render may read it twice. */
 export function returnArrival(pathname: string): unknown {
   return returning !== null && returning.to === pathname ? returning.state : null;
+}
+
+/** Ends the arrival of a "Voltar" to `pathname` once its screen has read it (an effect), so a later draw reads none. */
+export function endReturnArrival(pathname: string): void {
+  if (returning !== null && returning.to === pathname) returning = null;
 }

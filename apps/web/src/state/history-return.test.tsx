@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter, useLocation, useNavigate } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { keepSumarioView, keptSumarioView, returnArrival, returnToOrigin, useEntryOrigins } from './history-return.ts';
+import { endReturnArrival, keepSumarioView, keptSumarioView, returnArrival, returnToOrigin, useEntryOrigins } from './history-return.ts';
 
 /*
  * Fix batch e28w (S2, N2 of the pass of 2026-11-23): the Sumário's view kept by history entry, and the origin of each
@@ -55,7 +55,14 @@ describe('the origin of a pushed entry', () => {
     expect(returnArrival('/relatorio/r2')).toBeNull();
     act(() => void result.current.navigate(-1));
     expect(result.current.location.pathname).toBe('/relatorio/r1');
-    // Read by the screen's render, then ended.
+    // Still there for a screen drawn behind its gate after the landing; ended once read, or by the next step.
+    expect(returnArrival('/relatorio/r1')).toBe(state);
+    endReturnArrival('/relatorio/r1');
+    expect(returnArrival('/relatorio/r1')).toBeNull();
+    act(() => void result.current.navigate('/relatorio/r1/ficha/b1'));
+    expect(returnToOrigin(result.current.location.key, '/relatorio/r1', state)).toBe(true);
+    act(() => void result.current.navigate(-1));
+    act(() => void result.current.navigate('/'));
     expect(returnArrival('/relatorio/r1')).toBeNull();
   });
 

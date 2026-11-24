@@ -136,8 +136,8 @@ test('@p0 28.4-E2E-001 v18 lists: items 18 and 19 in the dry words with NC, a ne
     `NÃO ENSAIADO — ${REASON.label}: Ensaios não realizados no(s) equipamento(s) ${tc.tag}, de propriedade da concessionária ${UTILITY} e destinado(s) à medição de faturamento, por não haver autorização da concessionária para intervenção.`,
   );
   expect(all).not.toContain(UTILITY_NAME_SLOT);
-  // Fix batch e28w (S3): item 18's "PT100" keeps its capitals in the point section 9 prints and in section 10's summary.
-  expect(all).toContain('Item 18 (sensores de temperatura (PT100) e relé térmico: alarme e desligamento)');
+  // Fix batch e28w (S3): item 18's "PT100" keeps its capitals in section 10's summary, and nowhere prints "pt100" (the
+  // point an NC row starts is `e28w-UNIT-002`'s: this relatório creates none).
   expect(all).toContain('item 18 (sensores de temperatura (PT100) e relé térmico: alarme e desligamento) em 1 ficha');
   expect(all.toLocaleLowerCase('pt-BR').split('pt100').length - 1).toBe(all.split('PT100').length - 1);
 });
