@@ -12350,6 +12350,8 @@ So that I open the right one (F20, F21).
 
 On 2026-11-22 Bruno answered the seventeen questions B-1 to B-17 of `sprint-change-proposal-2026-11-11.md` § 6. His words and the coordinator's mapping are in `docs/context/epic-25/respostas-bruno-2026-11-22.md` (gitignored, pt-BR, absent on other machines). This epic cites him by question ("B-7"). The product sentences he dictated (the band, the default action, the note on the instrument's limit, the item names, the reasons) are written in the stories verbatim. No client and no site is named. Every file and line below was checked on main `8f369015`: contract 57, seed v17 on main and not deployed, production on seed v16.
 
+*(2026-11-24, outcome: all ten stories are built and merged (PR #368 the frames, #369 the icon sprite fix, #370 Stories 28.2 to 28.4, #371 Stories 28.5 to 28.8, #373 Stories 28.9 and 28.10, review fixes #374, the structuring fixes #375 and #376, the hands-on pass fixes #377), deployed 2026-11-24 as `de79700b` (tag `v0.14.0`, smoke 8 of 8, contract 59, seed v18 frozen). The delivery record is in `implementation-artifacts/epic-28-context.md`, the hands-on pass in `test-artifacts/manual/hands-on-pass-2026-11-23.md`. The retrospective has not been run.)*
+
 **Matheus's decisions (2026-11-22):**
 1. **"Pode fazer o épico 28".** It is built after the joint deploy of Epics 26 and 27 and is not part of it. Seed v17 freezes at that deploy, so every change of this epic to a sheet definition, a plate field or a printed fixed text goes to a new seed, v18.
 2. **The No-break's tests leave Epic 25.** Bruno (B-1, B-2, and the follow-up of the same day): the No-break de comando stays a type of inspection items only, as today. Its tests will be built with a future "painéis" (panels) module, a new module at another time. Story 25.17 is dropped; the Disjuntor MT keeps its item NO-BREAK DE COMANDO.
@@ -13038,6 +13040,8 @@ So that I do not need to sign out and ask for a link by e-mail.
 - `e2e/change-password.spec.ts` "29.1-E2E-001" (`@p0`): the whole flow as each of two roles, the wrong-password and mismatch cases, offline.
 - `docs/kbs` concept for the account surface and `log.md`.
 
+*(2026-11-24, outcome: built in batch e29a, PR #372; deployed 2026-11-24 as `de79700b` (tag `v0.14.0`, smoke 8 of 8, contract 59, seed v18 frozen).)*
+
 ### Story 29.2: Closing a dialog or going back returns to the screen before
 
 **Dev model:** opus · **Effort:** high · web: navigation history, dialogs and overlays; investigation first
@@ -13084,6 +13088,8 @@ So that I do not lose my place and start again from the beginning.
 *(2026-11-24, fix batch e28w, S2 and N2 of the hands-on pass of 2026-11-23, the third criterion and Bruno's complaint:)*
 - *S2: on a relatório in Em revisão the device back from a ficha brought section 8 back collapsed and the scroll elsewhere (390: y 2397 before, 1526 after). Cause: the Sumário opened section 8 by its status's rule alone on every arrival but a "Voltar" (`sumarioOpensExpanded`, Em campo only), and each local's open state lived in the tree's memory, lost on unmount, so the page came back shorter and `useScrollRestoration` could not reach the kept scroll; on Em campo the path to the last sheet was reopened by its landing and the other locals came back collapsed. Now the Sumário keeps its view (section 8 and each local opened or closed) by the router key of its history entry (`state/history-return.ts`, in memory, so a reload opens it by the status's rule), and a pop onto that entry draws it again, in every status, so the scroll lands where it was. Em campo keeps its landing on the last sheet (Stories 12.2 and 15.4).*
 - *N2: the ficha's (and Verificações do local's) in-app "Voltar" pushed a new Sumário entry, so a later device back reopened the ficha. Now each pushed entry remembers the address it was pushed from (kept over a replace), and "Voltar" steps back in history when that address is its destination, handing the Sumário the state its push carried (section 8 open, the row focused); from a deep link or another screen it navigates as before. `overlay-history.ts` is unchanged. A sheet left by that "Voltar" is now the entry ahead, so `25.2-E2E-001` and `-002` go back to it forward. `state/history-return.test.tsx`; `e28w-E2E-001` (Em revisão and Em campo), `e28w-E2E-002` (768), `e28w-E2E-003` and `e28w-E2E-004` in `overlay-back.spec.ts`.*
+
+*(2026-11-24, outcome: built in batch e29a, PR #372, with the review fixes of #374 and the hands-on pass fix of #377; deployed 2026-11-24 as `de79700b` (tag `v0.14.0`, smoke 8 of 8, contract 59, seed v18 frozen). The retrospective has not been run.)*
 
 ## Backlog: deferred stories
 

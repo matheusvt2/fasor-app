@@ -56,3 +56,81 @@ At most two batch stacks up at a time. The main checkout's stack is stopped whil
 - B-10 has no story: the hands-on pass reproduces the two sheets under a removed local; a screen that shows them as live becomes a fix batch.
 - The frames of Story 28.1 need Matheus's approval before wave 2.
 - The paid plate eval needs Matheus's word for the spend.
+
+## Delivery record, 2026-11-24
+
+Epics 28 and 29 are delivered and deployed. The waves, the gates, the review, the hands-on pass, the paid plate evaluation and the deploy are below; the figures come from the batches' PRs and the coordinator's runs.
+
+### Waves and pull requests
+
+All merged to main, in this order:
+
+| PR | Tag | What |
+| --- | --- | --- |
+| #368 | wave 0 | Story 28.1, the Epic 28 frames in the mocks (approved by Matheus 2026-11-23) |
+| #369 | e26u | the icon sprite carries a content hash (`apps/web/src/styles/sprite.ts`, `spriteHref`), so the first launch after an update draws the new Usuarios icon |
+| #370 | e28a | Stories 28.2 to 28.4: seed v18 opens, the oil's names, items, reasons and the utility justification; contract 58; plate prompt `bedrock-structuring-10` |
+| #371 | e28b | Stories 28.5 to 28.8; no contract bump |
+| #372 | e29a | Stories 29.1 (change password) and 29.2 (overlays and back keep the screen) |
+| #373 | e28c | Stories 28.9 and 28.10; contract 59 |
+| #374 | e28r | fixes of the wave review, and the first-issue deadline base |
+| #375 | e28v | the Bedrock structuring provider decodes a tool input member sent as JSON text |
+| #376 | e28v2 | the same provider lifts a `vector_diagram` member leaked into the `values` text |
+| #377 | e28w | fixes of three findings of the hands-on pass (main after it: `de79700b`) |
+
+Final state: `CONTRACT_VERSION` 59, `MIN_CONTRACT_VERSION` 59, `SEED_VERSION` v18, `V18_HASH` `3cf073c54ac755b4636d1e96df990cdb69fc9b13929b5b5f3a8a22d86e854951` (re-pinned by #377 for the rule flag `label_acronyms_inline`). The deploy froze seed v18.
+
+### Wave gate on `d1180f5c` (2026-11-23, before the fix batches)
+
+- `lint`, `static`, `test:unit`, `test:api` green.
+- `test:e2e:full`: 800 of 805 passed, 4 skipped, 1 failed. The failure was `sheet-photos.spec.ts` 11.11-E2E-001, a toast race; green alone, 39 of 39 with 3 repeats. Another stack came up during the gate.
+- Matrix: 163 of 180 passed, 17 skipped, 0 failed.
+
+### Review
+
+One read-only review (2026-11-23): no blocker. Findings S1 to S5 were handled in #374. S5 was decided by Matheus on 2026-11-23 ("Opção A, e mostre a data real"): a suggested deadline counts from the first issue in every revision, and after the first issue Pontos and the editor show the real date. The double close of the Export dialog (S3a) could not be reproduced; a one-shot ref was kept.
+
+### Hands-on pass (2026-11-23)
+
+Run on `82529122`, local dev company, at 1280 px and tablet widths. No blocker. Three should-fix findings and the in-app "Voltar" note N2 were fixed in #377, each with a test that failed first. The report is `_bmad-output/test-artifacts/manual/hands-on-pass-2026-11-23.md`; the checks it did not make are rows in `deferred-work.md`.
+
+### Paid plate evaluation (2026-11-24)
+
+Run on Matheus's word ("pode rodar a avaliação paga da placa"), about USD 0.80. It found the production model failing on a v18 plate with "expected array, received string"; #375 and #376 fixed it. Final run, production model `global.anthropic.claude-haiku-4-5-20251001-v1:0`, on `84827c73`:
+
+| Set | Readings | Failed | Result |
+| --- | --- | --- | --- |
+| v18 probe plates | 4 | 0 | 6 of 6 fields |
+| synthetic plates | 16 | 0 | 97.9 % (95 of 97) |
+| real plates | 6 | 0 | 6 of 6 |
+
+Escalation model `us.amazon.nova-pro-v1:0`, earlier round only and not repeated after the fixes: synthetic 96.9 % (94 of 97), real plates 5 of 6 (the known "Dd0 (diagram)" plate), dry plate 1 of 2. The v18 probe plates are untracked (`test-results/eval-e28-v18/`); `eval-samples.ts` has no v18 sample.
+
+### Final gate on `de79700b` (2026-11-24, machine idle)
+
+- `lint` and `static` clean; `test:unit` 7943 of 7943; `test:api` 1207 passed, 10 skipped.
+- `test:e2e:full`: 807 of 812 passed, 4 skipped, 1 failed: `photos.spec.ts` 6.2-E2E-001 (the retried photo's upload pill stayed); green alone three times in a row; this wave did not touch photo upload.
+- Matrix: 163 of 180 passed, 17 skipped, 0 failed.
+
+### Deploy
+
+2026-11-24, `de79700b`, on Matheus's conditional word of 2026-11-23 ("tbm pode fazer o deploy se validar"). Production smoke 8 of 8; 6 `session_start` events, 0 sink failures. Tag and release `v0.14.0` published.
+
+### Open readings waiting for Matheus (open, not decided)
+
+Each is built as written in the story or the dated line named; none is a decision of record until Matheus answers.
+
+1. An empty utility name blocks the issue (the pre-issue row `utility_name_missing`).
+2. The slot "[nome da concessionária]" shows in the justification while the name is empty.
+3. Bruno's over-range line replaces Story 23.4's sentence on v18.
+4. The deadline term shows as a line over an empty date field.
+5. A preview after the first issue counts the deadline from the first issue.
+6. A past real date after the first issue raises the overdue row.
+7. "Voltar" from a ficha opened from the Sumário steps back in history.
+
+The authored strings for Bruno are listed in PRs #368, #370, #371, #372, #373, #374 and #377.
+
+### Still to do
+
+- The retrospectives of Epics 28 and 29 stay `optional` in `sprint-status.yaml`.
+- The message to Bruno (every authored sentence) is Matheus's to send.
