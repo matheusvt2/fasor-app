@@ -692,3 +692,99 @@ describe('28.3-API-001 (batch e28a, seed v18): the structuring prompt names the 
     expect(notes).toContain('The field tipo_de_isolacao is ÓLEO ISOLANTE when the plate names an insulating oil or liquid ("óleo isolante", "óleo mineral", "silicone"); leave it out when the plate prints no insulation word.');
   });
 });
+
+describe('e28v (paid eval 2026-11-23, Haiku 4.5 on the drawn Yyn0 plate, seed v18): a tool input member sent as its JSON text', () => {
+  const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
+  const others = plateValues.values.filter((value) => value.key !== 'ligacao_secundaria');
+  const yyn0 = { hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0, ocr_token_ids: ['t4', 't9'] };
+  const read = (input: unknown, structuring: StructuringInput = plateInput) => structurer(replying([toolUse('record_values', input)])).structure(structuring);
+  const decodedLines = (lines: { mock: { calls: unknown[][] } }) =>
+    lines.mock.calls.map((call) => JSON.parse(String(call[0])) as Record<string, unknown>).filter((line) => line.msg === 'reading structuring tool input decoded');
+
+  it('28v-API-001: values as the JSON text of the value array reads as the array: the same StructuringResult', async () => {
+    const asArray = await read(plateValues);
+    const asText = await read({ values: JSON.stringify(plateValues.values) });
+    expect(asText).toEqual(asArray);
+    expect(asText.output).toEqual(plateValues);
+  });
+
+  it('28v-API-002: the drawn plate: values as text beside the Yyn0 diagram still folds the diagram into the group', async () => {
+    const asArray = await read({ values: others, vector_diagram: yyn0 }, withGroup);
+    const asText = await read({ values: JSON.stringify(others), vector_diagram: yyn0 }, withGroup);
+    expect(asText).toEqual(asArray);
+    expect(asText.output.values.find((value) => value.key === 'ligacao_secundaria')).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t4', 't9'], confidence: 0.5 });
+  });
+
+  it('28v-API-003: the vector_diagram object, its citations, one value entry and one value\'s citations as JSON text read as the parsed member', async () => {
+    const asArray = await read({ values: others, vector_diagram: yyn0 }, withGroup);
+    expect(await read({ values: others, vector_diagram: JSON.stringify(yyn0) }, withGroup)).toEqual(asArray);
+    expect(await read({ values: others, vector_diagram: { ...yyn0, ocr_token_ids: JSON.stringify(yyn0.ocr_token_ids) } }, withGroup)).toEqual(asArray);
+    const [first, ...rest] = others;
+    expect(await read({ values: [JSON.stringify(first), ...rest], vector_diagram: yyn0 }, withGroup)).toEqual(asArray);
+    expect(await read({ values: [{ ...first!, ocr_token_ids: JSON.stringify(first!.ocr_token_ids) }, ...rest], vector_diagram: yyn0 }, withGroup)).toEqual(asArray);
+    // Every member at once, each one layer of the same quirk.
+    const nested = JSON.stringify([JSON.stringify(first), ...rest.map((value) => ({ ...value, ocr_token_ids: JSON.stringify(value.ocr_token_ids) }))]);
+    expect(await read({ values: nested, vector_diagram: JSON.stringify({ ...yyn0, ocr_token_ids: JSON.stringify(yyn0.ocr_token_ids) }) }, withGroup)).toEqual(asArray);
+  });
+
+  it('28v-API-004: values text that is not JSON, or JSON that is not an array, stays a PermanentReadingError with the same message', async () => {
+    for (const values of ['tipo: TSE-500/15', '[{"key": "tipo"', JSON.stringify({ key: 'tipo', value: 'X', ocr_token_ids: ['t11'], confidence: 0.5 }), JSON.stringify(JSON.stringify(plateValues.values)), '42', 'null']) {
+      const error = await failure(read({ values }));
+      expect(error, values).toBeInstanceOf(PermanentReadingError);
+      expect((error as Error).message, values).toMatch(/^bedrock: global\.anthropic\.claude-haiku-4-5-20251001-v1:0: the tool input is not a StructuringOutput: /);
+      expect((error as Error).message, values).toContain('expected array, received string');
+    }
+  });
+
+  it('28v-API-005: after the decode the same strict schema judges: an extra property, a key twice, a bad id, a bad confidence or a citation that is no JSON array is still permanent', async () => {
+    const tipo = { key: 'tipo', value: 'X', ocr_token_ids: ['t11'], confidence: 0.5 };
+    for (const values of [
+      JSON.stringify([{ ...tipo, bbox: [0, 0, 1, 1] }]),
+      JSON.stringify([tipo, { ...tipo, value: 'Y' }]),
+      JSON.stringify([{ ...tipo, ocr_token_ids: ['w11'] }]),
+      JSON.stringify([{ ...tipo, confidence: 2 }]),
+      [{ ...tipo, ocr_token_ids: 't11' }],
+      [{ ...tipo, ocr_token_ids: '{"0": "t11"}' }],
+      ['tipo = X'],
+    ]) {
+      const error = await failure(read({ values }));
+      expect(error, JSON.stringify(values)).toBeInstanceOf(PermanentReadingError);
+      expect((error as Error).message).toContain('the tool input is not a StructuringOutput');
+    }
+    // A whole tool input sent as text stays permanent (the 11.6 case), and a value's text is never decoded: the schema takes a string there.
+    expect(await failure(read(JSON.stringify(plateValues)))).toBeInstanceOf(PermanentReadingError);
+    const numberAsText = { key: 'potencia', value: '{"raw":"500","unit":"kVA","state":"measured"}', ocr_token_ids: ['t11'], confidence: 0.9 };
+    expect((await read({ values: [numberAsText] })).output.values).toEqual([numberAsText]);
+  });
+
+  it('28v-API-006: one "reading structuring tool input decoded" info line names the model and the members, never the plate\'s words; none for the array form', async () => {
+    const lines = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      await read({ values: JSON.stringify(others), vector_diagram: JSON.stringify(yyn0) }, withGroup);
+      const logged = decodedLines(lines);
+      expect(logged).toHaveLength(1);
+      expect(logged[0]).toMatchObject({ level: 'info', model: HAIKU, members: ['values', 'vector_diagram'] });
+      const text = String(lines.mock.calls.find((call) => String(call[0]).includes('reading structuring tool input decoded'))![0]);
+      for (const value of others) expect(text.includes(JSON.stringify(value.value)), JSON.stringify(value.value)).toBe(false);
+      for (const token of plateOcr.tokens) expect(text.includes(`"${token.text}"`), token.text).toBe(false);
+
+      lines.mockClear();
+      await read(
+        {
+          values: [JSON.stringify(others[0]), ...others.slice(1).map((value) => ({ ...value, ocr_token_ids: JSON.stringify(value.ocr_token_ids) }))],
+          vector_diagram: { ...yyn0, ocr_token_ids: JSON.stringify(yyn0.ocr_token_ids) },
+        },
+        withGroup,
+      );
+      expect(decodedLines(lines)).toEqual([expect.objectContaining({ members: ['values[]', 'values[].ocr_token_ids', 'vector_diagram.ocr_token_ids'] })]);
+
+      lines.mockClear();
+      await read({ values: others, vector_diagram: yyn0 }, withGroup);
+      await read(plateValues);
+      await failure(read({ values: 'tipo: TSE-500/15' }));
+      expect(decodedLines(lines)).toEqual([]);
+    } finally {
+      lines.mockRestore();
+    }
+  });
+});
