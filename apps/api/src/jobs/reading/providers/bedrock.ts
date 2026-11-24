@@ -16,6 +16,7 @@ import {
 } from '@app/domain';
 import { z } from 'zod';
 import { assertPricedModel, converseTool, type BedrockProviderOptions, type JsonSchema } from '../../../ai/bedrock.ts';
+import { log } from '../../../log.ts';
 import { PermanentReadingError } from './errors.ts';
 import { withoutUncitedValues } from './uncited.ts';
 import { logVectorDiagram, VECTOR_DIAGRAM_KEY, VECTOR_DIAGRAM_TOOL_SCHEMA, vectorGroupKeyOf, vectorGroupOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
@@ -324,6 +325,60 @@ export function prosePrompt(input: Pick<ProseInput, 'kind' | 'context'>): string
   );
 }
 
+// --- the tool input's members sent as JSON text -------------------------------------
+
+/*
+ * e28v (the paid eval of 2026-11-23, prompt 10, Haiku 4.5 on the drawn Yyn0 plate of seed v18):
+ * twice the model sent the tool input's `values` as a string holding the JSON array instead of the
+ * array, and the strict parse turned the reading into a permanent failure. Converse models do this
+ * now and then with a nested array or object parameter. So, before the vector-diagram fold and the
+ * contract parse, each member the tool schema types as an array or an object (`values`, each of its
+ * entries, an entry's `ocr_token_ids`, `vector_diagram` and its `ocr_token_ids`) that arrives as a
+ * string is replaced by its JSON parse when that parse has the member's shape. Anything else stays
+ * as it came, and the same strict schema judges the result. A value (`values[].value`) is never
+ * decoded: the schema takes a string there. The whole tool input as a string stays a failure.
+ */
+
+/** The members decoded, by their path in the tool input; logged when not empty. */
+export type DecodedMember = 'values' | 'values[]' | 'values[].ocr_token_ids' | 'vector_diagram' | 'vector_diagram.ocr_token_ids';
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** The JSON parse of a string member when it has the member's shape; the member as it came otherwise. */
+function decodedMember(value: unknown, shape: 'array' | 'object'): { value: unknown; decoded: boolean } {
+  if (typeof value !== 'string') return { value, decoded: false };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return { value, decoded: false };
+  }
+  const fits = shape === 'array' ? Array.isArray(parsed) : isObjectRecord(parsed);
+  return fits ? { value: parsed, decoded: true } : { value, decoded: false };
+}
+
+/** The tool input with its array and object members sent as JSON text parsed back, and which members were. */
+export function withDecodedJsonMembers(input: unknown): { input: unknown; decoded: DecodedMember[] } {
+  if (!isObjectRecord(input)) return { input, decoded: [] };
+  const decoded = new Set<DecodedMember>();
+  const member = (value: unknown, shape: 'array' | 'object', path: DecodedMember): unknown => {
+    const result = decodedMember(value, shape);
+    if (result.decoded) decoded.add(path);
+    return result.value;
+  };
+  const withIds = (entry: unknown, path: 'values[].ocr_token_ids' | 'vector_diagram.ocr_token_ids'): unknown =>
+    isObjectRecord(entry) && Object.hasOwn(entry, 'ocr_token_ids') ? { ...entry, ocr_token_ids: member(entry.ocr_token_ids, 'array', path) } : entry;
+  const output: Record<string, unknown> = { ...input };
+  if (Object.hasOwn(input, 'values')) {
+    const values = member(input.values, 'array', 'values');
+    output.values = Array.isArray(values) ? values.map((entry: unknown) => withIds(member(entry, 'object', 'values[]'), 'values[].ocr_token_ids')) : values;
+  }
+  if (Object.hasOwn(input, VECTOR_DIAGRAM_KEY)) output[VECTOR_DIAGRAM_KEY] = withIds(member(input[VECTOR_DIAGRAM_KEY], 'object', 'vector_diagram'), 'vector_diagram.ocr_token_ids');
+  if (decoded.size === 0) return { input, decoded: [] };
+  const order: DecodedMember[] = ['values', 'values[]', 'values[].ocr_token_ids', 'vector_diagram', 'vector_diagram.ocr_token_ids'];
+  return { input: output, decoded: order.filter((path) => decoded.has(path)) };
+}
+
 // --- the call ---------------------------------------------------------------------
 
 function imageBlock(image: OcrImage): ContentBlock {
@@ -348,9 +403,12 @@ export function bedrockStructuringProvider(options: BedrockProviderOptions): Str
         tool: { name: STRUCTURING_TOOL, description: 'Records the field values read on the photo, each citing the OCR word ids that spell it.', schema: structuringToolSchema(input.fields, groupKey) },
         maxTokens: STRUCTURING_MAX_TOKENS,
       });
+      // e28v: array and object members sent as JSON text are parsed back first; one log line says which, never their content.
+      const members = withDecodedJsonMembers(answer.input);
+      if (members.decoded.length > 0) log('reading structuring tool input decoded', { model: options.modelId, members: members.decoded });
       // e21f: the drawn diagram's facts become the group's value (or are dropped), then the uncited values go.
       // e21a (R-3): the fold's outcome is one log line.
-      const fold = withVectorDiagram(answer.input, vectorGroupOf(plate), input.ocr.tokens);
+      const fold = withVectorDiagram(members.input, vectorGroupOf(plate), input.ocr.tokens);
       logVectorDiagram(fold, options.modelId);
       const parsed = structuringResultSchema.safeParse({ output: withoutUncitedValues(fold.input), model: options.modelId, prompt_version: BEDROCK_STRUCTURING_PROMPT_VERSION, usage: answer.usage });
       if (!parsed.success) throw new PermanentReadingError(`bedrock: ${options.modelId}: the tool input is not a StructuringOutput: ${parsed.error.message.slice(0, 300)}`);
