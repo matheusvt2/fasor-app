@@ -788,3 +788,57 @@ describe('e28v (paid eval 2026-11-23, Haiku 4.5 on the drawn Yyn0 plate, seed v1
     }
   });
 });
+
+describe('e28v2 (paid eval 2026-11-23, after #375): the drawn Yyn0 plate\'s values text carries the vector_diagram member after the array', () => {
+  /** The tool input Haiku 4.5 returned on the synthetic drawn plate, captured verbatim by the coordinator: one top-level key. */
+  const LEAKED_RAW = String.raw`{"values":"[\n  {\n    \"key\": \"identificacao\",\n    \"value\": \"TR-03\",\n    \"ocr_token_ids\": [\"t4\"],\n    \"confidence\": 0.95\n  },\n  {\n    \"key\": \"fabricacao\",\n    \"value\": \"Varnelo\",\n    \"ocr_token_ids\": [\"t6\"],\n    \"confidence\": 0.95\n  },\n  {\n    \"key\": \"tensao_nominal_at\",\n    \"value\": {\n      \"raw\": \"13.8\",\n      \"unit\": \"kV\",\n      \"state\": \"measured\"\n    },\n    \"ocr_token_ids\": [\"t10\", \"t11\"],\n    \"confidence\": 0.95\n  },\n  {\n    \"key\": \"tensao_nominal_bt\",\n    \"value\": {\n      \"raw\": \"380\",\n      \"unit\": \"V\",\n      \"state\": \"measured\"\n    },\n    \"ocr_token_ids\": [\"t15\", \"t16\"],\n    \"confidence\": 0.95\n  }\n],\n\"vector_diagram\": {\n  \"hv_shape\": \"star\",\n  \"hv_neutral\": false,\n  \"lv_shape\": \"star\",\n  \"lv_neutral\": true,\n  \"x1_hours\": 0,\n  \"ocr_token_ids\": [\"t19\", \"t20\", \"t21\", \"t22\", \"t23\", \"t24\", \"t25\"]\n}\n"}`;
+  const leaked = JSON.parse(LEAKED_RAW) as { values: string };
+  /** The same answer in the form the tool schema asks for. */
+  const asSchema = JSON.parse(`{"values":${leaked.values}}`) as { values: unknown[]; vector_diagram: Record<string, unknown> };
+  const withGroup: PlateStructuringInput = { ...plateInput, vectorGroupKey: 'ligacao_secundaria' };
+  const read = (input: unknown) => structurer(replying([toolUse('record_values', input)])).structure(withGroup);
+  const message = /^bedrock: global\.anthropic\.claude-haiku-4-5-20251001-v1:0: the tool input is not a StructuringOutput: /;
+
+  it('28v-API-007: the captured input reads as the schema form: the four values kept and the diagram folded into LIGAÇÃO SECUNDÁRIA Yyn0', async () => {
+    expect(Object.keys(leaked)).toEqual(['values']);
+    expect(() => JSON.parse(leaked.values)).toThrow();
+    const expected = await read(asSchema);
+    const result = await read(leaked);
+    expect(result).toEqual(expected);
+    expect(result.output.values.map((value) => value.key)).toEqual(['identificacao', 'fabricacao', 'tensao_nominal_at', 'tensao_nominal_bt', 'ligacao_secundaria']);
+    expect(result.output.values.at(-1)).toEqual({ key: 'ligacao_secundaria', value: 'Yyn0', ocr_token_ids: ['t19', 't20', 't21', 't22', 't23', 't24', 't25'], confidence: 0.5 });
+    expect(result.output.values[2]).toEqual({ key: 'tensao_nominal_at', value: { raw: '13.8', unit: 'kV', state: 'measured' }, ocr_token_ids: ['t10', 't11'], confidence: 0.95 });
+  });
+
+  it('28v-API-008: a leaked unknown key, a leaked member also at the top level, or text that still does not parse stays a PermanentReadingError with the same message', async () => {
+    const array = JSON.stringify(asSchema.values);
+    const diagram = JSON.stringify(asSchema.vector_diagram);
+    for (const [name, input] of [
+      ['an unknown leaked key', { values: `${array},"notes": "x"` }],
+      ['an unknown key beside the diagram', { values: `${array},"vector_diagram": ${diagram},"bbox": [0, 0, 1, 1]` }],
+      ['a leaked diagram that conflicts with a top-level one', { values: leaked.values, vector_diagram: asSchema.vector_diagram }],
+      ['a leaked diagram beside a top-level null', { values: leaked.values, vector_diagram: null }],
+      ['the text cut short', { values: leaked.values.slice(0, -4) }],
+      ['only a repeated values key leaked', { values: `${array},"values": []` }],
+      ['the array not first', { values: `"x","vector_diagram": ${diagram}` }],
+    ] as const) {
+      const error = await failure(read(input));
+      expect(error, name).toBeInstanceOf(PermanentReadingError);
+      expect((error as Error).message, name).toMatch(message);
+      expect((error as Error).message, name).toContain('expected array, received string');
+    }
+  });
+
+  it('28v-API-009: the decode logs the member path values+vector_diagram, never the plate\'s words', async () => {
+    const lines = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      await read(leaked);
+      const logged = lines.mock.calls.map((call) => JSON.parse(String(call[0])) as Record<string, unknown>).filter((line) => line.msg === 'reading structuring tool input decoded');
+      expect(logged).toEqual([expect.objectContaining({ level: 'info', model: HAIKU, members: ['values+vector_diagram'] })]);
+      const text = JSON.stringify(logged[0]);
+      for (const word of ['TR-03', 'Varnelo', '13.8', 'star']) expect(text.includes(word), word).toBe(false);
+    } finally {
+      lines.mockRestore();
+    }
+  });
+});

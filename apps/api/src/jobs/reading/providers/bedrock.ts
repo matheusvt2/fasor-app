@@ -337,12 +337,45 @@ export function prosePrompt(input: Pick<ProseInput, 'kind' | 'context'>): string
  * string is replaced by its JSON parse when that parse has the member's shape. Anything else stays
  * as it came, and the same strict schema judges the result. A value (`values[].value`) is never
  * decoded: the schema takes a string there. The whole tool input as a string stays a failure.
+ *
+ * e28v2 (the same plate after #375, the raw input captured by the coordinator): the `values` text
+ * was not the array alone but the tool object's body from `values` on without its braces, the
+ * array followed by `,"vector_diagram": {...}`, and `vector_diagram` was missing from the top level.
+ * When the `values` text does not parse on its own, `{"values":<text>}` is tried, and taken only
+ * when it is a plain object of the tool's own members (`values` and `vector_diagram`) with at least
+ * one leaked beside `values`, `values` is an array, and no leaked member is also at the top level
+ * (a conflict stays a failure). Its members then go through the same steps and the same schema.
  */
 
 /** The members decoded, by their path in the tool input; logged when not empty. */
-export type DecodedMember = 'values' | 'values[]' | 'values[].ocr_token_ids' | 'vector_diagram' | 'vector_diagram.ocr_token_ids';
+export type DecodedMember = 'values+vector_diagram' | 'values' | 'values[]' | 'values[].ocr_token_ids' | 'vector_diagram' | 'vector_diagram.ocr_token_ids';
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** The tool input's members the `values` text may carry after the array (e28v2). */
+const LEAKABLE_MEMBERS: readonly string[] = [VECTOR_DIAGRAM_KEY];
+
+/** e28v2: the tool input with the members leaked into the `values` text lifted back to the top level; null when the text does not carry them. */
+function withLeakedMembers(input: Record<string, unknown>): Record<string, unknown> | null {
+  const text = input.values;
+  if (typeof text !== 'string') return null;
+  try {
+    JSON.parse(text);
+    return null;
+  } catch {
+    // Not JSON on its own: maybe the body of the tool object from `values` on.
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(`{"values":${text}}`);
+  } catch {
+    return null;
+  }
+  if (!isObjectRecord(body) || !Array.isArray(body.values)) return null;
+  const leaked = Object.keys(body).filter((key) => key !== 'values');
+  if (leaked.length === 0 || leaked.some((key) => !LEAKABLE_MEMBERS.includes(key) || Object.hasOwn(input, key))) return null;
+  return { ...input, ...body };
+}
 
 /** The JSON parse of a string member when it has the member's shape; the member as it came otherwise. */
 function decodedMember(value: unknown, shape: 'array' | 'object'): { value: unknown; decoded: boolean } {
@@ -358,9 +391,12 @@ function decodedMember(value: unknown, shape: 'array' | 'object'): { value: unkn
 }
 
 /** The tool input with its array and object members sent as JSON text parsed back, and which members were. */
-export function withDecodedJsonMembers(input: unknown): { input: unknown; decoded: DecodedMember[] } {
-  if (!isObjectRecord(input)) return { input, decoded: [] };
+export function withDecodedJsonMembers(raw: unknown): { input: unknown; decoded: DecodedMember[] } {
+  if (!isObjectRecord(raw)) return { input: raw, decoded: [] };
   const decoded = new Set<DecodedMember>();
+  const lifted = withLeakedMembers(raw);
+  if (lifted !== null) decoded.add('values+vector_diagram');
+  const input = lifted ?? raw;
   const member = (value: unknown, shape: 'array' | 'object', path: DecodedMember): unknown => {
     const result = decodedMember(value, shape);
     if (result.decoded) decoded.add(path);
@@ -374,8 +410,8 @@ export function withDecodedJsonMembers(input: unknown): { input: unknown; decode
     output.values = Array.isArray(values) ? values.map((entry: unknown) => withIds(member(entry, 'object', 'values[]'), 'values[].ocr_token_ids')) : values;
   }
   if (Object.hasOwn(input, VECTOR_DIAGRAM_KEY)) output[VECTOR_DIAGRAM_KEY] = withIds(member(input[VECTOR_DIAGRAM_KEY], 'object', 'vector_diagram'), 'vector_diagram.ocr_token_ids');
-  if (decoded.size === 0) return { input, decoded: [] };
-  const order: DecodedMember[] = ['values', 'values[]', 'values[].ocr_token_ids', 'vector_diagram', 'vector_diagram.ocr_token_ids'];
+  if (decoded.size === 0) return { input: raw, decoded: [] };
+  const order: DecodedMember[] = ['values+vector_diagram', 'values','values[]', 'values[].ocr_token_ids', 'vector_diagram', 'vector_diagram.ocr_token_ids'];
   return { input: output, decoded: order.filter((path) => decoded.has(path)) };
 }
 
