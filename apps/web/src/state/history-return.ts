@@ -39,12 +39,20 @@ export interface SumarioView {
 const views = new Map<string, SumarioView>();
 const viewKey = (entryKey: string, relatorioId: string) => `${relatorioId}\u0000${entryKey}`;
 
+/**
+ * React Router's key of an entry it did not create (the tab's first page, a memory router's start): shared by every
+ * such entry, so it names no one entry and nothing is kept under it.
+ */
+const UNKEYED = 'default';
+
 export function keepSumarioView(entryKey: string, relatorioId: string, view: SumarioView): void {
+  if (entryKey === UNKEYED) return;
   keep(views, viewKey(entryKey, relatorioId), { section9: view.section9, locals: new Map(view.locals) });
 }
 
 /** The view the Sumário had on this entry, or null when this tab never drew it there. */
 export function keptSumarioView(entryKey: string, relatorioId: string): SumarioView | null {
+  if (entryKey === UNKEYED) return null;
   return views.get(viewKey(entryKey, relatorioId)) ?? null;
 }
 

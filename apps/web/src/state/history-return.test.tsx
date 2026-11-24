@@ -20,6 +20,11 @@ describe('the Sumário view kept by history entry', () => {
     expect(keptSumarioView('entry-a', 'rel-2')).toBeNull();
   });
 
+  it('keeps nothing under the router\'s "default" key, which every entry it did not create shares', () => {
+    keepSumarioView('default', 'rel-1', { section9: true, locals: new Map() });
+    expect(keptSumarioView('default', 'rel-1')).toBeNull();
+  });
+
   it('keeps at most 64 entries, the oldest going first', () => {
     for (let i = 0; i < 70; i++) keepSumarioView(`bounded-${i}`, 'rel-b', { section9: i % 2 === 0, locals: new Map() });
     expect(keptSumarioView('bounded-0', 'rel-b')).toBeNull();
