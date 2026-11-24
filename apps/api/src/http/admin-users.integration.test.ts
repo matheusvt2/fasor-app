@@ -14,7 +14,7 @@ import {
   userRolePath,
   type AdminUserRouteName,
 } from '@app/domain';
-import { and, eq, like } from 'drizzle-orm';
+import { and, asc, eq, like } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { adminHarness, auth, db, sql, type Person } from '../admin/admin.test-support.ts';
 import { AdminUserError, createAdminUsersService } from '../admin/users.ts';
@@ -58,7 +58,9 @@ const list = async (cookie: string) => {
   expect(res.status).toBe(200);
   return adminUserListResponseSchema.parse(await res.json()).users;
 };
-const opsAt = async (companyId: string, path: string) => db.select({ value: ops.value, actor: ops.actor_id, kind: ops.kind }).from(ops).where(and(eq(ops.company_id, companyId), eq(ops.path, path)));
+// In applied order: `.at(-1)` is the latest op, never the heap order Postgres happens to return (e28v2).
+const opsAt = async (companyId: string, path: string) =>
+  db.select({ value: ops.value, actor: ops.actor_id, kind: ops.kind }).from(ops).where(and(eq(ops.company_id, companyId), eq(ops.path, path))).orderBy(asc(ops.seq));
 const opCount = async (companyId: string, userId: string) => (await db.select({ seq: ops.seq }).from(ops).where(and(eq(ops.company_id, companyId), like(ops.path, `user/${userId}%`)))).length;
 
 afterAll(async () => {
