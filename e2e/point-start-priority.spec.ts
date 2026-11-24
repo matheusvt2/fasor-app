@@ -162,4 +162,11 @@ test('@p0 28.5-E2E-001 v18: a point starts at its origin\'s priority with Bruno\
     'P1 · Curto prazo': formatCalendarDate(addCalendarDays(issueDate, 30)),
     'P3 · Longo prazo': formatCalendarDate(addCalendarDays(issueDate, 180)),
   });
+
+  // Batch e28r (Matheus 2026-11-23, "e mostre a data real"): after the first issue Pontos reads the date it printed, not the term.
+  await page.goto(`/relatorio/${relatorioId}/pontos`);
+  const fields = page.locator('.poa-fields');
+  await expect(fields.getByText(formatCalendarDate(addCalendarDays(issueDate, 30)), { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(fields.getByText(formatCalendarDate(addCalendarDays(issueDate, 180)), { exact: true })).toBeVisible();
+  await expect(fields.getByText(/após a emissão/)).toHaveCount(0);
 });

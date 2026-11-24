@@ -15,8 +15,11 @@ import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-s
 import { newPointRow } from './checks.ts';
 import { isUtilityNotTested, notTestedOffersPoint, POINT_DEFAULT_ACTION } from './derived.ts';
 import {
+  deadlineBaseDate,
   deadlineCountsFromIssue,
+  deadlineShownText,
   deadlineTerm,
+  firstIssueOf,
   pointStartLine,
   pointStartPriority,
   pointStartWrites,
@@ -138,6 +141,17 @@ describe('28.5-UNIT-003 the overdue row skips a suggested deadline on v18 and st
     expect(overduePointPositions(points, '2027-01-05', { seedVersion: 'v17', nextIntervention: NEXT })).toEqual([1, 2]);
     expect(overduePointPositions(points, '2027-01-05')).toEqual([1, 2]);
   });
+  // Batch e28r (wave review S4): a P4 suggestion is the next intervention verbatim, not a term counted from the issue,
+  // so a past one is overdue on v18 as on v17; only P0 to P3 are skipped.
+  it('on v18 a P4 point whose suggested next intervention is already past raises the row, as on v17', () => {
+    const past = '2026-11';
+    const p4 = picked('P4', { id: DEC_01, order_key: 'a0', deadline: past });
+    const p2 = picked('P2', { id: v7At('2026-12-01T15:00:00Z', '000000000003'), order_key: 'a1' });
+    expect(deadlineTerm(p4, 'v18', past)).toBe('Na próxima manutenção');
+    expect(printedDeadline(p4, 'v18', past, '2027-01-05')).toBe(past);
+    expect(overduePointPositions([p4, p2], '2027-04-05', { seedVersion: 'v18', nextIntervention: past })).toEqual([1]);
+    expect(overduePointPositions([p4, p2], '2027-04-05', { seedVersion: 'v17', nextIntervention: past })).toEqual([1, 2]);
+  });
 });
 
 function fresh(seedVersion: 'v18' | 'v17'): RelatorioSnapshot {
@@ -204,5 +218,63 @@ describe('28.5-UNIT-005 the utility\'s equipment offers no point, and the pre-is
     const overdue = (snapshot: RelatorioSnapshot) => preIssue(snapshot, undefined, { now: at }).find((row) => row.kind === 'deadline_overdue')?.text ?? null;
     expect(overdue(withPoints(fresh('v18'), rows))).toBe('Prazo já vencido: ponto 2');
     expect(overdue(withPoints(fresh('v17'), rows))).toBe('Prazo já vencido: pontos 1 e 2');
+  });
+});
+
+// Batch e28r (Matheus 2026-11-23, "Opção A, e mostre a data real"): the base is the relatório's first issue.
+describe('28.5-UNIT-006 a suggested deadline counts from the first issue in every revision, and reads its date after it', () => {
+  const REV_1 = '2026-12-10T15:00:00.000Z';
+  const REV_2 = '2027-02-10T15:00:00.000Z';
+  const rows = [
+    { priority: 'P1' as const, deadline: '2026-12-31' },
+    { priority: 'P1' as const, deadline: '2027-02-15' },
+    { priority: 'P4' as const, deadline: NEXT },
+  ];
+  const printed = (snapshot: RelatorioSnapshot, issuedAt: string, firstIssuedAt?: string | null, draft = false) =>
+    (layoutSpec(snapshot, { revisionNumber: draft ? 0 : 1, issuedAt, draft, ...(firstIssuedAt === undefined ? {} : { firstIssuedAt }) }).sections.find((one) => one.kind === 'points') as LayoutSectionPoints).table.map(
+      (row) => row.deadline,
+    );
+
+  it('the first issue is the earliest revision; none before any', () => {
+    expect(firstIssueOf([])).toBeNull();
+    expect(firstIssueOf([{ created_at: REV_2 }, { created_at: REV_1 }])).toBe(REV_1);
+    expect(deadlineBaseDate(REV_2, REV_1)).toBe('2026-12-10');
+    expect(deadlineBaseDate(REV_2, null)).toBe('2027-02-10');
+  });
+
+  it('P1: revision 1 issued 2026-12-10 prints 09/01/2027, revision 2 issued 2027-02-10 prints 09/01/2027 too; typed and P4 as before', () => {
+    const snapshot = withPoints(fresh('v18'), rows);
+    expect(printed(snapshot, REV_1, null)).toEqual(['09/01/2027', '15/02/2027', '12/2027']);
+    expect(printed(snapshot, REV_2, REV_1)).toEqual(['09/01/2027', '15/02/2027', '12/2027']);
+  });
+
+  it('a preview before any issue counts from its own instant; one after the first issue prints what the issue prints', () => {
+    const snapshot = withPoints(fresh('v18'), rows);
+    expect(printed(snapshot, REV_2, null, true)[0]).toBe('12/03/2027');
+    expect(printed(snapshot, REV_2, REV_1, true)[0]).toBe('09/01/2027');
+  });
+
+  it('v17 prints every deadline as stored, first issue or not', () => {
+    expect(printed(withPoints(fresh('v17'), rows), REV_2, REV_1)).toEqual(['31/12/2026', '15/02/2027', '12/2027']);
+  });
+
+  it('Pontos reads the term before the first issue and the printed date after it; a typed date and v17 read nothing new', () => {
+    const p1 = picked('P1');
+    expect(deadlineShownText(p1, 'v18', NEXT, null)).toBe('30 dias após a emissão');
+    expect(deadlineShownText(p1, 'v18', NEXT, REV_1)).toBe('09/01/2027');
+    expect(deadlineShownText(picked('P4'), 'v18', NEXT, REV_1)).toBe('12/2027');
+    expect(deadlineShownText(picked('P1', { deadline: '2027-02-15' }), 'v18', NEXT, REV_1)).toBeNull();
+    expect(deadlineShownText(p1, 'v17', NEXT, REV_1)).toBeNull();
+  });
+
+  // Coordinator's reading (2026-11-23): after the first issue the suggestion is a real date, judged as a typed one is.
+  it('the overdue row: before the first issue a v18 suggestion is skipped; after it, its real date past is named', () => {
+    const snapshot = withPoints(fresh('v18'), rows.slice(0, 1));
+    const overdue = (now: string, firstIssuedAt?: string | null) =>
+      preIssue(snapshot, undefined, { now: new Date(now), ...(firstIssuedAt === undefined ? {} : { firstIssuedAt }) }).find((row) => row.kind === 'deadline_overdue')?.text ?? null;
+    expect(overdue('2027-02-10T15:00:00Z')).toBeNull();
+    expect(overdue('2027-02-10T15:00:00Z', REV_1)).toBe('Prazo já vencido: ponto 1');
+    expect(overdue('2027-01-05T15:00:00Z', REV_1)).toBeNull();
+    expect(overduePointPositions(snapshot.points, '2027-02-10', { seedVersion: 'v18', nextIntervention: NEXT, firstIssuedAt: REV_1 })).toEqual([1]);
   });
 });

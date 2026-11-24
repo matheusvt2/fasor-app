@@ -1,5 +1,6 @@
 import {
-  deadlineTerm,
+  deadlineShownText,
+  firstIssueOf,
   extractPhotoRefs,
   formatCalendarDate,
   moveLandingIndex,
@@ -36,6 +37,7 @@ import { useFillAccess } from '../../state/permissions.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
+import { useRevisions } from '../../db/generate-store.ts';
 import { allLocationRows, pointRowsOf } from '../../db/home-store.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { newId } from '../../ids.ts';
@@ -91,6 +93,9 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const live = useMemo(() => entries.map((entry) => entry.point), [entries]);
   const numbers = useMemo(() => numberPhotos(snapshot), [snapshot]);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
+  // Batch e28r (Matheus 2026-11-23): after the first issue a v18 suggested deadline reads its real date.
+  const revisions = useRevisions(db, relatorioId);
+  const firstIssuedAt = useMemo(() => firstIssueOf(revisions), [revisions]);
 
   const [editing, setEditing] = useState<Editing>(null);
   // Story 22.5: the kernel's flag (fix batch e24h: "Possível duplicado" retired with the automatic entries).
@@ -207,6 +212,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
                   editable={editing === null && canFill}
                   readOnly={!canFill}
                   flag={resolved.has(point.id) ? t.originResolved : null}
+                  firstIssuedAt={firstIssuedAt}
                   onMove={(to) => move(point, to)}
                   onEdit={() => setEditing({ kind: 'point', id: point.id })}
                   onRemove={() => setRemoving(point)}
@@ -290,6 +296,7 @@ function PointCard({
   editable,
   readOnly = false,
   flag,
+  firstIssuedAt,
   onMove,
   onEdit,
   onRemove,
@@ -305,6 +312,8 @@ function PointCard({
   readOnly?: boolean;
   /** Story 22.5: "Origem resolvida", the kernel's flag; null without it. */
   flag: string | null;
+  /** Batch e28r: the relatório's first issue (`firstIssueOf`), null before it. */
+  firstIssuedAt: string | null;
   onMove: (toIndex: number) => Promise<void>;
   onEdit: () => void;
   onRemove: () => void;
@@ -388,8 +397,8 @@ function PointCard({
             {shows('prazo') && deadline !== null ? (
               <div>
                 <dt>{t.deadlineDt}</dt>
-                {/* Story 28.5 (seed v18): a suggested deadline reads as its term until the issue prints its date. */}
-                <dd className="tabular">{deadlineTerm(point, snapshot.relatorio.seed_version, snapshot.relatorio.setup.next_intervention_date) ?? formatCalendarDate(deadline)}</dd>
+                {/* Story 28.5 (seed v18): a suggested deadline reads as its term until the first issue, then as the date it prints (batch e28r). */}
+                <dd className="tabular">{deadlineShownText(point, snapshot.relatorio.seed_version, snapshot.relatorio.setup.next_intervention_date, firstIssuedAt) ?? formatCalendarDate(deadline)}</dd>
               </div>
             ) : null}
             {shows('prioridade') && priority !== null ? (

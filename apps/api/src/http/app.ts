@@ -236,7 +236,10 @@ const CHANGE_PASSWORD_PATH = '/api/auth/change-password';
 /**
  * Story 29.1: a password change always ends every other session of the user, whatever the body
  * asked (better-auth's `revokeOtherSessions`, which also gives this device a new session cookie).
- * A body that is not a JSON object goes on unchanged, for better-auth to refuse.
+ * A body that is not a JSON object goes on unchanged, for better-auth to refuse. A body of another
+ * type never gets here: the origin guard answers `403 forbidden_origin` to a write that is not
+ * `application/json`, and better-auth's router allows `application/json` alone (batch e28r,
+ * proven by `change-password.integration.test.ts`).
  */
 async function revokingOtherSessions(request: Request): Promise<Request> {
   let body: unknown;
