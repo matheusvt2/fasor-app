@@ -9,6 +9,7 @@ import { copy } from '../copy/pt-br.ts';
 import { ui } from '../copy/ui.ts';
 import { oldestPendingClientTs } from '../db/commit.ts';
 import { useLiveQuery } from '../db/live.ts';
+import { returnToOrigin, useEntryOrigins } from '../state/history-return.ts';
 import { startOverlayHistory } from '../state/overlay-history.ts';
 import { useScrollRestoration } from '../state/scroll-restoration.ts';
 import { useBackTargetValue } from '../state/back-target.tsx';
@@ -104,12 +105,20 @@ export function AppShell() {
   // Story 29.2: a back (a pop) returns to the scroll the screen had, and closes an open overlay first.
   useScrollRestoration();
   useEffect(() => startOverlayHistory(), []);
+  // Fix batch e28w (N2): the address each entry was pushed from, for "Voltar" below.
+  useEntryOrigins();
 
   function goBack(): void {
     // A `useBackTarget` override (the Export-dialog return) wins over the route's back.
     const backWith = backTarget === null ? handle?.backWith : undefined;
     if (backWith !== undefined) {
       const { to, state } = backWith(params);
+      // Fix batch e28w (N2): opened from that very screen (the Sumário), "Voltar" steps back to its entry, so a
+      // later device back goes on to the screen before it; a deep link or another origin navigates as before.
+      if (returnToOrigin(location.key, to, state)) {
+        void navigate(-1);
+        return;
+      }
       void navigate(to, { state });
       return;
     }

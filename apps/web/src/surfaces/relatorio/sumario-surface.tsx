@@ -54,7 +54,7 @@ import {
   snapshotDefinitionContext,
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { NavigationType, useLocation, useNavigate, useNavigationType, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { allLocationRows, templateRows } from '../../db/home-store.ts';
@@ -62,6 +62,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
+import { endReturnArrival, keepSumarioView, keptSumarioView, returnArrival } from '../../state/history-return.ts';
 import { RETURN_PARAM, RETURN_TO_EXPORT, useBackTarget } from '../../state/back-target.tsx';
 import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
@@ -246,11 +247,33 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // Story 12.2: arriving from setup's "Concluir" or from a sheet's "Voltar" opens it
   // whatever the status, and a sheet left by "Voltar" gets its row focused.
   const location = useLocation();
-  const [arrival] = useState(() => arrivalOf(location.state));
+  const navigationType = useNavigationType();
+  // Fix batch e28w (N2): a "Voltar" that stepped back here hands over the state its push would have carried.
+  const [arrival] = useState(() => arrivalOf(location.state ?? returnArrival(location.pathname)));
+  useEffect(() => endReturnArrival(location.pathname), [location.pathname]);
   // History keeps no arrival state: a reload or a browser back onto the Sumário opens it plain.
   useForgetArrivalState();
-  const [expanded, setExpanded] = useState(() => arrival.openSection9 || sumarioOpensExpanded(relatorio.status));
-  const [openedByStatus] = useState(expanded);
+  // Fix batch e28w (S2; Story 29.2, third criterion): a step back onto this entry draws what it showed, in every
+  // status: section 9 and each local as the person left them (`history-return.ts`), so the scroll lands where it was.
+  const [kept] = useState(() => (navigationType === NavigationType.Pop ? keptSumarioView(location.key, relatorioId) : null));
+  const [expanded, setExpanded] = useState(() => arrival.openSection9 || (kept === null ? sumarioOpensExpanded(relatorio.status) : kept.section9));
+  // Opened by its status (or by a "Voltar"), the tree opens the path to the last sheet and centres it; a kept view
+  // keeps that landing on Em campo only (Stories 12.2 and 15.4), and otherwise is drawn as it was.
+  const [openedByStatus] = useState(() => arrival.openSection9 || (kept === null ? expanded : kept.section9 && sumarioOpensExpanded(relatorio.status)));
+  const keptLocals = useRef<ReadonlyMap<string, boolean>>(kept?.locals ?? new Map());
+  const entryKey = useRef(location.key);
+  entryKey.current = location.key;
+  // Each change is kept at once, under the entry shown now (a pushed Export dialog is an entry of its own).
+  useEffect(() => keepSumarioView(location.key, relatorioId, { section9: expanded, locals: keptLocals.current }), [location.key, relatorioId, expanded]);
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+  const onLocalsChange = useCallback(
+    (locals: ReadonlyMap<string, boolean>) => {
+      keptLocals.current = locals;
+      keepSumarioView(entryKey.current, relatorioId, { section9: expandedRef.current, locals });
+    },
+    [relatorioId],
+  );
   const chevron = useRef<HTMLButtonElement | null>(null);
   const treeRef = useRef<RelatorioTreeHandle>(null);
   const [adding, setAdding] = useState<SumarioRow | null>(null);
@@ -562,6 +585,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     lastSheetId={lastSheet}
                     id={treeId}
                     expandToLastSheet={openedByStatus}
+                    {...(kept === null ? {} : { initialExpanded: kept.locals })}
+                    onExpandedChange={onLocalsChange}
                     focusBlockId={countFocus === null ? arrival.focusBlockId : countFocus.target.kind === 'block' ? countFocus.target.blockId : null}
                     focusLocationId={
                       countFocus === null ? arrival.focusLocationId : countFocus.target.kind === 'site' ? countFocus.target.locationId : null

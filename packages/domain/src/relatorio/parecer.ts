@@ -10,6 +10,7 @@ import { isDefectReason } from '../seed/defect-reason.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { conclusionFloor, effectiveConclusionPair, findingClauses } from './conclusion.ts';
+import { labelInSentence } from './label-in-sentence.ts';
 import { naoEnsaiadasText } from './progress.ts';
 import { measurementCells } from './measurement-evaluation.ts';
 import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, type FailedRatioRow } from './readings.ts';
@@ -405,9 +406,9 @@ function reprovadaFindings(block: BlockRow, definition: BlockDefinition | null, 
   return definition === null ? [] : findingClauses(block, definition, visit);
 }
 
-/** "item 8 (contatos)", the checklist item as the summary groups it. */
-function ncItemName(item: { n: number; label: string }): string {
-  return `item ${item.n} (${item.label.toLocaleLowerCase('pt-BR')})`;
+/** "item 8 (contatos)", the checklist item as the summary groups it; fix batch e28w (S3): its acronyms kept on v18 (`labelInSentence`). */
+function ncItemName(item: { n: number; label: string }, seedVersion: string): string {
+  return `item ${item.n} (${labelInSentence(item.label, seedVersion)})`;
 }
 
 /**
@@ -505,7 +506,7 @@ export function composeParecer(snapshot: RelatorioSnapshot, options: { print?: b
       );
     }
     if (nc.length > 0) {
-      sentences.push(`Itens não conformes: ${listPtBr(nc.map((group) => `${ncItemName(group)} em ${plural(group.sheets, 'ficha', 'fichas')}`))}.`);
+      sentences.push(`Itens não conformes: ${listPtBr(nc.map((group) => `${ncItemName(group, snapshot.relatorio.seed_version)} em ${plural(group.sheets, 'ficha', 'fichas')}`))}.`);
     }
     if (ratio.length > 0) {
       // authored (Story 17.5, open for Bruno): the failed ratio sentence.
@@ -522,7 +523,7 @@ export function composeParecer(snapshot: RelatorioSnapshot, options: { print?: b
   }
   if (site.length > 0) {
     // authored: 2026-10-14, the site NC sentence (open for Bruno).
-    sentences.push(`Verificações do local não conformes: ${listPtBr(site.map((item) => `${ncItemName(item)} em ${plural(item.locals, 'local', 'locais')}`))}.`);
+    sentences.push(`Verificações do local não conformes: ${listPtBr(site.map((item) => `${ncItemName(item, snapshot.relatorio.seed_version)} em ${plural(item.locals, 'local', 'locais')}`))}.`);
   }
   // F43 (UX pass 2026-10-22): section 8 named by its Sumário position.
   if (points > 0) sentences.push(`${points === 1 ? 'Foi registrado 1 ponto de atenção' : `Foram registrados ${points} pontos de atenção`} na ${sectionRefText(snapshot, 8)}.`);

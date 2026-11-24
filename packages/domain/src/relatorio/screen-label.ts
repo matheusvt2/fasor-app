@@ -96,6 +96,23 @@ function isSentenceCase(label: string): boolean {
 }
 
 /**
+ * Fix batch e28w (S3 of the pass of 2026-11-23): a seed label lowered to run inside a sentence, as the point an NC
+ * row starts reads it ("Item 18 (sensores de temperatura (PT100) e relé térmico: alarme e desligamento)"): every word
+ * lowered except a word of `SCREEN_LABEL_ACRONYMS` written in capitals (or in its own form, "kV"), which keeps its
+ * screen form ("PT100", "TP", "kV"); "NA" inside a phrase is the preposition and is lowered, as `screenLabel` has it.
+ * A lower-case "na" or a capitalised "Se" is a word, never the acronym.
+ */
+export function inlineLabel(label: string): string {
+  const phrase = [...label.matchAll(WORD)].length > 1;
+  return label.replace(WORD, (word) => {
+    const acronym = screenAcronym(word);
+    const written = acronym !== null && (word === acronym || word === word.toLocaleUpperCase('pt-BR'));
+    if (written && !(phrase && PREPOSITION_ACRONYMS.has(word))) return acronym;
+    return word.toLocaleLowerCase('pt-BR');
+  });
+}
+
+/**
  * A seed label's screen form: sentence case, the acronyms of `SCREEN_LABEL_ACRONYMS` kept,
  * a word holding a digit kept ("SF6", "H1-H2", "50/51"), a single phase or unit letter
  * kept, and a word already holding a lower-case letter left as it is ("Cabos de entrada"

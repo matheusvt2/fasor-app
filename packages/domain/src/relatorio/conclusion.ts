@@ -13,6 +13,7 @@ import { choiceOnlyFailureText, evaluatedCells, failedRatioRows, namedReadings, 
 import { failedPrerequisites, type FailedPrerequisite } from './restriction.ts';
 import { sheetMeasurements, sheetReadings } from './sheet-evaluation.ts';
 import { checklistItemLabel } from './oil-rule.ts';
+import { labelInSentence } from './label-in-sentence.ts';
 import { checklistResultUnder } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled, registerConcludedAprovadoRefused } from './sheet-state.ts';
 import { NO_VISIT_CONTEXT, type VisitContext } from './visit-context.ts';
@@ -663,9 +664,10 @@ function withoutFinalPeriod(observation: string): string {
  * What an NC row says before "(item N, NC)": its observation without the final period, else (or when that leaves nothing) its label.
  * Batch e24a (Story 24.4, seed v14, row 3196): with `oneLine` the observation's lines enter the clause joined (`ncObservationOnOneLine`).
  */
-function ncClauseText(item: { label: string; observation: string | null }, oneLine = false): string {
+function ncClauseText(item: { label: string; observation: string | null }, seedVersion: string, oneLine = false): string {
   const said = item.observation === null ? '' : oneLine ? ncObservationOnOneLine(item.observation) : withoutFinalPeriod(item.observation);
-  return said === '' ? item.label.toLocaleLowerCase('pt-BR') : said;
+  // Fix batch e28w (S3): the label's acronyms kept on a v18 sheet (`labelInSentence`).
+  return said === '' ? labelInSentence(item.label, seedVersion) : said;
 }
 
 /**
@@ -943,7 +945,7 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const checklist =
     ncs.length === 0
       ? 'todos os itens verificados conformes'
-      : listPtBr(ncs.map((item) => `${ncClauseText(item, oneLine)} (item ${item.n}, NC)`));
+      : listPtBr(ncs.map((item) => `${ncClauseText(item, block.seed_version, oneLine)} (item ${item.n}, NC)`));
 
   // Story 22.4: the effective pair, so a text the floor made stricter recommends the correction.
   const { result, restriction } = effectiveConclusionPair(block, definition, visit);

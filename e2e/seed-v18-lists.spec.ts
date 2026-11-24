@@ -93,7 +93,14 @@ test('@p0 28.4-E2E-001 v18 lists: items 18 and 19 in the dry words with NC, a ne
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
   const modal = page.getByRole('dialog', { name: 'Gerar relatório' });
   await expect(modal.locator('li.is-blocking')).toContainText(`Nome da concessionária em branco: ${tc.tag}`);
-  await page.keyboard.press('Escape');
+  // Fix batch e28w (S1): the row says only its own words, the reason under the button names it, and its action opens the sheet.
+  const utilityRow = modal.locator('li.is-blocking').filter({ hasText: 'Nome da concessionária em branco' });
+  await expect(utilityRow.locator('.pc-text')).toHaveText(`Nome da concessionária em branco: ${tc.tag}`);
+  await expect(utilityRow).not.toContainText('Dados do relatório');
+  await expect(modal.locator('.generate-row .btn-reason')).toContainText(`o nome da concessionária de ${tc.tag} para emitir a revisão 1.`);
+  await utilityRow.getByRole('button', { name: 'Abrir ficha' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/ficha/${tc.blockId}\\?volta=exportar$`));
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
 
   // The typed name fills the text and is written with the mark.
   await page.goto(`/relatorio/${relatorioId}/ficha/${tc.blockId}`);
@@ -129,4 +136,8 @@ test('@p0 28.4-E2E-001 v18 lists: items 18 and 19 in the dry words with NC, a ne
     `NÃO ENSAIADO — ${REASON.label}: Ensaios não realizados no(s) equipamento(s) ${tc.tag}, de propriedade da concessionária ${UTILITY} e destinado(s) à medição de faturamento, por não haver autorização da concessionária para intervenção.`,
   );
   expect(all).not.toContain(UTILITY_NAME_SLOT);
+  // Fix batch e28w (S3): item 18's "PT100" keeps its capitals in section 10's summary, and nowhere prints "pt100" (the
+  // point an NC row starts is `e28w-UNIT-002`'s: this relatório creates none).
+  expect(all).toContain('item 18 (sensores de temperatura (PT100) e relé térmico: alarme e desligamento) em 1 ficha');
+  expect(all.toLocaleLowerCase('pt-BR').split('pt100').length - 1).toBe(all.split('PT100').length - 1);
 });
