@@ -508,6 +508,23 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                       </span>
                     )}
                   </li>
+                ) : row.kind === 'utility_name_missing' ? (
+                  // Fix batch e28w (S1): the kernel's row alone, with the way to its first sheet (as the stale row's "Abrir ficha").
+                  <li className="is-blocking" key={row.id}>
+                    <span className="pc-text">
+                      <span className="pc-block">{row.text}</span>
+                    </span>
+                    {onOpenSheet === undefined || row.sheets?.[0] === undefined ? null : (
+                      <span className="pc-actions">
+                        <TextButton
+                          {...(row.sheets.length > 1 && row.sheets[0].name !== '' ? { 'aria-label': copy.export.openSheetNamed(row.sheets[0].name) } : {})}
+                          onPress={() => onOpenSheet(row.sheets![0]!.blockId)}
+                        >
+                          {copy.export.openSheet}
+                        </TextButton>
+                      </span>
+                    )}
+                  </li>
                 ) : (
                   <li className="is-blocking" key={row.id}>
                     <span className="pc-text">

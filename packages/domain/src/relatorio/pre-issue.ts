@@ -819,18 +819,33 @@ export function parecerMissingReason(number: number, line: number | null): strin
  * conclusion text alone, or both, as the mock reads them ("Preencha o parecer (linha 10 do sumário) e
  * atualize o texto da conclusão de SEC-C05 para emitir a revisão 3. O rascunho pode ser visto antes.").
  * Null with no blocking row.
+ *
+ * Fix batch e28w (S1 of the pass of 2026-11-23): a `utility_name_missing` row asks for the utility's name of its sheets
+ * ("Preencha o nome da concessionária de CE-01 para emitir a revisão 1. …"), never for the parecer; beside the parecer it
+ * shares its verb ("Preencha o parecer (linha 10 do sumário) e o nome da concessionária de CE-01"), beside a stale text
+ * it closes the list ("Atualize o texto da conclusão de SEC-C05 e preencha o nome da concessionária de CE-01").
  */
 export function issueBlockedReason(blocking: readonly PreIssueRow[], number: number, parecerLine: number | null): string | null {
   if (blocking.length === 0) return null;
-  const names = blocking.flatMap((row) => (row.kind === 'conclusion_stale' ? (row.sheets ?? []).map((sheet) => sheet.name) : []));
+  const sheetNames = (kind: PreIssueKind) => blocking.flatMap((row) => (row.kind === kind ? (row.sheets ?? []).map((sheet) => sheet.name) : []));
+  const names = sheetNames('conclusion_stale');
+  const utility = blocking.some((row) => row.kind === 'utility_name_missing');
+  const utilityNames = sheetNames('utility_name_missing').filter((name) => name !== '');
   const parecer = blocking.some((row) => row.kind === 'parecer_missing');
-  if (names.length === 0) return parecerMissingReason(number, parecerLine);
-  // authored: Story 25.7, the stale texts the mock names ("atualize o texto da conclusão de SEC-C05"), and their plural.
-  const texts = `${names.length === 1 ? 'o texto da conclusão' : 'os textos da conclusão'} de ${listPtBr(names)}`;
+  if (names.length === 0 && !utility) return parecerMissingReason(number, parecerLine);
   const where = parecerLine === null ? '' : ` (linha ${parecerLine} do sumário)`;
-  // authored: Story 25.7, the stale text alone opens the sentence with its verb.
-  const ask = parecer ? `Preencha o parecer${where} e atualize ${texts}` : `Atualize ${texts}`;
-  return `${ask} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
+  // authored (fix batch e28w, S1, listed for Bruno): the utility's name the sheets lack, "o nome da concessionária de CE-01".
+  const utilityAsk = utility ? `o nome da concessionária${utilityNames.length === 0 ? '' : ` de ${listPtBr(utilityNames)}`}` : null;
+  // The fills share "Preencha": the parecer and the utility's name, in the rows' order on the Sumário.
+  const fills = [parecer ? `o parecer${where}` : null, utilityAsk].filter((part): part is string => part !== null);
+  const asks: string[] = [];
+  if (fills.length > 0 && parecer) asks.push(`preencha ${listPtBr(fills)}`);
+  // authored: Story 25.7, the stale texts the mock names ("atualize o texto da conclusão de SEC-C05"), and their plural.
+  if (names.length > 0) asks.push(`atualize ${names.length === 1 ? 'o texto da conclusão' : 'os textos da conclusão'} de ${listPtBr(names)}`);
+  if (fills.length > 0 && !parecer) asks.push(`preencha ${listPtBr(fills)}`);
+  const ask = listPtBr(asks);
+  // authored: Story 25.7, the sentence opens with its first verb.
+  return `${ask.charAt(0).toLocaleUpperCase('pt-BR')}${ask.slice(1)} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
 }
 
 /**

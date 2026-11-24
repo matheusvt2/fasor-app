@@ -209,6 +209,11 @@ function story28_4(seed: ReportSeed): void {
   const battery = fieldOf(noBreak, STORY_28_4_BATTERY_DATE_KEY);
   if (battery.label !== STORY_28_4_BATTERY_DATE_LABEL_BEFORE) throw new Error('seed v18: the battery date is not v17\'s');
   battery.label = STORY_28_4_BATTERY_DATE_LABEL;
+
+  // Fix batch e28w (S3 of the pass of 2026-11-23): item 18's "PT100", and every acronym of the list, kept when a label is
+  // lowered into a sentence; a flag, since v14 to v17's "DISPLAY, ALARMES E LEDS" printed "leds" there.
+  if (seed.rules?.label_acronyms_inline !== undefined) throw new Error('seed v18: the e28w rule flag is already set');
+  seed.rules = { ...(seed.rules ?? {}), label_acronyms_inline: true };
 }
 
 // --- Story 28.5: A point starts with a priority and an action, and its deadline counts from the issue date ---

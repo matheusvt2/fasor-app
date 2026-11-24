@@ -110,6 +110,10 @@ export interface RelatorioTreeProps {
   ref?: Ref<RelatorioTreeHandle>;
   /** Story 8.1: the device's pending suggestion rows; a block holding one is not concluded in the counters. */
   pending?: readonly SuggestionRow[];
+  /** Fix batch e28w (S2): the locals open or closed when the tree mounts (a step back onto the Sumário). */
+  initialExpanded?: ReadonlyMap<string, boolean>;
+  /** Fix batch e28w (S2): told each time a local opens or closes, so the Sumário keeps its view for a step back. */
+  onExpandedChange?: (expanded: ReadonlyMap<string, boolean>) => void;
 }
 
 /**
@@ -124,12 +128,30 @@ function siteRowButton(root: HTMLElement | null, locationId: string): HTMLElemen
   return root?.querySelector<HTMLElement>(`li[data-location-id="${CSS.escape(locationId)}"] > ul.s9-site .s9-verif`) ?? null;
 }
 
-export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, focusLocationId = null, focusToken = 0, context, ref, pending }: RelatorioTreeProps) {
+export function RelatorioTree({
+  presentation,
+  snapshot,
+  equipment,
+  lastSheetId,
+  id,
+  expandToLastSheet = false,
+  focusBlockId = null,
+  focusLocationId = null,
+  focusToken = 0,
+  context,
+  ref,
+  pending,
+  initialExpanded,
+  onExpandedChange,
+}: RelatorioTreeProps) {
   const t = copy.sumario.tree;
   const tree = useMemo(() => locationTree(snapshot, equipment, pending), [snapshot, equipment, pending]);
   const rootRef = useRef<HTMLUListElement>(null);
   const footRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const [expanded, setExpanded] = useState<ReadonlyMap<string, boolean>>(() => new Map(initialExpanded ?? []));
+  const expandedListener = useRef(onExpandedChange);
+  expandedListener.current = onExpandedChange;
+  useEffect(() => expandedListener.current?.(expanded), [expanded]);
   const [palette, setPalette] = useState<PaletteTarget | null>(null);
   // Story 9.2: "Fotografar equipamento" outlives the palette, which closes when its tile is tapped.
   const panelRef = useRef<PanelCaptureHandle>(null);

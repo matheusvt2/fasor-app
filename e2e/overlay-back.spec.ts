@@ -1,5 +1,7 @@
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, GENERATE_ROUTES } from '@app/domain';
 import { devices, type Locator, type Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { appOrigin } from './support/origin.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
 import { devicePhotos, openChaveSheet } from './support/photos.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
@@ -266,4 +268,128 @@ test('@p0 29.2-E2E-001d back across Home, a relatório and a ficha lands on the 
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
   await expect.poll(() => scrollY(page), { timeout: 10_000 }).toBe(homeY);
+});
+
+/*
+ * Fix batch e28w (S2 and N2 of the hands-on pass of 2026-11-23; Story 29.2, third criterion, Bruno's complaint): on a
+ * relatório in Em revisão the device back from a ficha brought section 8 back collapsed and the scroll elsewhere; on
+ * Em campo the locals the person had opened came back collapsed but the one of the sheet. Now the Sumário draws what
+ * it showed, in every status. And the ficha's in-app "Voltar" steps back in history when the Sumário is the entry
+ * before it, so a later device back goes on to Home instead of reopening the ficha.
+ */
+
+/** An office relatório in `status` with its Sumário open from Home: section 8 and its first two locals opened; the last equipment row drawn. */
+async function sumarioWithTwoLocals(page: Page, status: 'em_campo' | 'em_revisao'): Promise<{ relatorioId: string; target: Locator }> {
+  await resetCompany(account, { standard: true });
+  await signIn(page, account.email);
+  const database = deviceDatabaseName(account.userId);
+  const { relatorioId } = await pushNewRelatorio(page, account, database);
+  if (status === 'em_revisao') {
+    // Em revisão needs a generate queued since the last status op (AD-22, Story 20.7), as `deep-link-gate.spec.ts` does it.
+    await pushDrafts(page, database, [officeDraft(account, { relatorioId }, 'relatorio/setup/parecer', { verdict: 'apto', text: 'Apto para operação.', text_status: 'edited', text_basis: null })]);
+    const queued = await page.request.post(GENERATE_ROUTES.generate(relatorioId).path, {
+      headers: { ...appOrigin(page), [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
+      data: { last_op_id: null, file_ids_expected: [] },
+    });
+    expect(queued.status(), await queued.text()).toBe(202);
+  }
+  await pushDrafts(page, database, [officeDraft(account, { relatorioId }, 'relatorio/status', status)]);
+  await page.goto('/');
+  await page.locator('.relatorio-card .card-title').first().click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText(status === 'em_campo' ? 'Em campo' : 'Em revisão', { timeout: 30_000 });
+  if ((await section9(page).getAttribute('aria-expanded')) !== 'true') await section9(page).click();
+  const locals = page.getByRole('list', { name: 'Locais do relatório' }).locator(':scope > li.s9-local');
+  const opened = Math.min(await locals.count(), 2);
+  expect(opened).toBe(2);
+  for (let i = 0; i < opened; i++) {
+    const chevron = locals.nth(i).locator(':scope > .s9-loc-row [data-tree-chevron]');
+    if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+    await expect(chevron).toHaveAttribute('aria-expanded', 'true');
+  }
+  const last = locals.nth(opened - 1).locator('li.s9-eq:visible').last();
+  await expect(last).toBeVisible();
+  const blockId = (await last.getAttribute('data-block-id'))!;
+  expect(blockId).not.toBeNull();
+  return { relatorioId, target: page.locator(`li.s9-eq[data-block-id="${blockId}"]`) };
+}
+
+/** Every chevron of the tree, open or not, in order. */
+const treeOpenState = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' }).locator('[data-tree-chevron]').evaluateAll((all) => all.map((el) => el.getAttribute('aria-expanded')));
+
+/** Scrolls `target` into view, taps its open button, and returns what the Sumário showed then. */
+async function openFrom(page: Page, target: Locator): Promise<{ y: number; state: (string | null)[] }> {
+  await target.scrollIntoViewIfNeeded();
+  await settle(page);
+  const before = { y: await scrollY(page), state: await treeOpenState(page) };
+  const open = (await target.locator('.s9-eq-open').first().boundingBox())!;
+  await page.touchscreen.tap(open.x + open.width / 2, open.y + open.height / 2);
+  await expect(page).toHaveURL(/\/ficha\//);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
+  return before;
+}
+
+/** The Sumário shows what it showed: section 8 and the same locals open, the sheet's row in view, at about the same scroll. */
+async function showsWhatItShowed(page: Page, relatorioId: string, target: Locator, before: { y: number; state: (string | null)[] }, exactScroll: boolean): Promise<void> {
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+  await expect(section9(page)).toHaveAttribute('aria-expanded', 'true');
+  await expect.poll(() => treeOpenState(page)).toEqual(before.state);
+  await expect(target).toBeInViewport();
+  if (exactScroll) await expect.poll(async () => Math.abs((await scrollY(page)) - before.y), { timeout: 10_000 }).toBeLessThanOrEqual(2);
+}
+
+for (const [status, word] of [
+  ['em_revisao', 'Em revisão'],
+  ['em_campo', 'Em campo'],
+] as const) {
+  test(`@p0 e28w-E2E-001 ${word}: the device back from a ficha draws the Sumário as it was, section 8 and both locals open, the sheet's row in view`, async ({ page }) => {
+    test.setTimeout(150_000);
+    const { relatorioId, target } = await sumarioWithTwoLocals(page, status);
+    const before = await openFrom(page, target);
+    await scrollTo(page, 300);
+    await page.goBack();
+    // Em campo keeps its landing on the sheet (Stories 12.2 and 15.4), which may centre the row; Em revisão is drawn as it was.
+    await showsWhatItShowed(page, relatorioId, target, before, status === 'em_revisao');
+    await settle(page);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+  });
+}
+
+test('@p0 e28w-E2E-002 at 768: Em revisão, the device back from a ficha draws the Sumário as it was', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 768, height: 1024 });
+  const { relatorioId, target } = await sumarioWithTwoLocals(page, 'em_revisao');
+  const before = await openFrom(page, target);
+  await page.goBack();
+  await showsWhatItShowed(page, relatorioId, target, before, true);
+});
+
+test('@p0 e28w-E2E-003 the ficha\'s "Voltar" steps back to the Sumário it came from, its row focused; the next device back reaches Home', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId, target } = await sumarioWithTwoLocals(page, 'em_revisao');
+  const before = await openFrom(page, target);
+  await page.locator('.app-bar').getByRole('button', { name: 'Voltar' }).click();
+  await showsWhatItShowed(page, relatorioId, target, before, false);
+  // Story 12.2: the sheet just left has its open button focused.
+  await expect(target.locator('.s9-eq-open').first()).toBeFocused();
+  await settle(page);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test('@p0 e28w-E2E-004 a ficha opened by its address: "Voltar" still goes to its Sumário, section 8 open', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId, target } = await sumarioWithTwoLocals(page, 'em_revisao');
+  const blockId = (await target.getAttribute('data-block-id'))!;
+  await page.goto(`/relatorio/${relatorioId}/ficha/${blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await page.locator('.app-bar').getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+  await expect(section9(page)).toHaveAttribute('aria-expanded', 'true');
+  await expect(target.locator('.s9-eq-open').first()).toBeFocused();
+  // A pushed entry: the device back goes to the ficha it came from.
+  await settle(page);
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/ficha/${blockId}$`));
 });

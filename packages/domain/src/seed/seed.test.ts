@@ -2300,6 +2300,8 @@ const E27B9_FLAGS = ['wording_pass'] as const;
 const E28B_FLAGS = ['point_start_priority', 'deadline_from_issue', 'row_voltage_from_header', 'over_range_note', 'history_note_relevant'] as const;
 /** Batch e28c (Stories 28.9 and 28.10, seed v18): the additional items in section 10 and section 2's paragraph with a Malha. */
 const E28C_FLAGS = ['additional_items', 'earth_paragraph_with_malha'] as const;
+/** Fix batch e28w (S3, under Story 28.4, seed v18): a label lowered into a sentence keeps its acronyms. */
+const E28W_FLAGS = ['label_acronyms_inline'] as const;
 
 /** Batch e24s (Story 24.11): the transformer's appended items, in order. */
 const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
@@ -2373,7 +2375,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
   it('names the five flags of batch e24a, the three of batch e24p, the three of fix batch e24y and the v15 flags of Epic 25, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS]);
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS, ...E28W_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2402,7 +2404,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
     expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
     expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS]);
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS, ...E28W_FLAGS]);
     for (const flag of [...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]) expect(seedRule('v14', flag), flag).toBe(true);
     // Story 25.6: a v15 flag is off on v14.
     for (const flag of E25C6_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
@@ -2802,7 +2804,8 @@ describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v
 // Batch e28b (2026-11-23, Stories 28.5 to 28.8): the five wave-2 rule flags (was bd769c9f… after batch e28a).
 // Batch e28c (2026-11-23, Stories 28.9 and 28.10): the flags `additional_items` and `earth_paragraph_with_malha` and section
 // 1's "de {cliente}" (was 01470e09… after batch e28b).
-const V18_HASH = 'c5885d5e068f6147e8cb5fd3e551de0b43b6ec4d9aceb70a77351a07180710b4';
+// Fix batch e28w (2026-11-23, S3 under Story 28.4): the flag `label_acronyms_inline` (was c5885d5e… after batch e28c).
+const V18_HASH = '3cf073c54ac755b4636d1e96df990cdb69fc9b13929b5b5f3a8a22d86e854951';
 
 /**
  * Batch e28a and the Epic 28 batches after it: each story's delta on v18, undone, in the order `seed/v18.ts` applies
@@ -2811,7 +2814,8 @@ const V18_HASH = 'c5885d5e068f6147e8cb5fd3e551de0b43b6ec4d9aceb70a77351a07180710
  * here, so `withoutE28(v18)` stays v17 and "28.2-UNIT-001" keeps pinning that every other byte of v18 is v17's.
  */
 // Story 28.3 (batch e28a): the transformer's "A SECO" / "A ÓLEO", CONSTRUÇÃO, the TP's and the TC's ÓLEO VEGETAL (`withoutE283` below).
-// Story 28.4 (batch e28a): the transformer's items 18 and 19, two thermography reasons, the utility reason, the battery date label (`withoutE284` below).
+// Story 28.4 (batch e28a): the transformer's items 18 and 19, two thermography reasons, the utility reason, the battery date label (`withoutE284` below);
+// fix batch e28w (S3): the rule flag `label_acronyms_inline`, in the same helper.
 // Story 28.5 (batch e28b): the rule flags `point_start_priority` and `deadline_from_issue` (`withoutE285` below).
 // Story 28.6 (batch e28b): the rule flag `row_voltage_from_header` (`withoutE286` below).
 // Story 28.7 (batch e28b): the rule flag `over_range_note` (`withoutE287` below).
@@ -2876,7 +2880,8 @@ function withoutE284(seed: ReportSeed): ReportSeed {
   }
   out.not_tested_reasons = out.not_tested_reasons.filter((reason) => reason.key !== STORY_28_4_UTILITY_REASON.key);
   out.blocks.no_break_comando!.nameplate.find((field) => field.key === STORY_28_4_BATTERY_DATE_KEY)!.label = STORY_28_4_BATTERY_DATE_LABEL_BEFORE;
-  return out;
+  // Fix batch e28w (S3): the rule flag `label_acronyms_inline`.
+  return withoutRuleFlags(out, ['label_acronyms_inline']);
 }
 
 /** Story 28.3's delta undone: v17's three transformer options and aliases, no CONSTRUÇÃO, v17's oil value and sampling, the TP and TC without ÓLEO VEGETAL. */

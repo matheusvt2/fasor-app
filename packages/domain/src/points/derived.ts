@@ -8,6 +8,7 @@ import { outReadings, worstReadings } from '../relatorio/readings.ts';
 import { failedPrerequisites } from '../relatorio/restriction.ts';
 import { sheetMeasurements, sheetReadings } from '../relatorio/sheet-evaluation.ts';
 import { checklistItemLabel } from '../relatorio/oil-rule.ts';
+import { labelInSentence } from '../relatorio/label-in-sentence.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteLocals, siteObservationOf, sitePointTitle, siteResultOf } from '../relatorio/site-checklist.ts';
@@ -177,7 +178,8 @@ export function equipmentPointTitle(node: Pick<TreeEquipmentNode, 'name' | 'loca
  * Imagem 1" (", conforme Imagens 1 e 2" once printed or shown), where older seeds append the bare tokens.
  */
 function ncText(n: number, label: string, observation: string | null, photoIds: readonly string[], seedVersion: string): string {
-  const item = `Item ${n} (${label.toLocaleLowerCase('pt-BR')})`;
+  // Fix batch e28w (S3): the label's acronyms kept on a v18 relatório (`labelInSentence`).
+  const item = `Item ${n} (${labelInSentence(label, seedVersion)})`;
   // authored (Story 22.5, open for Bruno): an NC entry's text.
   const body = observation === null || observation === '' ? `${item} não conforme` : `${item}: ${observation}`;
   if (seedRule(seedVersion, 'wording_pass')) return citedText(body, photoIds);

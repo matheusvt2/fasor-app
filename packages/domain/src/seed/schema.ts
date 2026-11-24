@@ -1186,6 +1186,13 @@ export const seedRulesSchema = z
      * reads the seed's text (an own text prints as it is, with no paragraph added).
      */
     earth_paragraph_with_malha: z.literal(true).optional(),
+    /**
+     * Fix batch e28w (Story 28.4, S3 of the pass of 2026-11-23): a checklist or site item's label lowered into a sentence
+     * (the point an NC row starts, the parecer's "Itens não conformes", a conclusion's NC clause) keeps the words of
+     * `SCREEN_LABEL_ACRONYMS` in their screen form ("sensores de temperatura (PT100)"). Off, the whole label is lowered,
+     * as v1 to v17 print it ("display, alarmes e leds").
+     */
+    label_acronyms_inline: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;
