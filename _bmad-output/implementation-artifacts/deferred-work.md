@@ -4303,3 +4303,56 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `packages/domain/src/relatorio/parecer.ts` (the `pending` clause and the `withRestriction` sentence of the summary); found in the 2026-11-22 browser pass.
   class: gap
   state: open (owner: Matheus decides with Bruno whether an open ficha with an NC item reads as restrictions or as open)
+
+## Deferred from: Epics 28 and 29, the wave gates and the hands-on pass (2026-11-23 and 2026-11-24)
+
+- source_spec: wave gate of Epics 28 and 29 on `d1180f5c` (2026-11-23)
+  summary: `sheet-photos.spec.ts` 11.11-E2E-001 failed once under `test:e2e:full`, a toast race; green alone, 39 of 39 with 3 repeats. Another stack had come up during the gate, so the load is a suspect, not proven.
+  evidence: `e2e/sheet-photos.spec.ts`; the wave gate log of 2026-11-23.
+  class: test-gap
+  state: open (owner: the next e2e speed or flake pass; no code defect shown)
+- source_spec: final gate of Epics 28 and 29 on `de79700b` (2026-11-24, machine idle)
+  summary: `photos.spec.ts` 6.2-E2E-001 failed once under `test:e2e:full` (the retried photo's upload pill stayed); green alone three times in a row. This wave did not touch photo upload.
+  evidence: `e2e/photos.spec.ts`; the final gate log of 2026-11-24.
+  class: test-gap
+  state: open (owner: the next e2e flake pass; watch whether it comes back on an idle machine)
+- source_spec: fix batch e28w (#377) gate, 2026-11-24
+  summary: `ficha` 12.1-E2E-012 and `home` 1.6-E2E-001 were red under load in the e28w batch gate and green alone.
+  evidence: `e2e/ficha.spec.ts` (12.1-E2E-012 already went red once in three on an earlier batch, see its comment); `e2e/home.spec.ts`; the e28w batch gate output.
+  class: test-gap
+  state: open (owner: the next e2e flake pass)
+- source_spec: hands-on pass of 2026-11-23 (N1), `_bmad-output/test-artifacts/manual/hands-on-pass-2026-11-23.md`
+  summary: The Gerar dialog has no "Cancelar" button.
+  evidence: `apps/web/src/surfaces/export/export-dialog.tsx`.
+  class: gap
+  state: open (owner: Matheus decides whether the dialog gets one)
+- source_spec: hands-on pass of 2026-11-23 (note)
+  summary: TAG suggestions are still offered after the locals they came from were removed.
+  evidence: the pass report; screenshots under `test-results/pass-e28/` of the main checkout (untracked).
+  class: bug
+  state: open (owner: a later fix batch; low)
+- source_spec: fix batch e28w (#377, S2 and N2), `_bmad-output/planning-artifacts/epics.md` Story 29.2
+  summary: A Sumário that was the tab's first page keeps no view on a back: the router keeps it under its shared "default" key, so a back to it cannot restore the expanded sections and the scroll.
+  evidence: `apps/web/src/state/history-return.ts` (`UNKEYED`); the e28w note under Story 29.2 in `epics.md`.
+  class: gap
+  state: open (owner: a later fix batch; low)
+- source_spec: paid plate evaluation of 2026-11-24
+  summary: `apps/api/src/scripts/eval-samples.ts` has no v18 sample. The v18 probe plates of the evaluation are untracked (`test-results/eval-e28-v18/`), so the next paid run cannot repeat the v18 check from the repository.
+  evidence: `apps/api/src/scripts/eval-samples.ts`; `apps/api/src/scripts/bedrock-eval.ts`.
+  class: test-gap
+  state: open (owner: the next change of the plate prompt or the evaluation set; needs a non-client plate)
+- source_spec: paid plate evaluation of 2026-11-24
+  summary: A permanent error from the default reading model never tries the escalation model. The escalation is decided by `shouldEscalate` on a first reading that came back (more than half of its fields on verify, or empty); when the default model fails outright, as Haiku did before #375 and #376, the run fails and the second model is not tried.
+  evidence: `apps/api/src/jobs/reading/kinds/plate.ts`; `apps/api/src/jobs/reading/providers/index.ts`; `apps/api/src/jobs/reading/job.integration.test.ts` ("a plate more than half verify is read once more on the escalation model").
+  class: gap
+  state: open (owner: Matheus decides whether a permanent default-model error should try the escalation model; the cost is a second paid call)
+- source_spec: paid plate evaluation of 2026-11-24
+  summary: The escalation model `us.amazon.nova-pro-v1:0` was last evaluated in the round before #375 and #376 (synthetic 96.9 % (94 of 97), real plates 5 of 6, dry plate 1 of 2) and not repeated after them.
+  evidence: `_bmad-output/implementation-artifacts/epic-28-context.md` "Delivery record, 2026-11-24".
+  class: test-gap
+  state: open (owner: the next paid evaluation, on Matheus's word for the spend)
+- source_spec: hands-on pass of 2026-11-23, "Not checked in the pass"
+  summary: Not checked: a sheet with no TAG; a read-only role on "Itens adicionais"; a v17 relatório; revisions issued on different days; the hashed icon sprite (#369) in a real browser; change password offline; a real Android or iPad device.
+  evidence: `_bmad-output/test-artifacts/manual/hands-on-pass-2026-11-23.md`.
+  class: test-gap
+  state: open (owner: the next manual pass; the real Android or iPad device first)
