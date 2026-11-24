@@ -1,5 +1,5 @@
-import { calendarDateOfInstant, uuidV7Instant } from '../format/datetime.ts';
-import type { PointRow } from '../schemas/entities.ts';
+import { calendarDateOfInstant, formatCalendarDate, uuidV7Instant } from '../format/datetime.ts';
+import type { PointRow, RevisionRow } from '../schemas/entities.ts';
 import { seedRule } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 import { livePoints } from './checks.ts';
@@ -216,6 +216,36 @@ export function printedDeadline(point: PointDeadlineFields, seedVersion: string,
   const priority = point.priority!;
   if (priority === 'P4') return point.deadline;
   return addCalendarDays(issueDate, PRIORITY_DAYS[priority]) ?? point.deadline;
+}
+
+// --- Batch e28r (Matheus 2026-11-23, "Opção A, e mostre a data real"): the base is the first issue ----------
+
+/** The instant the relatório was first issued: its earliest revision's; null before any issue. */
+export function firstIssueOf(revisions: readonly Pick<RevisionRow, 'created_at'>[]): string | null {
+  return revisions.reduce<string | null>((first, row) => (first === null || Date.parse(row.created_at) < Date.parse(first) ? row.created_at : first), null);
+}
+
+/**
+ * The São Paulo calendar date a v18 suggested deadline counts from: the relatório's first issue, in every revision (and
+ * in a preview made after it, so the preview prints what the screen reads); without one, the generation's own instant
+ * (`issuedAt`: a first issue, or a preview before any issue). Null for a malformed instant.
+ */
+export function deadlineBaseDate(issuedAt: string, firstIssuedAt: string | null | undefined): string | null {
+  const base = firstIssuedAt ?? issuedAt;
+  return Number.isNaN(Date.parse(base)) ? null : calendarDateOfInstant(new Date(base));
+}
+
+/**
+ * What the Pontos card and the point editor read for a v18 suggested deadline: its term before the first issue ("30 dias
+ * após a emissão"), and once the relatório has one, the date section 8 prints ("09/01/2027", counted from the first
+ * issue). Null for a typed date, an unset priority or an older seed, which read the stored deadline as before.
+ */
+export function deadlineShownText(point: PointDeadlineFields, seedVersion: string, nextIntervention: string | null, firstIssuedAt: string | null): string | null {
+  const term = deadlineTerm(point, seedVersion, nextIntervention);
+  if (term === null || firstIssuedAt === null) return term;
+  const base = deadlineBaseDate(firstIssuedAt, firstIssuedAt);
+  const printed = base === null ? null : printedDeadline(point, seedVersion, nextIntervention, base);
+  return printed === null ? term : formatCalendarDate(printed);
 }
 
 /** The live points with no deadline (section 8's "pontos sem prazo", information only). */

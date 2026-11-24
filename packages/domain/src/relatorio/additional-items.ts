@@ -12,10 +12,12 @@ export function offersAdditionalItems(seedVersion: string): boolean {
   return seedRule(seedVersion, 'additional_items');
 }
 
-/** A blank item (empty or whitespace only): never stored, never printed. */
-function blank(text: string): boolean {
+/** A blank item (empty or whitespace only): never stored, never printed. Etapa 6 asks it too (a blank row is removed with no write). */
+export function blankAdditionalItem(text: string): boolean {
   return text.trim() === '';
 }
+
+const blank = blankAdditionalItem;
 
 /**
  * The items that print, in order: every blank one dropped. A stored list never holds one (Etapa 6 writes the list

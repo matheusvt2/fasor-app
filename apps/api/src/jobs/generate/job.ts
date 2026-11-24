@@ -3,6 +3,7 @@ import { buffer } from 'node:stream/consumers';
 import {
   confirmedCellsLaterEdited,
   DOCX_MIME,
+  firstIssueOf,
   lastNameplates,
   lastResults,
   layoutSpec,
@@ -317,8 +318,10 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
       deps.db.transaction(async (tx: Tx) => {
         await lockCompany(tx, companyId);
         const { snapshot, snapshotSeq } = await freezeSnapshot(tx, companyId, payload.relatorio_id);
-        const number = nextRevisionNumber(await liveRevisions(tx, companyId, payload.relatorio_id));
-        return { snapshot, snapshotSeq, number };
+        const revisions = await liveRevisions(tx, companyId, payload.relatorio_id);
+        const number = nextRevisionNumber(revisions);
+        // Batch e28r (Matheus 2026-11-23, "Opção A"): a v18 suggested deadline counts from the first issue in every revision.
+        return { snapshot, snapshotSeq, number, firstIssuedAt: firstIssueOf(revisions) };
       }),
     );
     const issuedAt = stamp();
@@ -326,6 +329,7 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
       layoutSpec(frozen.snapshot, {
         revisionNumber: frozen.number,
         issuedAt,
+        firstIssuedAt: frozen.firstIssuedAt,
         art: frozen.snapshot.relatorio.setup.art_trt_number,
         draft: kind === 'preview',
       }),

@@ -199,6 +199,11 @@ export interface PreIssueContext {
    * instrument of the relatório shares with another row. Default: none, no such row.
    */
   registryInstruments?: readonly Extract<RegistryRow, { kind: 'instrument' }>[];
+  /**
+   * Batch e28r: the instant of the relatório's first issue (`firstIssueOf` its revisions, read from the device's state),
+   * from which a v18 suggested deadline counts once there is one. Default: none, no issue yet.
+   */
+  firstIssuedAt?: string | null;
 }
 
 const NO_PHOTO_ERRORS: ReadonlySet<string> = new Set();
@@ -482,7 +487,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   const overdue =
     now === null
       ? []
-      : overduePointPositions(snapshot.points, calendarDateOfInstant(now), { seedVersion: snapshot.relatorio.seed_version, nextIntervention: snapshot.relatorio.setup.next_intervention_date });
+      : overduePointPositions(snapshot.points, calendarDateOfInstant(now), {
+          seedVersion: snapshot.relatorio.seed_version,
+          nextIntervention: snapshot.relatorio.setup.next_intervention_date,
+          // Batch e28r: after the first issue a v18 suggested deadline is a real date, judged as a typed one is.
+          firstIssuedAt: context.firstIssuedAt ?? null,
+        });
   if (overdue.length > 0) {
     rows.push({ id: 'deadline_overdue', row: 'section_8', severity: 'pending', text: deadlineOverdueText(overdue), kind: 'deadline_overdue' });
   }

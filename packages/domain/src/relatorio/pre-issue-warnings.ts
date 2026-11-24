@@ -1,7 +1,7 @@
 import { entityKey, splitEntityKey, type EntityState } from '../ops/apply.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
 import { livePoints } from '../points/checks.ts';
-import { deadlineTerm } from '../points/priority.ts';
+import { deadlineBaseDate, deadlineTerm, printedDeadline } from '../points/priority.ts';
 import type { BlockRow, EquipmentRow, LocationRow, PointRow, RegistryRow } from '../schemas/entities.ts';
 import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
 import { listPtBr } from '../text/plural.ts';
@@ -37,13 +37,37 @@ export function deadlineOverdue(deadline: string, today: string): boolean {
  * `deadline_from_issue`, Q-6): with `issue` (the relatório's seed version and next intervention), a deadline that is its
  * priority's suggestion counts from the issue date (`deadlineTerm`), so it is never past and is skipped; a typed date is
  * still judged. Without `issue`, or on an older seed, every deadline is judged as before.
+ * Batch e28r (wave review S4): only P0 to P3 count from the issue date; a P4 suggestion is the next intervention as stored
+ * (`printedDeadline`), so a past one is judged as on v17.
+ * Batch e28r (Matheus 2026-11-23, "Opção A"; coordinator's reading): once the relatório has a first issue (`firstIssuedAt`),
+ * such a deadline is a real date counted from it, the one section 8 prints and Pontos shows, and it is judged as a typed
+ * date is: a revision issued long after the first one raises the row for it.
  */
-export function overduePointPositions(points: readonly PointRow[], today: string, issue?: { seedVersion: string; nextIntervention: string | null }): number[] {
+export function overduePointPositions(
+  points: readonly PointRow[],
+  today: string,
+  issue?: { seedVersion: string; nextIntervention: string | null; firstIssuedAt?: string | null },
+): number[] {
   return livePoints(points)
     .map((point, i) => ({ point, position: i + 1 }))
-    .filter(({ point }) => point.deadline !== null && deadlineOverdue(point.deadline, today))
-    .filter(({ point }) => issue === undefined || deadlineTerm(point, issue.seedVersion, issue.nextIntervention) === null)
+    .filter(({ point }) => {
+      const judged = issue === undefined ? point.deadline : judgedDeadline(point, issue.seedVersion, issue.nextIntervention, issue.firstIssuedAt ?? null);
+      return judged !== null && deadlineOverdue(judged, today);
+    })
     .map(({ position }) => position);
+}
+
+/** The deadline the overdue row judges: the stored one, a real date counted from the first issue, or none before it. */
+function judgedDeadline(point: PointRow, seedVersion: string, nextIntervention: string | null, firstIssuedAt: string | null): string | null {
+  if (!countsFromIssue(point, seedVersion, nextIntervention)) return point.deadline;
+  if (firstIssuedAt === null) return null;
+  const base = deadlineBaseDate(firstIssuedAt, firstIssuedAt);
+  return base === null ? null : printedDeadline(point, seedVersion, nextIntervention, base);
+}
+
+/** A suggested deadline section 8 prints from the issue date (P0 to P3 on a `deadline_from_issue` seed): never past before the issue. */
+function countsFromIssue(point: PointRow, seedVersion: string, nextIntervention: string | null): boolean {
+  return point.priority !== 'P4' && deadlineTerm(point, seedVersion, nextIntervention) !== null;
 }
 
 /** "Prazo já vencido: ponto 3", "Prazo já vencido: pontos 3 e 5". */

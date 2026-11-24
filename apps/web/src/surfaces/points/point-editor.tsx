@@ -1,8 +1,9 @@
 import {
   deadlineCountsFromIssue,
   deadlineState,
-  deadlineTerm,
+  deadlineShownText,
   extractPhotoRefs,
+  firstIssueOf,
   formatCalendarDate,
   galleryTileOrder,
   numberPhotos,
@@ -30,6 +31,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObjec
 import { Button, CharCount, Chip, DateField, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+import { useRevisions } from '../../db/generate-store.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
@@ -331,7 +333,10 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   // Story 28.5 (seed v18 `deadline_from_issue`, Q-6): a suggested deadline reads as its term until the issue prints its date.
   const seedVersion = snapshot.relatorio.seed_version;
   const fromIssue = deadlineCountsFromIssue(seedVersion);
-  const term = deadlineTerm({ id: pointId, priority, deadline }, seedVersion, nextIntervention);
+  // Batch e28r (Matheus 2026-11-23): once the relatório has a first issue, the line reads the date it prints.
+  const revisions = useRevisions(db, relatorioId);
+  const firstIssuedAt = useMemo(() => firstIssueOf(revisions), [revisions]);
+  const term = deadlineShownText({ id: pointId, priority, deadline }, seedVersion, nextIntervention, firstIssuedAt);
   /** The Prazo field's value: the shown deadline, or what is being typed until it commits. */
   const [typedDeadline, setTypedDeadlineState] = useState(deadline);
   /** The typed value, for the draft source (FR-61): a typed Prazo not committed yet is a draft. */
@@ -874,7 +879,7 @@ function PrazoField({
   value: string | null;
   suggested: boolean;
   replace: string | null;
-  /** Story 28.5 (seed v18): the term a suggested deadline reads before the issue ("30 dias após a emissão"); null otherwise. */
+  /** Story 28.5 (seed v18): the term a suggested deadline reads before the issue ("30 dias após a emissão"), its printed date after the first issue (batch e28r); null otherwise. */
   term: string | null;
   helper: string;
   onChange: (value: string | null) => void;

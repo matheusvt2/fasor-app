@@ -1,4 +1,4 @@
-import { additionalItemsWithoutBlanks, sameAdditionalItems, textCapOf, withoutAdditionalItem } from '@app/domain';
+import { additionalItemsWithoutBlanks, blankAdditionalItem, sameAdditionalItems, textCapOf, withoutAdditionalItem } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 import { CharCount, OverflowMenu, TextButton } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
@@ -111,7 +111,7 @@ export function AdditionalItems({
     setRows(next);
     const focusAfter = () => restoreFocus(() => triggerAt(index) ?? triggerAt(index - 1) ?? addButton(), { mode: 'settled' });
     // A blank row was never stored: it goes with nothing written and nothing to undo.
-    if (before[index]!.trim() === '') {
+    if (blankAdditionalItem(before[index]!)) {
       focusAfter();
       return;
     }

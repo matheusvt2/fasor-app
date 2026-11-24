@@ -115,6 +115,16 @@ export function isUtilityNotTested(block: Pick<BlockRow, 'not_tested' | 'seed_ve
 }
 
 /**
+ * The seed's justification with `{tag}` the sheet's TAG. Batch e28r (wave review): a sheet with no TAG drops the slot
+ * with the space before it, so the sentence reads "no(s) equipamento(s), de propriedade" and not "equipamento(s) , de".
+ */
+// authored (batch e28r, listed for Bruno): the default justification of a sheet with no TAG.
+function withTag(justification: string, tag: string | null): string {
+  if (tag === null || tag.trim() === '') return justification.replaceAll(' {tag}', '').replaceAll('{tag}', '');
+  return justification.replaceAll('{tag}', tag);
+}
+
+/**
  * The justification a Não ensaiado mark prints and its point starts with: the seed's, else the typed text of "Outro";
  * null when there is none. Seed v18, batch e28a (Story 28.4, Bruno's Q-4): for a `utility` reason, the text rewritten on
  * the ficha (the mark's `text`), else the seed's default with `{tag}` the sheet's TAG and `{concessionaria}` the
@@ -127,7 +137,7 @@ export function notTestedJustification(block: Pick<BlockRow, 'not_tested' | 'see
   const seeded = seededReasonOf(block);
   if (seeded?.utility !== true) return seeded?.justification ?? typed;
   const name = typeof mark.utility_name === 'string' && mark.utility_name.trim() !== '' ? mark.utility_name.trim() : null;
-  const base = typed ?? (seeded.justification ?? '').replaceAll('{tag}', tag ?? '').replaceAll('{concessionaria}', UTILITY_NAME_SLOT);
+  const base = typed ?? withTag(seeded.justification ?? '', tag).replaceAll('{concessionaria}', UTILITY_NAME_SLOT);
   return name === null ? base : base.replaceAll(UTILITY_NAME_SLOT, name);
 }
 

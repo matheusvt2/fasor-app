@@ -1,4 +1,5 @@
 import type { AuditTarget, SumarioRowKey } from '@app/domain';
+import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -28,7 +29,8 @@ export const EXPORT_PARAM = 'exportar';
 /**
  * Story 29.2: the mark the history entry pushed by opening the dialog carries, so a close by Esc, a
  * tap outside or "Cancelar" takes that entry back off (a back) instead of leaving a second entry of
- * the Sumário behind it, which a later back would land on without moving.
+ * the Sumário behind it, which a later back would land on without moving. Batch e28r (wave review
+ * S3): "Ver no sumário" and a section's "Ver" close the same way.
  */
 const EXPORT_OPENED = 'exportOpened';
 
@@ -49,10 +51,32 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
   const navigate = useNavigate();
   const location = useLocation();
   const open = search.get(EXPORT_PARAM) === '1' && !isDisabled;
-  /** `cancel`: the dialog's own close (Esc, scrim, Cancelar), which pops the entry its opening pushed. */
-  const setOpen = (next: boolean, how: 'cancel' | 'replace' = 'replace') => {
+  /**
+   * Batch e28r (wave review S3): the router key of the entry a close already popped, until the pop
+   * renders: a second close before then (a double tap on "Cancelar" or the scrim, Escape twice)
+   * does nothing, instead of a second back that would leave the Sumário.
+   */
+  const popping = useRef<string | null>(null);
+  /** What a close asked to do once its pop has rendered ("Ver no sumário", a section's "Ver"). */
+  const afterPop = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (popping.current === null || popping.current === location.key) return;
+    popping.current = null;
+    const then = afterPop.current;
+    afterPop.current = null;
+    then?.();
+  }, [location.key]);
+  /**
+   * Opening pushes an entry, marked (Story 29.2). Closing pops that entry when this is it, so no
+   * second entry of the Sumário stays behind it; on an entry not opened here (a link to
+   * `?exportar=1`) it replaces the address. `then` runs once the Sumário is drawn without the dialog.
+   */
+  const setOpen = (next: boolean, then?: () => void) => {
     if (next === open) return;
-    if (!next && how === 'cancel' && openedHere(location.state)) {
+    if (popping.current === location.key) return;
+    if (!next && openedHere(location.state)) {
+      popping.current = location.key;
+      afterPop.current = then ?? null;
       void navigate(-1);
       return;
     }
@@ -64,9 +88,10 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
         else params.delete(EXPORT_PARAM);
         return params;
       },
-      // Opening is a step back can undo (marked, Story 29.2); closing otherwise replaces it.
+      // Opening is a step back can undo (marked, Story 29.2); closing a dialog not opened here replaces it.
       next ? { state: { ...(typeof state === 'object' && state !== null ? state : {}), [EXPORT_OPENED]: true } } : { replace: true },
     );
+    then?.();
   };
   return (
     <>
@@ -86,14 +111,11 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
       <ExportDialog
         relatorioId={relatorioId}
         isOpen={open}
-        onOpenChange={(next) => setOpen(next, 'cancel')}
+        onOpenChange={(next) => setOpen(next)}
         onEditInSetup={(etapa) => void navigate(`/relatorio/${relatorioId}/setup?etapa=${etapa}${etapa === 6 ? '&volta=exportar' : ''}`)}
         // Story 25.7: a stale conclusion text's "Abrir ficha", with `?volta=exportar` so the sheet's "Voltar" reopens the dialog.
         onOpenSheet={(blockId) => void navigate(`/relatorio/${relatorioId}/ficha/${blockId}?${RETURN_PARAM}=${RETURN_TO_EXPORT}`)}
-        onSeeInSumario={(rows) => {
-          setOpen(false);
-          onSeeInSumario(rows);
-        }}
+        onSeeInSumario={(rows) => setOpen(false, () => onSeeInSumario(rows))}
         {...(onSeeAuditTarget === undefined
           ? {}
           : {
@@ -101,8 +123,8 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAud
                 // A section is marked on the Sumário behind the dialog, which closes first; a
                 // sheet or the gallery is a navigation with `?volta=exportar` (review F-11), so
                 // its App bar "Voltar" and the browser's back both reopen the dialog (`?exportar=1`).
-                if (target.kind === 'section') setOpen(false);
-                onSeeAuditTarget(target);
+                if (target.kind === 'section') setOpen(false, () => onSeeAuditTarget(target));
+                else onSeeAuditTarget(target);
               },
             })}
       />

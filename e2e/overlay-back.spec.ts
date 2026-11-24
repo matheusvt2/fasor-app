@@ -1,5 +1,7 @@
 import { devices, type Locator, type Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { plainJpeg } from './fixtures/photos/synthetic.ts';
+import { devicePhotos, openChaveSheet } from './support/photos.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 
@@ -174,6 +176,75 @@ test('@p0 29.2-E2E-001c the Export dialog closed by Escape leaves no second Sum�
   await settle(page);
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
+});
+
+// Batch e28r (wave review S3): the dialog's close pops its entry once. Two closes before the pop
+// renders (Escape twice here; a double tap on "Cancelar" or the scrim is the same close) used to
+// pop twice and leave the Sumário. "Ver no sumário" closes the same way: no second Sumário stays.
+test('@p0 29.2-E2E-002a the Export dialog closed twice at once leaves for nowhere, and "Ver no sumário" leaves no second Sumário behind', async ({ page }) => {
+  test.setTimeout(150_000);
+  const relatorioId = await relatorio(page);
+  const sumario = `/relatorio/${relatorioId}`;
+  await fromHome(page, relatorioId);
+  const exportDialog = page.getByRole('dialog', { name: 'Gerar relatório' });
+
+  await page.getByRole('button', { name: 'Gerar relatório' }).first().click();
+  await expect(exportDialog).toBeVisible();
+  await settle(page);
+  // Both keydowns in one task: the second comes before the first close's pop has rendered.
+  await exportDialog.evaluate((dialog) => {
+    for (let i = 0; i < 2; i++) dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  });
+  await expect(exportDialog).toBeHidden();
+  await settle(page);
+  expect(await path(page)).toBe(sumario);
+  await expect(page).toHaveURL(new RegExp(`${sumario}$`));
+
+  await page.getByRole('button', { name: 'Gerar relatório' }).first().click();
+  await expect(exportDialog).toBeVisible();
+  await settle(page);
+  await exportDialog.getByRole('button', { name: 'Ver no sumário' }).first().click();
+  await expect(exportDialog).toBeHidden();
+  await expect(page).toHaveURL(new RegExp(`${sumario}$`));
+  // The marking runs once the pop has drawn the Sumário without the dialog.
+  await expect(page.locator('li.sum-row.is-highlighted').first()).toBeAttached();
+
+  await settle(page);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+// Batch e28r (wave review S1): the photo viewer and its "Remover" confirm, both closed by their
+// buttons, leave two released entries in a row; one back still leaves the gallery.
+test('@p0 29.2-E2E-002b the photo viewer and its confirm both closed by their buttons: one back leaves the gallery', async ({ page }) => {
+  test.setTimeout(150_000);
+  const database = deviceDatabaseName(account.userId);
+  const { relatorioId, blockId } = await openChaveSheet(page, account, database);
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
+  await (await chooser).setFiles([await plainJpeg(page, 'a.jpg')]);
+  const which = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await which.getByRole('button', { name: 'Adicionar 1 foto' }).click();
+  await expect(which).toHaveCount(0);
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
+
+  await page.goto(`/relatorio/${relatorioId}/fotos`);
+  await page.getByRole('button', { name: 'Foto 1, abrir', exact: true }).click();
+  const viewer = page.getByRole('dialog', { name: 'Foto 1 de 1' });
+  await expect(viewer).toBeVisible();
+  await settle(page);
+  await viewer.getByRole('button', { name: 'Remover', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: 'Remover a foto 1 do relatório?' });
+  await expect(confirm).toBeVisible();
+  await settle(page);
+  await confirm.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(confirm).toBeHidden();
+  await expect(viewer).toBeVisible();
+  await viewer.getByRole('button', { name: 'Fechar' }).click();
+  await expect(viewer).toBeHidden();
+  await settle(page);
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/ficha/${blockId}$`));
 });
 
 // The Sumário keeps its own landing from a sheet (Story 12.2, Story 15.4): the sheet's row, opened and

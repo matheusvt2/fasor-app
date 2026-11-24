@@ -137,6 +137,14 @@ describe('28.4-UNIT-006 "Equipamento da concessionária": Bruno\'s justification
     expect(notTestedPointText(marked('v18', { utility_name: 'Concessionária Exemplo' }), 'TP-04')).toBe(DEFAULT('Concessionária Exemplo'));
   });
 
+  // Batch e28r (wave review): with no TAG the sentence closes over the empty slot ("equipamento(s), de propriedade").
+  it('a sheet with no TAG reads "no(s) equipamento(s), de propriedade", with no stray space before the comma', () => {
+    const noTag = DEFAULT('Exemplo').replace(' TP-04,', ',');
+    expect(noTag).toContain('no(s) equipamento(s), de propriedade da concessionária Exemplo');
+    expect(notTestedJustification(marked('v18', { utility_name: 'Exemplo' }), null)).toBe(noTag);
+    expect(notTestedJustification(marked('v18', { utility_name: 'Exemplo' }), '   ')).toBe(noTag);
+  });
+
   it('a rewritten text is the justification; a slot left in it still takes the name and still blocks while empty', () => {
     const rewritten = 'Medição de faturamento desligada pela concessionária no dia da visita.';
     expect(notTestedJustification(marked('v18', { text: rewritten }), 'TP-04')).toBe(rewritten);
