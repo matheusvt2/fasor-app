@@ -24,7 +24,9 @@ import { applyOps, applyServerBatch, ServerBatchRejectedError, type Tx } from '.
 import { readingImage, type ReadingImage } from './image.ts';
 import { readingKindHandler, type ReadingKindRunResult } from './kinds/index.ts';
 import { entityRecord } from './kinds/shared.ts';
+import { totalUsage } from './kinds/plate.ts';
 import type { ReadingPayload } from './payload.ts';
+import { billedCallOf, type BilledCall } from './providers/errors.ts';
 import { AiFeaturesOffError, isPermanentReadingError, PermanentReadingError, ProviderError, type ReadingProvidersFactory } from './providers/index.ts';
 import { readingServerOp, readingStatusPath, type ReadingStatusValue } from './status.ts';
 
@@ -112,6 +114,11 @@ interface RunFacts {
   structuring: StructuringResult | null;
   /** Stories 9.3 and 9.5: the model call of a prose kind (no structuring step). */
   model: ReadingKindRunResult['model'];
+  /**
+   * Story 30.2 B (L1284, L1290, L1310): every call the provider billed, when the kind listed them or the run
+   * failed on a billed call; null otherwise (the run row then reads `structuring` or `model` as before).
+   */
+  calls: BilledCall[] | null;
   /** True once the batch and its `ok` run row committed. */
   committed: boolean;
 }
@@ -156,7 +163,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
   const companyId = asCompanyId(payload.company_id);
   const startedAt = deps.now().getTime();
   const runId = deps.newId();
-  const facts: RunFacts = { relatorioId: null, photoFound: false, ocrName: 'none', image: null, ocr: null, structuring: null, model: null, committed: false };
+  const facts: RunFacts = { relatorioId: null, photoFound: false, ocrName: 'none', image: null, ocr: null, structuring: null, model: null, calls: null, committed: false };
   const logFields = () => ({
     company_id: payload.company_id,
     relatorio_id: facts.relatorioId,
@@ -168,6 +175,9 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
   });
 
   async function recordRun(outcome: 'ok' | 'error', error: string | null, executor: Db | Tx = deps.db): Promise<void> {
+    // Story 30.2 B: with the calls listed, the total is their sum and each call keeps its model and usage.
+    const calls = facts.calls;
+    const onlyCall = calls !== null && facts.structuring === null && facts.model === null ? (calls[0] ?? null) : null;
     await executor.insert(readingRuns).values({
       id: runId,
       company_id: companyId,
@@ -180,9 +190,12 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
       error,
       ocr_provider: facts.ocrName,
       ocr_result: outcome === 'error' || facts.ocr === null || facts.image === null ? null : normalizedOcr(facts.ocr, facts.image),
-      model: facts.structuring?.model ?? facts.model?.model ?? null,
-      prompt_version: facts.structuring?.prompt_version ?? facts.model?.prompt_version ?? null,
-      llm_usage: facts.structuring?.usage ?? facts.model?.usage ?? null,
+      model: facts.structuring?.model ?? facts.model?.model ?? onlyCall?.model ?? null,
+      prompt_version: facts.structuring?.prompt_version ?? facts.model?.prompt_version ?? onlyCall?.prompt_version ?? null,
+      llm_usage:
+        calls === null
+          ? (facts.structuring?.usage ?? facts.model?.usage ?? null)
+          : { ...totalUsage(calls), calls: calls.map((call) => ({ model: call.model, prompt_version: call.prompt_version, ...call.usage })) },
       duration_ms: Math.max(0, deps.now().getTime() - startedAt),
       created_at: toIso(deps.now()),
     });
@@ -236,6 +249,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
     facts.ocr = built.ocr;
     facts.structuring = built.structuring;
     facts.model = built.model ?? null;
+    facts.calls = built.calls ?? null;
     for (const drop of built.dropped) log('reading value dropped', { ...logFields(), key: drop.key, reason: drop.reason });
 
     const batchId = deps.newId();
@@ -273,6 +287,9 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
       return;
     }
     const permanent = isPermanentReadingError(error);
+    // Story 30.2 B: a call the provider billed before the run failed is still counted on its row.
+    const billed = billedCallOf(error);
+    if (billed !== null && facts.structuring === null && facts.model === null) facts.calls = [...(facts.calls ?? []), billed];
     // A failure about to write `failed` on a photo re-targeted meanwhile ends superseded too:
     // the new kind's reading owns the status.
     let superseded = error instanceof ReadingSupersededError;

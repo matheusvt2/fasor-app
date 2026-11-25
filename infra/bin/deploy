@@ -388,14 +388,18 @@ telemetry_count() {
   [[ "$count" =~ ^[0-9]+$ ]] || return 1
   printf '%s' "$count"
 }
+# Story 30.2 C (L2743, 2026-11-24): ~~a warning only~~ a failure of the smoke like the other checks, now that the
+# check was green on the production deploys of Epics 21 to 23 (the ledger row's condition): 0 session_start with
+# the tag, any ux_event_sink_failed, or a read error of either group returns non-zero; the cleanup still runs and
+# the rollback hint is printed (docs/observability.md).
 check_usage_events() {
-  local ux_group api_group sessions="" failures="" attempt warned=0
+  local ux_group api_group sessions="" failures="" attempt failed=0
   local session_pattern="{ (\$.name = \"session_start\") && (\$.app_version = \"$tag\") }"
   ux_group="$(output ux_events_log_group /fasor/production/ux-events)" || ux_group=""
   api_group="$(output api_log_group /fasor/production/api)" || api_group=""
   if [ -z "$ux_group" ] || [ -z "$api_group" ]; then
-    echo "deploy: warning: could not read the outputs ux_events_log_group and api_log_group; the usage events were not checked" >&2
-    return 0
+    echo "deploy: could not read the outputs ux_events_log_group and api_log_group; the usage events were not checked" >&2
+    return 1
   fi
   # A CloudWatch line appears seconds after the put: poll up to about 2 minutes while the count
   # reads 0. A read error stops the poll (the retry already outlasted a lost endpoint); a dry
@@ -408,17 +412,16 @@ check_usage_events() {
   failures="$(telemetry_count "${DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES:-0}" "$api_group" '"ux_event_sink_failed"')" || failures=""
   echo "telemetry: ${sessions:-unknown} session_start with app_version $tag since $deploy_start_iso; ${failures:-unknown} ux_event_sink_failed"
   if [ -z "$sessions" ]; then
-    echo "deploy: warning: could not read the session_start events of $ux_group" >&2; warned=1
+    echo "deploy: could not read the session_start events of $ux_group" >&2; failed=1
   elif [ "$sessions" = 0 ]; then
-    echo "deploy: warning: 0 session_start with app_version $tag in $ux_group since $deploy_start_iso: the usage events may not be landing (docs/observability.md)" >&2; warned=1
+    echo "deploy: 0 session_start with app_version $tag in $ux_group since $deploy_start_iso: the usage events are not landing (docs/observability.md)" >&2; failed=1
   fi
   if [ -z "$failures" ]; then
-    echo "deploy: warning: could not read the ux_event_sink_failed lines of $api_group" >&2; warned=1
+    echo "deploy: could not read the ux_event_sink_failed lines of $api_group" >&2; failed=1
   elif [ "$failures" != 0 ]; then
-    echo "deploy: warning: $failures ux_event_sink_failed in $api_group since $deploy_start_iso: the api could not write usage events" >&2; warned=1
+    echo "deploy: $failures ux_event_sink_failed in $api_group since $deploy_start_iso: the api could not write usage events" >&2; failed=1
   fi
-  [ "$warned" = 1 ] && echo "deploy: (a warning only in this release; the deploy's exit is unchanged)" >&2
-  return 0
+  [ "$failed" = 0 ]
 }
 
 smoke_failed=""
@@ -459,7 +462,9 @@ if [ -z "$smoke_failed" ]; then
   # The operator's checkout already holds the tools image and its node_modules volumes from a
   # gate run (infra/PUBLISHING.md); --no-deps keeps the local stack down.
   suite=("$CTR" compose --profile tools run --rm --no-deps)
-  [ "$CTR" = podman ] && suite+=(--user root)
+  # Story 30.2 D (tools-root): ~~--user root~~ as node, like the gate (docker-compose.yml adds the engine socket's
+  # group to tools), so the suite never leaves root-owned files in the checkout's node_modules volumes.
+  [ "$CTR" = podman ] && suite+=(--user node)
   suite+=(-e SMOKE_BASE_URL -e SMOKE_EMAIL -e SMOKE_PASSWORD tools pnpm smoke:production)
   suite_exit=0
   suite_ran=1
@@ -480,7 +485,8 @@ fi
 
 step "$smoke_telemetry"
 if [ "$suite_ran" = 1 ]; then
-  check_usage_events || echo "deploy: warning: the usage-events check stopped early; the deploy's exit is unchanged" >&2
+  # Story 30.2 C: a red check is a red smoke (the suite's own failure, when it failed first, is the one named).
+  if ! check_usage_events && [ -z "$smoke_failed" ]; then smoke_failed="$smoke_telemetry"; fi
 else
   echo "not run: the suite did not run"
 fi

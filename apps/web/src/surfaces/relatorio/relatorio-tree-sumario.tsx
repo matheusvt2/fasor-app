@@ -120,7 +120,8 @@ export const SumarioLocation = memo(function SumarioLocation({ node, shared }: {
             <AriaButton
               className="s9-verif eq-card-open"
               data-tree-open
-              aria-label={copy.local.entryLabel(site.ncBadge === null ? site.text : `${site.text} · ${site.ncBadge}`, node.name)}
+              // Story 30.1 F (E15-R1): the kernel's spoken name, the rail's too.
+              aria-label={site.spokenName}
               onPress={() => shared.actions.openVerificacoes(node.id)}
             >
               <span className="eq-card-title">

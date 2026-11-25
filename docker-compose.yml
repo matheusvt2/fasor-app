@@ -269,6 +269,12 @@ services:
     # relabelled with `:z`, which would rewrite the socket's label on the host.
     security_opt:
       - label=disable
+    # Story 30.2 D (tools-root, E26-A8): the engine socket is root:root 0660 on the podman VM, which is why the
+    # gate ran as root, and root runs left root-owned files in the node_modules volumes. The gate now runs as
+    # `node` (`--user node`) with the socket's group added, so the preflight still reads it. ENGINE_SOCKET_GID
+    # names another group where the socket's differs.
+    group_add:
+      - '${ENGINE_SOCKET_GID:-0}'
     depends_on:
       install: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }

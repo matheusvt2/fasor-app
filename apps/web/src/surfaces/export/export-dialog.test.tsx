@@ -2095,3 +2095,58 @@ describe('Story 18.4: the generate and preview waits time the press, not the req
     open.mockRestore();
   });
 });
+
+describe('Story 30.1 (audit 2026-11-24): the generate answers the dialog did not read', () => {
+  it('30.1-UNIT-A: a retry answered `running` (the first answer lost) moves the relatório as `queued` does; the revision offers "Marcar como enviado ao cliente"; a second `running` answer writes no second transition', async () => {
+    database = await freshDb();
+    const generate = vi.fn<SyncState['generate']>(async () => ({ outcome: 'running', job_id: JOB_ID, revision_number: 1 }));
+    render(<Harness sync={syncState({ generate })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    // Em campo --generate--> Em revisão, as on a 202.
+    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao']));
+
+    const { op } = revisionOf(1);
+    await act(async () => {
+      await applyPulled(database!, [...jobOps('done'), op]);
+    });
+    const modal = dialog();
+    await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
+    expect(await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeInTheDocument();
+
+    // Another press answered `running` again: Em revisão has no generate row, so nothing more is written.
+    await userEvent.click(within(modal).getByRole('button', { name: 'Gerar de novo' }));
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+    // The job it names is done and its revision held, so the dialog is ready again; the status stays as it was.
+    await waitFor(() => expect(within(dialog()).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
+    expect(await statusOps(database!)).toEqual(['em_revisao']);
+  });
+
+  it('30.1-UNIT-C: a 409 `pre_issue_blocked` names each blocking row with the kernel\'s texts and offers "Ver no sumário" on their rows', async () => {
+    database = await freshDb();
+    const onSee = vi.fn();
+    const generate = vi.fn<SyncState['generate']>(async () =>
+      Promise.reject(new SyncRequestError({ kind: 'http', status: 409, code: 'pre_issue_blocked', details: { rows: ['parecer_missing'] } })),
+    );
+    render(
+      <MemoryRouter>
+        <SyncContext value={syncState({ generate })}>
+          <ToastProvider>
+            <ExportDialog relatorioId={REL} isOpen onOpenChange={() => {}} onSeeInSumario={onSee} timing={TIMING} />
+          </ToastProvider>
+        </SyncContext>
+      </MemoryRouter>,
+    );
+    await userEvent.click(generateButton());
+    const modal = dialog();
+    const alert = await within(modal).findByRole('alert');
+    // The device holds the parecer (the fixture sets it), so the row is the server's: the kernel's own text.
+    expect(within(alert).getByText('Parecer não preenchido')).toBeVisible();
+    expect(within(modal).getByText(/^Preencha o parecer( \(linha \d+ do sumário\))? para emitir a revisão 1\. O rascunho pode ser visto antes\.$/)).toHaveClass('btn-reason');
+    await userEvent.click(within(alert).getByRole('button', { name: 'Ver no sumário' }));
+    expect(onSee).toHaveBeenCalledWith(['section_10']);
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(await statusOps(database!)).toEqual([]);
+  });
+});

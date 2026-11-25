@@ -181,7 +181,8 @@ export function PlateCaptureTile({ relatorioId, target, pendingRow }: { relatori
  * forward `aria-busy` (its DOM prop filter), and its `isPending` would also disable the button,
  * which this state must not do; so the attribute is set on the element itself.
  */
-function useAriaBusy(ref: RefObject<HTMLElement | null>, busy: boolean): void {
+/** F-26: the opener is busy while the camera opens (Story 30.1 H: every camera opener uses it). */
+export function useAriaBusy(ref: RefObject<HTMLElement | null>, busy: boolean): void {
   useLayoutEffect(() => {
     const element = ref.current;
     if (element === null) return;
@@ -195,7 +196,7 @@ function useAriaBusy(ref: RefObject<HTMLElement | null>, busy: boolean): void {
  * prompt may be up). Always mounted, empty when not opening, so a screen reader hears the text
  * when it appears in a live region it already knows.
  */
-function CameraOpeningStatus({ opening }: { opening: boolean }) {
+export function CameraOpeningStatus({ opening }: { opening: boolean }) {
   return (
     <p className="visually-hidden camera-opening-status" role="status">
       {opening ? copy.ficha.nameplate.opening : ''}

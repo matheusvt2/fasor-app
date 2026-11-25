@@ -1232,6 +1232,23 @@ describe('17.2-UNIT "Câmera do aparelho" on: every opener takes the camera app 
     expect(opener).toHaveAttribute('data-count', '');
   });
 
+  it('30.1-UNIT-I (e17-R1): off, on the picker path (no camera API), a "Ler visor" press whose first target is gone says why and opens no picker', async () => {
+    cameraApp.on = false;
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined });
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    picker.mockClear();
+    renderApp(makeSyncState({ online: false }), false, { shotTarget: () => null });
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    expect(await screen.findByText('Nada mais a fotografar aqui: toda leitura desta ficha já tem foto.')).toBeVisible();
+    expect(picker).not.toHaveBeenCalled();
+    cleanup();
+    renderApp(makeSyncState({ online: false }), false, { shotTarget: () => null, shotHint: () => 'Próxima leitura: X' });
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    expect(await screen.findByText('Próxima leitura: X')).toBeVisible();
+    expect(picker).not.toHaveBeenCalled();
+    picker.mockRestore();
+  });
+
   it('off: the viewfinder opens through getUserMedia as before', async () => {
     cameraApp.on = false;
     const picker = vi.spyOn(HTMLInputElement.prototype, 'click');

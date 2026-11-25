@@ -66,6 +66,7 @@ import { useServerReachable } from '../../state/sync.tsx';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { useToast } from '../../state/toast.tsx';
 import { useCamera } from './camera-view.tsx';
+import { CameraOpeningStatus, useAriaBusy } from './photo-openers.tsx';
 import type { FichaApi, LocalApi } from './ficha-api.ts';
 import { cabineEnvOp, testCellOp } from './ficha-ops.ts';
 import { cellKey, MeasurementField, type RunDirection } from './measurement-field.tsx';
@@ -650,6 +651,8 @@ export function ReadDisplayButton({
     const stop = displayBurstStop(stops, displayBurstStart(stops, photosOf(snapshot), block.id, testKey, tableKey), 0);
     return stop === null ? targetFor(testKey) : targetOf(stop);
   };
+  // Story 30.1 H (L1335): "Abrindo câmera…" and the busy opener while the camera has not answered, as `photo-openers.tsx`.
+  useAriaBusy(opener, camera.opening);
   return (
     <>
       <AriaButton
@@ -658,6 +661,7 @@ export function ReadDisplayButton({
         data-telemetry="ficha.read_display"
         data-count={camera.burst > 0 ? String(camera.burst) : ''}
         aria-describedby={camera.denied ? deniedId : undefined}
+        data-state={camera.opening ? 'opening' : undefined}
         onPress={camera.open}
       >
         <svg className="ico" aria-hidden="true">
@@ -665,6 +669,7 @@ export function ReadDisplayButton({
         </svg>
         {t.readDisplay}
       </AriaButton>
+      <CameraOpeningStatus opening={camera.opening} />
       {/* Story 22.1: one display file, read into the cell the burst's first shot would read. */}
       <AttachFileAction relatorioId={api.relatorioId} target={attachTarget} />
       {camera.denied ? (
@@ -773,6 +778,8 @@ export function EnvReadDisplayButton({ relatorioId, cabineId, target }: { relato
   const deniedId = useId();
   const shot = (): CaptureTarget => ({ ...target(), reading: { kind: 'display', target: displayEnvTarget(cabineId) as JsonValue } });
   const camera = useCamera(relatorioId, shot, opener, { singleShot: true, shotTarget: (n) => (n === 0 ? shot() : null) });
+  // Story 30.1 H (L1335): as the sheet's "Ler visor".
+  useAriaBusy(opener, camera.opening);
   return (
     <>
       <AriaButton
@@ -781,6 +788,7 @@ export function EnvReadDisplayButton({ relatorioId, cabineId, target }: { relato
         data-telemetry="ficha.read_display"
         data-count={camera.burst > 0 ? String(camera.burst) : ''}
         aria-describedby={camera.denied ? `${reasonId} ${deniedId}` : reasonId}
+        data-state={camera.opening ? 'opening' : undefined}
         onPress={camera.open}
       >
         <svg className="ico" aria-hidden="true">
@@ -788,6 +796,7 @@ export function EnvReadDisplayButton({ relatorioId, cabineId, target }: { relato
         </svg>
         {t.readDisplay}
       </AriaButton>
+      <CameraOpeningStatus opening={camera.opening} />
       <span className="btn-reason" id={reasonId}>
         {t.readDisplayReason}
       </span>

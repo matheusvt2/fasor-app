@@ -1,6 +1,6 @@
 import { BedrockRuntimeClient, ConverseCommand, type ContentBlock, type ConverseCommandOutput, type ToolUseBlock } from '@aws-sdk/client-bedrock-runtime';
 import { callWithTimeout, classifyAwsError } from './aws.ts';
-import { PermanentReadingError } from './errors.ts';
+import { BilledCallError } from './errors.ts';
 
 /*
  * Story 11.6, moved here by the review of 2026-10-08 (C4, API-3): the Bedrock Converse client
@@ -126,9 +126,14 @@ export async function converseTool(options: BedrockProviderOptions, call: Conver
   const usage = { input_tokens, output_tokens, usd: usdFor(call.modelId, { input_tokens, output_tokens }) };
   const blocks = output.output?.message?.content ?? [];
   const toolUse = blocks.map((block) => block.toolUse).find((use): use is ToolUseBlock => use !== undefined && use.name === call.tool.name);
-  // The same request answers the same way: a reply without the tool call is permanent.
+  // The same request answers the same way: a reply without the tool call is permanent. Story 30.2 B: it was billed,
+  // so the call rides on the error (its prompt version is the caller's, `withPromptVersion`).
   if (toolUse === undefined) {
-    throw new PermanentReadingError(`bedrock: ${call.modelId} answered without calling ${call.tool.name} (stop reason ${output.stopReason ?? 'none'})`);
+    throw new BilledCallError(`bedrock: ${call.modelId} answered without calling ${call.tool.name} (stop reason ${output.stopReason ?? 'none'})`, {
+      model: call.modelId,
+      prompt_version: null,
+      usage,
+    });
   }
   return { input: toolUse.input, usage };
 }

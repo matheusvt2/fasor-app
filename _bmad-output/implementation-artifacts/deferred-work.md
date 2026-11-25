@@ -129,33 +129,11 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: post-mvp
   state: open (owner: Matheus, once real nameplate photos and their expected values are in `docs/media/`)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-11-6-structure-readings-on-bedrock.md`
-  summary: The usage of a Converse call that fails after Bedrock billed it (a reply without the tool call, a tool input the schema refuses) is not recorded on `reading_runs`: the adapter throws `PermanentReadingError` and the job writes the failed run row with `model`, `prompt_version` and `llm_usage` null. Recording it needs `job.ts` to keep partial facts (the model and usage carried on the error) for the failed run row.
-  evidence: `apps/api/src/jobs/reading/providers/bedrock.ts` `converseTool` (usage computed before the tool-call and schema checks); `apps/api/src/jobs/reading/job.ts` `recordRun` (reads `facts.structuring` / `facts.model`, set only on success).
-  class: debt
-  state: open (owner: coordinator, the next change to `job.ts`)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-11-6-structure-readings-on-bedrock.md`
-  summary: `infra/production/variables.tf` does not validate `bedrock_model_id`, `bedrock_prose_model_id` or `bedrock_escalation_model_id` against the models priced in `BEDROCK_PRICES` and allowed in `infra/bootstrap/iam.tf`; a tfvars typo reaches the api, whose provider factory throws on an unpriced model at boot, so the task crash-loops after the apply.
-  evidence: `infra/production/variables.tf` (only a non-empty check on `bedrock_model_id`); `apps/api/src/jobs/reading/providers/bedrock.ts` `assertPricedModel`; `infra/bootstrap/iam.tf` statement `InvokeStory116Models`.
-  class: bug
-  state: open (owner: Matheus, before the post-merge `ai_features = "on"` apply)
-
 ## Deferred from: code review of spec-11-6-structure-readings-on-bedrock (2026-10-06)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-11-6-structure-readings-on-bedrock.md`
-  summary: An escalated reading's run row names one model but sums two calls' usage, so the model and its price no longer reproduce the stored USD; keep per-call usage on `reading_runs.llm_usage` together with the failed-call usage entry above.
-  evidence: `apps/api/src/jobs/reading/kinds/plate.ts` returns `{ ...kept.structuring, usage: summed }`.
-  class: debt
-  state: open (owner: coordinator, with the failed-call usage entry)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: MVP hands-on review fix batch (2026-10-06), split into three PRs
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-layout-copy-3.md`
-  summary: F-26 follow-up: the "Abrindo câmera…" state covers the "Fotografar placa" tile and the Sticky action bar's camera button; the other openers of the camera through their own `useCamera` still show nothing while the browser's permission prompt is open: "Ler visor" (the burst in `read-display.tsx`, `ReadDisplayButton` and the cabine's `EnvReadDisplayButton`), the NC row's "Adicionar foto" (`photo-openers.tsx` `RowPhotoAction`) and the palette's "Fotografar equipamento" (`relatorio/panel-capture.tsx`).
-  evidence: `apps/web/src/surfaces/ficha/read-display.tsx` (`useCamera` in `ReadDisplayButton`, ~:483), `apps/web/src/surfaces/ficha/photo-openers.tsx` `RowPhotoAction`, `apps/web/src/surfaces/relatorio/panel-capture.tsx` (`useCamera`, ~:121); `CameraControl.opening` is there to read.
-  class: debt
-  state: open (owner: next sheet batch)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-11-sheet-photo-strip-and-direct-picker.md`
   summary: The "Fotos da ficha" strip retry pill (`onRetry` -> `retryUpload`) has no e2e of its own; the pill is proven on the checklist row only.
@@ -299,11 +277,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: debt
   state: open (owner: coordinator)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
-  summary: Deferred review finding (spec frontmatter `deferred:`, independent review r8lay-rules-3): a TAG wider than the phone Sumário row's room runs the page sideways at 390 px; the rail's F-07 ellipsis has no phone `.s9-eq` counterpart. Mostly pre-existing (`.sum-s9 .s9-eq-open`'s grid already gave an unbreakable TAG its min-content), now with the batch's `nowrap` TAG and `min-content` row.
-  evidence: `apps/web/src/surfaces/relatorio/relatorio.css` (block r8lay DA-6); TAGs are free text (`tag-dialogs.tsx`).
-  class: debt
-  state: open (owner: coordinator)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
   summary: Follow-up review recommended (spec `followup_review_recommended: true`, independent review r8lay-rules-3): check on real Android Chrome and iPadOS WebKit tablets (Inter at the value size) that the ratio tables' wrap and the 1280 fit hold, that `.mt-scroll`'s cue and the scroll to Condição show, and that the held-Enter swallow of the plate Enter run works with soft keyboards (which may not mark `repeat`). Never run in this batch (desktop Chrome only).
   evidence: `ficha.css` r8lay TTR block; `ficha-fields.tsx` `focusNextMissingField`; R8LAY-E2E-001/009.
   class: debt
@@ -318,12 +291,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   evidence: the "New pt-BR copy" sections of the PR bodies of #118, #119, #120 and #121; `apps/web/src/copy/pt-br.ts`, `apps/web/src/copy/ui.ts` and the kernel modules named.
   class: docs
   state: open (owner: Bruno)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-status-flow-2026-10-10.md`
-  summary: A generate answered `running` (a retry after a lost response) writes no `generate` status op, so the relatório stays Em campo or Rascunho with a revision on record and "Marcar como enviado ao cliente" is not offered until another generate.
-  evidence: `apps/web/src/surfaces/export/use-generate.ts:243` emits `emitStatus('generate')` for `outcome === 'queued'` only, and the line predates the status flow of 2026-10-10 (edge-case review of that story, finding EC4, medium, unverified in a run). Settle by emitting for `running` too (the table makes it a no-op once Em revisão) with a test that answers `running` on an Em campo relatório. *(2026-10-13: the call now reads `emitStatus('queued')` and asks the kernel's `advanceOnGenerate`; a `running` answer still writes no status op.)*
-  class: bug
-  state: open
 
 ## Deferred from: Story 14.2, Local › Painel › Coluna (2026-10-13)
 
@@ -445,12 +412,6 @@ All rows closed; see deferred-work-archive.md
   class: question
   state: ~~open (owner: Matheus, listed in the PR)~~ decided 2026-10-21 (Bruno via Matheus, answer 1): the yes/no plate field is kept; SELV and PELV mean a circuit voltage up to 120 V d.c. or 50 V a.c., per NBR 5410. Its help text and a non-blocking notice when it reads SIM above 50 V are Story 14.14 (backlog)
 
-- source_spec: `_bmad-output/implementation-artifacts/epic-batch-orchestrator.md`
-  summary: 2026-10-20, coordinator: the second root-owned-file breakage from the `tools` container running with `--user root`. After the 2026-10-14 `.vite-temp` crash loop, the main stack's `install` service (user `node`) failed with ERR_PNPM_CMD_SHIM_CHMOD on `node_modules/.pnpm/esbuild@0.25.12/...` owned by root, which stopped a wave gate before it ran; `chown -R node:node /workspace/node_modules` fixed it. Root cause: gate runs as root write into the shared `node_modules` volume.
-  evidence: the 2026-10-20 wave gate log (`install` exit 1); `docker-compose.yml` `tools` service; the playbook's `--user root` rule.
-  class: debt
-  state: open (owner: the next carry-over batch: run `tools` as `node`, or chown the volume back on exit, and assert it in `scripts/preflight.ts`)
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-9-14-11-qgbt-oil-dry.md`
   summary: 2026-10-20, coordinator: PR #148's review patched 8 findings in one loop with no second review over the patches (listed in its PR body under "patched, not re-reviewed"); the batch recommends a follow-up review. Also `apps/web/src/components/quantity-stepper.tsx` keeps the deferred `select()` with no cancel on blur that PR #149 fixed in the Position box.
   evidence: PR #148 and #149 bodies.
@@ -529,11 +490,6 @@ Source: `_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md` § D
   evidence: e2e covers the sheet and Geral sentences through the viewer; the local sentence depends on the tile carrying `location_id`. One viewer-remove step in `verificacoes-local.spec.ts` 14.3-E2E-001 at its next change.
   class: test-gap
   state: open (owner: the next batch that changes `verificacoes-local.spec.ts`)
-- source_spec: `_bmad-output/implementation-artifacts/spec-17-2-17-7-device-camera-app-save-to-device.md`
-  summary: The "Ler visor" exhausted-target guard runs only with "Câmera do aparelho" on (`camera-session.tsx:160`, `if (cameraApp && …)`); with it off and no `getUserMedia` (the pre-17.2 fallback picker), the file chooser opens where the viewfinder disables its shutter, and the picked photo lands as a plain sheet photo (retro R1).
-  evidence: `camera-session.tsx:156-166`; pre-existing path, rare (a desktop without a camera, every cell read).
-  class: bug
-  state: ~~open (owner: fix batch fx17r if its scope allows, else the next camera batch; drop the `cameraApp &&` so the guard covers both picker paths)~~ open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; re-owned 2026-11-03, E17-A6: fx17r (PR #199) finished without it and the guard still reads `if (cameraApp && …)` at `camera-session.tsx:162`; the fix is the same)
 - source_spec: `_bmad-output/implementation-artifacts/spec-17-2-17-7-device-camera-app-save-to-device.md`
   summary: A camera-app HEIC whose `heicToJpeg` rejects (decoder chunk unavailable offline, decode error) is lost with the failure toast; the `capture` input keeps no copy in the device's camera roll (retro R3).
   evidence: `camera-single-shot.tsx:125-141`. iOS answers a file input with JPEG by default, so the case needs a device set to keep HEIC. Cheapest guard: an authored toast that says to take the photo again; a fuller one keeps the raw file in the outbox for a later conversion.
@@ -644,20 +600,11 @@ Source: `epic-15-retro-2026-10-26.md` (E15-A1: R15-13, R15-14), `epic-16-retro-2
 
 Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (main `0fede8ac`).
 
-- **E15-R1, the rail's site card is named without its counter.** `apps/web/src/surfaces/relatorio/relatorio-tree-rail.tsx:67` sets the button's `aria-label` to the label, NC badge and name, which replaces the content, so "N de M" (`site.railCounter`) and the state word are never announced (the mock and the Sumário card carry the counter); both trees compose the "· ncBadge" in `apps/web` (also `relatorio-tree-sumario.tsx:116`) against Story 15.2's rule that every text is composed in `packages/domain`. Fix: the kernel site node exposes one accessible name used by both trees.
-  state: open (owner: the next epic's carry-over batch)
-- **E15-R2, the palette drawer's target is not announced on open.** `apps/web/src/surfaces/templates/block-palette.tsx:88` holds the target ("Toque para adicionar em: ...") in an `aria-live` paragraph mounted with the dialog, which screen readers usually skip; the drawer is named only "Blocos" since Story 15.5 (`:265-272`). Fix: `aria-describedby` on the drawer's `DialogShell` pointing at that paragraph.
-  state: open (owner: the next epic's carry-over batch); assigned 2026-11-10 to Epic 24, Story 24.8 (only if the story edits `block-palette.tsx`; else it stays open); 2026-11-11: batch e24b did not edit `block-palette.tsx`, so the row stays open
 - **E16-R2, a cabine environment display shot prints nowhere yet holds a photo number.** A temperature or humidity "Ler visor" shot on a local (`apps/web/src/surfaces/ficha/read-display.tsx:733`, `displayEnvTarget`) has no block and no item; Story 16.3 took display shots out of section 7 for sheets only and Story 17.4 kept this one unprinted and numbered last (`packages/domain/src/print/photo-order.ts:83-86`, `:112-113`; pinned by `section-9.test.ts:1169`). The evidence of AMBIENTE DE ENSAIO leaves the document and the gallery shows a "Foto N" no "Imagem N" carries. Options: print it under the cabine's characteristics or environment part, or leave it out of the numbering and say so in the gallery.
   state: open (owner: Matheus, with Bruno; then the next epic's carry-over batch)
 
 ## Deferred from: batch e18fb (2026-11-03)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
-  summary: The deploy's usage-events check (`smoke: check the usage events`) is a warning, never a failure, in this release; it should fail the deploy once it has been green on a production run.
-  evidence: `infra/bin/deploy` `check_usage_events`: N = 0 `session_start` with the tag, M > 0 `ux_event_sink_failed` or a read error print `deploy: warning: ...` and keep the exit; the coordinator's decision of 2026-11-03 (`epic-18-context.md` § Follow-up delivery) made it a warning for the first deploy that carries it. Turning it into a failure is a red smoke like the others (cleanup still runs, rollback hint printed) and changes `scripts/deploy.test.ts`'s warning cases.
-  class: risk
-  state: open (owner: the next infra batch, after the first deploy that prints `telemetry: N session_start ... ; 0 ux_event_sink_failed` with N >= 1)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
   summary: The ten views' new text (the smoke filter, `sessions_per_day` by `substr(ts, 0, 10)`, the group from its resource) and the app role without `logs:DescribeLogStreams` reach production only with the next `infra/bin/tf production apply` or deploy; the new query syntax has run offline only (`infra/bin/check`), not in Logs Insights.
   evidence: batch e18fb is offline by rule (no apply). The `users` view's `fields ... as ... | stats ... by` shape and `filter` chains already ran to `Complete` in production (2026-10-30), and `substr` is a documented Logs Insights string function, so the risk is low; the first read after the apply should open `sessions_per_day` and one filtered view and check they run to `Complete` and that the `smoke` row is gone from them.
@@ -742,11 +689,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `apps/api/src/http/files.ts` line 343.
   class: debt
   state: open (owner: the next batch touching `files.ts`; join the relatório's `removed_at` into `findFileRow`'s lookup)
-- source_spec: `_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md`
-  summary: Unknown client `meta` keys are bounded only by the depth cap (`opDepthIssue`), not by the byte and count caps the value carries, so a client can store large strings or arrays in the ops log through `meta` (R-12, plausible, not reproduced).
-  evidence: `packages/domain/src/ops/op.ts` `opMetaSchema` (`z.looseObject`); `packages/domain/src/ops/value-limits.ts` `opDepthIssue`.
-  class: risk
-  state: open (owner: coordinator; apply `VALUE_MAX_BYTES` and `VALUE_MAX_ITEMS` to `meta`, or refuse unknown meta keys from a client)
 
 ## Deferred from: E20-A1 retrospective fix batch (2026-11-04)
 
@@ -1017,11 +959,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` `UNJUDGED_DEVIATION_HELPER`; `packages/domain/src/relatorio/conclusion.ts`.
   class: decision
   state: open (owner: Bruno, through Matheus)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, setup-surface)
-  summary: A text field of the setup (and any `useTextField`, and the exclusions list) commits after 500 ms idle and resyncs from the store when the stored value differs from the last one it saw. A key typed after an idle commit and before that commit's live-query echo is overwritten by the echo. On a loaded host the test lost keys this way; on a slow tablet a pause and a fast key could do the same. Not fixed (outside the batch's behaviour scope).
-  evidence: `apps/web/src/surfaces/relatorio/setup/setup-fields.ts` `useTextField`; `apps/web/src/surfaces/relatorio/setup/etapa2-escopo.tsx` (the exclusions' resync); `apps/web/src/input/field-commit.ts` `FIELD_COMMIT_IDLE_MS`.
-  class: defect
-  state: open (owner: the next batch touching the setup fields)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8CAP-E2E-010)
   summary: FABRICAÇÃO's combobox list was re-mounted between the "Criar ⟨nome⟩" option's resolution and the press, twice in three runs at load 6 to 10 (Playwright: "element was detached from the DOM"), while the sheet re-rendered under the sync engine's retries of a held upload. The test now retries the press. Whether a tap on a slow tablet is lost the same way is not known; not fixed (outside the batch's behaviour scope).
   evidence: `.scratch-e24f/e2e-repeat-2.log`, `e2e-repeat-3.log` (worktree, not tracked); `apps/web/src/components/registry-picker-field.tsx`.
@@ -1065,11 +1002,6 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 24 batch e24p (2026-11-11)
 
-- source_spec: `spec-e24p-print.md` (Review Triage Log, Edge Case Hunter; Story 24.15)
-  summary: a re-issue whose service dates were edited after its first issue is not re-ordered: on a re-issue of the top relatório the date order is not compared with its prior, and when the top's `prior` is the re-issued relatório (fix batch e23w's first rule) its new date is not compared with the top. Reached only by editing the service dates of an issued relatório and issuing it again.
-  evidence: `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line and the W2-1 branch above it).
-  class: defect
-  state: open (owner: the next batch touching `print/last-results.ts`; low)
 - source_spec: `spec-e24p-print.md` (authored strings, listed for Bruno)
   summary: the batch's authored pt-BR text: the note line's opening and form "Em relação à manutenção anterior: ⟨onde⟩, ⟨motivo⟩; ⟨onde⟩, ⟨motivo⟩." (Story 24.16). The header's second line is a date; the editor's helpers "Da recomendação do ensaio · editável" and "Das recomendações dos ensaios · editável" are the frame's.
   evidence: every `// authored (e24p, listed for Bruno)` in `packages/domain/src`.
@@ -1101,11 +1033,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/print/visit-date.ts` `visitDateOf`, `compareVisits`; `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line).
   class: decision
   state: open (owner: Matheus)
-- source_spec: `spec-e24x-review-fixes.md` (review X8)
-  summary: no test re-issues a top entry from before Story 24.15 (no `service_date`) after the reading relatório's service date, where D3 and D4 meet.
-  evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`.
-  class: test-gap
-  state: open (owner: the next batch touching the previous visit; low)
 
 ## Deferred from: Epic 24 fix batch e24y (2026-11-11)
 
@@ -1229,11 +1156,7 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 25 batch e25c, the review of PR #332 (2026-11-12)
 
-- source_spec: `spec-e25c-seed-v15-and-rules.md` (review of PR #332, finding 4, low; not fixed)
-  summary: the server's 409 `pre_issue_blocked` answer to "Gerar relatório" lands in the dialog's generic failed state, with no reason shown; only `not_caught_up` is read apart.
-  evidence: `apps/web/src/surfaces/export/use-generate.ts` (the `catch` of the generate request, about line 314).
-  class: gap
-  state: open (owner: the next batch touching the Export dialog; low)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 25 batch e25p, the review of PR #333 (2026-11-12)
 
@@ -1315,7 +1238,7 @@ All rows closed; see deferred-work-archive.md
   summary: A Home card for a relatório not on the device shows no date, and two such cards of the same client and obra cannot be told apart (F21). The card comes from the company pull summary, which carries no service date. It needs `service_start` and `service_end` in `relatorioSummarySchema` (`packages/domain/src/contract/sync.ts`) and in the summary `apps/api/src/sync/pull.ts` builds, one contract number (Story 10.4's optional `progress` in the same summary took contract 11), then the line composed in `packages/domain/src/home/cards.ts` with its "27.14-UNIT" test and the Home case of `e2e/templates-home-cards.spec.ts`.
   evidence: `packages/domain/src/home/cards.ts` `fromSummary` (service dates null); `apps/api/src/sync/pull.ts` summary mapping.
   class: gap
-  state: open (owner: a later batch with a contract number; Matheus decides when)
+  state: open (owner: a later batch with a contract number; Matheus decides when) | 2026-11-24 (Epic 30, Story 30.1): left for a later batch: it needs a contract number (`relatorioSummarySchema`), and Story 30.1 changes no contract
 - source_spec: spec-e27c-layout.md (wave 1's known-open tables, measured by batch e27c)
   summary: Two readings tables still do not fit their box, and the stacked corrected-column rule of Story 27.7 does not make them fit: an oil transformer's (seed v16) at 1280 px is 1448 px wide in an 864 px box, 1362 px with the corrected column stacked; the disjuntor's at 768 px with the tree opened by hand is 505 to 593 px in a 400 px box (the stacked rule already applies there), so it scrolls inside its own `.mt-scroll` box. Both need a design decision (another phone-like layout of the table below a width, fewer columns, or the tree closed), not a CSS copy.
   evidence: `apps/web/src/styles/app.css` (the e23v and Story 27.7 rules); `e2e/corrected-column-fit.spec.ts`.
@@ -1362,11 +1285,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `apps/web/src/surfaces/export/export-dialog.tsx`.
   class: gap
   state: open (owner: Matheus decides whether the dialog gets one)
-- source_spec: hands-on pass of 2026-11-23 (note)
-  summary: TAG suggestions are still offered after the locals they came from were removed.
-  evidence: the pass report; screenshots under `test-results/pass-e28/` of the main checkout (untracked).
-  class: bug
-  state: open (owner: a later fix batch; low)
 - source_spec: fix batch e28w (#377, S2 and N2), `_bmad-output/planning-artifacts/epics.md` Story 29.2
   summary: A Sumário that was the tab's first page keeps no view on a back: the router keeps it under its shared "default" key, so a back to it cannot restore the expanded sections and the scroll.
   evidence: `apps/web/src/state/history-return.ts` (`UNKEYED`); the e28w note under Story 29.2 in `epics.md`.

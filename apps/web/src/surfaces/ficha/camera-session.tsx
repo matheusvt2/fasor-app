@@ -157,9 +157,10 @@ export function useCamera(
   // Story 17.2: a burst with targets ("Ler visor") whose first target is gone (every cell read)
   // opens no camera app, as the viewfinder disables its shutter: the caller's hint says why, and
   // with no hint the no-target sentence does (fx17r, R11; never the save-failure toast). `target()`
-  // already ran (it sets the burst's start), so `shotTarget(0)` reads this press.
+  // already ran (it sets the burst's start), so `shotTarget(0)` reads this press. Story 30.1 I (e17-R1): on
+  // every picker path, also with the switch off (no camera API, or no camera), never for a photo with no target.
   const pick = (context: CaptureTarget) => {
-    if (cameraApp && shotTarget !== undefined && shotTarget(0) === null) {
+    if (shotTarget !== undefined && shotTarget(0) === null) {
       showToast(shotHint?.(0) ?? copy.photos.noTargetToast);
       return;
     }

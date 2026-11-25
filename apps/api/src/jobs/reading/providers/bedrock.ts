@@ -17,7 +17,7 @@ import {
 import { z } from 'zod';
 import { assertPricedModel, converseTool, type BedrockProviderOptions, type JsonSchema } from '../../../ai/bedrock.ts';
 import { log } from '../../../log.ts';
-import { PermanentReadingError } from './errors.ts';
+import { BilledCallError, PermanentReadingError, withPromptVersion } from './errors.ts';
 import { withoutUncitedValues } from './uncited.ts';
 import { logVectorDiagram, VECTOR_DIAGRAM_KEY, VECTOR_DIAGRAM_TOOL_SCHEMA, vectorGroupKeyOf, vectorGroupOf, withVectorDiagram, type PlateStructuringInput } from './vector-diagram.ts';
 
@@ -438,6 +438,9 @@ export function bedrockStructuringProvider(options: BedrockProviderOptions): Str
         content,
         tool: { name: STRUCTURING_TOOL, description: 'Records the field values read on the photo, each citing the OCR word ids that spell it.', schema: structuringToolSchema(input.fields, groupKey) },
         maxTokens: STRUCTURING_MAX_TOKENS,
+      }).catch((error: unknown) => {
+        // Story 30.2 B: a billed failure names this step's prompt version.
+        throw withPromptVersion(error, BEDROCK_STRUCTURING_PROMPT_VERSION);
       });
       // e28v: array and object members sent as JSON text are parsed back first; one log line says which, never their content.
       const members = withDecodedJsonMembers(answer.input);
@@ -447,7 +450,14 @@ export function bedrockStructuringProvider(options: BedrockProviderOptions): Str
       const fold = withVectorDiagram(members.input, vectorGroupOf(plate), input.ocr.tokens);
       logVectorDiagram(fold, options.modelId);
       const parsed = structuringResultSchema.safeParse({ output: withoutUncitedValues(fold.input), model: options.modelId, prompt_version: BEDROCK_STRUCTURING_PROMPT_VERSION, usage: answer.usage });
-      if (!parsed.success) throw new PermanentReadingError(`bedrock: ${options.modelId}: the tool input is not a StructuringOutput: ${parsed.error.message.slice(0, 300)}`);
+      if (!parsed.success) {
+        // Story 30.2 B: the answer was billed: the call rides on the permanent error.
+        throw new BilledCallError(`bedrock: ${options.modelId}: the tool input is not a StructuringOutput: ${parsed.error.message.slice(0, 300)}`, {
+          model: options.modelId,
+          prompt_version: BEDROCK_STRUCTURING_PROMPT_VERSION,
+          usage: answer.usage,
+        });
+      }
       return parsed.data;
     },
   };
@@ -466,12 +476,16 @@ export function bedrockProseProvider(options: BedrockProviderOptions): ProseProv
         content: [imageBlock(input.image), { text: prosePrompt(input) }],
         tool: { name: PROSE_TOOL, description: 'Records the one sentence written for the photo.', schema: PROSE_TOOL_SCHEMA },
         maxTokens: PROSE_MAX_TOKENS,
+      }).catch((error: unknown) => {
+        // Story 30.2 B: a billed failure names this step's prompt version.
+        throw withPromptVersion(error, BEDROCK_PROSE_PROMPT_VERSION);
       });
+      const billed = { model: options.modelId, prompt_version: BEDROCK_PROSE_PROMPT_VERSION, usage: answer.usage };
       const tool = proseToolInputSchema.safeParse(answer.input);
-      if (!tool.success) throw new PermanentReadingError(`bedrock: ${options.modelId}: the tool input is not {text}: ${tool.error.message.slice(0, 300)}`);
+      if (!tool.success) throw new BilledCallError(`bedrock: ${options.modelId}: the tool input is not {text}: ${tool.error.message.slice(0, 300)}`, billed);
       const text = tool.data.text?.trim() ?? '';
       const parsed = proseResultSchema.safeParse({ output: text === '' ? null : { text }, model: options.modelId, prompt_version: BEDROCK_PROSE_PROMPT_VERSION, usage: answer.usage });
-      if (!parsed.success) throw new PermanentReadingError(`bedrock: ${options.modelId}: not a ProseResult: ${parsed.error.message.slice(0, 300)}`);
+      if (!parsed.success) throw new BilledCallError(`bedrock: ${options.modelId}: not a ProseResult: ${parsed.error.message.slice(0, 300)}`, billed);
       return parsed.data;
     },
   };

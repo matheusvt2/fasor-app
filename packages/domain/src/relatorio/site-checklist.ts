@@ -103,6 +103,15 @@ export function siteRowText(p: SiteProgress): string {
   return `${SITE_CHECKLIST_LABEL}${SEP}${siteCounterText(p)}`;
 }
 
+/**
+ * Story 30.1 F (E15-R1): the site card's spoken name, in the order the card shows its parts: "Verificações do
+ * local · 12 de 19 · 2 NC — Cubículo Enel" (the NC badge only while an item is answered NC). Both tree
+ * presentations, the Sumário and the rail, read it.
+ */
+export function siteCardSpokenName(p: SiteProgress, ncBadge: string | null, localName: string): string {
+  return `${siteRowText(p)}${ncBadge === null ? '' : `${SEP}${ncBadge}`} — ${localName}`;
+}
+
 /** "Verificações do local — Cubículo Enel": the surface's title (`61-verificacoes-local.html`). */
 export function siteHeaderTitle(name: string): string {
   return `${SITE_CHECKLIST_LABEL} — ${name.trim()}`;

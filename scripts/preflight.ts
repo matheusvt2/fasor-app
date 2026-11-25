@@ -1,4 +1,6 @@
+import { lstatSync, readdirSync } from 'node:fs';
 import { request } from 'node:http';
+import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /**
@@ -215,11 +217,89 @@ export async function serviceLog(socketPath: string, project: string, service: s
   }
 }
 
+// --- the root-owned entries of the node_modules volumes --------------------------------------
+
+/*
+ * Story 30.2 D (tools-root, E26-A8): a tools run as root left root-owned `node_modules/.vite-temp` folders under
+ * `apps/api` and `packages/domain` (`epic-26-retro-2026-11-24.md` P-4), and every later run as `node` (the gate,
+ * the `web` and `api` dev containers) failed on EACCES. Before any stage the preflight looks for a uid-0 entry in
+ * the four `node_modules` volumes: each `.vite-temp` first, whole, then the first two levels of each volume (where
+ * a root `pnpm install` writes), and fails at once naming it.
+ */
+
+/** The four `node_modules` volumes of the workspace (`docker-compose.yml`, `x-workspace`). */
+export const NODE_MODULES_VOLUMES = ['node_modules', 'apps/web/node_modules', 'apps/api/node_modules', 'packages/domain/node_modules'] as const;
+/** The `.vite-temp` folders a Vite or Vitest config load writes, looked at first. */
+const VITE_TEMPS = ['apps/web/node_modules/.vite-temp', 'apps/api/node_modules/.vite-temp', 'packages/domain/node_modules/.vite-temp'] as const;
+/** Bounds of the walk: a `.vite-temp` holds a handful of files; two levels of a volume, some thousands of entries. */
+const VITE_TEMP_MAX_ENTRIES = 500;
+
+/** The owner's uid of `path` (not following a link), or null when it does not exist. */
+function lstatOwner(path: string): number | null {
+  try {
+    return lstatSync(path).uid;
+  } catch {
+    return null;
+  }
+}
+
+function childrenOf(path: string): string[] {
+  try {
+    return readdirSync(path).map((name) => join(path, name));
+  } catch {
+    return [];
+  }
+}
+
+/** The uid-0 entries of the four volumes under `workspace`, relative to it, `.vite-temp` ones first; at most `limit`. */
+export function rootOwnedEntries(workspace: string, ownerOf: (path: string) => number | null = lstatOwner, limit = 5): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const note = (path: string) => {
+    if (seen.has(path) || found.length >= limit) return;
+    seen.add(path);
+    if (ownerOf(path) === 0) found.push(relative(workspace, path));
+  };
+  for (const temp of VITE_TEMPS) {
+    const start = join(workspace, temp);
+    if (ownerOf(start) === null) continue;
+    const queue = [start];
+    let visited = 0;
+    while (queue.length > 0 && visited < VITE_TEMP_MAX_ENTRIES && found.length < limit) {
+      const path = queue.shift()!;
+      visited += 1;
+      note(path);
+      queue.push(...childrenOf(path));
+    }
+  }
+  for (const volume of NODE_MODULES_VOLUMES) {
+    const top = join(workspace, volume);
+    if (ownerOf(top) === null) continue;
+    note(top);
+    for (const child of childrenOf(top)) {
+      note(child);
+      for (const grandchild of childrenOf(child)) note(grandchild);
+      if (found.length >= limit) break;
+    }
+  }
+  return found;
+}
+
+/** The one message of a preflight stopped by root-owned entries. */
+export function rootOwnedMessage(entries: readonly string[]): string {
+  const more = entries.length > 1 ? ` (and ${entries.slice(1).join(', ')})` : '';
+  return `preflight: root-owned in a node_modules volume: ${entries[0]}${more}; a tools run as root left it. Remove it as root, then run the gate as node (epic-batch-orchestrator.md)`;
+}
+
 // --- the probe -------------------------------------------------------------------------------
 
 export interface PreflightOptions {
   env?: NodeJS.ProcessEnv;
   engine?: Engine;
+  /** Story 30.2 D: the workspace whose `node_modules` volumes are looked at; default the repository root. */
+  workspace?: string;
+  /** Story 30.2 D: the owner's uid of a path (null when missing); default `lstat`. */
+  ownerOf?: (path: string) => number | null;
   intervalMs?: number;
   sleep?: (ms: number) => Promise<void>;
   log?: (line: string) => void;
@@ -243,6 +323,12 @@ export async function preflight(options: PreflightOptions = {}): Promise<number>
   const env = options.env ?? process.env;
   const log = options.log ?? ((line: string) => console.log(line));
   if (env.GATE_PREFLIGHT_DONE === '1') return 0;
+  // Story 30.2 D: a root-owned entry in a node_modules volume stops the gate before anything else runs.
+  const rootOwned = rootOwnedEntries(options.workspace ?? resolve(import.meta.dirname, '..'), options.ownerOf);
+  if (rootOwned.length > 0) {
+    log(rootOwnedMessage(rootOwned));
+    return 1;
+  }
   const project = env.COMPOSE_PROJECT_NAME ?? '';
   if (project === '' && options.engine === undefined) {
     log('preflight: no compose project (COMPOSE_PROJECT_NAME), skipped');

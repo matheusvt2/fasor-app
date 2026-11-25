@@ -221,6 +221,29 @@ describe('e20f (QA N1): a value nested 20 000 levels deep', () => {
   });
 });
 
+describe('Story 30.1 D (R-12 (E20)): an op whose meta is over the byte or the count cap', () => {
+  it('30.1-API-D: each such op is refused op_value_invalid alone, never logged; the rest of the push applies', async () => {
+    const { relatorioId } = await h.seedRelatorio(companyA);
+    const fine = h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/local', relatorio_id: relatorioId, value: 'Subestação leve' });
+    const heavy = { ...h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/additional_info', relatorio_id: relatorioId, value: 'pesado' }), meta: { note: 'x'.repeat(VALUE_MAX_BYTES) } };
+    const long = { ...h.clientOp(companyA, { kind: 'put', path: 'relatorio/setup/additional_info', relatorio_id: relatorioId, value: 'longo' }), meta: { list: Array.from({ length: VALUE_MAX_ITEMS + 1 }, () => 'x') } };
+    h.track([fine, heavy, long]);
+    const res = await h.pushRaw(companyA, JSON.stringify({ ops: [fine, heavy, long] }));
+    expect(res.status, await res.clone().text()).toBe(200);
+    const answer = (await res.json()) as { applied: { op_id: string }[]; rejected: { op_id: string; code: string }[] };
+    expect(answer.rejected).toEqual([
+      { op_id: heavy.op_id, code: 'op_value_invalid' },
+      { op_id: long.op_id, code: 'op_value_invalid' },
+    ]);
+    expect(answer.applied.map((a) => a.op_id)).toEqual([fine.op_id]);
+    expect(await h.logged(heavy.op_id)).toBe(false);
+    expect(await h.logged(long.op_id)).toBe(false);
+    const row = await h.rowOf<RelatorioRowLike & { setup: { local: string | null } }>(companyA, 'relatorio', relatorioId);
+    expect(row?.setup.local).toBe('Subestação leve');
+    expect(['pesado', 'longo']).not.toContain(row?.setup.additional_info);
+  });
+});
+
 describe('S4 body: the push body cap', () => {
   it('a push over 4 MiB (the 5 MB string of the security pass) is answered 413 body_too_large whole; nothing of it is applied', async () => {
     const { relatorioId } = await h.seedRelatorio(companyA);

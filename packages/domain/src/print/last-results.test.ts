@@ -245,6 +245,30 @@ describe('e23w-UNIT W2-1 visits ordered by first issue (lastResults, previousRes
     expect(entry!.value).toMatchObject({ relatorio_id: RELATORIO_A, revision_number: 2, prior: { relatorio_id: RELATORIO_C } });
   });
 
+  it('30.1-UNIT-J (L3755, L3881): a re-issue whose service dates were edited is ordered against its prior again, by date (Story 24.15\'s rule)', () => {
+    const A: LastResults = { ...ENTRY_A, service_date: '2026-10-10' };
+    const B1: LastResults = { ...ENTRY_A, relatorio_id: RELATORIO_C, issued_at: '2026-11-02T12:00:00.000Z', service_date: '2026-11-01', prior: strip(A) };
+    const issue = (top: LastResults, start: string) =>
+      lastResults(snapshotOf([withLast(cabos, top)], RELATORIO_C, { start, end: start }), { revisionNumber: 2, issuedAt: '2026-11-20T12:00:00.000Z', firstIssuedAt: '2026-11-02T12:00:00.000Z' })[0]!.value;
+    // C was on top over A; its dates moved before A's visit: A takes the top back, C's new entry its prior.
+    const moved = issue(B1, '2026-09-01');
+    expect(moved).toMatchObject({ relatorio_id: RELATORIO_A, service_date: '2026-10-10', prior: { relatorio_id: RELATORIO_C, revision_number: 2, service_date: '2026-09-01' } });
+    expect((moved.prior as Record<string, unknown>).prior).toBeUndefined();
+    expect(lastResultsSchema.parse(moved)).toEqual(moved);
+    // Its dates still after A's: C stays on top over A, as before.
+    expect(issue(B1, '2026-11-05')).toMatchObject({ relatorio_id: RELATORIO_C, revision_number: 2, prior: { relatorio_id: RELATORIO_A } });
+    // A was on top with C as its prior (C's visit older); C's dates moved after A's: C takes the top, A its prior.
+    const aOverC: LastResults = { ...A, prior: strip({ ...B1, service_date: '2026-09-01', prior: null }) };
+    expect(issue(aOverC, '2026-11-05')).toMatchObject({ relatorio_id: RELATORIO_C, revision_number: 2, service_date: '2026-11-05', prior: { relatorio_id: RELATORIO_A } });
+    // Still older: A stays on top and C's prior entry is refreshed.
+    expect(issue(aOverC, '2026-09-03')).toMatchObject({ relatorio_id: RELATORIO_A, prior: { relatorio_id: RELATORIO_C, revision_number: 2, service_date: '2026-09-03' } });
+    // L3881 (where D3 and D4 meet): a prior from before Story 24.15 has no service date and is dated by its issue day
+    // (2026-10-05); C on top re-issued with dates before that day gives it the top back, after it keeps the top.
+    const C1: LastResults = { ...B1, prior: strip(ENTRY_A) };
+    expect(issue(C1, '2026-10-01')).toMatchObject({ relatorio_id: RELATORIO_A, prior: { relatorio_id: RELATORIO_C, revision_number: 2, service_date: '2026-10-01' } });
+    expect(issue(C1, '2026-10-08')).toMatchObject({ relatorio_id: RELATORIO_C, revision_number: 2, prior: { relatorio_id: RELATORIO_A } });
+  });
+
   it('write: a first issue of A over B puts A on top with prior B, as before (whatever B\'s instant)', () => {
     const [entry] = lastResults(snapshotOf([withLast(cabos, { ...B_OVER_A, prior: null })], RELATORIO_A), { revisionNumber: 1, issuedAt: ISSUED_A, firstIssuedAt: ISSUED_A });
     expect(entry!.value).toMatchObject({ relatorio_id: RELATORIO_A, revision_number: 1, prior: { relatorio_id: RELATORIO_C } });

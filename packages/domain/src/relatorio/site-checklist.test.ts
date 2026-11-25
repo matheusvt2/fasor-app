@@ -330,6 +330,7 @@ describe('14.3 the tree: a local node carries its site checklist', () => {
       total: 19,
       text: 'Verificações do local · 12 de 19',
       railCounter: '12 de 19',
+      spokenName: `Verificações do local · 12 de 19 · 1 NC — ${nodes(snapshot).find((node) => node.id === SUBSOLO)!.name}`,
       // 2026-10-14: item 11 of the mock is NC.
       nc: 1,
       state: 'pending',
@@ -350,6 +351,14 @@ describe('14.3 the tree: a local node carries its site checklist', () => {
     const snapshot = snapshotOf(fold(baseState(), SITE_ITEM_KEYS.map((key) => f.op({ path: locationChecklistPath(ENEL, key, 'result'), value: 'C' }))));
     expect(siteOf(snapshot, ENEL)).toMatchObject({ answered: 19, text: 'Verificações do local · 19 de 19', railCounter: '19 de 19', state: 'concluida', railStateAttr: 'concluida', glyph: '✓', stateWord: 'Concluída', sumarioStateAttr: 'ok', ncBadge: null });
     expect(nodes(snapshot).find((node) => node.id === ENEL)!.counterText).toBe('0 de 0');
+  });
+
+  it('30.1-UNIT-F: the card\'s spoken name carries its counter and its NC badge, in the order the card shows them, then the local', () => {
+    const snapshot = mockSnapshot();
+    const named = (id: string) => nodes(snapshot).find((node) => node.id === id)!;
+    expect(siteOf(snapshot, SUBSOLO)!.spokenName).toBe(`Verificações do local · 12 de 19 · 1 NC — ${named(SUBSOLO).name}`);
+    // No NC answered: no badge in the name either.
+    expect(siteOf(snapshot, ENEL)!.spokenName).toBe(`Verificações do local · 0 de 19 — ${named(ENEL).name}`);
   });
 
   it('a relatório on v1 to v3, and a caller with no relatório row, get no site node anywhere', () => {

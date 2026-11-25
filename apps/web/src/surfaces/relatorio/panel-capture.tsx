@@ -39,6 +39,7 @@ import { useNowIso } from '../../state/now-iso.ts';
 import { useSession } from '../../state/session.tsx';
 import { useAttachFile } from '../ficha/attach-file.tsx';
 import { useCamera } from '../ficha/camera-view.tsx';
+import { CameraOpeningStatus } from '../ficha/photo-openers.tsx';
 import type { CaptureTarget } from '../ficha/use-photo-capture.ts';
 import type { PaletteTarget, PanelPhotoInput } from './block-palette-field.tsx';
 
@@ -272,6 +273,8 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, d
   if (!isOpen || shot === null || photo === null)
     return createPortal(
       <>
+        {/* Story 30.1 H (L1335): "Abrindo câmera…" while the camera has not answered; the palette tile that was pressed has closed. */}
+        <CameraOpeningStatus opening={camera.opening} />
         {camera.element}
         {picker.input}
       </>,
@@ -315,6 +318,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, d
 
   return createPortal(
     <>
+      <CameraOpeningStatus opening={camera.opening} />
       {camera.element}
       {picker.input}
       <DialogShell

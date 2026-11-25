@@ -9,6 +9,7 @@ import {
   nextRevisionNumber,
   notCaughtUpDetailsSchema,
   notCaughtUpRetryable,
+  preIssueBlockedDetailsSchema,
   putRelatorioStatusOp,
   revisionsBeforeEditsBanner,
   toIso,
@@ -82,7 +83,11 @@ export type GeneratePhase =
    * `missingFiles`: the server still misses that many files and no upload of this device
    * will bring them (E9 sweep B14), so the request failed without retrying.
    */
-  | { kind: 'failed'; missingFiles?: number; sessionExpired?: boolean }
+  /**
+   * Story 30.1 C: `blockedKinds`, the server refused the issue with `409 pre_issue_blocked` and
+   * these are the kinds of the blocking rows it named (the dialog names them with the kernel's texts).
+   */
+  | { kind: 'failed'; missingFiles?: number; sessionExpired?: boolean; blockedKinds?: readonly string[] }
   | { kind: 'ready'; number: number; revisionId: string | null; unchanged: boolean };
 
 export interface GenerateTiming {
@@ -282,12 +287,13 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
             // Recorded and emitted whether or not the dialog is still open: the server job
             // runs either way, and the status op belongs to the press, not to the view.
             await writeGenerateAwaiting(db, relatorioId, { number: answer.revision_number, job_id: answer.job_id }).catch(() => undefined);
-            if (answer.outcome === 'queued') {
-              try {
-                await emitStatusRef.current('queued');
-              } catch (error) {
-                console.error('generate status op failed', error);
-              }
+            // Story 30.1 A (L1696): `running` is a retry whose first answer was lost (the job
+            // that press queued already runs), so it moves the relatório as `queued` does. A
+            // second answer finds the status already moved and the kernel writes nothing more.
+            try {
+              await emitStatusRef.current('queued');
+            } catch (error) {
+              console.error('generate status op failed', error);
             }
             if (mounted.current) setPhase({ kind: 'working', number: answer.revision_number, jobId: answer.job_id });
           } else {
@@ -310,6 +316,13 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
           return;
         } catch (error) {
           const failure = error instanceof SyncRequestError && error.failure.kind === 'http' ? error.failure : null;
+          // Story 30.1 C (L4150): a blocking row the server found stops the press at once, and its kinds are kept to be named.
+          if (failure?.code === 'pre_issue_blocked') {
+            const blocked = preIssueBlockedDetailsSchema.safeParse(failure.details);
+            finishPress('refused');
+            if (mounted.current) setPhase({ kind: 'failed', blockedKinds: blocked.success ? blocked.data.rows : [] });
+            return;
+          }
           const notCaughtUp = failure?.code === 'not_caught_up';
           if (!notCaughtUp) throw error;
           // E9 sweep B14: files no upload of this device will bring keep the barrier shut

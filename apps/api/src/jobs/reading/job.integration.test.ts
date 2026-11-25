@@ -1391,6 +1391,62 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect((await runs(id))[0]).toMatchObject({ model: HAIKU, llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
   }, 60_000);
 
+  // Story 30.2 B (L1284, L1290, L1310): every call Bedrock bills is on the run row, each with its model and usage.
+  const call = (model: string, input: number, output: number) => ({ model, prompt_version: 'bedrock-structuring-10', input_tokens: input, output_tokens: output, usd: usd(model) });
+  /** `model` answers with text and no tool call (billed, then refused as permanent); the others as `converse`. */
+  const answeringWithoutTool = (inner: BedrockLike & { models: string[] }, model: string, tokens: { inputTokens: number; outputTokens: number }): BedrockLike & { models: string[] } => ({
+    models: inner.models,
+    async send(command, options) {
+      if (command.input.modelId !== model) return inner.send(command, options);
+      inner.models.push(model);
+      return { output: { message: { role: 'assistant', content: [{ text: 'Não consegui ler a placa.' }] } }, stopReason: 'end_turn', usage: { ...tokens, totalTokens: tokens.inputTokens + tokens.outputTokens } };
+    },
+  });
+
+  it('30.2-API-B1: an escalation that fails after billing (an answer with no tool call) keeps the first reading, and the run row holds both calls, the total their sum', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const client = answeringWithoutTool(converse({ [HAIKU]: poorAnswer }), NOVA_PRO, { inputTokens: 2100, outputTokens: 500 });
+    await read(bedrockDeps(client), id);
+    expect(await status(id)).toBe('done');
+    expect(client.models).toEqual([HAIKU, NOVA_PRO]);
+    const [run] = await runs(id);
+    expect(run).toMatchObject({ outcome: 'ok', model: HAIKU, prompt_version: 'bedrock-structuring-10' });
+    expect(run!.llm_usage).toEqual({
+      input_tokens: 4100,
+      output_tokens: 800,
+      usd: Math.round((usd(HAIKU) + usd(NOVA_PRO)) * 1e6) / 1e6,
+      calls: [call(HAIKU, 2000, 300), call(NOVA_PRO, 2100, 500)],
+    });
+  }, 60_000);
+
+  it('30.2-API-B2: an escalated run whose second reading is kept records each call with its own model, the total their sum', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    await read(bedrockDeps(converse({ [HAIKU]: poorAnswer, [NOVA_PRO]: plateAnswer })), id);
+    const [run] = await runs(id);
+    expect(run).toMatchObject({ outcome: 'ok', model: NOVA_PRO });
+    expect(run!.llm_usage).toEqual({
+      input_tokens: 4100,
+      output_tokens: 800,
+      usd: Math.round((usd(HAIKU) + usd(NOVA_PRO)) * 1e6) / 1e6,
+      calls: [call(HAIKU, 2000, 300), call(NOVA_PRO, 2100, 500)],
+    });
+  }, 60_000);
+
+  it('30.2-API-B3: a first call that fails after billing fails the run, and the run row still holds that call', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    await read(bedrockDeps(answeringWithoutTool(converse({}), HAIKU, { inputTokens: 2000, outputTokens: 300 }), ''), id);
+    expect(await status(id)).toBe('failed');
+    const [run] = await runs(id);
+    expect(run).toMatchObject({ outcome: 'error', model: HAIKU });
+    expect(run!.llm_usage).toEqual({ input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU), calls: [call(HAIKU, 2000, 300)] });
+  }, 60_000);
+
   for (const [name, thrown] of [
     ['AccessDeniedException (permanent)', new BedrockAccessDeniedException({ $metadata: {}, message: 'explicit deny' })],
     ['ThrottlingException (transient)', new BedrockThrottlingException({ $metadata: {}, message: 'Too many tokens' })],

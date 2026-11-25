@@ -713,6 +713,39 @@ export function blockingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
   return rows.filter((row) => row.severity === 'blocking');
 }
 
+/** Story 30.1 C: the text and Sumário row of a blocking kind the server named that this device does not hold. */
+function serverBlockedFallback(kind: string): PreIssueRow {
+  switch (kind) {
+    case 'parecer_missing':
+      return { id: 'server:parecer_missing', row: 'section_10', severity: 'blocking', text: PARECER_MISSING_TEXT, kind };
+    case 'conclusion_stale':
+      // authored (Story 30.1, listed for Bruno): a stale conclusion text the server found and this device cannot name.
+      return { id: 'server:conclusion_stale', row: 'section_9', severity: 'blocking', text: 'Texto de conclusão desatualizado', kind, sheets: [] };
+    case 'utility_name_missing':
+      // authored (Story 30.1, listed for Bruno): an empty utility name the server found and this device cannot name.
+      return { id: 'server:utility_name_missing', row: 'section_9', severity: 'blocking', text: 'Nome da concessionária em branco', kind, sheets: [] };
+    default:
+      // authored (Story 30.1, listed for Bruno): a blocking row of a kind this app does not know (a newer server).
+      return { id: `server:${kind}`, row: 'capa', severity: 'blocking', text: 'Uma pendência impede emitir esta revisão', kind: kind as PreIssueKind };
+  }
+}
+
+/**
+ * Story 30.1 C (L4150): the rows of a `409 pre_issue_blocked`, whose details name the blocking kinds the server
+ * found (`preIssueBlockedDetailsSchema`), in the server's order: the rows of that kind this device holds (its own
+ * texts and sheets), else the kind's own text. The Export dialog's failed state lists them and names them in its
+ * reason (`issueBlockedReason`), as it does its own blocking rows.
+ */
+export function serverBlockedRows(kinds: readonly string[], rows: readonly PreIssueRow[]): PreIssueRow[] {
+  const out: PreIssueRow[] = [];
+  for (const kind of new Set(kinds)) {
+    const held = rows.filter((row) => row.kind === kind);
+    if (held.length > 0) out.push(...held.map((row) => ({ ...row, severity: 'blocking' as const })));
+    else out.push(serverBlockedFallback(kind));
+  }
+  return out;
+}
+
 /**
  * The kinds the Export dialog lists one by one: the empty sheets (F-03), the photos the
  * server does not hold, the sync lines and (E7-A4, 2026-09-28) a sheet certificate number that differs from the
@@ -832,7 +865,9 @@ export function issueBlockedReason(blocking: readonly PreIssueRow[], number: num
   const utility = blocking.some((row) => row.kind === 'utility_name_missing');
   const utilityNames = sheetNames('utility_name_missing').filter((name) => name !== '');
   const parecer = blocking.some((row) => row.kind === 'parecer_missing');
-  if (names.length === 0 && !utility) return parecerMissingReason(number, parecerLine);
+  // Story 30.1 C: a stale row the server named and this device cannot name (`serverBlockedRows`) still asks for its text.
+  const staleUnnamed = names.length === 0 && blocking.some((row) => row.kind === 'conclusion_stale');
+  if (names.length === 0 && !utility && !staleUnnamed) return parecerMissingReason(number, parecerLine);
   const where = parecerLine === null ? '' : ` (linha ${parecerLine} do sumário)`;
   // authored (fix batch e28w, S1, listed for Bruno): the utility's name the sheets lack, "o nome da concessionária de CE-01".
   const utilityAsk = utility ? `o nome da concessionária${utilityNames.length === 0 ? '' : ` de ${listPtBr(utilityNames)}`}` : null;
@@ -842,6 +877,8 @@ export function issueBlockedReason(blocking: readonly PreIssueRow[], number: num
   if (fills.length > 0 && parecer) asks.push(`preencha ${listPtBr(fills)}`);
   // authored: Story 25.7, the stale texts the mock names ("atualize o texto da conclusão de SEC-C05"), and their plural.
   if (names.length > 0) asks.push(`atualize ${names.length === 1 ? 'o texto da conclusão' : 'os textos da conclusão'} de ${listPtBr(names)}`);
+  // authored (Story 30.1, listed for Bruno): the stale text the server found, unnamed ("atualize o texto da conclusão").
+  else if (staleUnnamed) asks.push('atualize o texto da conclusão');
   if (fills.length > 0 && !parecer) asks.push(`preencha ${listPtBr(fills)}`);
   const ask = listPtBr(asks);
   // authored: Story 25.7, the sentence opens with its first verb.

@@ -528,6 +528,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'solo',
     why: 'Fix batch e26u: rewrites the built sw.js on disk and writes a next entry chunk and sprite beside it (serveNextBuild), as 1.8-E2E-006 of the parallel group does; beside another worker the two would read each other\'s rewritten files, so it runs with nothing beside it',
   },
+  // Story 30.1 (batch e30a, 2026-11-24): 30.1-E2E-B slows the CPU sixfold to land a commit's echo while keys are typed.
+  {
+    file: 'audit-fixes-30-1.spec.ts',
+    lane: 'solo',
+    why: 'Story 30.1 (batch e30a): 30.1-E2E-B waits past the 500 ms commit idle on a CPU throttled sixfold, so the echo lands while keys are typed, a wait against a render under a quiet CPU; 30.1-E2E-C presses "Gerar relatório" with the generate request routed (no queue, no LibreOffice) and 30.1-E2E-E measures the phone Sumário',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

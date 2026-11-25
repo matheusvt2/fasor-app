@@ -24,7 +24,7 @@ import { liveLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
 import { blocksProgress, fichasCountText, locationProgressIndex, ncBadgeText, ncCount, progressCounterState, progressCounterText, type Progress } from './progress.ts';
 import { isEquipmentBlock, sheetState, sheetStateLabel, type SheetState } from './sheet-state.ts';
-import { siteCounterText, siteLocals, siteResultOf, siteRowText } from './site-checklist.ts';
+import { siteCardSpokenName, siteCounterText, siteLocals, siteResultOf, siteRowText } from './site-checklist.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { CABINE_META_NONE, cabineMetaText } from './sumario.ts';
 import { reuseKeyFor, suggestTag, type MatchKeyEquipment, type TagEquipment, type TagLocation } from './tag.ts';
@@ -206,6 +206,8 @@ export interface TreeSiteNode {
   text: string;
   /** "12 de 19": the card's progress (`.s9-site-count`, the rail card's `.tree-meta`). */
   railCounter: string;
+  /** Story 30.1 F: the card's accessible name on both presentations, "Verificações do local · 12 de 19 · 2 NC — Cubículo Enel". */
+  spokenName: string;
   /** 2026-10-14: the items answered NC, which `Progress.nc_open` counts and the F-24 finder reaches. */
   nc: number;
   /** Nothing answered, some answered, every item answered. Derived, never stored. */
@@ -507,17 +509,19 @@ function buildLocationTree(
     const counts = { answered: siteList.filter((item) => siteResultOf(location, item.key) !== null).length, total: siteList.length };
     const state = counts.answered === 0 ? 'vazia' : counts.answered >= counts.total ? 'concluida' : 'pending';
     const nc = siteList.filter((item) => siteResultOf(location, item.key) === 'NC').length;
+    const ncBadge = nc > 0 ? ncBadgeText(nc) : null;
     return {
       ...counts,
       text: siteRowText(counts),
       railCounter: siteCounterText(counts),
+      spokenName: siteCardSpokenName(counts, ncBadge, location.name),
       nc,
       state,
       railStateAttr: STATE_ATTR[SITE_STATE[state]],
       glyph: SHEET_STATE_GLYPH[SITE_STATE[state]],
       stateWord: sheetStateLabel(SITE_STATE[state]),
       sumarioStateAttr: SUMARIO_STATE_ATTR[SITE_STATE[state]],
-      ncBadge: nc > 0 ? ncBadgeText(nc) : null,
+      ncBadge,
     };
   };
 

@@ -379,15 +379,25 @@ describe('E18-A2 infra/bin/deploy --dry-run, the usage-events check', () => {
     expect(text).not.toMatch(/"message"|@message|session_id|device_id|user_id/);
   });
 
+  /*
+   * ~~warns on each and keeps the deploy green~~ Story 30.2 C (L2743, 2026-11-24): the row's condition held (the
+   * check was green on the production deploys of Epics 21 to 23), so each case now fails the smoke like the
+   * other checks: the cleanup still runs, the step is named and the rollback hint printed, exit 1.
+   */
   it.each([
-    ['no session_start of this tag', { DEPLOY_DRY_RUN_TELEMETRY_SESSIONS: '0' }, /deploy: warning: 0 session_start with app_version \S+ in \/fasor\/production\/ux-events since /],
-    ['sink failures in the api log', { DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES: '3' }, /deploy: warning: 3 ux_event_sink_failed in \/fasor\/production\/api since /],
-    ['a read error', { DEPLOY_DRY_RUN_TELEMETRY_SESSIONS: 'None' }, /deploy: warning: could not read the session_start events of \/fasor\/production\/ux-events/],
-  ])('warns on %s and keeps the deploy green', (_label, env, warning) => {
+    ['no session_start of this tag', { DEPLOY_DRY_RUN_TELEMETRY_SESSIONS: '0' }, /deploy: 0 session_start with app_version \S+ in \/fasor\/production\/ux-events since /],
+    ['sink failures in the api log', { DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES: '3' }, /deploy: 3 ux_event_sink_failed in \/fasor\/production\/api since /],
+    ['a read error of the session_start events', { DEPLOY_DRY_RUN_TELEMETRY_SESSIONS: 'None' }, /deploy: could not read the session_start events of \/fasor\/production\/ux-events/],
+    ['a read error of the sink failures', { DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES: 'None' }, /deploy: could not read the ux_event_sink_failed lines of \/fasor\/production\/api/],
+  ])('30.2-UNIT-C: fails the smoke on %s, after the cleanup, with the rollback hint', (_label, env, failure) => {
     const { status, out } = run(['--dry-run'], env);
-    expect(status, out).toBe(0);
-    expect(section(out, STEP)).toMatch(warning);
-    expect(section(out, STEP)).toContain("a warning only in this release; the deploy's exit is unchanged");
-    expect(out).toMatch(/production smoke passed$/m);
+    expect(status, out).toBe(1);
+    expect(section(out, STEP)).toMatch(failure);
+    expect(out).not.toMatch(/a warning only in this release|deploy: warning/);
+    expect(section(out, 'smoke: clean up the test company')).toContain('test company cleaned up');
+    expect(out).toContain(`deploy: smoke failed at step: ${STEP}`);
+    expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --skip-smoke --tag fedcba9876543210fedcba9876543210fedcba98');
+    expect(out).not.toMatch(/production smoke passed/);
+    expect(out).not.toMatch(/to resume/);
   });
 });

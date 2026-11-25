@@ -26,6 +26,38 @@ export class ProviderRefusedError extends PermanentReadingError {
   }
 }
 
+/** Story 30.2 B: one model call the provider billed: its model, its prompt version (null where the caller has none) and its usage. */
+export interface BilledCall {
+  model: string;
+  prompt_version: string | null;
+  usage: { input_tokens: number; output_tokens: number; usd: number };
+}
+
+/**
+ * Story 30.2 B (L1284, L1290, L1310): a permanent failure after the provider answered and billed the call (an
+ * answer without the tool call, a tool input the schema refuses). The call rides on the error, so the run row
+ * still counts it. A throttle or a denial bills nothing and never throws this.
+ */
+export class BilledCallError extends PermanentReadingError {
+  readonly billed: BilledCall;
+  constructor(message: string, billed: BilledCall, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'PermanentReadingError';
+    this.billed = billed;
+  }
+}
+
+/** The billed call an error carries, or null. */
+export function billedCallOf(error: unknown): BilledCall | null {
+  return error instanceof BilledCallError ? error.billed : null;
+}
+
+/** `error` with `promptVersion` on the call it carries when that call has none; any other error as it is. */
+export function withPromptVersion(error: unknown, promptVersion: string): unknown {
+  if (!(error instanceof BilledCallError) || error.billed.prompt_version !== null) return error;
+  return new BilledCallError(error.message, { ...error.billed, prompt_version: promptVersion }, { cause: error.cause });
+}
+
 /** Story 11.8 follow-up: the LLM step of a reading while the server's `AI_FEATURES` is `off`. */
 export class AiFeaturesOffError extends PermanentReadingError {
   constructor() {
