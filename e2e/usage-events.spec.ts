@@ -1,5 +1,5 @@
-import type { Page } from '@playwright/test';
-import { SCREENS, TELEMETRY_BATCH_MAX, TELEMETRY_ROUTE, uxEventSchema, type UxEvent } from '@app/domain';
+import { devices, type Page } from '@playwright/test';
+import { DEVICE_OSES, SCREENS, TELEMETRY_BATCH_MAX, TELEMETRY_ROUTE, uxEventSchema, type UxEvent } from '@app/domain';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { openChaveSheet } from './support/photos.ts';
@@ -21,6 +21,9 @@ import { expandLocation } from './support/tree.ts';
  * the screen before it (`from`); the walk starts on the sheet `openChaveSheet` opened, so the
  * sheet's own view comes first. Every `session_start` says on what it ran (`viewport`,
  * `standalone`, `online`).
+ *
+ * Story 30.6: and what kind of device it is, by the hardware (`pointer`, `touch_points`, `os`,
+ * `screen_w`, `screen_h`, `viewport_w`, `device_kind`), never the user agent.
  */
 
 let account: SeedAccount;
@@ -171,6 +174,17 @@ test('@p0 18.1-E2E-001 offline the device queues its screens, taps and dialogs i
   const starts = [...offlineQueue, ...posted].filter((event) => event.name === 'session_start');
   expect(starts.length).toBeGreaterThan(0);
   for (const start of starts) expect({ viewport: start.viewport, standalone: start.standalone, online: start.online }).toEqual({ viewport: 'desktop', standalone: false, online: true });
+  // Story 30.6: on desktop Chrome, a desktop by the hardware: a fine pointer, no touch, a 1280 px window.
+  for (const start of starts) {
+    expect(start, JSON.stringify(start)).toMatchObject({ pointer: 'fine', touch_points: 0, viewport_w: 1280, device_kind: 'desktop' });
+    expect(DEVICE_OSES).toContain(start.os);
+    expect(start.screen_w).toBeGreaterThan(0);
+    expect(start.screen_h).toBeGreaterThan(0);
+  }
+  // And a start the api took (answered 204) carries them on the wire.
+  const postedStarts = posted.filter((event) => event.name === 'session_start');
+  for (const start of postedStarts) expect(start).toMatchObject({ device_kind: 'desktop', pointer: 'fine' });
+  expect(JSON.stringify(posted)).not.toMatch(/Mozilla|HeadlessChrome/);
   // Nothing typed or named in an event: neither the relatório's texts nor the TAGs.
   expect(JSON.stringify(posted)).not.toMatch(/Cubículo|Chave seccionadora|Enel/);
 });
@@ -276,4 +290,58 @@ test('@p0 18.4-E2E-001 a typed value the sheet refuses queues one input_refused 
   // Never the typed text, anywhere in the queue.
   expect(JSON.stringify(await queued(page))).not.toContain(typed);
   await context.setOffline(false);
+});
+
+/*
+ * 30.6-E2E-001 (Story 30.6): an Android tablet held upright with the app in a 600 px window (split
+ * screen, or zoomed) is a tablet by its hardware, though its window is a phone's: the session_start
+ * the app sends says `viewport: 'phone'` and `device_kind: 'tablet'`, with the screen's 712 x 1138
+ * and the window's 600 px; the api takes it (204), and no user agent leaves the device.
+ */
+test.describe('an Android tablet at a phone-width window', () => {
+  const tablet = devices['Galaxy Tab S4'];
+  test.use({
+    userAgent: tablet.userAgent,
+    deviceScaleFactor: tablet.deviceScaleFactor,
+    isMobile: tablet.isMobile,
+    hasTouch: tablet.hasTouch,
+    viewport: { width: 600, height: 1138 },
+    // The screen is not a test option of its own; it reaches the context through contextOptions.
+    contextOptions: { screen: { width: 712, height: 1138 } },
+  });
+
+  test('@p0 30.6-E2E-001 the session_start the app sends says tablet by the hardware and phone by the window, and the api takes it', async ({ page }) => {
+    test.setTimeout(120_000);
+    const posts: TelemetryPost[] = [];
+    page.on('requestfinished', (request) => {
+      if (request.method() !== TELEMETRY_ROUTE.method || new URL(request.url()).pathname !== TELEMETRY_ROUTE.path) return;
+      void request.response().then((response) => posts.push({ status: response?.status() ?? 0, body: request.postDataJSON() as unknown }));
+    });
+    await signIn(page, account.email);
+    // The start is in the queue, or already shipped by the launch cycle.
+    const starts = async () => [
+      ...(await queued(page)).map((event) => Object.fromEntries(Object.entries(event).filter(([key]) => key !== 'id')) as UxEvent),
+      ...posts.filter((post) => post.status === 204).flatMap((post) => post.body as UxEvent[]),
+    ].filter((event) => event.name === 'session_start');
+    await expect.poll(async () => (await starts()).length, { timeout: 30_000 }).toBeGreaterThan(0);
+    for (const start of await starts()) {
+      expect(start, JSON.stringify(start)).toMatchObject({
+        viewport: 'phone',
+        os: 'android',
+        pointer: 'coarse',
+        screen_w: 712,
+        screen_h: 1138,
+        viewport_w: 600,
+        device_kind: 'tablet',
+      });
+      expect(start.touch_points).toBeGreaterThanOrEqual(1);
+      expect(uxEventSchema.safeParse(start).success).toBe(true);
+    }
+    // Shipped: "Sincronizar agora" sends the queue, every answer 204, and the queue empties.
+    await syncNow(page);
+    await expect.poll(async () => (await queued(page)).length, { timeout: 30_000 }).toBe(0);
+    expect(posts.filter((post) => (post.body as UxEvent[]).some((event) => event.name === 'session_start')).map((post) => post.status)).toContain(204);
+    expect(posts.every((post) => post.status === 204)).toBe(true);
+    expect(JSON.stringify(posts.map((post) => post.body))).not.toMatch(/Mozilla|SM-T837|Android 8/);
+  });
 });

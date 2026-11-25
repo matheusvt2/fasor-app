@@ -4,6 +4,7 @@ import { uuidV7Schema } from '../ids.ts';
 import { CLOCK_SKEW_MS } from '../ops/attribution.ts';
 import type { RelatorioStatus } from '../schemas/entities.ts';
 import { errorCodeSchema } from './errors.ts';
+import { DEVICE_KINDS, DEVICE_OSES, DEVICE_PX_MAX, POINTERS, TOUCH_POINTS_MAX } from './telemetry-device.ts';
 
 /*
  * AD-28 (Epic 18): usage events. A usage event records where an engineer went, what they
@@ -19,6 +20,11 @@ import { errorCodeSchema } from './errors.ts';
  * before it (`from`); a `session_start` may say on what it runs (`viewport`, `standalone`,
  * `online`); `input_refused` says a typed value was refused (its field's constant `target`
  * and the closed `kind` of the refusal), never the value.
+ *
+ * Story 30.6 (2026-11-25): a `session_start` may also say what kind of device it is, by the
+ * hardware (`pointer`, `touch_points`, `os`, `screen_w`, `screen_h`, `viewport_w` and the
+ * kernel's `device_kind`, `./telemetry-device.ts`): closed values and bounded integers only,
+ * never the user agent or the device model. Optional, so an older bundle's start still passes.
  */
 
 export const UX_EVENT_NAMES = [
@@ -190,8 +196,11 @@ export type UxInputTarget = (typeof UX_INPUT_TARGETS)[number];
 export const UX_DIALOG_TARGETS = ['capture_sheet', 'move_block', 'rename_tag', 'export', 'not_tested', 'conflict'] as const;
 export type UxDialogTarget = (typeof UX_DIALOG_TARGETS)[number];
 
-/** The keys only a `session_start` carries (Story 18.4). */
-const SESSION_START_KEYS = ['viewport', 'standalone', 'online'] as const;
+/** The keys only a `session_start` carries (Story 18.4; Story 30.6 the hardware). */
+const SESSION_START_KEYS = ['viewport', 'standalone', 'online', 'pointer', 'touch_points', 'os', 'screen_w', 'screen_h', 'viewport_w', 'device_kind'] as const;
+
+/** Story 30.6: a CSS pixel count of a `session_start`, 0 (unreadable) to `DEVICE_PX_MAX`. */
+const devicePxSchema = z.number().int().min(0).max(DEVICE_PX_MAX);
 
 /** One usage event as the device builds and sends it; strict, so an unknown key is refused. */
 export const uxEventSchema = z
@@ -215,6 +224,14 @@ export const uxEventSchema = z
     viewport: z.enum(VIEWPORTS).optional(),
     standalone: z.boolean().optional(),
     online: z.boolean().optional(),
+    // Story 30.6: `session_start` only, what kind of device it is, by the hardware.
+    pointer: z.enum(POINTERS).optional(),
+    touch_points: z.number().int().min(0).max(TOUCH_POINTS_MAX).optional(),
+    os: z.enum(DEVICE_OSES).optional(),
+    screen_w: devicePxSchema.optional(),
+    screen_h: devicePxSchema.optional(),
+    viewport_w: devicePxSchema.optional(),
+    device_kind: z.enum(DEVICE_KINDS).optional(),
   })
   .superRefine((event, ctx) => {
     const refuse = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });

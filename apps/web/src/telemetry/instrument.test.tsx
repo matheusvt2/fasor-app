@@ -207,6 +207,8 @@ describe('E18-A1 fixes and gaps', () => {
       // Story 18.4: the session_start says on what the session runs (jsdom: 1024 px, a browser tab, online).
       const [start] = await queuedUxEvents(db);
       expect(start).toMatchObject({ viewport: 'tablet', standalone: false, online: true });
+      // Story 30.6: and what kind of device it is (jsdom: no touch, a 1024 px window).
+      expect(start).toMatchObject({ pointer: 'fine', touch_points: 0, viewport_w: 1024, device_kind: 'desktop' });
     } finally {
       resetStartTelemetryForTests();
     }

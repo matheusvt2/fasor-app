@@ -13119,6 +13119,7 @@ Points 1 (the password rotation, E11-A4), 2 (the message to Bruno), 4 (the real-
 | 30.3 | Seed v19 opens, the v18 layout is locked, and three printed texts follow Bruno | audit § 2 item 4; § 3H; § 4c; L4011-G7 | v19 | kernel, print | 1 · e30b | main's plus one (60) | fable · high |
 | 30.4 | A notice when a local this device answered was removed elsewhere | audit § 3B Q-8 | every seed | kernel (fold), api, web | 2 · e30c | main's plus one at its merge (61 if e30b took 60) | opus · high |
 | 30.5 | The unstable tests: each cause found and fixed | audit § 6, first row (E28-A6, merging E23-A4 and E24-A4) | n/a | tests, then product where the cause is | 2 · e30d | none expected | opus · high |
+| 30.6 | The session start records what kind of device it is *(added 2026-11-25, Matheus: "é o tablet do Bruno, pode registrar o tipo do aparelho")* | audit, Matheus's answer 4 (the production read of 2026-11-25) | n/a | kernel, web, api, infra | 3 · e30g | none (the usage-event contract is apart, AD-28) | opus · high |
 
 **Rules every story keeps:**
 - **Red first (decision 1).** Each item's acceptance criterion names the test that fails on main and passes on the branch, and the PR pastes both runs (the red one on the branch's first commit, before the fix, or on main). A screen item also has a screen check with the Playwright MCP at 390, 768 and 1280 px, as `dev@local.dev`, its screenshots under `_bmad-output/test-artifacts/manual/`.
@@ -13466,6 +13467,61 @@ So that a gate's red means a defect and no gate pays for a rerun.
 - `docs/kbs/workflow/e2e-testing.md` and `log.md`.
 
 *(2026-11-25, batch e30d, PR #390: outcome. Every item closed one way or the other; the per-item table, with how each was reproduced, the cause with file and line, where it was fixed and the 20-run result, is in `epic-30-context.md`, "Story 30.5", and the PR. Fixed in the product, red first: (a) a reading arrival no longer takes the slot from a toast on screen (`state/toast.tsx`; item 4); (b) the stepper's land leaves a focus the person moved since the tap (`use-ficha-steps.ts`; items 1 and 7: "54" was saved for "548" with the frames at 100 ms); (c) Home draws its board, shortcuts, search and "Novo relatório" in one commit once both its reads are in (`home-surface.tsx` `settled`; items 3 and 10: a finger held 120 ms lost 6 of 8 presses). Fixed in a test: the tree's Q7 unit test holds the settle fallback back instead of timing the render (item 13). Fixed in the runner: `summary.json` counts every run under `--repeat-each` (the L1430 row). Item 12 counted: 20 of 20. Not reproduced or cause not found, each test left as it is: items 2 (1.6-E2E-001, 1 of 20, a stalled Sumário pull; cause not found, an open `deferred-work.md` row), 5, 6 (20 of 20 without its retry, which stays), 8, 9 (24.10-E2E-005, 1 of 20, a registry list open after a pick; cause not found, an open row), 11 (14.5-E2E-001, 1 of 20: the Export dialog's DOCX row moves 48 px after the ready toast, found in part and not fixed, closed here as cause not found with an open row for Matheus), 14 (CPU only: a composer test of 2.6 s alone took 62 s beside an e2e run), 15 and 16 (the exit did not reproduce; the container staying up with a dead api is confirmed and stays in the ledger). No seed, golden or contract change; no authored string.)*
+
+### Story 30.6: The session start records what kind of device it is
+
+**Dev model:** opus · **Effort:** high · kernel (the usage-event schema and the device-kind rule), web (the session start's reading), api (validation through the kernel schema, unchanged code), infra (one saved query and dashboard widget, written and validated, applied at the next deploy); no seed, no golden, no op, no contract number; batch e30g, port base 30
+
+As the person reading how the app is used in the field,
+I want each session start to say what kind of device it ran on, by its hardware,
+So that a tablet is read as a tablet even when its window is a phone's width.
+
+**Today (verified 2026-11-25 on main `ace4bfd0`):**
+- A `session_start` carries `viewport`, `standalone` and `online` (Story 18.4; `packages/domain/src/contract/telemetry.ts` `uxEventSchema`, `apps/web/src/telemetry/context.ts` `deviceContext`). `viewport` is `viewportOf(window.innerWidth)`, the window's CSS width class, so it does not say what the device is.
+- The production read of 2026-11-25 (last 30 days, counts only, smoke company left out): one device, Bruno's tablet (Matheus, 2026-11-25), reported 106 sessions at phone width, 42 at desktop width and 11 at tablet width. The log cannot tell a tablet from a phone or a desktop browser.
+- The api parses each event strictly with the kernel schema and refuses the whole batch on one bad event (`apps/api/src/http/telemetry.ts`, 400 `telemetry_invalid`). The usage-event lists are append-only and travel with `v: 1`; Stories 18.4 and 26.9 extended them with no contract number (the sync contract, `CONTRACT_VERSION`, governs ops and pulls, not this route).
+- The usage dashboard has seventeen views (`infra/production/observability.tf`); `scripts/telemetry-queries.test.ts` binds every field a query reads to the kernel's lists.
+
+*(Definition of Ready, met 2026-11-25 by Matheus's answer "é o tablet do Bruno, pode registrar o tipo do aparelho". Every line below is the coordinator's reading, open to Matheus.)*
+- **The fields**, optional on the wire, only on a `session_start`, computed once on the device at load: `pointer` (`coarse` or `fine`, the primary pointer, `matchMedia('(pointer: coarse)')`); `touch_points` (`navigator.maxTouchPoints`, an integer from 0 to 10); `os` (`android`, `ios`, `ipados`, `windows`, `macos`, `linux`, `chromeos`, `other`; derived on the device; an iPad on Safari reports a Mac user agent with more than one touch point and is `ipados`); `screen_w` and `screen_h` (`screen.width` and `screen.height` in CSS pixels) and `viewport_w` (the window's inner width), each an integer from 0, unreadable, to 10 000; `device_kind` (`phone`, `tablet` or `desktop`).
+- **The rule of `device_kind`** lives once in `packages/domain` (`deviceKindOf`), by the hardware, never by the window: an iPhone is a phone and an iPad a tablet; an Android device is a phone when the screen's shorter side is under 600 CSS px (Android's own `sw600dp` split) and a tablet from it; any other system is a desktop with no touch point or a fine primary pointer (a touch laptop), and is otherwise read by the shorter side as Android is (a Windows or Chrome OS tablet in tablet mode). The system is read from the browser's platform hint when it names one, else from the user agent; both rules are kernel functions, and `apps/web` only reads the browser's values.
+- **Never** the raw user agent string, the device model or any free text: only the closed values above. The api validates them with the kernel's schema, so a value outside a list or a bound refuses the batch, as for every existing field.
+- **No contract number.** The fields are optional, so an older bundle's start still passes; the usage-event contract is apart from the sync contract and its lists are append-only (Stories 18.4 and 26.9 precedent). `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` stay at 61.
+- **One view**, `device_kinds`, the eighteenth: sessions and devices of the starts that say their kind, by `device_kind`, `os`, `pointer` and `viewport`, the smoke company left out like the others, last in `ux_query_order`. A row whose kind and viewport differ (a tablet at phone width) shows the mismatch the read found. Terraform is written and validated here, applied at the next deploy on Matheus's word.
+- **The Conta sentence** ("Uso do aplicativo") is not changed; whether it should name the device is open to Matheus, as Story 18.4 left its own fields.
+
+**Acceptance Criteria:**
+
+**Given** a phone, an Android tablet upright at a narrow window, an iPad on Safari, a touch laptop and a desktop
+**When** the kernel reads each one's hardware
+**Then** it names them `phone`, `tablet`, `tablet`, `desktop` and `desktop`, whatever the window's width
+
+**Given** the app is loaded on an Android tablet held in a 600 px window
+**When** it sends its session start
+**Then** the event says `viewport: 'phone'` and `device_kind: 'tablet'`, with the screen's and the window's widths, and the api answers 204
+
+**Given** a session start with a value outside the closed lists or bounds, free text, a user agent key, or a hardware field on another event
+**When** the api receives its batch
+**Then** it answers 400 `telemetry_invalid` and stores nothing
+
+**Given** a session start from a bundle before this story
+**When** the api receives it
+**Then** it is stored as before, with none of the new fields
+
+**Given** the usage dashboard's Terraform
+**When** it is validated
+**Then** the `device_kinds` view counts sessions and devices by `device_kind`, `os`, `pointer` and `viewport`, leaves the smoke company out, and `scripts/telemetry-queries.test.ts` binds its fields to the kernel's lists
+
+**Definition of Done, in addition:**
+- Kernel tests, red first: `packages/domain/src/contract/telemetry-device.test.ts` "30.6-UNIT-001" to "-010" (the lists, the system, the device kind of the five devices, the bounds, no user agent) and `telemetry.test.ts` "30.6-UNIT-011" to "-013" (the schema).
+- Web tests: `apps/web/src/telemetry/context.test.ts` "30.6-WEB-001" to "-003" and the session start of `instrument.test.tsx`.
+- Api integration: `apps/api/src/http/telemetry.integration.test.ts` "30.6-API-001" and "-002" (stored; refused).
+- E2E: `e2e/usage-events.spec.ts`, 18.1-E2E-001 extended (every start on desktop Chrome says `desktop`) and "30.6-E2E-001" (`@p0`, an emulated Android tablet at a 600 px window).
+- `infra/production/observability.tf` and `scripts/telemetry-queries.test.ts`; `infra/bin/check` green; `docs/observability.md` (the fields and the view).
+- AD-28's field list amended with the date in the spine, a `source-deltas.md` row, `docs/kbs/` and `log.md`.
+- `open-work-audit-2026-11-24.md`: the evidence of answer 4 as a dated note; section 5 and `deferred-work.md` rows whose ask is general use on a real tablet annotated "met by production use" and archived, the specific checks left open.
+
+*(2026-11-25, batch e30g, branch `e30g-device-kind-telemetry`, PR open, not merged: outcome. Built as the story reads, no contract number (61 stays), no seed, golden or op. Red first: on the tests' own commit `e530d389` the kernel and web tests failed (the module absent, the start without the fields); with `telemetry.ts` put back to main's, 30.6-UNIT-011 and 30.6-API-001 went red; with `context.ts` put back to main's, 18.1-E2E-001 (extended) and 30.6-E2E-001 went red; all green on the branch. Batch gate: lint 0 errors (30 warnings, as before), static clean, `test:api` 1227 passed and 10 skipped, `test:unit` 8037 of 8037, the touched specs (`usage-events.spec.ts`, `usage-events-documents.spec.ts`) 6 of 6; `infra/bin/check` all passed. No row of the audit's section 5 or of `deferred-work.md` was closed: each asks for a specific check, none for general use alone, so each stays open and unannotated; section 5 carries a dated note. Readings open to Matheus, in the PR: the 600 px line, the non-Android touch rule, the platform hint before the user agent, 0 for an unreadable value, a bad value refusing the batch, no contract number, the Conta sentence unchanged, one view over everyone. Not verified: a real device (the e2e emulates a Galaxy Tab S4), the view's query in Logs Insights (applied at the next deploy).)*
 
 ## Backlog: deferred stories
 
