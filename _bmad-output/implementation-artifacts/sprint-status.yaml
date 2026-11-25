@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-24-2026 21:20
+last_updated: 11-24-2026 12:01
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -363,7 +363,7 @@ development_status:
   27-14-templates-and-home-readable-cards-one-number-per-section: done  # 2026-11-22: templates half only, merged in batch e27c (PR #362, 64ddc634); the Home half is deferred (deferred-work.md); deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was backlog: added 2026-11-21 (F20, F21); wave 3, e27c; after Story 27.5
 
   epic-28: done  # 2026-11-24: all ten stories merged (#368, #369 icon sprite fix, #370, #371, #373, review fixes #374, #375 and #376 plate structuring fixes, #377 hands-on pass fixes); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18); retrospective not run | was backlog: added 2026-11-22: Bruno's answers to B-1..B-17 of sprint-change-proposal-2026-11-11.md (gitignored docs/context/epic-25/respostas-bruno-2026-11-22.md); Matheus 2026-11-22 "Pode fazer o épico 28", after the joint deploy of Epics 26 and 27, not part of it; seed v18; 10 stories in three waves (0: frames; 1: e28a seed v18 and its data; 2: e28b rules and notes beside e28c Etapa 6 and fixed texts); port bases 30 and 31; contract main's plus one (at least 58) for e28a and again for e28c; one full gate, one review, one deploy at the end; epic-28-context.md
-  epic-28-retrospective: optional
+  epic-28-retrospective: done
   28-1-the-epic-28-frames-in-the-mocks: done  # 2026-11-24: merged as PR #368 (frames approved by Matheus 2026-11-23); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22; wave 0, coordinator with bmad-ux; no app code; may be drawn before the joint deploy; Matheus approves in the browser
   28-2-seed-v18-opens-and-the-v17-layout-is-locked: done  # 2026-11-24: merged in batch e28a (PR #370, contract 58); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22; wave 1, e28a, first; DoR: the joint deploy of Epics 26 and 27 has shipped seed v17; one contract number
   28-3-the-oils-names-a-seco-or-a-oleo-and-oleo-vegetal: done  # 2026-11-24: merged in batch e28a (PR #370); the paid plate eval found a structuring failure fixed by #375 and #376, rerun green on 84827c73; deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22 (B-4; the oil half of 25.19); wave 1, e28a; v18; the plate prompt bumps; the paid plate eval before the deploy on Matheus's word; Q-1 and Q-2 open, not blocking
@@ -377,7 +377,7 @@ development_status:
   epic-29: done  # 2026-11-24: both stories merged (#372, review fixes #374, hands-on pass fix #377); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18); retrospective not run | was in-progress: added 2026-11-23: Bruno via Matheus after v0.13.0, "investigar e corrigir agora"; one batch e29a, port base 26; no seed change
   29-1-a-signed-in-user-changes-the-password: done  # 2026-11-24: merged in batch e29a (PR #372); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was in-progress: added 2026-11-23
   29-2-closing-a-dialog-or-going-back-returns-to-the-screen-before: done  # 2026-11-24: merged in batch e29a (PR #372), review fixes #374 and #377 (Voltar, Sumario view); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was in-progress: added 2026-11-23; investigation first
-  epic-29-retrospective: optional
+  epic-29-retrospective: done
 
   backlog-deferred: backlog  # added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
   13-9-dictation-on-behind-one-line-of-consent: backlog  # 2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
@@ -2262,3 +2262,91 @@ action_items:
     owner: "the coordinator"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-28-retro-item-193-e28-a1-decide-the-seven-open-readings-em"
+    epic: 28
+    action: "E28-A1 Decide the seven open readings (empty utility name blocks the
+      issue; the slot shows while the name is empty; Bruno over-range line replaces
+      Story 23.4 sentence on v18; deadline term over an empty date field; a preview
+      after first issue counts from first issue; a past real date after first issue
+      raises the overdue row; Voltar from a ficha opened from the Sumario steps back
+      in history) and the AI audit draft layout deadline base, one dated line each
+      in epics.md."
+    owner: "Matheus (decision); coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+  - id: "epic-28-retro-item-194-e28-a2-send-bruno-the-one-message-after"
+    epic: 28
+    action: "E28-A2 Send Bruno the one message after the deploy: every authored sentence
+      of PRs 368, 370, 371, 372, 373, 374 and 377, and the answers to Q-1 to Q-5 as
+      built; record his replies as dated lines."
+    owner: "Matheus (send); coordinator (draft the list, record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+  - id: "epic-28-retro-item-195-e28-a3-close-the-hands-on-pass-gaps-in-o"
+    epic: 28
+    action: "E28-A3 Close the hands-on pass gaps in one tracked manual pass: a v17
+      relatorio, the B-10 two-sheets case, a sheet with no TAG, a read-only role on
+      Itens adicionais, revisions on different days, the hashed sprite, a real Android
+      or iPad device."
+    owner: "coordinator (pass); Matheus (the device)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+  - id: "epic-28-retro-item-196-e28-a4-paid-evaluation-hygiene-add-a-v18"
+    epic: 28
+    action: "E28-A4 Paid-evaluation hygiene: add a v18 sample from a non-client plate
+      to eval-samples.ts; rerun Nova Pro on the escalation set after PRs 375 and 376;
+      Matheus decides whether a permanent default-model error tries the escalation
+      model."
+    owner: "coordinator (sample, run); Matheus (the word for the spend, the decision)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+  - id: "epic-28-retro-item-197-e28-a5-dated-lines-in-epic-batch-orchest"
+    epic: 28
+    action: "E28-A5 Dated lines in epic-batch-orchestrator.md section 12 with the
+      three lines of E25-A6: batch records move its sprint-status rows before the
+      next wave; a new seed or seed field also runs the specs reading the changed
+      definitions; after a paid-evaluation failure capture the raw tool input before
+      the first fix; keep the wave review report or its table in the epic context
+      file."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+  - id: "epic-28-retro-item-198-e28-a6-test-hardening-third-round-merged"
+    epic: 28
+    action: "E28-A6 Test hardening, third round, merged with E23-A4 and E24-A4: find
+      why 11.11-E2E-001, 6.2-E2E-001, 25.2-E2E-002, 12.1-E2E-012, home 1.6-E2E-001
+      and e24y-paired-tables fail under load and pass alone; no retries."
+    owner: "coordinator (batch)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+  - id: "epic-28-retro-item-199-e28-a7-low-fix-the-tag-suggestions-offer"
+    epic: 28
+    action: "E28-A7 Low: fix the TAG suggestions offered after their locals were removed,
+      and decide whether the Gerar dialog gets a Cancelar button."
+    owner: "Matheus (the Cancelar decision); coordinator (batch)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+  - id: "epic-29-retro-item-200-e29-a1-ask-bruno-through-matheus-to-conf"
+    epic: 29
+    action: "E29-A1 Ask Bruno, through Matheus, to confirm on his tablet that closing
+      a dialog, tapping outside and going back now return to the screen before, and
+      that Alterar senha works; record his answer, sent with the message of E28-A2."
+    owner: "Matheus (ask); coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-29-retro-2026-11-24.md"
+  - id: "epic-29-retro-item-201-e29-a2-put-story-29-2-into-the-real-devi"
+    epic: 29
+    action: "E29-A2 Put Story 29.2 into the real-device pass of E28-A3: the device
+      back with each overlay kind on Android and iPad, the Sumario in Em revisao and
+      Em campo, the download and new-tab return, and the Select popover of point-link-picker.tsx;
+      fix any case red first."
+    owner: "coordinator (pass, batch); Matheus (the device)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-29-retro-2026-11-24.md"
+  - id: "epic-29-retro-item-202-e29-a3-low-give-a-sumario-that-was-the-t"
+    epic: 29
+    action: "E29-A3 Low: give a Sumario that was the tab first page a key of its own
+      so a back restores its view (history-return.ts UNKEYED), or decide the gap stays."
+    owner: "coordinator (batch); Matheus (decides)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-29-retro-2026-11-24.md"
