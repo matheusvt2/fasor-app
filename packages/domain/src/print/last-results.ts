@@ -193,7 +193,15 @@ export function lastResults(snapshot: RelatorioSnapshot, input: { revisionNumber
     };
     // Fix batch e23w (W2-1): a later visit on top keeps its place; this one refreshes its prior, or writes nothing.
     if (existing !== null && existing.relatorio_id !== snapshot.relatorio.id && existing.prior?.relatorio_id === snapshot.relatorio.id) {
-      out.push({ equipmentId: block.equipment_id, value: fill({ ...existing, prior: own }) });
+      // Story 30.1 J (L3755): unless this re-issue's edited service dates now make it the newer visit: it takes the top.
+      if (compareVisits(own, existing) > 0) out.push({ equipmentId: block.equipment_id, value: fill({ ...own, prior: withoutPrior(existing) }) });
+      else out.push({ equipmentId: block.equipment_id, value: fill({ ...existing, prior: own }) });
+      continue;
+    }
+    // Story 30.1 J (L3755): a re-issue of the visit on top is ordered against its prior again, by its edited service
+    // dates: now older than the prior, it gives the top back and becomes the prior's prior (an older visit never stays on top).
+    if (existing !== null && existing.relatorio_id === snapshot.relatorio.id && existing.prior !== null && compareVisits(own, existing.prior) < 0) {
+      out.push({ equipmentId: block.equipment_id, value: fill({ ...existing.prior, prior: own }) });
       continue;
     }
     // Batch e24p (Story 24.15): an older visit never becomes the top; a newer one by date takes it, even on a re-issue.
