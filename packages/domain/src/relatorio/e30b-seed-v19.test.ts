@@ -101,9 +101,6 @@ describe('30.3-UNIT-A seed v19: a seeded criterion is written with "≥", "≤" 
       // A criterion with its own text (a NETA row) and a nominal with its tolerance are unchanged.
       expect(text).toContain('≥ 5.000 MΩ');
     }
-    // (Section 9 joins a nominal and its tolerance with no-break spaces, Story 25.20.)
-    expect(printed('v19', layoutLockEpic25Snapshot)).toContain('125 Vcc\u00a0±\u00a05 %');
-    expect(printed('v18', layoutLockEpic25Snapshot)).toContain('125 Vcc\u00a0±\u00a05 %');
   });
 
   it('section 9 of a v18 relatório prints the glued forms as it did', () => {

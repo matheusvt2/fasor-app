@@ -1,4 +1,4 @@
-import { formatCriterionValue, makeOp, PRODUTO, SEEDED_CRITERIA, type Op } from '@app/domain';
+import { currentCriterionText, makeOp, PRODUTO, SEEDED_CRITERIA, type Op } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { copy } from '../apps/web/src/copy/pt-br.ts';
@@ -628,7 +628,7 @@ test('@p0 2.6-E2E-001 Critérios de aceitação renders the seeded criteria as a
   await expect(table).toBeVisible();
   for (const criterion of SEEDED_CRITERIA) {
     await expect(table).toContainText(criterion.label);
-    await expect(table).toContainText(formatCriterionValue(criterion));
+    await expect(table).toContainText(currentCriterionText(criterion));
   }
   await expect(table.getByRole('button')).toHaveCount(0);
 
