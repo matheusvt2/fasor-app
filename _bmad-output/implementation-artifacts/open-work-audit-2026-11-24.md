@@ -1,5 +1,18 @@
 # What is really still missing (2026-11-24)
 
+## Matheus's answers, 2026-11-24
+
+Matheus answered the eight top points of section 1 on 2026-11-24, in these words. Where each answer went is on the same line. Nothing below changes the lists that follow, except section 7 (approved and applied) and the dated note in section 5.
+
+1. Rotate the exposed production password (E11-A4): "nao precisa". Not needed: `E11-A4` is `done` in `sprint-status.yaml` with that quote and moved to `sprint-status-archive.yaml`. No ledger row tracks it.
+2. One message to Bruno: "crie a mensagem". The coordinator is writing it; nothing is sent from this file. E28-A2, E29-A1, E23-A7 and E17-A3 stay open until it is sent and answered.
+3. The fix batch: "faça as correcoes revisitando o codigo, testando a falha, corrigindo e testando o sucesso". Becomes Epic 30, Stories 30.1 and 30.2, written in another pull request (section 2 is their source).
+4. The real-device session: "ja esta sendo feito, os relatorios estao sendo feitos por tablet, veja nos logs". The coordinator is checking the production logs. The device rows stay open; section 5 carries a dated note that field use on tablets is the evidence being gathered.
+5. Q-8, site answers lost when another device removes the local: "tem que ser uma notificacao". Becomes Story 30.4.
+6. The unstable tests (E28-A6): "procure". Becomes Story 30.5 (find the causes).
+7. Seed v19: "ok". Becomes Story 30.3.
+8. Approve section 7 "Recommend to drop" in one sitting: "ok". Applied: 130 ledger records and 20 action items closed as "kept as built" (section 7 says how).
+
 Product "Conforme", production v0.14.0 (`de79700b`, seed v18, contract 59), Epics 1 to 29 delivered. This file merges six read-only audits and the three retrospectives of 2026-11-24 into one list. It changes nothing by itself: every close, decision and fix below waits for Matheus.
 
 Source ids: `L<n>` is the `state:` line of a row in `deferred-work.md` as audited on main `e687b442`; `E<n>-A<m>` is an action item in `sprint-status.yaml` or in a retrospective; other ids (`Q-8`, `R-12 (E20)`, `14.5-R1`) are the row's own id. Client material is cited by path only.
@@ -210,6 +223,8 @@ One message. Wording lists are named by path and PR, not repeated here.
 
 ## 5. Needs a real device
 
+*(2026-11-24, Matheus: "ja esta sendo feito, os relatorios estao sendo feitos por tablet, veja nos logs". Field use on tablets is the evidence being gathered: relatórios are already being made on tablets in production, and the coordinator is reading the production logs for it. No row below is closed by this note; each check stays open until the logs or a hands-on pass settle it.)*
+
 One session, one iPad and one Android tablet, on v0.14.0. Fill `_bmad-output/test-artifacts/manual/ipad-YYYY-MM-DD.template.md`. Sources: E1-A1 and its duplicates E6-A5, E8-A7, E9-A10, E10-A7, E12-A3, E11-A7 (share), plus E26-A5, E28-A3, E29-A2, L231, L1385, L1480, L1640, L4358, e17-R3, 17.2-twotap, L3641, L3646, L2892, E15-A6.
 
 - [ ] Offline proof (`offline-proof-script.md`, steps 1 to 13): cold open offline (L231), fill, close, reopen, sync. Calibrate the storage threshold (E1-A1).
@@ -243,9 +258,15 @@ One session, one iPad and one Android tablet, on v0.14.0. Fill `_bmad-output/tes
 | Relatório budget cost on push | Never timed | L2946 |
 | No real HEIC fixture | Only a converted one | L3056 |
 
-## 7. Recommend to drop
+## 7. Recommend to drop (approved by Matheus and applied, 2026-11-24)
 
 The audits marked each row `drop`. Nothing here is closed by this file. Approving the table closes them as "kept as built" or "not worth it". Rows marked (decision) also settle group I of section 3.
+
+Approved and applied (2026-11-24, Matheus "ok"): every row of the table is closed in the file where it lives, with the state `closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: <the reason of the table>)`.
+- Ledger: 130 records closed. 129 rows were struck, closed and moved verbatim to `deferred-work-archive.md` under the same section heading (seven sections of `deferred-work.md` are now empty and carry the placeholder line). The 130th, `L4011-G5`, is one sub-item of the bullet "The final hands-on pass of 2026-11-11", which keeps other open sub-items, so it is struck and closed in place and the bullet stays in the ledger.
+- Action items: 20 closed (`done`, comment "dropped, kept as built") and moved to `sprint-status-archive.yaml`: E2-A4, E3-A1, E3-A2, E3-A5, E3-A6, E5-A3, E6-A4, E7-A5, E8-A3, E8-A6, E9-A8, E11-A3, E11-A6, E12-A1, E13-A8, E14-A9, E15-A6, E15-A9, E24-A5, E24-A6. E14-A11 was already `done` in the archive (closed by the audit of the same day), so it needed nothing.
+- Group I of section 3 points at the same rows: nothing extra to close.
+- Skipped: none. Two things to know: the rows `L4009` and `L4070` leave the ledger although the flaky-test work (E28-A6, Story 30.5) still looks for their causes; and E5-A3 and its copies close, while E10-A6 (3B) and the E13-A8 copy in 4b stay open, as the audit says.
 
 | Id | Summary | Reason |
 |---|---|---|
