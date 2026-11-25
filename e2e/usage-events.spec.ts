@@ -299,8 +299,16 @@ test('@p0 18.4-E2E-001 a typed value the sheet refuses queues one input_refused 
  * and the window's 600 px; the api takes it (204), and no user agent leaves the device.
  */
 test.describe('an Android tablet at a phone-width window', () => {
-  const { defaultBrowserType: _browser, ...tablet } = devices['Galaxy Tab S4'];
-  test.use({ ...tablet, viewport: { width: 600, height: 1138 }, screen: { width: 712, height: 1138 } });
+  const tablet = devices['Galaxy Tab S4'];
+  test.use({
+    userAgent: tablet.userAgent,
+    deviceScaleFactor: tablet.deviceScaleFactor,
+    isMobile: tablet.isMobile,
+    hasTouch: tablet.hasTouch,
+    viewport: { width: 600, height: 1138 },
+    // The screen is not a test option of its own; it reaches the context through contextOptions.
+    contextOptions: { screen: { width: 712, height: 1138 } },
+  });
 
   test('@p0 30.6-E2E-001 the session_start the app sends says tablet by the hardware and phone by the window, and the api takes it', async ({ page }) => {
     test.setTimeout(120_000);
@@ -312,7 +320,7 @@ test.describe('an Android tablet at a phone-width window', () => {
     await signIn(page, account.email);
     // The start is in the queue, or already shipped by the launch cycle.
     const starts = async () => [
-      ...(await queued(page)).map(({ id: _id, ...wire }) => wire as UxEvent),
+      ...(await queued(page)).map((event) => Object.fromEntries(Object.entries(event).filter(([key]) => key !== 'id')) as UxEvent),
       ...posts.filter((post) => post.status === 204).flatMap((post) => post.body as UxEvent[]),
     ].filter((event) => event.name === 'session_start');
     await expect.poll(async () => (await starts()).length, { timeout: 30_000 }).toBeGreaterThan(0);
