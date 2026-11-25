@@ -700,7 +700,17 @@
  * `earth_paragraph_with_malha` and section 1's v18 words and the kernel's applied band; neither needs a number.
  * MIN follows to 59 (below).
  */
-export const CONTRACT_VERSION = 59;
+/*
+ * 60 (2026-11-24, batch e30b, Epic 30 wave 1, Story 30.3): no new op, path or key. Seed v19 opens equal to v18
+ * (the same content and the same rule flags; v18 froze at the deploy of de79700b) and becomes the version a new
+ * Template is created with (`SEED_VERSION`); the server's boot step moves every template to it, so every relatório
+ * created afterwards is born on v19 and every one already made keeps its seed. On v19 only, three rule flags change
+ * a printed or shown text: `criterion_symbols` (a seeded criterion reads "≥ 5 GΩ", "± 0,5 %"),
+ * `conclusion_no_checklist_clause` (a type with no checklist concludes with no clause about checked items) and
+ * `helper_names_plate_block` (the default of a maximum read from the plate names the block the field is in).
+ * MIN follows to 60 (below).
+ */
+export const CONTRACT_VERSION = 60;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -1122,7 +1132,12 @@ export const CONTRACT_VERSION = 59;
  * list and its Etapa 6 and section 10 would never show or print it. Its pull answers `426 contract_outdated` and it
  * updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 59;
+/*
+ * 60 (2026-11-24, batch e30b, Story 30.3): a version-59 (or older) bundle ships no seed v19, so it cannot resolve
+ * a single definition of a v19 relatório or of a template the server moved to v19. Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted.
+ */
+export const MIN_CONTRACT_VERSION = 60;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -729,7 +729,7 @@ export function conflictValueText(
   if (cell.path.endsWith('/criterion_override') && block !== undefined) {
     const parsed = safeParsePath(cell.path);
     const test = parsed !== null && parsed.family === 'sheet/test' ? definitionOf(block, ctx)?.tests.find((candidate) => candidate.key === parsed.test_key) : undefined;
-    const text = test === undefined ? null : manufacturerValueText(test, value);
+    const text = test === undefined ? null : manufacturerValueText(test, value, block.seed_version);
     if (text !== null) return text;
   }
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in value) {

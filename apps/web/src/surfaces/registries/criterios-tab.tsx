@@ -1,4 +1,4 @@
-import { criteriaTablesView, formatCriterionValue, SEEDED_CRITERIA, seededCriterionAppliesText, type CriteriaTableView } from '@app/domain';
+import { criteriaTablesView, currentCriterionText, SEEDED_CRITERIA, seededCriterionAppliesText, type CriteriaTableView } from '@app/domain';
 import { useId } from 'react';
 import { copy } from '../../copy/pt-br.ts';
 
@@ -32,7 +32,7 @@ export function CriteriosTab() {
             <tr key={criterion.key}>
               <td data-label={t.columnSubBlock}>{criterion.label}</td>
               <td className="cell-crit" data-label={t.columnCriterion}>
-                {formatCriterionValue(criterion)}
+                {currentCriterionText(criterion)}
               </td>
               <td className="cell-dim" data-label={t.columnSource}>
                 {criterion.source.name}

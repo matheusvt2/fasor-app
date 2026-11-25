@@ -11,6 +11,9 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
  * 1280 px, is born on the current seed (v18, from the kernel), every sheet with it; its parecer is given and its
  * revision 1 is issued through the api's one queue and LibreOffice, and its PDF prints v17's words (the checklist's
  * "ITEM"), since v18 opens equal to v17. It runs in the queue lane.
+ *
+ * Batch e30b (Story 30.3, seed v19 opened equal to v18): a relatório a person creates is now born on v19, which keeps
+ * every flag and word this test reads; what v19 changes is `seed-v19.spec.ts`'s (30.3-E2E-001).
  */
 
 let account: SeedAccount;
@@ -29,10 +32,10 @@ interface EntityRecord<T> {
 }
 const entities = <T,>(page: Page) => readStore<EntityRecord<T>>(page, database, 'entities');
 
-test('@p0 28.2-E2E-001 a new relatório is born on v18, every sheet with it, and concludes and prints as a v17 one', async ({ page }) => {
+test('@p0 28.2-E2E-001 a new relatório is born on the current seed (v19 since batch e30b), every sheet with it, and concludes and prints v17\'s words', async ({ page }) => {
   test.setTimeout(420_000);
-  expect(SEED_VERSION).toBe('v18');
-  // v18 opens with v17's rule flags and words.
+  expect(SEED_VERSION).toBe('v19');
+  // v18 opened with v17's rule flags and words, and v19 keeps them.
   for (const flag of Object.keys(getSeed('v17', 'cabine_primaria').rules ?? {}) as Parameters<typeof seedRule>[1][]) expect(seedRule(SEED_VERSION, flag), flag).toBe(true);
   expect(getSeed(SEED_VERSION, 'cabine_primaria').checklist_columns[0]).toBe('ITEM');
   await resetEmpresaB(account, { standard: true });

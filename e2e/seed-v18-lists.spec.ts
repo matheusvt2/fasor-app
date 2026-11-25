@@ -37,7 +37,8 @@ const entities = <T,>(page: Page) => readStore<{ entity: string; id: string; row
 
 test('@p0 28.4-E2E-001 v18 lists: items 18 and 19 in the dry words with NC, a new thermography reason, the utility reason with its name, the battery date; the DOCX prints them', async ({ page }) => {
   test.setTimeout(540_000);
-  expect(SEED_VERSION).toBe('v18');
+  // Batch e30b (Story 30.3): a new relatório is born on v19, which keeps v18's lists.
+  expect(SEED_VERSION).toBe('v19');
   expect(REASON.label).toBe('Equipamento da concessionária');
   const { relatorioId, sheets } = await setUpRelatorio(page, account, database, () => [{ blockType: 'transformador_forca', key: 'tipo_de_isolacao', value: 'A SECO' }]);
   const tf = sheets.find((sheet) => sheet.blockType === 'transformador_forca')!;

@@ -3,7 +3,7 @@ import { isCompanyBlockType, type BlockTypeKey, type EquipmentBlockType, type Su
 import type { TemplateRow } from '../schemas/entities.ts';
 import { formatCriterionValue, SEEDED_CRITERIA } from '../seed/criteria.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
-import { findDefinitionIn, latestTypeVersion, siteItems, type DefinitionContext } from '../seed/definitions.ts';
+import { criterionSymbols, findDefinitionIn, latestTypeVersion, SEED_VERSION, siteItems, type DefinitionContext } from '../seed/definitions.ts';
 import { funcaoLabel } from '../relatorio/local.ts';
 import { plural, relatoriosCount } from '../text/plural.ts';
 import { composerView, type ComposerCabine, type ComposerNode, type ComposerView } from './compose.ts';
@@ -404,16 +404,19 @@ export function subBlockSummaryText(definition: BlockDefinition, key: SubBlockKe
   const bands = test.criterion_bands;
   // Story 14.9: a criterion picked from the plate names each band and its voltage, then the source.
   // authored: "até ⟨n⟩ V".
+  // Story 30.3 (a): the composer belongs to no relatório, so a criterion reads in the form of the current seed
+  // (`formatCriterionValue`: ">=0,5 MΩ" until v18, "≥ 0,5 MΩ" since v19).
+  const symbols = criterionSymbols(SEED_VERSION);
   const judged =
     bands !== undefined
       ? `${[
-          ...bands.bands.map((band) => `${band.operator}${String(band.value).replace('.', ',')} ${band.unit} até ${band.up_to} V`),
+          ...bands.bands.map((band) => `${formatCriterionValue({ operator: band.operator, value: band.value, unit: band.unit }, symbols)} até ${band.up_to} V`),
           // authored: "SELV/PELV" names the band the plate's mark picks.
-          ...(bands.selv === undefined ? [] : [`${bands.selv.operator}${String(bands.selv.value).replace('.', ',')} ${bands.selv.unit} SELV/PELV`]),
+          ...(bands.selv === undefined ? [] : [`${formatCriterionValue({ operator: bands.selv.operator, value: bands.selv.value, unit: bands.selv.unit }, symbols)} SELV/PELV`]),
         ].join(' · ')} (${bands.bands[0]!.source.name})`
       : criterion === undefined
         ? null
-        : `${formatCriterionValue(criterion)} (${criterion.source.name})`;
+        : `${formatCriterionValue(criterion, symbols)} (${criterion.source.name})`;
   return [`${rows.join(' · ')} × ${captured.join(' · ')}`, judged].filter((part): part is string => part !== null).join(' · ');
 }
 

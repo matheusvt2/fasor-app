@@ -14,7 +14,7 @@ import { enabledSubBlocksOf } from './sheet-state.ts';
 import { evaluatedTapOf, tapFailedRowLabel, tapRowLabel, tapRowRequired, tapRowsOf, type TapRowPlan } from './tap-rows.ts';
 import { previousReadingsByAddress } from '../print/reading-slots.ts';
 import { previousVisitDateText } from '../print/visit-date.ts';
-import { seedRule } from '../seed/definitions.ts';
+import { criterionSymbols, seedRule } from '../seed/definitions.ts';
 import { applyHistoryRise, applyRestrictions, prerequisiteFailure, type RestrictionPrevious } from './restriction.ts';
 import { correctedRaw, correctedText, mediumOf, temperatureFactor, temperatureView, testTemperature } from './temperature-correction.ts';
 import { NO_VISIT_CONTEXT, previousPlateMeasured, type VisitContext } from './visit-context.ts';
@@ -297,10 +297,11 @@ export function manufacturerCriterion(block: Pick<BlockRow, 'sheet'>, test: Test
  * (the Conflict view's two sides, AC "its two values read as criterion texts"); null when the value
  * is not a well-formed one. The operator is the test's own, the plate's class or band left aside.
  */
-export function manufacturerValueText(test: TestDef, value: unknown): string | null {
+export function manufacturerValueText(test: TestDef, value: unknown, seedVersion?: string): string | null {
   const sheet = { nameplate: {}, checklist: {}, test: { [test.key]: { cells: {}, criterion_override: { value } } } } as unknown as BlockRow['sheet'];
   const criterion = manufacturerCriterion({ sheet }, test);
-  return criterion === null ? null : formatCriterionValue(criterion);
+  // Story 30.3 (a): the form of the sheet's seed ("< 80 µΩ" on v19, "<80 µΩ" before).
+  return criterion === null ? null : formatCriterionValue(criterion, criterionSymbols(seedVersion));
 }
 
 /** Story 23.2: the table and the row of `row` (counted across the test's tables) inside it. */
@@ -373,13 +374,13 @@ export interface RowCriterion {
  * asking for the plate value; else the test's criterion (`effectiveCriterion`). Every reader takes a
  * row's verdict through this, never its own rule (AD-1).
  */
-export function rowCriterion(block: Pick<BlockRow, 'sheet'>, definition: BlockDefinition, test: TestDef, row: number): RowCriterion {
+export function rowCriterion(block: Pick<BlockRow, 'sheet'> & Partial<Pick<BlockRow, 'seed_version'>>, definition: BlockDefinition, test: TestDef, row: number): RowCriterion {
   const manufacturer = manufacturerCriterion(block, test);
   if (manufacturer !== null) return { criterion: manufacturer, helper: MANUFACTURER_SOURCE_LINE, kind: 'manufacturer' };
   const pick = test.criterion_table;
   if (pick === undefined) return { criterion: seededCriterion(block, test), helper: null, kind: 'test' };
   const seeded = criterionOf(test);
-  const fallbackText = formatCriterionValue(seeded);
+  const fallbackText = formatCriterionValue(seeded, criterionSymbols(block.seed_version));
   const name = pick.table.name;
   const medium = pick.medium === undefined ? null : mediumOf(definition, block);
   // authored (Story 23.2, listed for Bruno): the two requests of a row the table cannot judge yet.
@@ -463,14 +464,15 @@ export interface ManufacturerValueView {
  * it is empty). The criterion it names is the one the rows take without it: on a table test the
  * table's minima (or the seeded criterion while the plate cannot pick a row), else the test's.
  */
-export function manufacturerValueView(block: Pick<BlockRow, 'sheet'>, definition: BlockDefinition, test: TestDef): ManufacturerValueView | null {
+export function manufacturerValueView(block: Pick<BlockRow, 'sheet'> & Partial<Pick<BlockRow, 'seed_version'>>, definition: BlockDefinition, test: TestDef): ManufacturerValueView | null {
   if (!manufacturerApplies(test)) return null;
   const value = manufacturerValueOf(block, test);
   const without = withoutManufacturer(block, test);
   const rows = test.tables.reduce((count, table) => count + table.rows.length, 0);
   const criteria = Array.from({ length: rows }, (_, row) => rowCriterion(without, definition, test, row));
   const table = test.criterion_table !== undefined && criteria.every((one) => one.kind === 'table');
-  const texts = [...new Set(criteria.map((one) => (one.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(one.criterion))))];
+  const symbols = criterionSymbols(block.seed_version);
+  const texts = [...new Set(criteria.map((one) => (one.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(one.criterion, symbols))))];
   const shown = listPtBr(texts);
   const seeded = seededCriterion(without, test) ?? (test.criterion_bands === undefined ? criterionOf(test) : bandAsCriterion(test, test.criterion_bands.bands[0]!));
   // Review fix (item 3): the sign as the sheet writes it, never the ASCII ">=".
@@ -499,8 +501,8 @@ function sourceNameOf(test: TestDef, criterion: CriterionSeed | null): string {
 }
 
 /** Story 27.2 (F11): the criterion cited in `unit`, the reading's own (`criterionTextInUnit`), on screen only. */
-function outHelperText(criterion: CriterionSeed, unit: string | null): string {
-  const text = criterionTextInUnit(criterion, unit);
+function outHelperText(criterion: CriterionSeed, unit: string | null, symbols: boolean): string {
+  const text = criterionTextInUnit(criterion, unit, symbols);
   if (criterion.operator === '>' || criterion.operator === '>=') return `Abaixo do aceitável (${text})`;
   if (criterion.operator === '<' || criterion.operator === '<=') return `Acima do aceitável (${text})`;
   return `Fora do aceitável (${text})`;
@@ -511,8 +513,8 @@ function outHelperText(criterion: CriterionSeed, unit: string | null): string {
  * a raw value that reads above the criterion is never shown out without why. authored (Story 23.5,
  * listed for Bruno): "Abaixo do aceitável a 20 °C: 4 GΩ (≥ 5.000 MΩ)".
  */
-function correctedOutHelperText(criterion: CriterionSeed, corrected: string, unit: string | null): string {
-  const text = criterionTextInUnit(criterion, unit);
+function correctedOutHelperText(criterion: CriterionSeed, corrected: string, unit: string | null, symbols: boolean): string {
+  const text = criterionTextInUnit(criterion, unit, symbols);
   if (criterion.operator === '>' || criterion.operator === '>=') return `Abaixo do aceitável a 20 °C: ${corrected} (${text})`;
   if (criterion.operator === '<' || criterion.operator === '<=') return `Acima do aceitável a 20 °C: ${corrected} (${text})`;
   return `Fora do aceitável a 20 °C: ${corrected} (${text})`;
@@ -665,6 +667,8 @@ function evaluateTable(
   judging: TableJudging = PLAIN_JUDGING,
 ): EvaluatedTable {
   const ratio = test.key === 'relacao_transformacao';
+  // Story 30.3 (a): the form the sheet's seed writes a criterion in (`criterion_symbols`, v19).
+  const symbols = criterionSymbols(block.seed_version);
   // Story 21.1: the vector group of a transformer ratio table (seed v9 and later), read from its plate.
   const resolution = ratio ? ratioGroupOf(block, table.ratio_factor) : null;
   const group = resolution?.group ?? null;
@@ -829,7 +833,7 @@ function evaluateTable(
       }
       if (within !== null) {
         cell.verdict = within ? 'within' : 'out';
-        cell.helperText = within ? null : corrected === null ? outHelperText(rowCriterionValue, cell.unit) : correctedOutHelperText(rowCriterionValue, corrected.text, cell.unit);
+        cell.helperText = within ? null : corrected === null ? outHelperText(rowCriterionValue, cell.unit, symbols) : correctedOutHelperText(rowCriterionValue, corrected.text, cell.unit, symbols);
       } else if (cell.state === 'over_range' && overRangeInsideRange(value, cell.unit, rowCriterionValue)) {
         // Story 25.9 (every seed, screen only; e24x X6): a limit inside a range criterion says why it was not judged.
         cell.helperText = OVER_RANGE_INSIDE_RANGE_HELPER;
@@ -866,7 +870,7 @@ function evaluateTable(
     const evaluated: EvaluatedRow = withChoice({ row, connection: shown, label: shown[0] ?? '', cells, calculated, condicao, voltage: rowTestVoltage(block, test, row, definition), tap });
     if (own !== null) {
       evaluated.criterion = own.criterion;
-      evaluated.criterionText = own.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(own.criterion);
+      evaluated.criterionText = own.criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(own.criterion, symbols);
       evaluated.criterionHelper = own.helper;
     }
     return evaluated;
@@ -1082,13 +1086,13 @@ export function evaluateTest(block: BlockRow, definition: BlockDefinition, test:
     testKey: test.key,
     title: sentenceCase(test.label),
     criterion,
-    criterionText: !uniform ? CRITERION_PER_ROW_TEXT : criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(criterion),
+    criterionText: !uniform ? CRITERION_PER_ROW_TEXT : criterion === null ? CRITERION_NOT_EVALUATED : formatCriterionValue(criterion, criterionSymbols(block.seed_version)),
     sourceName: sourceNameOf(test, criterion),
     tables,
     classHelper: test.criterion_class_field !== undefined && classOf(block, test) === null ? ACCURACY_CLASS_HELPER : null,
   };
   if (!uniform) evaluation.perRow = true;
-  if (manufacturer !== null) evaluation.manufacturer = { value: manufacturerValueOf(block, test)!, criterion: manufacturer, criterionText: formatCriterionValue(manufacturer) };
+  if (manufacturer !== null) evaluation.manufacturer = { value: manufacturerValueOf(block, test)!, criterion: manufacturer, criterionText: formatCriterionValue(manufacturer, criterionSymbols(block.seed_version)) };
   if (rowCriteria !== null) {
     // Story 23.3: under the manufacturer's line, what the table would ask without it (a reminder).
     const underneath = manufacturer !== null && test.criterion_table !== undefined ? tableHelpersWithout(block, definition, test, rowCount) : [];

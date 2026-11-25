@@ -50,7 +50,8 @@ async function closeUntouched(page: Page): Promise<void> {
 
 test('@p0 28.5-E2E-001 v18: a point starts at its origin\'s priority with Bruno\'s action and the term; none for the utility\'s equipment; the DOCX counts the deadline from the issue date', async ({ page }) => {
   test.setTimeout(540_000);
-  expect(SEED_VERSION).toBe('v18');
+  // Batch e30b (Story 30.3): a new relatório is born on v19, which keeps `point_start_priority` and `deadline_from_issue`.
+  expect(SEED_VERSION).toBe('v19');
   const { relatorioId, sheets } = await setUpRelatorio(page, account, database);
   const cables = sheets.filter((sheet) => sheet.blockType === 'cabos_entrada' || sheet.blockType === 'cabos_saida');
   const [out, restricted, reproved] = cables;

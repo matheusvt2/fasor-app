@@ -1,8 +1,8 @@
 import { manufacturerApplies, minimumText, voltsText } from '../relatorio/reading-evaluation.ts';
 import { listPtBr } from '../text/plural.ts';
-import type { CriterionSeed } from './criteria.ts';
+import { formatCriterionValue, type CriterionSeed } from './criteria.ts';
 import { NETA_100_1, NETA_100_5, type CriterionTable, type CriterionTableRow } from './criteria-tables.ts';
-import { getSeed, SEED_VERSION } from './definitions.ts';
+import { criterionSymbols, getSeed, SEED_VERSION } from './definitions.ts';
 import type { BlockDefinition, TestDef } from './schema.ts';
 
 /*
@@ -96,6 +96,15 @@ export function criteriaTablesView(): CriteriaTableView[] {
     // authored (Story 27.6, listed for Bruno): when the Tabela 100.5 applies.
     tableView(NETA_100_5, (equipment) => `Vale quando a placa informa a tensão nominal e o tipo de isolação: ${equipment}, pela linha dessa tensão, na coluna óleo ou seco.`),
   ];
+}
+
+/**
+ * Story 30.3 (a): a criterion as a surface that belongs to no relatório writes it (the Critérios tab, the type editor,
+ * the template composer): in the form of the current seed (`SEED_VERSION`), "> 400 MΩ" and "± 0,5 %" since v19. A
+ * sheet and the printed document read the form of their own seed instead.
+ */
+export function currentCriterionText(criterion: Parameters<typeof formatCriterionValue>[0]): string {
+  return formatCriterionValue(criterion, criterionSymbols(SEED_VERSION));
 }
 
 /**
