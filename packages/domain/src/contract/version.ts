@@ -710,7 +710,19 @@
  * `helper_names_plate_block` (the default of a maximum read from the plate names the block the field is in).
  * MIN follows to 60 (below).
  */
-export const CONTRACT_VERSION = 60;
+/*
+ * 61 (2026-11-25, batch e30c, Epic 30 wave 2, Story 30.4, Q-8): no new op or path family, but the reducer changed.
+ * A local (a cabine) row gains four derived columns, written by `applyOp` only: `site_modified_by` and
+ * `site_modified_at` (the latest site work on it: an answer of its "Verificações do local", or a site photo or a site
+ * point created on it, whose create now names the local in `targetsOf`), `removed_by` and `removal_conflict` (the
+ * block's mark, `blockRemovalConflictSchema`). A device stamps a `location/{id}/removed_at` write on a local with
+ * `meta.seen_modified_at` (the local's `site_modified_at` as it held it, `stampSeen`). Site work from a device that
+ * lands on a removed local, or a removal that lands on site work it did not see, marks the local; nothing is deleted.
+ * The restore ("Restaurar local") and a put of the removal's own time ("Deixar removido") clear the mark. The kernel
+ * lists the mark as a `location_removal` decision (the Sumário Banner, Sync status "Decisões", the Toast on the
+ * writer's device), and the restore list offers the local past the emission cut while it stands. MIN follows to 61.
+ */
+export const CONTRACT_VERSION = 61;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -1137,7 +1149,14 @@ export const CONTRACT_VERSION = 60;
  * a single definition of a v19 relatório or of a template the server moved to v19. Its pull answers
  * `426 contract_outdated` and it updates; its pushes are still accepted.
  */
-export const MIN_CONTRACT_VERSION = 60;
+/*
+ * 61 (2026-11-25, batch e30c, Story 30.4): a version-60 (or older) bundle's fold neither attributes site work to a
+ * local nor marks a local removed against it, so its rows would differ from the server's (a mark it never shows, a
+ * notice it never raises, a restore entry it cuts at the emission), and it does not stamp what it saw on a local's
+ * removal. Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted (an unstamped
+ * removal folds as before: no mark).
+ */
+export const MIN_CONTRACT_VERSION = 61;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

@@ -44,6 +44,8 @@ export type BannerVariant = 'warning' | 'conflict' | 'info';
 export interface Banner {
   kind: BannerKind;
   variant: BannerVariant;
+  /** Story 30.4: a bold lead before the sentence ("**Local removido com respostas** — …"), as the mock's conflict rows draw it. */
+  title?: string;
   text: string;
   /** Rendered inside `.banner-actions`. */
   actions?: ReactNode;
@@ -173,6 +175,12 @@ export function BannerSlot({
         data-banner={banner.kind}
       >
         <span className="banner-text" id={textId}>
+          {banner.title === undefined ? null : (
+            <>
+              <strong>{banner.title}</strong>
+              {' — '}
+            </>
+          )}
           {banner.text}
         </span>
         {banner.actions === undefined ? null : <span className="banner-actions">{banner.actions}</span>}

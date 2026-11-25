@@ -86,6 +86,14 @@ export const ATTRIBUTED_FIELDS: readonly AttributedField[] = [
   // Relatório scope.
   { pointer: 'relatorio.removed_at', instant: 'bounded' },
   { pointer: 'location.removed_at', instant: 'bounded' },
+  // Story 30.4 (contract 61): a local's derived site work columns and its removal mark, as a block's.
+  { pointer: 'location.site_modified_by', actor: 'none', reason: DERIVED },
+  { pointer: 'location.site_modified_at', instant: 'exempt', reason: DERIVED },
+  { pointer: 'location.removed_by', actor: 'none', reason: DERIVED },
+  { pointer: 'location.removal_conflict.removed_by', actor: 'none', reason: DERIVED },
+  { pointer: 'location.removal_conflict.removed_at', instant: 'exempt', reason: DERIVED },
+  { pointer: 'location.removal_conflict.edited_by', actor: 'none', reason: DERIVED },
+  { pointer: 'location.removal_conflict.edited_at', instant: 'exempt', reason: DERIVED },
   { pointer: 'block.not_tested.at', instant: 'bounded' },
   { pointer: 'block.not_tested.by', actor: 'history', history: 'same_path_value', reason: 'the undo of clearing a colleague\'s Não ensaiado mark puts their mark back' },
   { pointer: 'block.concluded_by.actor_id', actor: 'history', history: 'same_path_value', reason: 'the undo of reopening a colleague\'s conclusion puts their conclusion back' },

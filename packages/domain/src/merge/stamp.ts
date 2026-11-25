@@ -1,7 +1,7 @@
 import { cellAt, entityKey, isCellFamily, type EntityState } from '../ops/apply.ts';
 import type { Op } from '../ops/op.ts';
 import { safeParsePath } from '../ops/path.ts';
-import type { BlockRow } from '../schemas/entities.ts';
+import type { BlockRow, LocationRow } from '../schemas/entities.ts';
 
 /*
  * Stories 10.2 and 10.3 (contract 12): what a device saw when it wrote, stamped on the op
@@ -12,7 +12,10 @@ import type { BlockRow } from '../schemas/entities.ts';
  *   `meta.standing_op_id`, the `op_id` of the cell the row held (null when the slot was
  *   empty), and `meta.seen_conflict_op_id`, the `op_id` of that cell's `conflict` (null when none);
  * - a `block/{id}/removed_at` write (a `remove` or a put): `meta.seen_modified_at`, the
- *   block's `last_modified_at` (null when never edited).
+ *   block's `last_modified_at` (null when never edited);
+ * - Story 30.4 (contract 61), a `location/{id}/removed_at` write on a local (a cabine):
+ *   `meta.seen_modified_at`, the local's `site_modified_at` (null when no site work was
+ *   attributed to it). A painel's or a coluna's is not stamped: it holds no site work.
  *
  * A value the caller already set wins. Every other op is returned as it is.
  */
@@ -33,6 +36,12 @@ export function stampSeen(op: Op, state: EntityState): Op {
     if (op.meta?.seen_modified_at !== undefined) return op;
     const block = state.get(entityKey('block', path.id)) as BlockRow | undefined;
     return { ...op, meta: { ...(op.meta ?? {}), seen_modified_at: block?.last_modified_at ?? null } };
+  }
+  if (path.family === 'location/field' && path.field === 'removed_at') {
+    if (op.meta?.seen_modified_at !== undefined) return op;
+    const location = state.get(entityKey('location', path.id)) as LocationRow | undefined;
+    if (location?.kind !== 'cabine') return op;
+    return { ...op, meta: { ...(op.meta ?? {}), seen_modified_at: location.site_modified_at ?? null } };
   }
   return op;
 }

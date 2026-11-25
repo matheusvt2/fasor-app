@@ -417,7 +417,9 @@ export function mergeRowSecondaryText(info: Pick<MergeInfo, 'rule' | 'standing'>
  */
 export interface SyncDecisionRow {
   key: string;
-  kind: 'cell' | 'removal' | 'duplicate_tag';
+  kind: 'cell' | 'removal' | 'location_removal' | 'duplicate_tag';
+  /** Story 30.4: the bold lead of the row (`.banner-text strong`), on the location case only. */
+  title?: string;
   text: string;
 }
 

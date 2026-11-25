@@ -70,6 +70,24 @@ function countSiteWork(counts: LocationRemovalCounts, rows: readonly LocationRow
 }
 
 /**
+ * Story 30.4 (contract 61): whether a location carries the mark the decisions list and the restore
+ * list read: a removed local marked against site work another device wrote (`removal_conflict`).
+ */
+export function holdsLocationRemovalMark(location: LocationRow): boolean {
+  return location.kind === 'cabine' && location.removal_conflict !== undefined && location.removed_at !== null;
+}
+
+/**
+ * Story 30.4: the site work one local holds (its answered site items, its live site photos and its
+ * live points), as the removal counts read it; zero for a painel, a coluna or a missing row.
+ */
+export function localSiteWork(locations: readonly LocationRow[], locationId: string, files: readonly SiteWorkRow[], points: readonly SiteWorkRow[]): { answers: number; photos: number; points: number } {
+  const counts = NO_COUNTS();
+  countSiteWork(counts, locations, new Set([locationId]), files, points);
+  return { answers: counts.siteAnswers, photos: counts.sitePhotos, points: counts.sitePoints };
+}
+
+/**
  * Epic 14 QA Q-6: whether "Remover" of a location asks first: when it takes a sheet, or a
  * local's site answers, site photos or points; a location holding none of these leaves at once.
  */

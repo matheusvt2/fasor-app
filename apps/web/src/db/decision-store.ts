@@ -2,6 +2,7 @@ import {
   conflictOpIds,
   entityKey,
   holdsConflictMarks,
+  holdsLocationRemovalMark,
   integrityFindings,
   openDecisions,
   type BlockRow,
@@ -11,6 +12,7 @@ import {
   type LocationRow,
   type OpFacts,
   type RelatorioRow,
+  type SiteWorkRow,
 } from '@app/domain';
 import { allLocationRows } from './home-store.ts';
 import type { AppDatabase } from './schema.ts';
@@ -68,6 +70,17 @@ async function createFacts(db: AppDatabase, keys: readonly EntityKey[]): Promise
   return out;
 }
 
+const NO_SITE_WORK: { files: SiteWorkRow[]; points: SiteWorkRow[] } = { files: [], points: [] };
+
+/** Story 30.4: the relatório's files and points, for the site work a removed local's decision counts. */
+async function siteWorkRows(db: AppDatabase, relatorioId: string): Promise<{ files: SiteWorkRow[]; points: SiteWorkRow[] }> {
+  const [files, points] = await Promise.all([
+    db.entities.where('[entity+relatorio_id]').equals(['file', relatorioId]).toArray(),
+    db.entities.where('[entity+relatorio_id]').equals(['point', relatorioId]).toArray(),
+  ]);
+  return { files: files.map((record) => record.row as SiteWorkRow), points: points.map((record) => record.row as SiteWorkRow) };
+}
+
 /**
  * The open decisions of every live relatório this device holds, in relatório order of the
  * store; only the relatórios with at least one decision are returned.
@@ -99,19 +112,24 @@ export async function heldDecisions(db: AppDatabase): Promise<HeldDecisions[]> {
   const duplicated = new Set<string>();
   for (const [projectId, rows] of byProject) if (integrityFindings({ equipment: rows }).length > 0) duplicated.add(projectId);
 
+  // Story 30.4: the relatórios holding a local marked removed against site work (a removed local's row).
+  const locationRecords = relatorios.length === 0 ? [] : await db.entities.where('[entity+relatorio_id]').anyOf(relatorios.map((relatorio) => ['location', relatorio.id])).toArray();
+  const markedLocal = new Set(locationRecords.filter((record) => holdsLocationRemovalMark(record.row as LocationRow)).map((record) => (record.row as LocationRow).relatorio_id));
+
   const out: HeldDecisions[] = [];
   // e22h B1: a company sheet's cells are named through its version (the device's type versions).
   const definitions = await deviceDefinitionContext(db);
   for (const relatorio of relatorios) {
     const own = blocksOf.get(relatorio.id) ?? [];
     // A relatório with no conflict mark and no duplicate TAG in its project has no decision.
-    if (!own.some(holdsConflictMarks) && !duplicated.has(relatorio.project_id)) continue;
+    if (!own.some(holdsConflictMarks) && !duplicated.has(relatorio.project_id) && !markedLocal.has(relatorio.id)) continue;
     const projectEquipment = byProject.get(relatorio.project_id) ?? [];
     const duplicates = integrityFindings({ equipment: projectEquipment }).flatMap((finding) => finding.equipment_ids);
-    const [ops, creates, locations] = await Promise.all([
+    const [ops, creates, locations, siteWork] = await Promise.all([
       opFacts(db, conflictOpIds(own)),
       createFacts(db, duplicates.map((id) => entityKey('equipment', id))),
       allLocationRows(db, relatorio.id),
+      markedLocal.has(relatorio.id) ? siteWorkRows(db, relatorio.id) : Promise.resolve(NO_SITE_WORK),
     ]);
     const decisions = openDecisions({
       definitions,
@@ -123,6 +141,7 @@ export async function heldDecisions(db: AppDatabase): Promise<HeldDecisions[]> {
       equipment: projectEquipment,
       opOf: (id) => ops.get(id),
       createOpOf: (key) => creates.get(key),
+      ...siteWork,
     });
     if (decisions.length > 0) out.push({ relatorioId: relatorio.id, projectId: relatorio.project_id, decisions, blocks: own, locations, equipment: projectEquipment });
   }

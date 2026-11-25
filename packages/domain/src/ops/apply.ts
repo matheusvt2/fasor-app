@@ -111,6 +111,22 @@ function carriedLocationId(op: Op, path: OpPath): string | null {
 }
 
 /**
+ * Story 30.4 (contract 61): the local a site photo or a site point names at its create (a photo
+ * `file/{id}` create carrying `location_id` and no `block_id`, a `point/{id}` create carrying
+ * `location_id`), else null. Its fold attributes the work to that local (`siteAttributed`), which
+ * may mark it removed against that work. Only an id of the kernel's own shape is named, as
+ * `carriedLocationId` does. A photo that also names a block is its block's, never a site photo.
+ */
+function carriedSiteLocationId(op: Op, path: OpPath): string | null {
+  if (op.kind !== 'create' || (path.family !== 'file' && path.family !== 'point')) return null;
+  const value = op.value as { kind?: unknown; block_id?: unknown; location_id?: unknown } | null;
+  if (value === null || typeof value !== 'object') return null;
+  if (path.family === 'file' && (value.kind !== 'photo' || (value.block_id ?? null) !== null)) return null;
+  const carried = value.location_id;
+  return typeof carried === 'string' && uuidV7Schema.safeParse(carried).success ? carried : null;
+}
+
+/**
  * Story 14.5: the block type a `block/{id}` create carries when it is one that only some seed
  * versions ship (any equipment type outside the eight: the Chave de transferência automática),
  * else null. The eight are in every version and are never judged.
@@ -151,7 +167,8 @@ export function targetsOf(op: Op): ResolvedRef[] {
   const refs = [targetRef(op, path)];
   const blockId = carriedBlockId(op, path);
   if (blockId) refs.push(ref('block', blockId));
-  const locationId = carriedLocationId(op, path);
+  // Story 30.4 (contract 61): or the local a site photo or a site point names at its create.
+  const locationId = carriedLocationId(op, path) ?? carriedSiteLocationId(op, path);
   if (locationId) refs.push(ref('location', locationId));
   if (path.family === 'location/checklist' && op.relatorio_id) refs.push(ref('relatorio', op.relatorio_id));
   if (carriedLibraryType(op, path) !== null && op.relatorio_id) refs.push(ref('relatorio', op.relatorio_id));
@@ -333,6 +350,62 @@ function writeRemovedAt(block: BlockRow, op: Op, value: string | null): BlockRow
   return {
     ...removed,
     removal_conflict: { removed_by: op.actor_id, removed_at: value, edited_by: block.last_modified_by, edited_at: block.last_modified_at },
+  };
+}
+
+type CabineRow = Extract<LocationRow, { kind: 'cabine' }>;
+
+/**
+ * Story 30.4 (contract 61): a site work write on a local (an answer of its "Verificações do local",
+ * a site photo or a site point created on it): the local's `site_modified_by`/`site_modified_at`,
+ * as a block's edit writes its AD-18 columns. One from a device that lands on a removed local is
+ * kept (as before) and marks the local with a removal conflict: that device wrote site work on a
+ * local another one removed without having seen the removal. Server ops never mark.
+ */
+function siteAttributed(location: CabineRow, op: Op): CabineRow {
+  const next: CabineRow = { ...location, site_modified_by: op.actor_id, site_modified_at: op.client_ts };
+  if (location.removed_at === null || op.device_id === SERVER_DEVICE_ID) return next;
+  return {
+    ...next,
+    removal_conflict: { removed_by: location.removed_by ?? null, removed_at: location.removed_at, edited_by: op.actor_id, edited_at: op.client_ts },
+  };
+}
+
+/** The local without its derived columns (a created row never brings them). */
+function withoutLocationDerived(location: LocationRow): LocationRow {
+  if (location.kind !== 'cabine') return location;
+  const rest: CabineRow = { ...location };
+  delete rest.site_modified_by;
+  delete rest.site_modified_at;
+  delete rest.removed_by;
+  delete rest.removal_conflict;
+  return rest;
+}
+
+/**
+ * Story 30.4 (contract 61): a `location/{id}/removed_at` write on a local (a `remove`, or a put), as
+ * `writeRemovedAt` does for a block. A removal from a device records its actor (`removed_by`); a
+ * restore drops it. A removal from a device that lands on a live local whose latest site work it
+ * did not see (`meta.seen_modified_at`, the local's `site_modified_at` as that device held it,
+ * differs from the row's) applies and marks the local. Any other `removed_at` write drops the mark:
+ * the restore ("Restaurar local"), a put of the removal's own time on the removed local ("Deixar
+ * removido"), a server write, an op without the stamp. A row with no `site_modified_at` (no site
+ * work since contract 61) is never marked by a removal: its older work was never attributed.
+ */
+function writeLocationRemovedAt(location: CabineRow, op: Op, value: string | null): CabineRow {
+  const rest: CabineRow = { ...location };
+  delete rest.removed_by;
+  delete rest.removal_conflict;
+  if (value === null) return { ...rest, removed_at: null };
+  const server = op.device_id === SERVER_DEVICE_ID;
+  const removed: CabineRow = server ? { ...rest, removed_at: value } : { ...rest, removed_at: value, removed_by: op.actor_id };
+  const seen = op.meta?.seen_modified_at;
+  const site = location.site_modified_at ?? null;
+  const unseenWork = seen !== undefined && site !== null && (seen ?? null) !== site;
+  if (location.removed_at !== null || server || !unseenWork) return removed;
+  return {
+    ...removed,
+    removal_conflict: { removed_by: op.actor_id, removed_at: value, edited_by: location.site_modified_by ?? null, edited_at: site },
   };
 }
 
@@ -879,6 +952,8 @@ function createRow(entity: Entity, id: string, op: Op): EntityRow {
   if (row.id !== id) throw new SeedPathError(op.path, `the created row's id "${row.id}" is not the path id`);
   // Story 14.6: a type is born unpublished; `latest_version` is the reducer's, never the value's.
   if (entity === 'equipment_type') return { ...(row as EquipmentTypeRow), latest_version: 0 };
+  // Story 30.4: a local's derived columns are the reducer's too.
+  if (entity === 'location') return withoutLocationDerived(row as LocationRow);
   if (entity === 'block') {
     // The derived columns are the reducer's: a created row never brings its own.
     const block = withoutRemovalMarks(row as BlockRow);
@@ -939,7 +1014,15 @@ function writeRow(row: EntityRow, op: Op, path: OpPath, ctx: () => DefinitionCon
       const entry = loc.checklist?.[path.item_key];
       const result = path.field === 'observation' ? entry?.result : undefined;
       const cell = mergeCell(entry?.[path.field], op, { path, result });
-      return { ...loc, checklist: { ...loc.checklist, [path.item_key]: { ...entry, [path.field]: cell } } };
+      // Story 30.4: the answer is site work on the local (`siteAttributed`).
+      return siteAttributed({ ...loc, checklist: { ...loc.checklist, [path.item_key]: { ...entry, [path.field]: cell } } }, op);
+    }
+    case 'location/field': {
+      // Story 30.4 (contract 61): a local's removal or restore (`writeLocationRemovedAt`); any other
+      // field, and a painel's or a coluna's `removed_at`, as before.
+      const loc = row as LocationRow;
+      if (path.field === 'removed_at' && loc.kind === 'cabine') return writeLocationRemovedAt(loc, op, value as string | null);
+      return { ...r, [path.field]: value } as EntityRow;
     }
     case 'file/field': {
       const file = row as FileRow;
@@ -1140,6 +1223,13 @@ export function applyOp(state: EntityState, op: Op): EntityState {
     if (path.family === 'equipment_type_version') assertVersionCreate(state, op);
     const created = createRow(target.entity, target.id, op);
     next.set(target.key, created);
+    // Story 30.4 (contract 61): a site photo or a site point is site work on the local it names,
+    // when that local is in `state` and of the same relatório (`siteAttributed`).
+    const siteId = carriedSiteLocationId(op, path);
+    const site = siteId === null ? undefined : (state.get(entityKey('location', siteId)) as LocationRow | undefined);
+    if (site !== undefined && site.kind === 'cabine' && site.relatorio_id === (created as { relatorio_id?: unknown }).relatorio_id) {
+      next.set(entityKey('location', site.id), entityRowSchemas.location.parse(siteAttributed(site, op)));
+    }
     if (path.family === 'equipment_type_version') {
       // The one fold that writes a row beside its target: the type's latest version and its draft.
       const version = created as EquipmentTypeVersionRow;

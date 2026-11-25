@@ -510,6 +510,21 @@ export const locationEnvSchema = z.object({
   humidity_pct: numberValueSchema.nullable(),
 });
 
+/**
+ * Story 10.3 (epic-10 Conflict 5): a block removed on one device while another edited it
+ * without having seen the removal (or removed without having seen the edit). The removal
+ * applies (the row is a tombstone) and the edit is kept on it; a sequential `removed_at`
+ * write ("Manter" restores, "Remover" removes again) drops the mark. Story 30.4 (contract 61): the
+ * same mark on a local (a cabine) removed on one device while another wrote its site work.
+ */
+export const blockRemovalConflictSchema = z.object({
+  removed_by: actorIdSchema.nullable(),
+  removed_at: isoTimestampSchema,
+  edited_by: actorIdSchema.nullable(),
+  edited_at: nullableIso,
+});
+export type BlockRemovalConflict = z.infer<typeof blockRemovalConflictSchema>;
+
 const locationBase = {
   id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
@@ -543,6 +558,15 @@ export const locationRowSchema = z.discriminatedUnion('kind', [
     agrupar_por_tipo: z.boolean(),
     funcao: funcaoSchema.nullable().optional(),
     checklist: z.partialRecord(siteItemKeySchema, checklistEntrySchema).optional(),
+    // Story 30.4 (contract 61), derived by applyOp like a block's AD-18 columns, never emitted: the
+    // actor and time of the latest site work on the local (an answer, a site photo, a site point),
+    // the actor of its latest removal (absent once restored), and the mark of a local removed on
+    // one device while another wrote site work on it without having seen the removal. Optional,
+    // so a row stored before them parses to the same bytes.
+    site_modified_by: actorIdSchema.optional(),
+    site_modified_at: isoTimestampSchema.optional(),
+    removed_by: actorIdSchema.optional(),
+    removal_conflict: blockRemovalConflictSchema.optional(),
   }),
   z.object({ ...locationBase, kind: z.literal('coluna') }),
   // Appended (Story 14.2).
@@ -633,20 +657,6 @@ export const emptySheet = (): Sheet => ({
   conclusion: {},
   observations: null,
 });
-
-/**
- * Story 10.3 (epic-10 Conflict 5): a block removed on one device while another edited it
- * without having seen the removal (or removed without having seen the edit). The removal
- * applies (the row is a tombstone) and the edit is kept on it; a sequential `removed_at`
- * write ("Manter" restores, "Remover" removes again) drops the mark.
- */
-export const blockRemovalConflictSchema = z.object({
-  removed_by: actorIdSchema.nullable(),
-  removed_at: isoTimestampSchema,
-  edited_by: actorIdSchema.nullable(),
-  edited_at: nullableIso,
-});
-export type BlockRemovalConflict = z.infer<typeof blockRemovalConflictSchema>;
 
 /**
  * A block of a relatório: an equipment sheet placed in a location, or (Story 4.1) a

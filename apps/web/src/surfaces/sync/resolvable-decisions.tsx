@@ -1,10 +1,12 @@
 import { decisionKey, decisionTotal, uniqueHeldDecisions, type Decision, type SyncDecisionRow } from '@app/domain';
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { HeldDecisions } from '../../db/decision-store.ts';
+import { useFillAccess } from '../../state/permissions.tsx';
 import type { SyncState } from '../../state/sync.tsx';
+import { LocationRemovalActions } from './conflict-banner.tsx';
 import { ConflictDialog, type ConflictDialogDecision } from './conflict-dialog.tsx';
 import { useDecisionActions, useDecisionTextContext, type DecisionActions } from './decision-actions.ts';
 import { DecisionsSection } from './sync-sections.tsx';
@@ -43,7 +45,7 @@ export function ResolvableDecisions({ held, decisions, merges }: { held: readonl
           return found === undefined ? null : <RowActions {...found} actions={actions} onOpen={() => setOpenKey(row.key)} />;
         }}
       />
-      {open === undefined || open.decision.kind === 'duplicate_tag' ? null : (
+      {open === undefined || open.decision.kind === 'duplicate_tag' || open.decision.kind === 'location_removal' ? null : (
         <DecisionDialog entry={open.entry} decision={open.decision} actions={actions} onClose={() => setOpenKey(null)} />
       )}
     </>
@@ -59,7 +61,13 @@ function RowActions({ entry, decision, actions, onOpen }: Resolvable & { actions
   const t = copy.conflict;
   const context = useDecisionTextContext(entry);
   const navigate = useNavigate();
+  const { canFill, reason } = useFillAccess();
+  const reasonId = useId();
   if (decision.kind === 'cell') return <TextButton onPress={onOpen}>{copy.sync.resolve}</TextButton>;
+  // Story 30.4: a local removed against site work resolves in place, as a removed block does.
+  if (decision.kind === 'location_removal') {
+    return <LocationRemovalActions canFill={canFill} reason={reason} reasonId={reasonId} onRestore={() => void actions.restoreLocal(entry, decision)} onLeave={() => void actions.leaveRemoved(entry, decision)} />;
+  }
   if (decision.kind === 'block_removal') {
     return (
       <>

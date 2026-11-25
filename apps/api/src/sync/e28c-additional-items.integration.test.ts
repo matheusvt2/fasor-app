@@ -73,8 +73,9 @@ describe('28.9-API-001 the additional items through the sync route', () => {
     expect(await stored()).toEqual(ITEMS);
 
     // The contract before cannot parse the path: its pull of the relatório is refused, a current one reads the put.
-    expect(CONTRACT_VERSION).toBe(60);
-    expect(MIN_CONTRACT_VERSION).toBe(60);
+    // Batch e30c (Story 30.4, 2026-11-25): the number moved on to 61; 58 stays refused.
+    expect(CONTRACT_VERSION).toBe(61);
+    expect(MIN_CONTRACT_VERSION).toBe(61);
     const old = await h.authed(people.campo, `/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '58' } });
     expect(old.status).toBe(426);
     expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');

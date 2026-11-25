@@ -362,6 +362,11 @@ export const copy = {
     undo: 'Desfazer',
     // authored: a decision whose rows changed before the tap (another device resolved it).
     gone: 'Esta decisão já foi resolvida',
+    // authored (Story 30.4, listed for Bruno): the two actions of a local removed against site work.
+    restoreLocal: 'Restaurar local',
+    leaveRemoved: 'Deixar removido',
+    // authored (Story 30.4, listed for Bruno): "Deixar removido" done; the local stays recoverable.
+    leftRemoved: (local: string) => `${local} continua removido. Dá para recuperar em "Restaurar ficha removida".`,
   },
   // authored: there is no mock for the 426 state (AR-12); a UX pass may replace these
   // strings without touching behavior.

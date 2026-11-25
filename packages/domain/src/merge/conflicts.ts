@@ -14,6 +14,7 @@ import { screenLabel } from '../relatorio/screen-label.ts';
 import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
 import { integrityFindings } from '../relatorio/integrity.ts';
 import { isTagTaken } from '../relatorio/tag.ts';
+import { holdsLocationRemovalMark, localSiteWork, type SiteWorkRow } from '../relatorio/removal.ts';
 import { blockTypeLabelIn } from '../relatorio/tree.ts';
 import { NO_VISIT_CONTEXT, visitContextOf, type VisitContext } from '../relatorio/visit-context.ts';
 import { equipmentBlockName } from './info.ts';
@@ -24,7 +25,7 @@ import type { BlockRow, Cell, EquipmentRow, JsonValue, LocationRow } from '../sc
 import { blockDefinitionIn, type DefinitionContext } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { SyncDecisionRow } from '../sync/status.ts';
-import { plural } from '../text/plural.ts';
+import { listPtBr, plural } from '../text/plural.ts';
 
 /*
  * Stories 10.2 and 10.3 (FR-59, AD-1, AD-2): the open decisions of one relatório, derived
@@ -111,7 +112,25 @@ export interface DuplicateTagDecision {
   later: OpFacts;
 }
 
-export type Decision = CellDecision | BlockRemovalDecision | DuplicateTagDecision;
+/**
+ * Story 30.4 (contract 61, Q-8): a local removed on one device while another wrote its site work
+ * without having seen the removal (`location.removal_conflict`). `answers`, `photos` and `points`
+ * are the site work the removed local holds (`localSiteWork`), counted when it is listed.
+ */
+export interface LocationRemovalDecision {
+  kind: 'location_removal';
+  relatorio_id: string;
+  location_id: string;
+  removed_by: string | null;
+  removed_at: string;
+  edited_by: string | null;
+  edited_at: string | null;
+  answers: number;
+  photos: number;
+  points: number;
+}
+
+export type Decision = CellDecision | BlockRemovalDecision | LocationRemovalDecision | DuplicateTagDecision;
 
 export interface OpenDecisionsInput {
   relatorioId: string;
@@ -133,6 +152,9 @@ export interface OpenDecisionsInput {
   definitions: DefinitionContext;
   /** Fix batch e24x (D3): the relatório's service dates, so the composed text reads the visit the ficha reads. */
   relatorio?: { setup: { service_start?: string | null; service_end?: string | null } } | null;
+  /** Story 30.4: the relatório's files and points, for the site work a removed local's decision counts (none when absent). */
+  files?: readonly SiteWorkRow[];
+  points?: readonly SiteWorkRow[];
 }
 
 // --- listing -----------------------------------------------------------------------------
@@ -385,7 +407,8 @@ function byCreateOrder(a: OpFacts, b: OpFacts): number {
 
 /**
  * The open decisions of one relatório, in tree order within each kind: every sheet with a
- * contradicting cell (one decision per sheet, its cells in sheet order), then every block
+ * contradicting cell (one decision per sheet, its cells in sheet order), then (Story 30.4) every
+ * local removed on one device while another wrote its site work, then every block
  * removed on one device and edited on another, then every TAG created on two devices (a
  * duplicate whose creates carry two distinct devices; one typed twice on one device is
  * refused inline and is only the pre-issue row).
@@ -444,8 +467,24 @@ export function openDecisions(input: OpenDecisionsInput): Decision[] {
   }
   const tagRank = (decision: DuplicateTagDecision) => order.get(decision.later_block_id ?? '') ?? Number.MAX_SAFE_INTEGER;
   tags.sort((a, b) => tagRank(a) - tagRank(b));
-  return [...cells, ...removals, ...tags];
+  return [...cells, ...locationRemovals(input), ...removals, ...tags];
 }
+
+/** Story 30.4: the relatório's marked locals (`holdsLocationRemovalMark`), in drawing order, each with the site work it holds. */
+function locationRemovals(input: OpenDecisionsInput): LocationRemovalDecision[] {
+  return input.locations
+    .filter((row) => row.relatorio_id === input.relatorioId && holdsLocationRemovalMark(row))
+    .sort((a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : 0))
+    .map((row) => ({
+      kind: 'location_removal' as const,
+      relatorio_id: input.relatorioId,
+      location_id: row.id,
+      ...(row as Extract<LocationRow, { kind: 'cabine' }>).removal_conflict!,
+      ...localSiteWork(input.locations, row.id, input.files ?? [], input.points ?? []),
+    }));
+}
+
+export { holdsLocationRemovalMark };
 
 /** Every cell of a sheet, in no particular order (the walk `conflictOpIds` and `holdsConflictMarks` need). */
 function sheetCells(block: Pick<BlockRow, 'sheet'>): Cell[] {
@@ -552,6 +591,8 @@ export function syncDecisionRows(
     entry.decisions.map((decision) => ({
       key: `${entry.relatorioId}:${decisionKey(decision)}`,
       kind: decision.kind === 'block_removal' ? ('removal' as const) : decision.kind,
+      // Story 30.4: the location case leads with its title (`.banner-text strong`).
+      ...(decision.kind === 'location_removal' ? { title: LOCATION_REMOVAL_TITLE } : {}),
       text: decisionText(decision, { blocks: entry.blocks, equipment: entry.equipment, locations: entry.locations, ...viewer }),
     })),
   );
@@ -560,6 +601,7 @@ export function syncDecisionRows(
 /** A stable key of one decision (for a list row). */
 export function decisionKey(decision: Decision): string {
   if (decision.kind === 'duplicate_tag') return `tag:${decision.earlier_equipment_id}:${decision.later_equipment_id}`;
+  if (decision.kind === 'location_removal') return `location_removal:${decision.location_id}`;
   return `${decision.kind}:${decision.block_id}`;
 }
 
@@ -658,7 +700,89 @@ export function decisionText(decision: Decision, context: DecisionTextContext): 
       return `${decisionBlockName(decision.block_id, context)}: removido por ${personName(decision.removed_by, context)}, alterado por ${personName(decision.edited_by, context)}`;
     case 'duplicate_tag':
       return `${decision.tag} foi criada em dois aparelhos`;
+    case 'location_removal':
+      return locationRemovalText(decision, context);
   }
+}
+
+// --- Story 30.4: a local removed against site work (Q-8) -------------------------------------
+
+/** The title the Banner and the Decisões row lead with (`.banner-text strong`). */
+// authored (Story 30.4, listed for Bruno)
+export const LOCATION_REMOVAL_TITLE = 'Local removido com respostas';
+
+/** The local's name as the tree shows it; "Local" when the device does not hold the row. */
+function removedLocalName(decision: Pick<LocationRemovalDecision, 'location_id'>, context: Pick<DecisionTextContext, 'locations'>): string {
+  const name = context.locations.find((row) => row.id === decision.location_id)?.name.trim() ?? '';
+  return name === '' ? 'Local' : name; // authored (Story 30.4, listed for Bruno): a local this device does not hold
+}
+
+interface WorkPart {
+  count: number;
+  one: string;
+  many: string;
+  feminine: boolean;
+}
+
+/** The site work not kept, the parts that are not zero: "19 respostas", "1 resposta e 1 foto", "2 respostas e 1 ponto de atenção". */
+function workParts(decision: Pick<LocationRemovalDecision, 'answers' | 'photos' | 'points'>): WorkPart[] {
+  // authored (Story 30.4, listed for Bruno): the count names answers; photos and points only when present.
+  const parts: WorkPart[] = [
+    { count: decision.answers, one: 'resposta', many: 'respostas', feminine: true },
+    { count: decision.photos, one: 'foto', many: 'fotos', feminine: true },
+    { count: decision.points, one: 'ponto de atenção', many: 'pontos de atenção', feminine: false },
+  ];
+  return parts.filter((part) => part.count > 0);
+}
+
+/** "não foi mantida" for one feminine thing, "não foram mantidos" for several of mixed genders. */
+function notKept(parts: readonly WorkPart[]): string {
+  const total = parts.reduce((sum, part) => sum + part.count, 0);
+  const feminine = parts.every((part) => part.feminine);
+  // authored (Story 30.4, listed for Bruno)
+  if (total === 1) return feminine ? 'não foi mantida' : 'não foi mantido';
+  return feminine ? 'não foram mantidas' : 'não foram mantidos';
+}
+
+const workText = (parts: readonly WorkPart[]) => listPtBr(parts.map((part) => plural(part.count, part.one, part.many)));
+
+/** "Cubículo Enel: removido por Ana em 07/09 13:50." or, the remover unknown, "Cubículo Enel foi removido em outro aparelho." */
+function removedSentence(decision: LocationRemovalDecision, context: DecisionTextContext): string {
+  const name = removedLocalName(decision, context);
+  // authored (Story 30.4, listed for Bruno): a removal whose author is unknown (the server's) leaves out who and when.
+  if (decision.removed_by === null) return `${name} foi removido em outro aparelho.`;
+  // authored (Story 30.4, listed for Bruno)
+  return `${name}: removido por ${personName(decision.removed_by, context)} em ${formatShortDateTime(decision.removed_at)}.`;
+}
+
+/**
+ * The Banner's and the Decisões row's sentence after the title: "Cubículo Enel: removido por Ana em
+ * 07/09 13:50. 19 respostas de você nas Verificações do local não foram mantidas."
+ */
+function locationRemovalText(decision: LocationRemovalDecision, context: DecisionTextContext): string {
+  const parts = workParts(decision);
+  const who = personName(decision.edited_by, context);
+  // authored (Story 30.4, listed for Bruno): no answer, photo or point left to count (an observation alone).
+  if (parts.length === 0) return `${removedSentence(decision, context)} As alterações de ${who} nas Verificações do local não foram mantidas.`;
+  // authored (Story 30.4, listed for Bruno)
+  return `${removedSentence(decision, context)} ${workText(parts)} de ${who} nas Verificações do local ${notKept(parts)}.`;
+}
+
+/**
+ * The Toast once on the device that wrote the work: "Cubículo Enel foi removido por Ana. Suas 19
+ * respostas não foram mantidas."; the remover unknown, "Cubículo Enel foi removido em outro aparelho. ...".
+ */
+export function locationRemovalToastText(decision: LocationRemovalDecision, context: DecisionTextContext): string {
+  const name = removedLocalName(decision, context);
+  // authored (Story 30.4, listed for Bruno)
+  const head = decision.removed_by === null ? `${name} foi removido em outro aparelho.` : `${name} foi removido por ${personName(decision.removed_by, context)}.`;
+  const parts = workParts(decision);
+  // authored (Story 30.4, listed for Bruno)
+  if (parts.length === 0) return `${head} Suas alterações nas Verificações do local não foram mantidas.`;
+  const first = parts[0]!;
+  // authored (Story 30.4, listed for Bruno): the possessive agrees with the first thing named.
+  const possessive = first.feminine ? (first.count === 1 ? 'Sua' : 'Suas') : first.count === 1 ? 'Seu' : 'Seus';
+  return `${head} ${possessive} ${workText(parts)} ${notKept(parts)}.`;
 }
 
 /** The Conflict view's title: "SEC-C12 · Chave seccionadora · Coluna 12" (`86-sync-conflito.html`). */
