@@ -1691,8 +1691,13 @@ describe('Story 14.3 (contract 18): Verificações do local through POST /api/sy
     expect(await rowOf('location', t.painel)).toEqual(before.painel);
     expect(await rowOf('location', t.coluna)).toEqual(before.coluna);
     expect(await rowOf('location', old.local)).toEqual(before.oldLocal);
-    // Only the good put changed the local.
-    expect(await rowOf('location', t.local)).toEqual({ ...(before.local as object), checklist: { [EMERGENCIA]: { result: { value: 'NC', source_suggestion_id: null, op_id: good.op_id } } } });
+    // Only the good put changed the local; Story 30.4 (contract 61): it is site work, attributed to the local.
+    expect(await rowOf('location', t.local)).toEqual({
+      ...(before.local as object),
+      checklist: { [EMERGENCIA]: { result: { value: 'NC', source_suggestion_id: null, op_id: good.op_id } } },
+      site_modified_by: good.actor_id,
+      site_modified_at: good.client_ts,
+    });
   });
 
   it('Story 15.3 (seed v9, contract 25): the two new site items are accepted on a v9 relatório and carried by its stream; a v8 relatório refuses them op_invalid', async () => {
