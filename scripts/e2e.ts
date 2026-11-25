@@ -262,8 +262,14 @@ function collect(suite: JsonSuite, path: string[], around: readonly SpecLocation
   const here = suite.title === '' ? path : [...path, suite.title];
   const describes = [...around, ...describeAt(suite)];
   for (const spec of suite.specs ?? []) {
+    // Story 30.5 (the ledger's summary row): under `--repeat-each` the report lists one entry per run of
+    // the test, per project, with no repeat index; the first keeps the plain title, the others are numbered.
+    const runs = new Map<string, number>();
     for (const test of spec.tests) {
-      into.results[[test.projectName, ...here, spec.title].join(' > ')] = test.status;
+      const title = [test.projectName, ...here, spec.title].join(' > ');
+      const run = (runs.get(title) ?? 0) + 1;
+      runs.set(title, run);
+      into.results[run === 1 ? title : `${title} [repeat ${run}]`] = test.status;
       // A skipped test ran nothing: it matches no spec path (review 2026-10-08, PR #116).
       if (test.status === 'skipped') continue;
       into.files.add(spec.file);
