@@ -13231,6 +13231,18 @@ So that a generate, a setup field or a long TAG never leaves me with a wrong sta
 - `deferred-work.md`: dated lines on L1696, L3626, L4150, R-12 (E20), L1635, E15-R1, E15-R2, L1335, e17-R1, L3755, L3881, L4333, and the "left for a later batch" line on L4282.
 - `docs/kbs/code/web-app.md` and `log.md`.
 
+**Outcome (2026-11-25, batch e30a, Amelia; branch `e30a-audit-fixes`, PR not merged yet):** every item was read again first, its named test written and seen red on the unfixed code, then fixed and seen green (one commit per item; the red and green lines are in the PR).
+- **A** built: `running` emits the status op as `queued` (30.1-UNIT-A).
+- **B** built, wider than the reading: `useTextField`, `useDateField` and the exclusions list each showed the loss; one guard, `useStoredEcho` (`setup-fields.ts`), resyncs only on a change that is not the field's own echo while no keystroke waits (30.1-UNIT-B; 30.1-E2E-B, red on the unfixed build with the CPU slowed sixfold: "da Torree, bloco B").
+- **C** built: the kernel's `serverBlockedRows` names each kind the server sent with the device's row, else the kind's own text (three authored texts); the failed state lists them, words the reason with `issueBlockedReason` and offers "Ver no sumário" (30.1-UNIT-C, kernel and dialog; 30.1-E2E-C at 390 and 1280).
+- **D** built: `opDepthIssue` holds `meta` to `VALUE_MAX_BYTES` and `VALUE_MAX_ITEMS` after its depth check; the app's largest `meta` is 766 B with no array (30.1-UNIT-D, 30.1-API-D).
+- **E** built: under 768 px a TAG wider than the row breaks inside itself; one that fits keeps the F-07 rule (30.1-E2E-E, red: 198 px of sideways scroll at 390 px).
+- **F** built: `siteCardSpokenName` (`TreeSiteNode.spokenName`); the code differs from the story on one point: the Sumário card already carried the counter, only the rail lacked it (30.1-UNIT-F, F2; 30.1-E2E-F in 14.3-E2E-003).
+- **G** built (30.1-UNIT-G). **H** built; the panel capture's status line is its own (portaled), since the palette tile pressed has closed by then, so no opener is marked busy there (30.1-UNIT-H1 to H3). **I** built (30.1-UNIT-I).
+- **J** built, both halves: a re-issue now older than its prior gives the top back; one now newer than the top it sat under takes it; covers L3881 (30.1-UNIT-J).
+- **K** did not reproduce: 30.1-E2E-K on the unfixed build suggested DJ-01 once the local holding it was removed (one relatório in the obra, the company stream pulled). The row is closed with that evidence; by design a removal frees an equipment only when the device holds every relatório of the obra.
+- Not done here: the screen checks with the Playwright MCP (the batch rule of `epic-batch-orchestrator.md` keeps the human pass for the integrated QA); the e2e screenshots of C and E are under `test-results/e30a/` of the batch, untracked.
+
 ### Story 30.2: Infra and tooling fixes
 
 **Dev model:** sonnet · **Effort:** high · Terraform validation (a plan, applied at the next deploy), api usage recording, the deploy script, the tools container's user and the gate preflight; batch e30a after Story 30.1, port base 30
@@ -13275,6 +13287,12 @@ So that production does not crash-loop on a typo, the cost line is true and the 
 - The red and green runs in the PR; the `tf validate` and plan output (the plan with Matheus's login, or marked as run at the deploy).
 - `deferred-work.md`: dated lines on L1296, L1284, L1290, L1310, L2743, tools-root; `sprint-status.yaml` E26-A8 done when its done-when holds.
 - `docs/kbs/architecture/infra-aws.md`, `docs/kbs/workflow/merge-gate.md` and `log.md`.
+
+**Outcome (2026-11-25, batch e30a, Amelia; branch `e30a-audit-fixes`, PR not merged yet):** each item red first, then green.
+- **A** built: the four ids match `^((global|us|us-gov|eu|apac|jp|au|ca)\.)?[a-z0-9-]+\.[a-z0-9]([a-z0-9.:_-]*[a-z0-9])?$`, prose and escalation also empty (30.2-UNIT-A). Terraform 1.16.4 on a copy of `variables.tf` with the example tfvars: the defaults plan with no changes, three typos refused naming the variable. Not planned against the real stack (no AWS session in the batch); it is applied at the next deploy.
+- **B** built: a billed failure throws `BilledCallError` carrying its call; the plate kind lists every billed call and the run row's `llm_usage` is the total plus `calls[]` (model, prompt version, usage), also when the escalation or the run fails (30.2-API-B1 to B3). No run row travels to the device.
+- **C** built: the check fails the smoke after the cleanup with the rollback hint (30.2-UNIT-C, four cases); shellcheck clean; `docs/observability.md` amended.
+- **D** built: root was needed only for the engine socket (`root:root 0660` on the podman VM); `docker-compose.yml` adds its group to `tools`, the playbook (dated strike-through) and the deploy's smoke run `--user node`, and `scripts/preflight.ts` names any root-owned entry of the four volumes (30.2-UNIT-D). The batch's own gate ran as `node`. E26-A8 done.
 
 ### Story 30.3: Seed v19 opens, the v18 layout is locked, and three printed texts follow Bruno
 

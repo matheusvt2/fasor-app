@@ -377,9 +377,9 @@ development_status:
   29-1-a-signed-in-user-changes-the-password: done  # 2026-11-24: merged in batch e29a (PR #372); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was in-progress: added 2026-11-23
   29-2-closing-a-dialog-or-going-back-returns-to-the-screen-before: done  # 2026-11-24: merged in batch e29a (PR #372), review fixes #374 and #377 (Voltar, Sumario view); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18)
   epic-29-retrospective: done
-  epic-30: backlog  # added 2026-11-24 (John): the open-work audit of 2026-11-24; epics.md Epic 30, epic-30-context.md
-  30-1-app-fixes-each-proven-red-first: backlog  # wave 1, batch e30a, port base 30; no seed, no contract
-  30-2-infra-and-tooling-fixes: backlog  # wave 1, batch e30a after 30.1; Terraform applied at the next deploy
+  epic-30: in-progress  # 2026-11-24: wave 1 batch e30a built (30.1, 30.2) | was backlog: added 2026-11-24 (John): the open-work audit of 2026-11-24; epics.md Epic 30, epic-30-context.md
+  30-1-app-fixes-each-proven-red-first: done  # 2026-11-24: batch e30a PR, A-J fixed red first, K did not reproduce (closed with evidence); not merged yet | was backlog: wave 1, batch e30a, port base 30; no seed, no contract
+  30-2-infra-and-tooling-fixes: done  # 2026-11-24: batch e30a PR, A-D red first; the Terraform validation is applied at the next deploy (not planned against the real stack, no AWS session) | was backlog: wave 1, batch e30a after 30.1
   30-3-seed-v19-opens-the-v18-layout-is-locked-and-three-printed-texts-follow-bruno: backlog  # wave 1, batch e30b, port base 31; contract 60
   30-4-a-notice-when-a-local-this-device-answered-was-removed-elsewhere: backlog  # wave 2, batch e30c; Q-8; contract main's plus one at its merge
   30-5-the-unstable-tests-each-cause-found-and-fixed: backlog  # wave 2, batch e30d, machine idle; E28-A6
@@ -714,7 +714,7 @@ action_items:
       impossible or caught: load the Vitest config in memory as Story 14.10 did for
       Vite, or extend scripts/preflight.ts to name it before a gate starts."
     owner: "the next test-hardening batch (with E23-A4 and E24-A4)"
-    status: open
+    status: done  # 2026-11-24, Story 30.2 D (batch e30a): scripts/preflight.ts names any root-owned entry of the four node_modules volumes (.vite-temp first) and fails at once; the gate runs tools as node
     ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-201-e26-a9-record-the-two-manual-steps-of-st"
     epic: 26

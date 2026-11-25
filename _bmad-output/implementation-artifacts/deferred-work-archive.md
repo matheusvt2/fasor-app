@@ -1171,6 +1171,18 @@ A row moves here when it closes (its state struck through and the closed state a
   class: bug
   state: ~~open (owner: whoever merges `fix/arm64-local-dev`; check whether it is podman-specific)~~ closed (2026-11-24 audit: resolved: PR #116 (`66b47614`): the row 'Three unit failures recur on this host in almost every gate' (batch r8gate) is closed, `theme.test.tsx` among them)
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-6-structure-readings-on-bedrock.md`
+  summary: The usage of a Converse call that fails after Bedrock billed it (a reply without the tool call, a tool input the schema refuses) is not recorded on `reading_runs`: the adapter throws `PermanentReadingError` and the job writes the failed run row with `model`, `prompt_version` and `llm_usage` null. Recording it needs `job.ts` to keep partial facts (the model and usage carried on the error) for the failed run row.
+  evidence: `apps/api/src/jobs/reading/providers/bedrock.ts` `converseTool` (usage computed before the tool-call and schema checks); `apps/api/src/jobs/reading/job.ts` `recordRun` (reads `facts.structuring` / `facts.model`, set only on success).
+  class: debt
+  state: ~~open (owner: coordinator, the next change to `job.ts`)~~ closed (2026-11-24, Story 30.2 B, PR of batch e30a: a billed failure throws `BilledCallError` carrying its call, and the run row's `llm_usage` lists every billed call with its model, prompt version and usage, the total their sum, also when the escalation or the run fails; 30.2-API-B1 and B3 red first)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-6-structure-readings-on-bedrock.md`
+  summary: `infra/production/variables.tf` does not validate `bedrock_model_id`, `bedrock_prose_model_id` or `bedrock_escalation_model_id` against the models priced in `BEDROCK_PRICES` and allowed in `infra/bootstrap/iam.tf`; a tfvars typo reaches the api, whose provider factory throws on an unpriced model at boot, so the task crash-loops after the apply.
+  evidence: `infra/production/variables.tf` (only a non-empty check on `bedrock_model_id`); `apps/api/src/jobs/reading/providers/bedrock.ts` `assertPricedModel`; `infra/bootstrap/iam.tf` statement `InvokeStory116Models`.
+  class: bug
+  state: ~~open (owner: Matheus, before the post-merge `ai_features = "on"` apply)~~ closed (2026-11-24, Story 30.2 A, PR of batch e30a: the four model ids are validated by the shape of a Bedrock model or inference-profile id, prose and escalation also empty; 30.2-UNIT-A red first; Terraform 1.16.4 refuses three typos on a copy of the variables; applied at the next deploy, not planned against the real stack)
+
 ## Deferred from: MVP hands-on review fix batch (2026-10-06), split into three PRs
 
 - source_spec: none
@@ -1388,6 +1400,24 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: Event log of 2026-10-10 inside the test: "Cancelar" at 334 ms, focus on `BODY` at 339 ms, `Escape` at 342 ms on `BODY`, focus back on the viewer's "Remover" at 347 ms; passing runs have the focus back before the key. Same failure (`.dialog-scrim.scrim-viewer intercepts pointer events` on "Foto 2, abrir") with every tracked file of the status-flow story reverted to `80f3d08`: 8, 3 and 5 failures of 10 in three runs, against 2 and 4 of 10 on the story's tree. Settle in the product (the viewer closes on `Escape` while it is the top dialog, wherever the focus is during the hand-back) or, if a key pressed in that gap is judged not a user case, wait for the focus in the test.
   class: bug
   state: ~~open~~ closed (2026-10-14, batch co14a): a test defect, as the event log shows: the key now waits for the focus back inside the viewer through the shared `escapeDialog` (`e2e/support/dialogs.ts`, the E9-Q13 body, which the four specs that copied it now import), and the test asserts the confirm and then the viewer closed. Making `Escape` on `BODY` close the top dialog stays an open question, not built.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-layout-copy-3.md`
+  summary: F-26 follow-up: the "Abrindo câmera…" state covers the "Fotografar placa" tile and the Sticky action bar's camera button; the other openers of the camera through their own `useCamera` still show nothing while the browser's permission prompt is open: "Ler visor" (the burst in `read-display.tsx`, `ReadDisplayButton` and the cabine's `EnvReadDisplayButton`), the NC row's "Adicionar foto" (`photo-openers.tsx` `RowPhotoAction`) and the palette's "Fotografar equipamento" (`relatorio/panel-capture.tsx`).
+  evidence: `apps/web/src/surfaces/ficha/read-display.tsx` (`useCamera` in `ReadDisplayButton`, ~:483), `apps/web/src/surfaces/ficha/photo-openers.tsx` `RowPhotoAction`, `apps/web/src/surfaces/relatorio/panel-capture.tsx` (`useCamera`, ~:121); `CameraControl.opening` is there to read.
+  class: debt
+  state: ~~open (owner: next sheet batch)~~ closed (2026-11-24, Story 30.1 H, PR of batch e30a: "Ler visor" of the sheet and of the environment render `CameraOpeningStatus` with the busy opener, the panel capture renders it in its portal; the NC row's `RowPhotoAction` already did; 30.1-UNIT-H1 to H3 red first)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
+  summary: Deferred review finding (spec frontmatter `deferred:`, independent review r8lay-rules-3): a TAG wider than the phone Sumário row's room runs the page sideways at 390 px; the rail's F-07 ellipsis has no phone `.s9-eq` counterpart. Mostly pre-existing (`.sum-s9 .s9-eq-open`'s grid already gave an unbreakable TAG its min-content), now with the batch's `nowrap` TAG and `min-content` row.
+  evidence: `apps/web/src/surfaces/relatorio/relatorio.css` (block r8lay DA-6); TAGs are free text (`tag-dialogs.tsx`).
+  class: debt
+  state: ~~open (owner: coordinator)~~ closed (2026-11-24, Story 30.1 E, PR of batch e30a: under 768 px a TAG wider than the row breaks inside itself, one that fits keeps the F-07 rule; 30.1-E2E-E red first, 198 px of sideways scroll at 390 px)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-status-flow-2026-10-10.md`
+  summary: A generate answered `running` (a retry after a lost response) writes no `generate` status op, so the relatório stays Em campo or Rascunho with a revision on record and "Marcar como enviado ao cliente" is not offered until another generate.
+  evidence: `apps/web/src/surfaces/export/use-generate.ts:243` emits `emitStatus('generate')` for `outcome === 'queued'` only, and the line predates the status flow of 2026-10-10 (edge-case review of that story, finding EC4, medium, unverified in a run). Settle by emitting for `running` too (the table makes it a no-op once Em revisão) with a test that answers `running` on an Em campo relatório. *(2026-10-13: the call now reads `emitStatus('queued')` and asks the kernel's `advanceOnGenerate`; a `running` answer still writes no status op.)*
+  class: bug
+  state: ~~open~~ closed (2026-11-24, Story 30.1 A, PR of batch e30a: `running` emits the status op as `queued` does; a second answer writes nothing more; 30.1-UNIT-A red first)
 
 ## Deferred from: Story 14.2, Local › Painel › Coluna (2026-10-13)
 
@@ -1845,6 +1875,12 @@ A row moves here when it closes (its state struck through and the closed state a
   class: debt
   state: ~~open (owner: Story 14.12 and the company-types stories)  *(2026-10-21, Bruno via Matheus, answers 4, 8 and 9: no value is typed on MEIO DE EXTINÇÃO at all, the medium becomes a fixed list with "Outro" in Story 14.14 and leaves Story 14.12, whose typed values are the NC phrases and FABRICANTE; the per-equipment screen label is closed, TAG only; the type's own name editable by the office stays with Stories 14.6 and 14.7)*~~ closed (2026-11-24 audit: superseded: Fixed medium list Story 14.14 (PR #153); company type names Stories 14.6/14.7 (PR #274); rest accepted by the spec)
 
+- source_spec: `_bmad-output/implementation-artifacts/epic-batch-orchestrator.md`
+  summary: 2026-10-20, coordinator: the second root-owned-file breakage from the `tools` container running with `--user root`. After the 2026-10-14 `.vite-temp` crash loop, the main stack's `install` service (user `node`) failed with ERR_PNPM_CMD_SHIM_CHMOD on `node_modules/.pnpm/esbuild@0.25.12/...` owned by root, which stopped a wave gate before it ran; `chown -R node:node /workspace/node_modules` fixed it. Root cause: gate runs as root write into the shared `node_modules` volume.
+  evidence: the 2026-10-20 wave gate log (`install` exit 1); `docker-compose.yml` `tools` service; the playbook's `--user root` rule.
+  class: debt
+  state: ~~open (owner: the next carry-over batch: run `tools` as `node`, or chown the volume back on exit, and assert it in `scripts/preflight.ts`)~~ closed (2026-11-24, Story 30.2 D, tools-root E26-A8, PR of batch e30a: root was needed only for the engine socket (root:root 0660 on the VM); `docker-compose.yml` adds its group to `tools`, the playbook and the deploy's smoke run `--user node`, and `scripts/preflight.ts` fails at once naming any root-owned entry of the four `node_modules` volumes; 30.2-UNIT-D red first)
+
 ## Deferred from: Story 14.12, learned company options (2026-10-21)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-12-learned-options.md`
@@ -1942,6 +1978,12 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: `gallery-surface.tsx:117-120`, `photo-viewer.tsx:160-163`. A component test rendering a tile absent from the snapshot, then the snapshot update.
   class: test-gap
   state: ~~open (owner: the next gallery batch)~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Low value)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-17-2-17-7-device-camera-app-save-to-device.md`
+  summary: The "Ler visor" exhausted-target guard runs only with "Câmera do aparelho" on (`camera-session.tsx:160`, `if (cameraApp && …)`); with it off and no `getUserMedia` (the pre-17.2 fallback picker), the file chooser opens where the viewfinder disables its shutter, and the picked photo lands as a plain sheet photo (retro R1).
+  evidence: `camera-session.tsx:156-166`; pre-existing path, rare (a desktop without a camera, every cell read).
+  class: bug
+  state: ~~open (owner: fix batch fx17r if its scope allows, else the next camera batch; drop the `cameraApp &&` so the guard covers both picker paths)~~ ~~open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; re-owned 2026-11-03, E17-A6: fx17r (PR #199) finished without it and the guard still reads `if (cameraApp && …)` at `camera-session.tsx:162`; the fix is the same)~~ closed (2026-11-24, Story 30.1 I, PR of batch e30a: the guard runs on every picker path; 30.1-UNIT-I red first)
 
 ## Deferred from: production pass, epic by epic (2026-10-28)
 
@@ -2168,6 +2210,12 @@ A row moves here when it closes (its state struck through and the closed state a
 - **E16-R1, an `unchanged` ready names an older revision.** `apps/web/src/surfaces/export/use-generate.ts:456-458`: the "anterior às alterações" banner and row tags are suppressed only while generating, so an `unchanged` answer whose revision is not pulled yet shows "Revisão N pronta" over "(revisão N-1). Alterações desde então geram a revisão N" (Story 16.2 AC 3). Fix: gate both on `readyHeld`, with a dialog test that delivers the job before the revision.
   state: ~~open (owner: batch s184, the Story 18.4 wave, which re-times the waits in the same file)~~ done (2026-11-03, batch s184: `beforeEdits`, and with it `beforeEditsBanner`, also require `readyHeld`; `export-dialog.test.tsx` "E16-R1" delivers an `unchanged` answer before its revision: no banner and no row tag, then the revision lands and both show; red without the gate)
 
+- **E15-R1, the rail's site card is named without its counter.** `apps/web/src/surfaces/relatorio/relatorio-tree-rail.tsx:67` sets the button's `aria-label` to the label, NC badge and name, which replaces the content, so "N de M" (`site.railCounter`) and the state word are never announced (the mock and the Sumário card carry the counter); both trees compose the "· ncBadge" in `apps/web` (also `relatorio-tree-sumario.tsx:116`) against Story 15.2's rule that every text is composed in `packages/domain`. Fix: the kernel site node exposes one accessible name used by both trees.
+  state: ~~open (owner: the next epic's carry-over batch)~~ closed (2026-11-24, Story 30.1 F, PR of batch e30a: the kernel's `siteCardSpokenName` (`TreeSiteNode.spokenName`) names the card with its counter and NC badge on both trees; 30.1-UNIT-F and F2 red first, 30.1-E2E-F in 14.3-E2E-003)
+
+- **E15-R2, the palette drawer's target is not announced on open.** `apps/web/src/surfaces/templates/block-palette.tsx:88` holds the target ("Toque para adicionar em: ...") in an `aria-live` paragraph mounted with the dialog, which screen readers usually skip; the drawer is named only "Blocos" since Story 15.5 (`:265-272`). Fix: `aria-describedby` on the drawer's `DialogShell` pointing at that paragraph.
+  state: ~~open (owner: the next epic's carry-over batch); assigned 2026-11-10 to Epic 24, Story 24.8 (only if the story edits `block-palette.tsx`; else it stays open); 2026-11-11: batch e24b did not edit `block-palette.tsx`, so the row stays open~~ closed (2026-11-24, Story 30.1 G, PR of batch e30a: the drawer is `aria-describedby` its target line; 30.1-UNIT-G red first)
+
 ## Deferred from: batch e18fb (2026-11-03)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
@@ -2179,6 +2227,12 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: `scripts/preview-tab.test.ts` covers the retry decision; the suite has no local run. Review finding VGR-4 of batch e18fb. The next deploy whose preview tab closes early is the proof: its log line `pressing it once more` and `test-results/production-smoke/preview-retry.json`.
   class: risk
   state: ~~open (owner: the coordinator, at the next deploy that shows the retry)~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Proof arrives by itself)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
+  summary: The deploy's usage-events check (`smoke: check the usage events`) is a warning, never a failure, in this release; it should fail the deploy once it has been green on a production run.
+  evidence: `infra/bin/deploy` `check_usage_events`: N = 0 `session_start` with the tag, M > 0 `ux_event_sink_failed` or a read error print `deploy: warning: ...` and keep the exit; the coordinator's decision of 2026-11-03 (`epic-18-context.md` § Follow-up delivery) made it a warning for the first deploy that carries it. Turning it into a failure is a red smoke like the others (cleanup still runs, rollback hint printed) and changes `scripts/deploy.test.ts`'s warning cases.
+  class: risk
+  state: ~~open (owner: the next infra batch, after the first deploy that prints `telemetry: N session_start ... ; 0 ux_event_sink_failed` with N >= 1)~~ closed (2026-11-24, Story 30.2 C, PR of batch e30a: the condition held (green on the production deploys of Epics 21 to 23); N = 0, M > 0 or a read error fail the smoke, after the cleanup, with the rollback hint; 30.2-UNIT-C red first; `docs/observability.md` says so)
 
 ## Deferred from: batch s184 (2026-11-03)
 
@@ -2295,6 +2349,12 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: e20s row "Nothing was counted in production"; `epic-20-context.md` deploy records name no such run.
   class: risk
   state: ~~open (owner: Matheus, needs his AWS login; record the per-field result in the e20s row, or that it was skipped)~~ *(2026-11-04, E20-A3: closed; run after the e0b47ad4 deploy on Matheus's login, 0 values over cap; the result is in the e20s row)*
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md`
+  summary: Unknown client `meta` keys are bounded only by the depth cap (`opDepthIssue`), not by the byte and count caps the value carries, so a client can store large strings or arrays in the ops log through `meta` (R-12, plausible, not reproduced).
+  evidence: `packages/domain/src/ops/op.ts` `opMetaSchema` (`z.looseObject`); `packages/domain/src/ops/value-limits.ts` `opDepthIssue`.
+  class: risk
+  state: ~~open (owner: coordinator; apply `VALUE_MAX_BYTES` and `VALUE_MAX_ITEMS` to `meta`, or refuse unknown meta keys from a client)~~ closed (2026-11-24, Story 30.1 D, PR of batch e30a: `opDepthIssue` also holds `meta` to `VALUE_MAX_BYTES` and `VALUE_MAX_ITEMS`, refused alone as `op_value_invalid`; the app's largest meta today is 766 B; 30.1-UNIT-D and 30.1-API-D red first)
 
 ## Deferred from: Epic 21 batch e21r (2026-11-05)
 
@@ -2803,6 +2863,12 @@ A row moves here when it closes (its state struck through and the closed state a
   class: note
   state: ~~open (owner: the next batch touching sync)~~ closed (2026-11-24 audit: resolved: Story 25.3 (e25a): `sync/client.ts:310-324` `send` aborts after `headersTimeoutMs`, body by `fileBodyTimeoutMs` (:155, :383))
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, setup-surface)
+  summary: A text field of the setup (and any `useTextField`, and the exclusions list) commits after 500 ms idle and resyncs from the store when the stored value differs from the last one it saw. A key typed after an idle commit and before that commit's live-query echo is overwritten by the echo. On a loaded host the test lost keys this way; on a slow tablet a pause and a fast key could do the same. Not fixed (outside the batch's behaviour scope).
+  evidence: `apps/web/src/surfaces/relatorio/setup/setup-fields.ts` `useTextField`; `apps/web/src/surfaces/relatorio/setup/etapa2-escopo.tsx` (the exclusions' resync); `apps/web/src/input/field-commit.ts` `FIELD_COMMIT_IDLE_MS`.
+  class: defect
+  state: ~~open (owner: the next batch touching the setup fields)~~ closed (2026-11-24, Story 30.1 B, PR of batch e30a: `useStoredEcho` resyncs a field only on a change that is not its own echo while no keystroke waits; on `useTextField`, `useDateField` and the exclusions list; 30.1-UNIT-B red first, 30.1-E2E-B red first on a CPU slowed sixfold: "da Torree, bloco B")
+
 ## Deferred from: Epic 24 batch e24b (2026-11-11)
 
 - source_spec: `spec-e24b-screen-lane.md` (review ECH-4)
@@ -2911,6 +2977,12 @@ A row moves here when it closes (its state struck through and the closed state a
   class: note
   state: ~~open (owner: Matheus, with the note's wording; low) *(2026-11-11, fix batch e24y: still open. P1's no-break space joins a value to its unit inside the paired tables and the measurement tables only; the note line is a paragraph whose reasons are the kernel's own texts, so the same rule there would make them differ from the conclusion's and the point's.)* *(2026-11-23, batch e28b, Story 28.8: closed on seed v18. The v18 note is composed of its own short forms, not the kernel's reasons, so each value keeps its unit with a no-break space ("40 µΩ", "30 %", "a 20 °C"); the PDF of `e28b-v18-print.integration.test.ts` reads them whole. v14 to v17 keep their note as their goldens hold it.)*~~ closed (2026-11-24 audit: resolved: Row's own 2026-11-23 note: closed on seed v18 by Story 28.8 (no-break spaces, `e28b-v18-print.integration.test.ts`))
 
+- source_spec: `spec-e24p-print.md` (Review Triage Log, Edge Case Hunter; Story 24.15)
+  summary: a re-issue whose service dates were edited after its first issue is not re-ordered: on a re-issue of the top relatório the date order is not compared with its prior, and when the top's `prior` is the re-issued relatório (fix batch e23w's first rule) its new date is not compared with the top. Reached only by editing the service dates of an issued relatório and issuing it again.
+  evidence: `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line and the W2-1 branch above it).
+  class: defect
+  state: ~~open (owner: the next batch touching `print/last-results.ts`; low)~~ closed (2026-11-24, Story 30.1 J, PR of batch e30a: a re-issue is ordered against its prior again by its edited dates, both halves; 30.1-UNIT-J red first)
+
 ## Deferred from: Epic 24 batch e24s (2026-11-11)
 
 - source_spec: `spec-e24s-seed-v14-sheets.md` (Story 24.13)
@@ -2981,6 +3053,12 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: `apps/web/src/surfaces/templates/block-palette.tsx`; `packages/domain/src/types/palette-meta.ts` `composerHiddenTypes`.
   class: test-gap
   state: ~~open (owner: the next batch touching the composer; low)~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Low value)
+
+- source_spec: `spec-e24x-review-fixes.md` (review X8)
+  summary: no test re-issues a top entry from before Story 24.15 (no `service_date`) after the reading relatório's service date, where D3 and D4 meet.
+  evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`.
+  class: test-gap
+  state: ~~open (owner: the next batch touching the previous visit; low)~~ closed (2026-11-24, Story 30.1 J, PR of batch e30a: 30.1-UNIT-J re-issues a top over a prior with no `service_date`, dated by its issue day, before and after that day)
 
 ## Deferred from: Epic 24 fix batch e24y (2026-11-11)
 
@@ -3203,3 +3281,27 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: `apps/web/src/api/auth-client.ts` account read; `apps/web/src/state/session.tsx` boot.
   class: observation
   state: ~~open (owner: next UX pass)~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Not a defect)
+
+## Deferred from: code review of spec-11-6-structure-readings-on-bedrock (2026-10-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-6-structure-readings-on-bedrock.md`
+  summary: An escalated reading's run row names one model but sums two calls' usage, so the model and its price no longer reproduce the stored USD; keep per-call usage on `reading_runs.llm_usage` together with the failed-call usage entry above.
+  evidence: `apps/api/src/jobs/reading/kinds/plate.ts` returns `{ ...kept.structuring, usage: summed }`.
+  class: debt
+  state: ~~open (owner: coordinator, with the failed-call usage entry)~~ closed (2026-11-24, Story 30.2 B, PR of batch e30a: `llm_usage.calls` keeps each call's model and usage beside the summed total; 30.2-API-B2 red first)
+
+## Deferred from: Epic 25 batch e25c, the review of PR #332 (2026-11-12)
+
+- source_spec: `spec-e25c-seed-v15-and-rules.md` (review of PR #332, finding 4, low; not fixed)
+  summary: the server's 409 `pre_issue_blocked` answer to "Gerar relatório" lands in the dialog's generic failed state, with no reason shown; only `not_caught_up` is read apart.
+  evidence: `apps/web/src/surfaces/export/use-generate.ts` (the `catch` of the generate request, about line 314).
+  class: gap
+  state: ~~open (owner: the next batch touching the Export dialog; low)~~ closed (2026-11-24, Story 30.1 C, PR of batch e30a: the failed state names each blocking row with the kernel's texts (`serverBlockedRows`), words the reason with `issueBlockedReason` and offers "Ver no sumário"; 30.1-UNIT-C and 30.1-E2E-C red first)
+
+## Deferred from: Epics 28 and 29, the wave gates and the hands-on pass (2026-11-23 and 2026-11-24)
+
+- source_spec: hands-on pass of 2026-11-23 (note)
+  summary: TAG suggestions are still offered after the locals they came from were removed.
+  evidence: the pass report; screenshots under `test-results/pass-e28/` of the main checkout (untracked).
+  class: bug
+  state: ~~open (owner: a later fix batch; low)~~ closed, does not reproduce (2026-11-24, Story 30.1 K, PR of batch e30a: 30.1-E2E-K on the unfixed build (main 9d174967 web code, the standard template with today's PREFIX-NN TAGs, one relatório in its obra, the company stream pulled): DJ-01 held, the palette offered a later number; the local holding DJ-01 removed: its equipment tombstoned and the palette suggested DJ-01, green with no code change. By design a removal frees an equipment only when the device holds every relatório of the obra and the company stream (`equipmentFreedByRemoval`); otherwise the numbers stay held, which may be what the pass saw. N3's steps were not recorded in detail)
