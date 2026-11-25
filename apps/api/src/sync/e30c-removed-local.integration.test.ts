@@ -168,6 +168,79 @@ describe('30.4-API-001 a local removed against site work, through the sync route
     for (const person of ['ana', 'bruno'] as const) expect(await deviceLocal(person, relatorioId, locationId)).toEqual(server);
   });
 
+  it('e30h-API-007 a site photo and a site point on the local, in both orders against its removal: the server marks it, keeps both, and both devices fold its row', async () => {
+    /** Bruno's site photo and site point on the local, stamped as a contract-61 commit stamps them on a live local. */
+    const siteWork = (relatorioId: string, locationId: string): Op[] => {
+      const photoId = newId();
+      const pointId = newId();
+      const now = new Date().toISOString();
+      const photo = h.clientOp(people.bruno, {
+        kind: 'create',
+        path: `file/${photoId}`,
+        relatorio_id: relatorioId,
+        device_id: B_DEVICE,
+        meta: { seen_removed_at: null },
+        value: {
+          id: photoId,
+          company_id: companyId,
+          relatorio_id: relatorioId,
+          kind: 'photo',
+          sha256: 'c'.repeat(64),
+          mime: 'image/jpeg',
+          size: 10,
+          uploaded_at: null,
+          variants: null,
+          removed_at: null,
+          captured_at: now,
+          tz_offset: -180,
+          coords: null,
+          local_seq: 1,
+          block_id: null,
+          item_key: KEYS[0]!,
+          caption: null,
+          reading_kind: null,
+          reading_target: null,
+          reading_status: 'none',
+          people_in_photo: false,
+          location_id: locationId,
+        },
+      });
+      const point = h.clientOp(people.bruno, {
+        kind: 'create',
+        path: `point/${pointId}`,
+        relatorio_id: relatorioId,
+        device_id: B_DEVICE,
+        meta: { seen_removed_at: null },
+        value: { id: pointId, relatorio_id: relatorioId, text: 'Luminária de emergência inoperante', equipment_id: null, origin: 'manual', order_key: 'a0', removed_at: null, action: null, priority: null, deadline: null, owner: null, location_id: locationId },
+      });
+      return [photo, point];
+    };
+    const expectMarkedAndKept = async (relatorioId: string, locationId: string, remove: Op, work: Op[]) => {
+      const marked = await serverLocal(locationId);
+      expect(marked.removed_at).toBe(remove.client_ts);
+      expect(marked.removal_conflict).toEqual({ removed_by: people.ana.userId, removed_at: remove.client_ts, edited_by: people.bruno.userId, edited_at: work.at(-1)!.client_ts });
+      for (const op of work) expect(await h.rowOf(people.ana, op.path.split('/')[0]!, op.path.split('/')[1]!)).toMatchObject({ removed_at: null, location_id: locationId });
+      for (const person of ['ana', 'bruno'] as const) expect(await deviceLocal(person, relatorioId, locationId)).toEqual(marked);
+    };
+
+    // Removal first: the photo and the point land on the removed local.
+    const first = await h.seedRelatorio(people.ana);
+    const removeFirst = removal(first.relatorioId, first.locationId, null);
+    expect((await h.push(people.ana, [removeFirst])).rejected).toEqual([]);
+    const late = siteWork(first.relatorioId, first.locationId);
+    expect((await h.push(people.bruno, late)).rejected).toEqual([]);
+    await expectMarkedAndKept(first.relatorioId, first.locationId, removeFirst, late);
+
+    // Work first: a removal that did not see the photo and the point.
+    const second = await h.seedRelatorio(people.ana);
+    const early = siteWork(second.relatorioId, second.locationId);
+    expect((await h.push(people.bruno, early)).rejected).toEqual([]);
+    expect((await serverLocal(second.locationId)).site_modified_at).toBe(early.at(-1)!.client_ts);
+    const removeAfter = removal(second.relatorioId, second.locationId, null);
+    expect((await h.push(people.ana, [removeAfter])).rejected).toEqual([]);
+    await expectMarkedAndKept(second.relatorioId, second.locationId, removeAfter, early);
+  });
+
   it('a version-60 client (the contract before) is refused the relatório\'s stream with 426 contract_outdated; a current one reads it; its push is still accepted', async () => {
     expect(CONTRACT_VERSION).toBe(61);
     expect(MIN_CONTRACT_VERSION).toBe(61);
