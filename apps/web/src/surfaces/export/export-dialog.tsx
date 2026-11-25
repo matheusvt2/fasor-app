@@ -24,6 +24,7 @@ import {
   revisionRowSegments,
   sectionMention,
   sectionRefText,
+  serverBlockedRows,
   namedWarningSection,
   suggestionRowsOf,
   sumarioLineOf,
@@ -407,8 +408,16 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
     // a flush) or counts that dropped to zero put it away, never to come back without a press.
     const asking = confirming && disabledReason === undefined && confirmText !== null;
     if (confirming && !asking) setConfirming(false);
+    // Story 30.1 C (L4150): the rows a `409 pre_issue_blocked` named, with the kernel's texts.
+    const serverBlocked = phase.kind === 'failed' && phase.blockedKinds !== undefined ? serverBlockedRows(phase.blockedKinds, issues) : null;
     const reason =
-      phase.kind === 'blocked' ? copy.export.deadOpsReason : phase.kind === 'failed' ? failedReason(idleNumber) : idleReason(idleNumber);
+      phase.kind === 'blocked'
+        ? copy.export.deadOpsReason
+        : serverBlocked !== null && serverBlocked.length > 0
+          ? (issueBlockedReason(serverBlocked, idleNumber, parecerLine) ?? failedReason(idleNumber))
+          : phase.kind === 'failed'
+            ? failedReason(idleNumber)
+            : idleReason(idleNumber);
     body = (
       <>
         {phase.kind === 'failed' && phase.sessionExpired === true ? <SessionExpiredNote /> : null}
@@ -416,6 +425,22 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
           <div className="gen-error" role="alert">
             <span>{copy.export.failed}</span>
             {phase.missingFiles === undefined ? null : <span>{missingFilesText(phase.missingFiles)}</span>}
+            {serverBlocked === null || serverBlocked.length === 0 ? null : (
+              <>
+                <ul className="precheck">
+                  {serverBlocked.map((row) => (
+                    <li className="is-blocking" key={row.id}>
+                      <span className="pc-text">
+                        <span className="pc-block">{row.text}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {onSeeInSumario === undefined ? null : (
+                  <TextButton onPress={() => onSeeInSumario([...new Set(serverBlocked.map((row) => row.row))])}>{copy.export.seeInSumario}</TextButton>
+                )}
+              </>
+            )}
             {blocked ? null : (
               <TextButton data-telemetry="export.retry" data-telemetry-event="retry" onPress={onGenerate}>
                 {copy.export.retry}

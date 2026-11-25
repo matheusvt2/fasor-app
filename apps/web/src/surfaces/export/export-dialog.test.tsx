@@ -2118,7 +2118,8 @@ describe('Story 30.1 (audit 2026-11-24): the generate answers the dialog did not
     await userEvent.click(within(modal).getByRole('button', { name: 'Gerar de novo' }));
     await userEvent.click(generateButton());
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    // The job it names is done and its revision held, so the dialog is ready again; the status stays as it was.
+    await waitFor(() => expect(within(dialog()).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
     expect(await statusOps(database!)).toEqual(['em_revisao']);
   });
 
