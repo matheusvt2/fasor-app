@@ -35,7 +35,7 @@ import {
   type RevisionRow,
   type SumarioRowKey,
 } from '@app/domain';
-import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, StatusPill, TextButton } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
@@ -99,6 +99,19 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   // Epic 18: the Export dialog's `dialog_open` and `dialog_cancel`, on its own screen.
   const exportCancelled = useDialogTelemetry('export', isOpen, 'export');
   const state = useGenerate(relatorioId, timing);
+  // Batch e30f (21.1-E2E-002): "Marcar como enviado ao cliente" leaves with the press that it
+  // answers, and the focus it held went to the page until the dialog's FocusScope gave it back one
+  // animation frame later; an Esc in that frame (a loaded device, a quick keyboard) reached no
+  // dialog. In the commit that removes it, the focus goes to "Gerar de novo", the control in its place.
+  const couldMarkSent = useRef(state.canMarkSent);
+  useLayoutEffect(() => {
+    const could = couldMarkSent.current;
+    couldMarkSent.current = state.canMarkSent;
+    if (!could || state.canMarkSent) return;
+    const active = document.activeElement;
+    if (active !== null && active !== document.body && active.isConnected) return;
+    document.querySelector<HTMLElement>('[data-after-mark-sent]')?.focus();
+  }, [state.canMarkSent]);
   const preview = usePreview(relatorioId, timing);
   // Story 13.8 (AI-3): the optional AI pass, never automatic and never in the way of the issue.
   const aiFeatures = useAiFeatures();
@@ -377,7 +390,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
             {MARK_SENT_LABEL}
           </Button>
         ) : null}
-        <Button variant="secondary" block onPress={state.reset}>
+        <Button variant="secondary" block data-after-mark-sent onPress={state.reset}>
           {copy.export.generateAgain}
         </Button>
       </>
