@@ -27,24 +27,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: debt
   state: ~~open~~ re-owned (owner: Matheus, via `bmad-correct-course`; 2026-09-30, Epic 11 batch C: Epic 11 has no sync retention story, so no batch can own it; a correct-course pass decides whether to add one (R10-12 also expected that story to split `engine.ts` and `apply.ts`) or to date it post-MVP)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro.md`
-  summary: Offline cold open is asserted on Chromium only; WebKit's offline reopen is not covered.
-  evidence: `e2e/durability.spec.ts:92-120` (`1.8-AC-001`) explicitly branches on `browserName === 'webkit'` and records a `not-covered-here` annotation, because Playwright's WebKit cuts the network below the service worker (an offline navigation fails before the worker is asked). Verified present; mitigated by the manual iPad script (`_bmad-output/test-artifacts/manual/offline-proof-script.md`).
-  class: test-gap
-  state: open (known Playwright/WebKit limitation, mitigated by the manual iPad script)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro.md`
-  summary: Durability projects sign in via `/api/auth/*` instead of the Login form, because WebKit drops `Secure` cookies on an http origin.
-  evidence: `e2e/support/durability.ts:33-45` (`signInForDurability`) posts directly to `/api/auth/sign-in/email` and re-adds the cookie without `Secure`, with a comment explaining the WebKit limitation. Verified present.
-  class: test-gap
-  state: open (same tool-limitation category as the item above)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro.md`
-  summary: Scenarios 1.8-E2E-002 and 1.8-E2E-005 run with the service worker disabled, because Playwright cannot intercept through a service worker outside Chromium.
-  evidence: `e2e/durability.spec.ts` (the network-drop and 5-day-banner scenarios) target the `durability-desktop-chrome` project specifically for this reason, per the file's own comments.
-  class: test-gap
-  state: open (tooling limitation)
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-ui-hygiene.md`
   summary: Esc on the draft toast leaves focus on body; on a cold load with the api down the badge reads "Sincronizado" for about 2 s until the first cycle ends.
   evidence: Independent review of PR #12. The toast has no opener to return focus to; the first-cycle window needs a "not yet confirmed" badge input the kernel does not have. Both low; revisit with the Epic 5 sheet toasts and the badge.
@@ -57,35 +39,11 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: bug
   state: ~~open~~ open, re-owned 2026-09-28 by batch C2 (owner: Matheus with the architect, AD-8): a per-user pin with promotion refused while another user holds was built and withdrawn, because a user who never signs in again would keep every other user of the device on the old shell forever; the choice between that and the current device-wide pin (or an expiring hold) is a product decision
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-2-4-2-5-2-6-registries-batch.md`
-  summary: The registry edit panels (Clientes, Fabricantes, Classes de tensão) offer two differently-labeled controls that both close the panel ("Fechar edição" icon button, "Fechar" footer button).
-  evidence: Internal review pass 2026-09-22. A pre-existing pattern carried forward verbatim from `instrument-panel.tsx` (Story 2.1, already merged), not introduced by this diff. Severity low.
-  class: debt
-  state: open
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-2-3-files-and-company-identity.md`
   summary: `sync_state.files_pending` is written by the upload phase and read by no surface.
   evidence: Internal review pass 2026-09-22. A grep over `apps/web/src` finds only the engine writing it; the badge that consumes it belongs to a later epic, so a failed or pending upload is invisible to the user today. Severity medium.
   class: debt
   state: ~~open~~ partially closed (2026-09-25, Story 6.2: a pending or failed photo upload is now visible on its own tile, "Aguardando envio" / "Erro — Tentar novamente" from the kernel's `photoUploadState`; `files_pending` itself is still read by no surface, and the gallery header count `photosPendingText` is Story 6.3's) -- progress 2026-09-25, Stories 6.3-6.5: the gallery header counts the pending, failed and uncaptioned photos (`galleryCounterText`) and Sumário row 7 names the unsent ones (`photos_pending_upload`); `files_pending` is still read by no surface, so non-photo files (logos, certificates) stay visible only on their own tiles
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-2-2-2-3-files-and-company-identity.md`
-  summary: On phone the Empresa tab puts ~500 px of chrome above the first field, so only one of its eight fields is above the fold.
-  evidence: Independent review 2026-09-22, measured at 390x664 with the session banner showing: app bar 56 px, banner 128 px, the (pre-existing) three-row tab strip 177 px, this story's own `.section-note` 78 px, first field at 500 px. The brand preview is not the cause -- it renders after the whole form at 390 and 768 px and becomes the right column only at 1280 px. The one lever this story owns is the note's length. Severity low.
-  class: debt
-  state: open
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-registries-phone-tab-selector.md`
-  summary: The `:has()` CSS selector the phone tab-strip fix relies on has no documented minimum browser target for the project.
-  evidence: Internal review pass 2026-09-22. `apps/web/src/styles/app.css`'s `.registry-main:has(.registry-list, .home-empty) > .section-note { order: 3; }` follows a pre-existing pattern already used at `apps/web/src/styles/components.css:238`, not introduced by this diff. Support is broad but not universal (Safari 15.4+, Chrome 105+, Firefox 121+); on an unsupported browser the rule silently does not match and `.section-note` falls back to DOM order (before the toolbar/list) with no visible error. Settling this needs a project-wide browserslist/minimum-support decision. Severity low.
-  class: debt
-  state: open
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-3-7-porto-seguro-fixture.md`
-  summary: Section 8 bullet 4 names "algumas seccionadoras específicas" and "o disjuntor TIE" as not tested, but every one of the 94 real sheets (including both "DISJUNTOR DE ACOPLAMENTO" bus-tie breakers, 1° Subsolo colunas 3 and 16) carries full, real measured values -- no sheet in the delivered document is actually blank.
-  evidence: Direct visual read of all 13 seccionadora sheets (9.2), all 14 disjuntor sheets (9.3), all 7 seccionadora and 4 disjuntor sheets of the geradores subsections (9.9, 9.10): every one shows a real checklist and real test values. Since the story's AC/FR-22/FR-68/NFR-17 require the fixture to carry this documented not-tested condition, `data.ts` designates the clearest real match for "disjuntor TIE" (1° Subsolo Coluna 3's first "DISJUNTOR DE ACOPLAMENTO - REDE 1") and two seccionadora instances (1° Subsolo Coluna 1 and Coluna 17, the two single-quantity end columns) as `not_tested`, overriding their real sheet data. The real per-instance data these three sheets carried in the source is not lost -- it is simply not the data written for these three positions; see `data.ts`'s inline comments at each of the three instances.
-  class: docs
-  state: open (Matheus review requested: confirm or correct which specific 3 pieces of equipment section 8 bullet 4 actually refers to)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-7-porto-seguro-fixture.md`
   summary: Several `isoRows` entries in `packages/domain/fixtures/porto-seguro/data.ts` use the raw string `'2T'` for a `1 MINUTO` insulation capture cell (4 occurrences: `SUBSOLO_TRANSFORMERS` TR-1/2/4, both `COBERTURA_A`/`COBERTURA_B` TR-COB blocks), while the generator always tags that cell with unit `GΩ`, producing a composite that reads as neither a clean number nor a clear overflow marker.
@@ -93,41 +51,11 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: debt
   state: ~~open (Matheus/Bruno review requested, alongside the not-tested-designation item above)~~ open, re-owned 2026-09-28 by batch C2 (owner: Matheus with Bruno, E7-A5): what "2T" means (an overflow "> 2 TΩ" or a value) is a domain decision, and `data.ts` is being edited by batch C1 | 2026-11-24 audit: meaning answered (Bruno rev08: "> 2 TΩ" is the instrument limit, `docs/context/epic-23/respostas-bruno-rev08-2026-11-08.md`, gitignored); left: the fixture still stores the raw "2T" (`packages/domain/fixtures/porto-seguro/data.ts:362,381,420,835`), owner: agent
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-3-5-3-6-sub-block-defaults-and-boilerplate-editor.md`
-  summary: Three small, low-severity notes from PR #21's independent review, all accepted as-is rather than patched. (a) Dropping an equipment type's last placement to zero and re-adding it loses its customized subtype and sub-block toggles, reverting to the pristine seed defaults (`typeConfigFor` returns null when no placement exists) — intended by the "per-type config keyed by current placements" design, but nothing tells the user. (b) Clearing a section's whole text silently falls back to the seed default with no toast, unlike the explicit "Restaurar" action which does toast — consistent with the app's general silent-autosave pattern elsewhere, so left as-is. (c) `section-text-dialog.tsx` lowercases the domain's `SECTION_VARIABLE_LABELS` for chip button text in `apps/web`, a small presentational bend of the string-home rule (a capitalization choice, not new derived business text).
-  evidence: Independent review of PR #21, 2026-09-23 (findings 6, 7, 8). Reviewer's verdict on the PR overall was "approve as-is"; these three were named as low and not blocking.
-  class: debt
-  state: ~~open~~ partially closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B13: (c) the chip label is the kernel's `sectionVariableChipLabel`, no lowercasing in `apps/web`; `section-text.test.ts`). (a) and (b) stay open, re-owned to Matheus (UX): whether to warn when a type's config is lost at zero placements, and whether clearing a section's text toasts like "Restaurar", are product choices
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-docx-skeleton-renderer.md`
   summary: The `unchanged` short-circuit follows AD-15's family set, so a registry edit (client name or CNPJ, Empresa lines) or a `user` edit (the responsible's registration) after a revision does not count as an edit: a second "Gerar relatório" answers the old revision although the printed document control would differ.
   evidence: `apps/api/src/http/generate.ts` `editedAfter` over `editedSince` (`packages/domain/src/status/edited-since.ts`, families `relatorio/setup, location, block, sheet, file (photo), point, equipment`). A design decision for the architect (AD-15): widen the set, or let the dialog offer a forced regeneration.
   class: debt
   state: ~~open~~ open, re-owned 2026-09-28 by batch C2 (owner: Matheus with the architect): widening `EDITED_SINCE_FAMILIES` also moves the Emitido to Em revisão transition (AD-22), so it is an AD-15 decision, not a local fix
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-4-fix-qa.md`
-  summary: Q4 reuse matches only the base TAG the template position would get. An equipment renamed in an earlier relatório, or one that got a suffix at creation from a cross-type TAG collision, is not reused, and the next relatório mints a new row for that position.
-  evidence: The coordinator fixed the key (base TAG plus type) on 2026-09-24. `instantiate.ts` compares `normalizeTag(row.tag)` with the base TAG computed over this run's TAGs only. A rename-aware key, or one keyed on location path and ordinal, needs a new product decision. Found by the review pass of 2026-09-24 (Blind Hunter and Edge Case Hunter).
-  class: design
-  state: ~~open (owner: Epic 5's equipment work, when nameplates make an equipment's identity visible)~~ open; assigned 2026-11-10 (evening, Matheus on M-5 of `sprint-change-proposal-2026-11-10.md`) to Epic 24, Story 24.21: the equipment stores a key at its creation and the reuse matches on it, so a rename or a suffix no longer loses the equipment. An equipment created before the story has no key, still matches by its TAG and is not covered; ~~open~~ closed 2026-11-11 by batch e24b (Story 24.21, contract 43, `spec-e24b-screen-lane.md`): the equipment stores a write-once `reuse_key` at its creation and a new relatório matches on it, so a renamed TAG or a suffixed one keeps its equipment and its previous visit. Narrowing, still open (owner: Matheus): an equipment created before the batch has no key and is still matched by its TAG, so renaming it loses its history at the next relatório (the coordinator's reading of Story 24.21)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-6-3-6-5-gallery-import-and-captions.md`
-  summary: Narrowing, Story 6.5. The Caption composer is a full-screen modal, not the mock's route (`71-legenda.html`), so one component serves the sheet tile, the gallery tile, the viewer and the gallery batch.
-  evidence: `apps/web/src/surfaces/photos/caption-composer.tsx`; ~~the mock's photo preview block above the rows (`.capture-preview`, `.capture-meta`) is not drawn~~ (2026-09-25, E6-Q3: drawn for a single photo, the batch composer has none).
-  class: deferred
-  state: open (owner: none; revisit if Bruno asks for the route). 2026-09-25, `spec-epic-6-fix-qa.md` E6-Q3: the preview half is closed -- the composer opens on the photo (`.capture-preview` with `.number-badge`, `.capture-meta`), the caption it composes comes before the rows (pinned with a compact photo below 768 px) and "Salvar legenda" sits in a sticky `.sticky-action-bar` (`gallery.spec.ts` 6.5-E2E-003 at 390 px); the modal-not-route narrowing stands.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-6-3-6-5-gallery-import-and-captions.md`
-  summary: Narrowing, Story 6.5. Caption recents are device-local per relatório (`local_prefs` key `caption_recents:{relatorio_id}`), not synced; the Equipamento choice changes the text only, never the photo's `block_id`.
-  evidence: One device fills a relatório (source-deltas row 14) and the photo row stores the caption text only; `apps/web/src/db/photo-store.ts` `pushCaptionRecents`.
-  class: deferred
-  state: open (owner: none)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-6-3-6-5-gallery-import-and-captions.md`
-  summary: Narrowing, Story 6.3. A removed photo comes back only through the toast's "Desfazer"; there is no restore list, and no gallery day headers (`.gallery-day`).
-  evidence: `apps/web/src/surfaces/photos/gallery-surface.tsx` `remove`; the tombstone stays in the store and a `file/{id}/removed_at` null put restores it.
-  class: deferred
-  state: open (owner: none)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-3-6-5-gallery-import-and-captions.md`
   summary: Story 6.5 open question, conservative choice taken: a composer opened on a caption that is not what its prefilled rows compose (a hand-edited caption, or a sheet shot captioned on the ensaios step, whose activity the row does not store) opens in "Editar texto" with the stored text.
@@ -147,12 +75,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: deferred
   state: open (owner: none; open question for Matheus: a pairing control on the cable sheet, or pairing at instantiation)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
-  summary: Narrowing, E78-Q1. A relatório with no live section block (the Porto Seguro fixtures, a legacy relatório) lists the eleven sections it prints as virtual Sumário rows, which cannot be moved, removed, duplicated or given a section below them, and whose text rows (2, 4, 5, 6) do not open the section text editor (it needs a block). Giving such a relatório its section blocks is a migration no story owns.
-  evidence: `packages/domain/src/relatorio/sumario.ts` `virtualSectionRows`; `apps/web/src/surfaces/relatorio/sumario-row.tsx` (`StaticPosition`).
-  class: deferred
-  state: open (owner: none)
-
 - source_spec: spec-epic-7-8-fix-qa.md
   summary: E78-Q12. "82 aguardando envio" (pre-issue row, gallery header, tiles) reads as if this device will send the photos; on an office device that never held them the server simply lacks them. The gallery's static note "Os números são provisórios até a exportação" sits beside "Números da revisão 1".
   evidence: `reviews/epic-7-8-review-qa.md` E78-Q12; tracked under E7-A3 (2026-09-28).
@@ -160,34 +82,10 @@ From now on a row moves to the archive when it closes: strike its state through,
   state: open (owner: Matheus with Bruno for wording (E7-A5); then the next batch touching the gallery or pre-issue)
 
 - source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
-  summary: Story 9.1 narrowing: a thermo-hygrometer suggestion confirmed on the cabine environment gets no provenance glyph: `location/{id}/env/*` values are bare number values with no cell provenance (`source_suggestion_id`).
-  evidence: `packages/domain/src/schemas/entities.ts` `locationEnvSchema`; `apps/web/src/surfaces/ficha/read-display.tsx` (no confirmed crop on env fields).
-  class: question
-  state: ~~open (owner: Epic 9 integrated review)~~ ~~open (owner: Epic 11; 2026-09-29, E9-A5: needs provenance on `location/{id}/env/*` values, a row shape change with a contract bump that Epic 10's batches already hold)~~ re-owned (owner: Matheus; 2026-09-30, Epic 11 batch C: not small. Provenance on `location/{id}/env/*` turns bare numbers into provenance cells, a row-shape change of every env reader (fold, print, pre-issue, the cabine environment surface) with a contract and MIN bump, and no Epic 11 story touches that surface; whether the glyph is worth it is a product call)
-
-- source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
   summary: Story 9.1 narrowing: pending thermo-hygrometer suggestions count in Sync status ("Leituras") but not in the pre-issue section 9 row or the Sumário, which read sheet suggestions only.
   evidence: `livePendingSuggestions(blocks, pending, locations)` keeps env rows only when `locations` is given; `db/suggestion-store.ts` `readingCountRows` passes them, `relatorio/pre-issue.ts` does not.
   class: question
   state: ~~open (owner: Epic 9 integrated review)~~ ~~open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)~~ open (owner: Matheus, product question; 2026-09-29, Story 10.4: not small. The section 9 row "N fichas com sugestões" counts sheets, and a thermo-hygrometer suggestion sits on a cabine, not a sheet, so counting it there needs a new row or wording, a product decision; Sync status keeps counting it under "Leituras")
-
-- source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
-  summary: Story 9.1 spike finding: the plate pipeline reads the tiny real display crops better than the chosen display path (8 of 15 against 6 of 15, cleaner confidences); running both and keeping the higher-confidence value is the next experiment, once real tablet photos exist.
-  evidence: `docs/display-reading-spike.md` § Caveats and next steps.
-  class: question
-  state: open (owner: E8-A8 follow-up)
-
-- source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
-  summary: Story 9.1 open questions: the range source for the unit-less megôhmetro (E8-A3: the unit comes from the cell, the previous row or the column default, a column default on an insulation column being Verificar); stored 30 s / 10 min values dropped (print-only columns, Conflict 3); the 2 ambiguous crops #08/#10 (E8-A8); the SM-3 recount (measured 20 taps and 9 keys with Enter confirming down the run; EXPERIENCE.md's 19 taps assumed 5 base taps and per-table "Confirmar todos").
-  evidence: `spec-9-1-read-the-instrument-display-with-ler-visor.md` Open questions; `e2e/tap-budget-signal.spec.ts`.
-  class: question
-  state: open (owner: Matheus)
-
-- source_spec: spec-9-2-create-a-block-by-photographing-the-equipment.md
-  summary: Story 9.2 open questions (conservative readings taken): the app's single-shot camera replaces the mock's simulated viewfinder, so "Escolher o tipo" is no viewfinder action (the type chips are always in the result dialog); the create keeps the palette's reveal and "Desfazer" toast instead of the mock's jump to the ficha; the tile shows at every palette width; a read column with no live coluna under the palette's cabine falls back to the palette's location flagged Verificar (no column is created); "Desfazer" reverts the whole batch, which puts `reading_kind` back to `panel` and so re-queues a panel reading.
-  evidence: `spec-9-2-create-a-block-by-photographing-the-equipment.md` Design Notes; `packages/domain/src/relatorio/panel.ts` `panelLocation`.
-  class: question
-  state: open (owner: Matheus)
 
 - source_spec: spec-9-3-9-5-captions-and-nc-drafts.md
   summary: Stories 9.3/9.5 open questions (conservative reading kept): the tile keeps the mock's "Confirmar" while the composer and the NC draft say "Usar" (the story); "Confirmar todas" confirms every suggestion of the relatório, not only the filtered cabine; `captions_suggested` is an `info` row (a warning, never blocking) beside the unchanged `photos_uncaptioned`, and the Export dialog counts it among its "N avisos" (not an explicit kind), while the Sumário row 7 names it.
@@ -200,24 +98,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   evidence: Porto Seguro replay 24.4 s before, 24.9 s after (its log holds no multi-op batch); a 500-op offline-day push was not measured. A dry-run of the batch in memory before a savepoint-free apply would avoid it. Edge Case Hunter and Verification Gap review of Story 10.1. Severity medium (unverified).
   class: debt
   state: ~~open (owner: Epic 11, sync performance and retention)~~ re-owned (owner: Matheus, via `bmad-correct-course`; 2026-09-30, Epic 11 batch C: Epic 11 has no sync performance or retention story, so no batch can own it; a correct-course pass decides whether to add one (R10-12 also expected that story to split `engine.ts` and `apply.ts`) or to date it post-MVP)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-10-2-10-3-contradictions-and-structure-conflicts.md`
-  summary: The third part of the Story 10.1 known limits (re-owned 2026-09-29): an observation the C device wrote before its C result folds as `latest_text` (the result cell carries no merge record yet when the observation folds), so it can replace the NC device's observation although NC stands.
-  evidence: `packages/domain/src/merge/policy.ts` `mergePolicy` (`nc_observation` reads the result cell's `merge` record at the time the observation folds). The standing stamp of Stories 10.2/10.3 does not change the order in which the two paths fold; catching it needs an item-level merge record (the result and the observation merged as one unit), a reducer and row-shape change.
-  class: debt
-  state: open (owner: Matheus, product call on whether the rare order is worth an item-level merge record; otherwise Epic 11)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-11-2-11-3-move-block-and-save-as-template.md`
-  summary: Story 11.2 narrowing (2026-09-30): "Mover para…" sits on the Sumário's Block card (section 9 expansion) and the sheet header Overflow; the 320 px rail tree rows carry no Overflow in `shell-foot.html` nor in code, so they get none. The AC's "tree row" is read as the Sumário tree's equipment row.
-  evidence: `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `RailEquipment` (no OverflowMenu); `mockups/prototype/shell-foot.html` rail rows. OPEN QUESTION in the PR.
-  class: narrowing
-  state: open (owner: Matheus, product call; a later batch adds an Overflow to rail rows if wanted)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-11-9-11-10-priority-deadline-and-action-plan.md`
-  summary: Stories 11.9/11.10 open questions (2026-09-30): the P4 hint word "próxima intervenção" (authored; the mock's "365 dias" is overridden by source-deltas row 29); the undo toast texts "Prioridade gravada", "Prioridade removida", "Prazo substituído" (authored); whether "pontos sem prazo" should count points without priority instead (EXPERIENCE says priority, the story says prazo; built as prazo); whether the table prints when no row carries an action-plan value (built: always); the Points surface "Como imprime na seção 8" preview (`72-pontos.html` 290-318, named by neither story, not built); a P4 deadline stored as a month only (`YYYY-MM`) shows as read-only `mm/aaaa` in Prazo, since the Date field holds whole days.
-  evidence: `packages/domain/src/points/priority.ts`, `apps/web/src/copy/pt-br.ts` (`points.priorityWritten` and neighbours), `apps/web/src/surfaces/points/point-editor.tsx` `PrazoField`.
-  class: question
-  state: ~~open (owner: Matheus and Bruno)~~ the undo toast texts closed 2026-10-07 by the review fixes batch 3 (F-25, decision D12, `spec-review-fixes-layout-copy-3.md`): a pick and a clear show no toast (`points.priorityWritten` and `points.priorityCleared` removed), "Prazo substituído" stays as the undo toast of "Substituir"; the other questions of this entry stay open (owner: Matheus and Bruno)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-field-defects.md`
   summary: F-06 (review 2026-09-30): bulk actions and copies on a 94-block relatório take 2 to 8 s to show any feedback ("Marcar os restantes como Conforme" 7.9 s, "Repetir da ficha anterior" 2.6 s, "Igual à" 2.3 s, an instrument tick in Etapa 4 2.0 s). The cost is the commit path and the live queries (K-1, K-2, W-1, W-3, W-5, W-6, W-8, batch rfp); optimistic sheet state would break AD-13, so batch rff does not change it.
@@ -237,24 +117,11 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: debt
   state: open (owner: wave 2, batch rfr)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-field-defects.md`
-  summary: W-22 (review 2026-09-30): the Export dialog's DOCX and PDF prefetch continues after the dialog closes; no fetch in the app is abortable. Threading an `AbortSignal` needs a `signal` parameter in `sync/client.ts` (`fetchRevisionBlob`, batch rfp).
-  evidence: `reviews/full-review-2026-09-30/1-code-quality.md` W-22; `apps/web/src/surfaces/export/export-dialog.tsx` prefetch effect; `apps/web/src/sync/client.ts`.
-  class: debt
-  state: open (owner: batch rfp adds the `signal` parameter; the dialog passes it in wave 2 (rfr))
-  state: open (owner: Matheus, low; the next Export dialog change)
-
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-kernel-device-perf.md`
   summary: Review fixes rfp (2026-09-30) left four parts outside its files. (1) The `getDefinition` try/catch wrappers outside its files still need moving to the new `findDefinition`/`findSeed` (K-20). (2) `checks/calibration.ts parseCalendarDate` and `format/datetime.ts splitDate` are still duplicates (K-20). (3) `relatorio/section-variables.ts section3Text` is still a dead export (K-19). (4) Home still reads the outbox itself instead of receiving the SyncProvider's rows (W-1).
   evidence: `reviews/full-review-2026-09-30/1-code-quality.md` K-19, K-20, W-1; the spec's Boundaries name the files involved, which belong to `rff`.
   class: debt
   state: open (owner: batch `rfr`, wave 2)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-kernel-device-perf.md`
-  summary: Two review findings of batch rfp (2026-09-30) remain open. (1) The `files.acked` boolean is not migrated to 0/1, so IndexedDB still cannot key it (section 4). (2) There is no test for `readingCountRows` with a cabine thermo-hygrometer suggestion, nor for `lastOpIdFor` after a project-scope op is pruned. The spec's `deferred` list holds the low edge cases.
-  evidence: 60 read/write sites of `acked`, including the e2e helpers in `e2e/support/outbox.ts`; the verification-gap layer's two findings in the spec's Review Triage Log.
-  class: test-gap
-  state: open (owner: `rft` for the e2e-side `acked` sites, with a Dexie v7 upgrade; the next change to `db/suggestion-store.ts` or `db/generate-store.ts` for the two tests)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-6-structure-readings-on-bedrock.md`
   summary: Run `bedrock-eval` on real Porto Seguro nameplate photos (a git-ignored folder under `docs/media/` with `<name>.expected.json` files), pick the cheapest candidate within 1-2 accuracy points of Claude Haiku 4.5 as `bedrock_model_id`, then narrow `infra/bootstrap/iam.tf` to the chosen models (and the escalation model). Until then the default stays Haiku 4.5 and IAM keeps all five models (source-deltas 2026-10-05, Story 11.6).
@@ -289,12 +156,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   evidence: `apps/web/src/surfaces/ficha/read-display.tsx` (`useCamera` in `ReadDisplayButton`, ~:483), `apps/web/src/surfaces/ficha/photo-openers.tsx` `RowPhotoAction`, `apps/web/src/surfaces/relatorio/panel-capture.tsx` (`useCamera`, ~:121); `CameraControl.opening` is there to read.
   class: debt
   state: open (owner: next sheet batch)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-11-11-sheet-photo-strip-and-direct-picker.md`
-  summary: The sheet mounts one more relatório-wide photo tile live query and PhotoViewer instance (`SheetPhotos` on `useCropViewer`, beside the nameplate and readings ones); one shared tile source and viewer per sheet would cut the queries.
-  evidence: review BH8, 2026-10-06; same pattern as the existing mounts, so no user-visible defect today.
-  class: debt
-  state: open (owner: next sheet performance batch)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-11-sheet-photo-strip-and-direct-picker.md`
   summary: The "Fotos da ficha" strip retry pill (`onRetry` -> `retryUpload`) has no e2e of its own; the pill is proven on the checklist row only.
@@ -347,26 +208,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   evidence: `scripts/e2e.ts` `collect()` (`into.results[...] = test.status`); the batch's `--repeat-each=5` run of `journey-forward.spec.ts` (PR #116 body). Predates the batch.
   class: bug
   state: open (owner: the next carry-over batch)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-correctness-1)
-  summary: With a corrupt stored theme, a theme pressed during the provider's first read is put first and then overwritten by `readTheme`'s repair write of 'system' (the localStorage mirror too); the `chosen` guard drops the read result, so the screen shows the choice while `local_prefs` holds 'system' until the next load. Narrow: needs a corrupt row plus a press during the first read.
-  evidence: `apps/web/src/db/prefs.ts:22-29` (repair write in `readTheme`); `apps/web/src/state/theme.tsx:50` (`cancelled || chosen.current`) and `:70-77` (`setTheme`). Fix: skip the repair when a choice was made, or repair only while the row still holds the invalid value (compare-and-put in one Dexie transaction).
-  class: bug
-  state: open (owner: the next carry-over batch)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-correctness-3 and r8gate-tests-4)
-  summary: The source scans in `scripts/e2e.test.ts` are textual. The focused-test scan misses `it.only.each(` and a `.only(` split across lines (`allowOnly: false` and `forbidOnly: true` still fail those at run time). The TST-2 guard has no run-time backup: it checks only the literal `name: 'Sincronizar agora'`, so `getByText`, double quotes or a regex name pass it, and it picks the tap-timing specs by the prose of `SERIAL_SPECS[].why`.
-  evidence: `scripts/e2e.test.ts` `FOCUSED` and the TST-2 test (`/^times (a|every) tap/`, `.includes("name: 'Sincronizar agora'")`); `e2e/support/groups.ts:58-61, :90`. No current spec breaks either; every current use is written `{ name: 'Sincronizar agora' }`.
-  class: test-gap
-  state: open (owner: the next carry-over batch)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-tests-2)
-  summary: `export-dialog.test.tsx` no longer pins that the press asks for the sync cycle at once: its `waitFor(() => expect(pending.syncNow).toHaveBeenCalled())` is also met by the flushing effect's retry kick 10 ms later (`retryMs` 10 in the test, 2000 in production), so removing `void sync.syncNow()` from `start()` keeps it green.
-  evidence: `apps/web/src/surfaces/export/export-dialog.test.tsx:36, :275`; `apps/web/src/surfaces/export/use-generate.ts:372-387, :468-473`. Fix: wait for the dialog's first read before the click and keep the synchronous expect, or give the test a `retryMs` above the wait window.
-  class: test-gap
-  state: open (owner: the next carry-over batch)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-tests-5)
-  summary: `duplicateTestIds()` compares a template id as its source text (`10.3-E2E-00${...}`), so a new literal `10.3-E2E-001` would duplicate a runtime id of `e2e/conflicts.spec.ts:337` unseen, and titles held in a variable are not read at all. No collision exists today.
-  evidence: `scripts/e2e.test.ts` `testIds`; `e2e/conflicts.spec.ts:337, :708`. Fix: expand `${cond ? a : b}` into both ids, or read the ids from `playwright test --list --reporter=json`.
-  class: test-gap
-  state: open (owner: the next carry-over batch)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-rules-2)
   summary: `playwright/no-wait-for-timeout` warns on e2e/** since PR #116, with an allow-list of the files whose fixed waits are the gesture or schedule under test (`e2e/support/taps.ts`, `e2e/lost-taps.durability.spec.ts`). The other 24 `waitForTimeout` calls warn on every lint run until each is shrunk, sized from an app constant or allowed (review TST-7).
   evidence: `eslint.config.js` (the e2e block and its allow-list); `pnpm lint` reports 24 warnings, 0 errors.
@@ -417,36 +258,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   evidence: `packages/domain/src/relatorio/pre-issue.ts` `EXPLICIT_KINDS`, `exportPrecheck`; `apps/web/src/surfaces/export/export-dialog.tsx:419-458`.
   class: debt
   state: open (owner: Matheus)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc batch review, edge-case EC-4 and EC-3)
-  summary: Known open: `conclusionStaleText` names every stale sheet, with no cap ("e mais N") and no disambiguation of two sheets sharing a TAG (the duplicate already has its own `duplicate_tag` row). Many concluded sheets going stale at once (a criterion change in a later seed) would make row 9's meta long.
-  evidence: `packages/domain/src/relatorio/pre-issue.ts` `conclusionStaleText`, `staleConclusionNames`.
-  class: debt
-  state: open (owner: Bruno, with the wording review)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc batch review, edge-case EC-10)
-  summary: Known open: concluding a sheet has no undo toast (unchanged: `conclude` shows the plain "Ficha concluída"), so the folded text cannot be undone from the UI; the batch's inversion is covered by the kernel `invertBatch` test in `conclusion.test.ts` and the generic `undoBatch` tests. After an undo the text fields read as null cells, which every reader treats as absent.
-  evidence: `apps/web/src/surfaces/ficha/use-ficha-actions.ts` `conclude` (`showToast(t.concluded)`); `packages/domain/src/relatorio/conclusion.test.ts` (R8CONC undo case); `apps/web/src/db/commit.test.ts` "batch and undo".
-  class: debt
-  state: open (owner: coordinator)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (independent review of PR #121, r8conc-decision-2)
-  summary: Open question: when a sheet is concluded with a confirmed (never edited) text that went stale, should the conclude replace it with the fresh composition, as it confirms an unconfirmed one? Kept as is for now: the conclude never writes over a stored confirmed or edited text (`conclusionTextOnConclude`), the sheet shows "Sugerido: texto atualizado — Substituir" and row 9 names it (`conclusion_stale`).
-  evidence: `packages/domain/src/relatorio/conclusion.ts` `conclusionTextOnConclude`; `packages/domain/src/relatorio/pre-issue.ts` `staleConclusionNames`.
-  class: debt
-  state: open (owner: Matheus)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-emission.md`
-  summary: Review 2026-10-08 DF-6, narrowed: the issue confirmation names a named party's blank CNPJ ("o CNPJ do contratante em branco", "os CNPJs do contratante e da contratada em branco") and the missing logo ("o logo da empresa não cadastrado") only when it is already asked (empty sheets or `[Rótulo]` blanks, decision D1). Open question for Matheus: should a blank CNPJ or a missing logo alone ask before issuing?
-  evidence: `packages/domain/src/relatorio/pre-issue.ts` `issueConfirmation`, `identityGapParts`; EXPERIENCE.md:337 (D1); source-deltas.md row 27 (warn only, never required).
-  class: debt
-  state: open (owner: coordinator, decision by Matheus)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-emission.md`
-  summary: Review 2026-10-08 DF-1, narrowed: "Pré-visualizar" and "Gerar relatório" stay reachable through the Sumário foot bar made sticky (static under 480 px height, with the page's scroll padding); no "Gerar relatório" entry was added to the header overflow or the Home card (the report's second option).
-  evidence: `apps/web/src/surfaces/relatorio/relatorio.css` (block "Review fixes 2026-10-08 (batch r8emit): DF-1", in r8lay's file); `sumario-surface.tsx` `useStickyBarScrollPadding`.
-  class: debt
-  state: open (owner: coordinator)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-emission.md`
-  summary: Open question (review 2026-10-08 DC-4, DB-5): an arrival toast ("N leituras prontas para confirmar · Ver") now leaves once served (nothing it named is pending off screen) but still never on a timer, as EXPERIENCE.md:262 and the Epic 13 Q-1 decision say for a toast with an action. Should it expire (DE-6 refuted an 8-10 s expiry for undo toasts; nobody decided one for arrivals)?
-  evidence: `apps/web/src/state/reading-arrivals.tsx`; `packages/domain/src/relatorio/arrivals.ts` `arrivalServed`; `state/toast.tsx` header (Q-1, R-1).
-  class: debt
-  state: open (owner: coordinator, decision by Matheus)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-emission.md`
   summary: Open question (review 2026-10-08 DE-6, DC-4): at 390 px the undo toast wraps to 4 lines ("Foto 28 removida do relatório · Desfazer · Fechar") and the arrival toast to 3-4; the report proposes one-line undo copy ("Foto 28 removida · Desfazer") and a 1-2 line cap. Copy from the mocks was kept; the batch only added the bottom room and the focused-field rule.
   evidence: `review-field-ux-and-code-2026-10-08.md` DE-6, DC-4; `apps/web/src/components/toast.tsx`.
@@ -457,21 +268,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   evidence: `apps/web/src/state/reading-arrivals.tsx` `arrivalTarget`; epics.md:2019, :82; EXPERIENCE.md:379.
   class: debt
   state: open (owner: coordinator, decision by Matheus)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-emission.md`
-  summary: Review 2026-10-08 DC-4, known open: when one pull brings both readings and caption suggestions, one toast announces the readings only (one toast at a time; the kernel's `arrivalAnnouncement` rule); the captions stay on the gallery's "N legendas sugeridas" line and Sumário row 7. Captions of two relatórios in one pull are counted together while "Ver" opens one gallery. A panel suggestion arriving while its Sumário `?panel=` result dialog shows it is still announced (pre-existing).
-  evidence: `packages/domain/src/relatorio/arrivals.ts`; `apps/web/src/state/reading-arrivals.tsx`; spec triage log (2026-10-08 review pass).
-  class: debt
-  state: open (owner: coordinator)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-emission.md`
-  summary: Residual risk (QW25): "Pré-visualizar" pressed in the first moments after a load, before the sync provider's first outbox read lands, reads `counts.dead` as 0, opens the blank tab and closes it again when the drain finds the dead op (the refusal still shows). The tab must open inside the press, so the press-time check cannot wait for the read.
-  evidence: `apps/web/src/surfaces/export/use-preview.ts` `start`; `use-generate.ts` `outboxRead` guard for comparison.
-  class: debt
-  state: open (owner: coordinator)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-emission.md`
-  summary: Known open from the independent review of PR #119 (lows, not fixed in the batch): (1) r8emit-toast-2: `keepClearOfToast` scrolls the window only, so a focused row in a nested scroller (the ficha rail at 768-1024 px with the rail open) stays under the toast while the page behind it jumps; (2) r8emit-export-barrier-2: the preview and audit polls do not stop on a session known to be gone (pre-existing; the re-auth banner shows, and signing in again resumes the poll); (3) r8emit-correctness-tests-1: closing the Export dialog after the preview job was asked closes the waiting tab and drops the preview without a word (the server render is wasted).
-  evidence: the independent review of PR #119 (findings r8emit-toast-2, r8emit-export-barrier-2, r8emit-correctness-tests-1); `apps/web/src/components/toast.tsx`; `use-preview.ts`, `use-audit.ts` poll loops.
-  class: debt
-  state: open (owner: coordinator)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
   summary: Open question (review 2026-10-08 DC-1): the transformer TTR at tablet widths stays a table (UX-DR40 "real table at every width", UX-DR74 "tables in full in landscape"); in a 657 px box (768 portrait with the strip, 1024 with the 320 px rail) its eight columns at their whole-word minimum (about 825 px, measured 2026-10-09 once the unit and the "Não medido" trigger wrap under the input: TAP 44, V 114 + 114, Calculado 113, captures 3 x 120, Condição 80) do not fit, so the table scrolls inside its own `.mt-scroll` box, the title row and the page still; from 1280 (864 px) it fits. Cards up to 1279 px, or an auto-collapsing rail while a sheet is filled (DC-8), are the alternatives the report proposes.
   evidence: `apps/web/src/surfaces/ficha/ficha.css` (block "Review fixes 2026-10-08 (batch r8lay)"); `ensaios-section.tsx` `.mt-scroll`; report DC-1, DC-8; spec Design Notes.
@@ -480,11 +276,6 @@ From now on a row moves to the archive when it closes: strike its state through,
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
   summary: Open question (review 2026-10-08 DA-6): the phone Sumário tree rows keep the drag handle and the Position box on every row (about 100 px left for TAG, type and state); the batch only keeps words whole. Hiding the handle or the Position box below 768 px (reorder from the menu or a "Reordenar" mode) is a product change.
   evidence: `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `SumarioEquipment`; `relatorio.css` (block r8lay DA-6); report DA-6.
-  class: debt
-  state: open (owner: coordinator, decision by Matheus and Bruno)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
-  summary: Open question (review 2026-10-08 DB-3): abbreviating or dropping the Linha / Terra / Guard columns (an empty Guard column at phone width) would let the phone isolation tables fit without their own scroller; the batch keeps every column and its words whole, and lets a too-wide table scroll inside `.mt-scroll`.
-  evidence: `apps/web/src/surfaces/ficha/ficha.css` (phone table rules); report DB-3; EXPERIENCE.md:307.
   class: debt
   state: open (owner: coordinator, decision by Matheus and Bruno)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
@@ -503,11 +294,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: debt
   state: open (owner: coordinator)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
-  summary: ~~Known open~~ Open question against Story 13.4 INP-2 (epics.md:2837-2839, "done" on the run's last input before the primary; independent review of PR #122, r8lay-rules-2, 2026-10-09) (review 2026-10-08 DB-7): every plate and cabine text, number and date-text field labels the keyboard's Enter key "next", including the last one before the sheet's primary (the readings' run computes "done" from the kernel's run; the plate has no such run in the kernel). Also: Enter in a select or a manufacturer / voltage class field does not run on.
-  evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `focusNextMissingField`, `enterKeyHint="next"`.
-  class: debt
-  state: open (owner: coordinator, decision by Matheus: keep "next", or compute "done" when no missing-field marker follows the field, a dynamic target the plate run gained with DB-7)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
   summary: Known open (review 2026-10-08 DH-1): an unreadable voltage class ("abc") typed and left in Classe de tensão creates nothing and stays as typed text, unsaved and unmarked (today's behaviour; `parseVoltageClassKv` returns null).
   evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `WordField` `onCreate`; `apps/web/src/components/registry-picker-field.tsx` `commitLeft`.
   class: debt
@@ -522,21 +308,11 @@ From now on a row moves to the archive when it closes: strike its state through,
   evidence: `ficha.css` r8lay TTR block; `ficha-fields.tsx` `focusNextMissingField`; R8LAY-E2E-001/009.
   class: debt
   state: ~~open (owner: coordinator, at the integrated QA pass)~~ re-owned (2026-10-14, E14-A2): owner Matheus's device run with the Epic 13 steps of `test-artifacts/manual/offline-proof-script.md` (E13-A3); no integrated QA pass ran it on a real tablet.
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-layout-interaction.md`
-  summary: Narrowing 8 of PR #122: the spec's task "scope the E9-Q4 phone wrap off a confirmed reading's cell" was not done (it put the crop glyph on the input's line and pushed the contact tables past their 358 px box, 9.4-E2E-011); the input and its unit control still share their line, asserted by R8LAY-E2E-010 and the 8 px hit test of R8LAY-E2E-002 on the real phone tables. A wider confirmed value or a narrower table could still wrap the unit off the line.
-  evidence: `apps/web/src/styles/app.css` (r8lay block, DB-2/DB-3 note); spec triage log (maybe-false row).
-  class: debt
-  state: open (owner: coordinator)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-concluir-text.md` (r8conc second gate, 2026-10-09)
   summary: Process pitfall: the compose `api` service runs `tsx watch src/main.ts`, which does not reload a change under `packages/domain` (reached through the workspace link), so an e2e run after a kernel edit meets a server that still folds with the previous kernel; the web bundle is rebuilt by `scripts/e2e.ts` and is current. The r8conc gate met it: R8CONC-E2E-004 failed with the server cell merged `latest_text` while the device folded a `contradiction`. A batch that edits the fold (`ops/apply.ts`, `merge/`) restarts the api (`podman compose restart api`) before its e2e run; a gate step or a watch on `packages/domain` would settle it.
   evidence: `docker-compose.yml` api `command: pnpm --filter @app/api dev`; `apps/api/package.json` `"dev": "tsx watch src/main.ts"`; `/tmp/gate2-r8conc-e2e.log` (R8CONC-E2E-004 `expectConverged` diff).
   class: debt
   state: open (owner: coordinator)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-dry-transformer.md` (r8dry, amendment 2026-10-09; independent review r8dry-decision-3)
-  summary: Clearing or changing TIPO DE ISOLAÇÃO after the chip wrote the NA marks keeps those marks (the chip goes away and VOL. ÓLEO counts again). Whether clearing should offer to unmark them is an open question for Matheus.
-  evidence: `packages/domain/src/relatorio/dry-insulation.ts` `oilNaChipItems`, `nameplateMissingKeys`; `apps/web/src/surfaces/ficha/nameplate-section.tsx` `markOilItemsNa`; spec frontmatter `deferred`.
-  class: question
-  state: open (owner: Matheus)
 - source_spec: `_bmad-output/implementation-artifacts/review-fixes-2026-10-08-context.md` (closing PR of the round, review of PR #124)
   summary: Wording review of the pt-BR copy the round's PRs marked `// authored:` (no mock shows it). #118: `copy.account.screenHeading` "Tela", `keepScreenOnLabel` "Manter a tela ligada", the kernel's `keepScreenOnSubText()` ("Enquanto uma ficha, a câmera ou uma leitura estiver aberta. Depois de 10 minutos sem toque a tela volta a apagar sozinha."), `cameraSavingText` ("Salvando a foto…", "Salvando as fotos…"), `copy.readingWait.empty` "Nada foi lido nesta foto", `ui.suggestionField.keepTyped` "Manter o digitado". #119: `copy.export.deadOpsPreviewReason`, `copy.audit.deadOpsReason`, `precheckCountMetaText(1)`, `outrasCondicoesLabel(1)` and the DF-6 parts ("o CNPJ do contratante em branco", "o CNPJ da contratada em branco", "os CNPJs do contratante e da contratada em branco", "o logo da empresa não cadastrado"). #120: `oilNaChipText` ("Marcar N itens de óleo como NA"), `oilItemsNaText` ("N itens de óleo marcados NA") and the chip's place under TIPO DE ISOLAÇÃO. #121: `conclusionStaleText` (its own row above) and the Conflict view's `CONCLUSION_WORDS` ("Confirmado", "Editado"). #122 added none.
   evidence: the "New pt-BR copy" sections of the PR bodies of #118, #119, #120 and #121; `apps/web/src/copy/pt-br.ts`, `apps/web/src/copy/ui.ts` and the kernel modules named.
@@ -552,52 +328,16 @@ From now on a row moves to the archive when it closes: strike its state through,
 ## Deferred from: Story 14.2, Local › Painel › Coluna (2026-10-13)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
-  summary: O2. The mock's location Overflow items "Mover para outro local" (a painel or coluna moved to another parent), "Duplicar" and "Adicionar abaixo" are not built on either surface; a location moves only among the siblings of its own parent and kind (`moveNode`, `moveLocation`).
-  evidence: `packages/domain/src/templates/compose.ts` `moveNode`; `apps/web/src/surfaces/relatorio/tree-actions.ts` `moveLocation`; spec Never list and O2.
-  class: question
-  state: open (owner: Matheus)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
   summary: O4. Announcement and toast wording for the three levels is authored: noun-led sentences with agreement ("Local Geradores movido para a posição 4 de 6", "Painel 2 adicionado", "Coluna 5 movida"), a local whose name leads with "Cabine" read by its name alone in the feminine ("Cabine de transformação adicionada", "Cabine primária atualizada"), and "⟨local⟩ atualizado" after "Função e nome". The mock's toasts carry hints and bare names. Also authored and to review: the dialog's "Escolha a função", "Informe a função", the list names "Equipamentos direto em ⟨local⟩" and "Painéis de ⟨local⟩", and the pre-issue row "Local ⟨nome⟩ sem equipamento".
   evidence: `packages/domain/src/templates/text.ts` `itemPhrase`, `said`, `localUpdatedText`; `apps/web/src/copy/pt-br.ts` `localDialog`, `sumario.tree`; `packages/domain/src/relatorio/pre-issue.ts` `cabineSemEquipamentoText`.
   class: docs
   state: open (owner: Bruno's copy review)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
-  summary: O5. A local that already holds colunas directly (every tree and template from before the painel level) keeps the "current coluna" palette target and its "Adicionar bloco em ⟨local⟩" button, and keeps offering "Adicionar coluna" on both surfaces; only a local with no direct coluna shows "Adicionar equipamento no local". Decide whether such a local should also take equipment directly, or be converted (its colunas moved under a painel).
-  evidence: `packages/domain/src/relatorio/tree.ts` `paletteLocationFor`; `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `locationMenu`; `apps/web/src/surfaces/templates/skeleton-list.tsx` `LocalCard`.
-  class: question
-  state: open (owner: Matheus)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
-  summary: Narrowed, tree texts with no mock: (a) the Sumário's local data line ends with "sem painéis" only when nothing hangs under the local, and a local with direct colunas counts them in the rail ("N colunas"); (b) the rail's coluna row keeps its progress counter ("Coluna · 1 de 3" when the name does not say Coluna) where the mock writes "N fichas"; (c) a painel with no coluna reads "Painel · sem colunas" and shows the composer's empty-painel note in the tree.
-  evidence: `packages/domain/src/relatorio/tree.ts` `locationMetaTexts`; `packages/domain/src/relatorio/tree-painel.test.ts`.
-  class: docs
-  state: open (owner: Bruno's copy review)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
-  summary: Narrowed, where EXPERIENCE.md won over the mock: the Template composer keeps the "Agrupar por tipo" Toggle on the local card beside the mock's sub-line ("Função: primária · Agrupar por tipo: ativado"), local and painel cards open by default, and the relatório tree's location rows carry a drag handle and a Position box ("drag, Position box, Overflow menu, or Alt+arrows" at every level), hidden below 768 px. The mock draws none of the three; confirm or redraw.
-  evidence: `apps/web/src/surfaces/templates/skeleton-list.tsx` `LocalCard`; `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `reorderControls`; `apps/web/src/styles/app.css` (tree rows).
-  class: question
-  state: open (owner: Matheus)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
-  summary: Not touched: a photo's caption and the gallery name where a photo was taken as coluna plus local, without the painel's name, while the sheet header names the whole path ("⟨local⟩ › ⟨painel⟩ › ⟨coluna⟩"). Decide whether the painel enters the photo's place text.
-  evidence: `packages/domain/src/photos/` (the place part of a caption); `packages/domain/src/relatorio/location-path.ts` `locationPathText`.
-  class: question
-  state: open (owner: Matheus)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
   summary: Coordinator review 2026-10-13 (a). The painel refusal can be bypassed by op order, and the reducer never checks what a painel hangs under. `applyOp` refuses a block create or a `block/{id}/location_id` put naming a painel only when the painel row is already in state (a location not in state is not checked, for replay safety), so a block op applied before its painel's create is accepted and the block stays on the painel; the tree draws it under the painel and `templateFromRelatorio` and `instantiateTemplate` skip it. And a `location/{id}` create of kind `painel` is stored whatever its `parent_id` names: the row schema asks only for a non-null parent, so a painel under a coluna or under another painel is accepted by both layers (no client writes one; the kernel tree draws it under that parent). Decide whether the server refuses a block op whose location it does not hold, and whether the fold checks the parent's kind once the parent is in state.
   evidence: `packages/domain/src/ops/apply.ts` (`carriedLocationId`, `targetsOf`, the `LocationKindError` checks; no parent-kind check in the location create); `packages/domain/src/schemas/entities.ts` `locationRowSchema`; `packages/domain/src/ops/apply.test.ts` "a location not in state is not checked, as before"; spec triage log, the `ops/apply.ts` finding (marked real on 2026-10-13).
   class: question
   state: open (owner: Matheus; the architect for the fold rule)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
-  summary: Coordinator review 2026-10-13 (b). Since Story 14.2 `targetsOf` also names the location a block create or a `location_id` put points at, so the device's `targets` index (`outbox.targets`, `remote_ops.targets`) holds that location key for ops written by a contract-17 bundle and not for the block ops an earlier bundle stored: the index is mixed across bundles. Traced consequences: a pulled block create re-materializes its location (extra work, the same row), and `rematerialize` reads block ops for a location key and ignores them; no wrong row was found. The risk is a later reader that takes "every op whose targets hold this location key" to mean "every op on this location". A read-only ref list kept apart from the write targets would remove it, at the cost of a new public kernel surface.
-  evidence: `packages/domain/src/ops/apply.ts` `targetsOf`; `apps/web/src/db/commit.ts` (`targets` of an outbox row); `apps/web/src/db/sync-store.ts` `rematerialize`; `apps/web/src/db/decision-store.ts` `createFacts` (reads equipment keys only today).
-  class: debt
-  state: open (owner: the architect)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
   summary: Coordinator review 2026-10-13 (d). The Porto Seguro fixture's op log maps every skeleton node that is not a cabine to `kind: 'coluna'` (`locationRow`), which is right only while the standard template holds no painel: a painel added to that template would be written as a coluna, silently, and the goldens would be regenerated from a wrong tree. Make the mapping exhaustive over the three kinds (or throw on a painel) before the standard template ever gains one.
@@ -623,35 +363,11 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: debt
   state: open (owner: the architect)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
-  summary: Second pass 2026-10-13 (j). Two fold behaviours a location removal now sweeps many sheets through, both older than this story and both reducer changes (a contract bump) to alter. (1) A `remove` of a row that is already removed re-stamps its `removed_at`: a device that removes a coluna it has not yet seen removed with its painel moves the coluna and its sheets to its own timestamp, so the painel's restore leaves them out; they are then offered on their own once the painel is back, so nothing is lost, but the painel's entry counted them. (2) A `block/{id}/removed_at` remove that lands on a block already removed and holding an undecided removed-versus-edited mark drops the mark (`writeRemovedAt`): an offline device removing the local above sends such a remove for every sheet it still saw live, and the pending decision disappears with nobody choosing.
-  evidence: `packages/domain/src/ops/apply.ts` `writeRow` (the default branch writes `client_ts` whatever the row held) and `writeRemovedAt` (`block.removed_at !== null` returns the plain removal); `apps/api/src/sync/marks.ts` (guards only a mark-blind client). Edge Case Hunter findings 3 and 4 of the second pass.
-  class: question
-  state: open (owner: the architect, then Matheus if the fold changes)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-2-local-painel-coluna.md`
-  summary: Second pass 2026-10-13 (k). Three product choices left as built. (1) The "Desfazer" of "Adicionar coluna", "Adicionar painel" or "Adicionar local" writes a removal, so the undone, empty location is offered in "Restaurar ficha removida" until the next emission, as an undone "Adicionar bloco" already is for a sheet. (2) A location with no sheet is removed with no confirmation (the criterion's rule); a sheet that reaches it between the press and the commit leaves with it, recoverable by the toast's "Desfazer" or the restore entry. (3) The photos and points of a sheet removed with its location follow the sheet exactly as they do for a sheet removed alone; the removal writes no tombstone of its own for them.
-  evidence: `packages/domain/src/ops/outbox.ts` `invertBatch` (a create is undone by a remove); `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` (the confirm rule); `packages/domain/src/relatorio/removal.ts` `locationRemovalPlan`. Edge Case Hunter finding 10 of the second pass.
-  class: question
-  state: open (owner: Matheus; Bruno for whether an empty undone location should be listed)
-
 ## Deferred from: Stories 14.3 and 14.4, Verificações do local (2026-10-13)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: O1. "Concluir verificações" stores nothing: the site checklist has no "concluded" state, it is complete when its 19 items are answered. The button names what is missing (a toast, as the mock draws it) and focuses the first unanswered row, or returns to the tree when nothing is missing. Decide whether a local's checklist should hold a concluded mark of its own (who, when), as a sheet does.
-  evidence: `apps/web/src/surfaces/local/verificacoes-surface.tsx` `conclude`; `packages/domain/src/relatorio/site-checklist.ts` (`siteMissingText`, `siteFirstUnanswered`); spec Design Notes O1.
-  class: question
-  state: open (owner: Matheus)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
   summary: O2. A C or NC against NA contradiction on a site item (two devices, concurrent) keeps the `seq`-later value and marks the cell `conflict`, as a sheet cell does, but it is not a decision in the Conflict view and no banner counts it: the mark is invisible on "Verificações do local". Decide whether site cells enter the Conflict view (block-scoped today) or are resolved on the surface itself.
   evidence: `packages/domain/src/merge/policy.ts` (the `location/checklist` branches); `packages/domain/src/merge/conflicts.ts` (block-scoped decisions, not extended); `packages/domain/src/ops/site-checklist.test.ts`; spec matrix row "Two devices, same item" and O2.
-  class: question
-  state: open (owner: Matheus)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: O4. No photo-read NC draft on a site item: a site item's photo is created with no reading (`reading_kind` null), so an NC site row never shows "Rascunho pela foto" above its observation, as an NC sheet row does (Story 9.5).
-  evidence: `apps/web/src/surfaces/local/verificacoes-surface.tsx` (`photoTarget` with `reading: null`, `siteRowTarget.ncDraft: null`); `packages/domain/src/reading/` (`ncObsReadingOf` is block-scoped); spec Never list and O4.
   class: question
   state: open (owner: Matheus)
 
@@ -661,42 +377,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: question
   state: open (owner: Bruno) | 2026-11-24 audit: NC phrases accepted 2026-10-15 (sprint-status.yaml:1399, E14-A10); the other `// authored:` strings wait for the tablet session (E14-A10, E17-A3 both open); owner: Bruno
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: Narrowing: the capture surface is one column with no relatório rail beside it, although mock 61 is drawn inside the shell with the rail (`data-rail="true"`). The spec's task lists the header, the intro, the groups and the Sticky action bar; the rail's "Verificações do local" row is built in the tree's rail presentation (the tree surface and a sheet's rail) and is not marked as the current row anywhere. Back goes to the tree surface on a phone and to the Sumário with section 9 open from 768 px.
-  evidence: `apps/web/src/surfaces/local/verificacoes-surface.tsx`; `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` `RailLocation` (`li[data-site-of]`); `apps/web/src/app.tsx` (the route's `back` and `backWide`); mock `61-verificacoes-local.html:37`.
-  class: question
-  state: ~~open (owner: Matheus, at the epic 14 integrated review)~~ re-owned (2026-10-14, E14-A2): owner Matheus, product decision on the rail beside the Verificações surface; the integrated review ran (`epic-14-qa-2026-10-13.md`) without raising it, so it joins the open Epic 14 decisions of E14-A9.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: Narrowing: an NC site row is the sheet checklist's row, by the spec's reuse rule, so three things of mock 61 are not drawn: the photo tile inside the NC expansion (`.vl-photo-row`; the item's photos are the Photo tile rows under the row, as on a sheet), the count in the photo reason ("1 foto · recomendada para não conforme"; the reason stays "Recomendada para não conforme") and the "Outro…" chip that opens the full list of observations. The bulk bar's reason line "7 itens marcados — toque de novo para desfazer" is the prototype's toggle: the app raises the toast with "Desfazer", as the spec's matrix says.
-  evidence: `apps/web/src/surfaces/ficha/checklist-section.tsx` `ChecklistRow`; `apps/web/src/surfaces/local/verificacoes.css` (header comment, what is left out); mock `61-verificacoes-local.html:54,81`.
-  class: question
-  state: open (owner: Bruno, on the first real job)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: Narrowing: beside a denied camera a site row's "Adicionar fotos" opens the system file picker and saves the files on that item at once (the local, the item and the kernel's caption), with no Photo capture sheet and no "De qual equipamento?" step, which are block-scoped. The gallery's batch assignment likewise knows blocks only: a site photo given a sheet there keeps its `location_id` and is read as its block's (the kernel's rule).
-  evidence: `apps/web/src/surfaces/local/verificacoes-surface.tsx` (`useDirectPicker`, `importFiles`); `apps/web/src/surfaces/photos/capture-sheet.tsx` (`mode.kind === 'sheet'`, `preselectBlockId`); `apps/web/src/surfaces/photos/photo-ops.ts` `assignPhotoBatch`.
-  class: debt
-  state: open (owner: the next story touching the Photo capture sheet)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: Narrowing: the Caption composer cannot compose a site photo's caption from its three chip rows (the caption is its own sentence, "Verificação de ⟨item⟩ d⟨o/a⟩ ⟨local⟩", not the "Detalhe d… realizad… n…" grammar). A site photo therefore opens the composer in "Editar texto" on its stored caption, or on the kernel's caption for it when none is stored; turning "Editar texto" off composes from the chips alone.
-  evidence: `apps/web/src/surfaces/photos/caption-composer.tsx` (`prefillText`); `apps/web/src/surfaces/photos/photo-caption-dialog.tsx`; `packages/domain/src/photos/caption.ts` (`siteCaption`, `contextCaptionParts` unchanged).
-  class: question
-  state: open (owner: Bruno, with the caption copy of O5)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: Accepted (spec Design Notes): a relatório created offline from a template row the device has not pulled since the server moved it to seed v4 is born on the old version and has no site checklist, for good (no relatório's `seed_version` is rewritten). The office can only recreate it once the device has synced.
-  evidence: `apps/api/src/db/template-seed-upgrade.ts`; `packages/domain/src/relatorio/instantiate.ts` (a relatório takes its template's version).
-  class: question
-  state: open (owner: Matheus; revisit if a real job hits it)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: The mock's `.s9-verif` line is 44 px tall; the app draws it 48 px (`--touch-min`) because DESIGN.md's touch target wins over a mock and ERGO-E2E-001 measures every control on the Sumário; "Editar" on the observation line keeps the mock's zero padding and is given a 48 px minimum width for the same reason. Fold both into the mocks at the next mock pass.
-  evidence: `apps/web/src/surfaces/relatorio/relatorio.css` (`.s9-verif`, authored override); `apps/web/src/surfaces/local/verificacoes.css` (`.vl-obs-line .btn-text`); `e2e/ergonomics.spec.ts`.
-  class: debt
-  state: open (owner: the next mock pass, Sally)
-
 ## Deferred from: review of batch e14b, Stories 14.3 and 14.4 (2026-10-13)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
@@ -705,43 +385,7 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: debt
   state: ~~open (owner: the epic QA)~~ re-owned (2026-10-14, E14-A2): owner the next story touching the site rows' photo list (`apps/web/src/surfaces/local/`), which adds the test; the Epic 14 QA did not open "Legendar" on a site photo.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: 2026-10-13, review of batch e14b. `location_id` on a file or a point is not checked at the fold: an id naming a painel, a coluna or no location is accepted. A point naming a location that is not in the snapshot is left out of it with no trace (`pointsOfLiveLocals`); one naming a live painel or coluna stays and reads "Geral" (`pointTitle`, since this review). No client writes either: every writer takes the id of a live root cabine.
-  evidence: `packages/domain/src/ops/apply.ts` (no branch reads the row a file's or a point's `location_id` names; `carriedLocationId` covers blocks only); `packages/domain/src/schemas/snapshot.ts` `pointsOfLiveLocals`; `packages/domain/src/relatorio/site-checklist.ts` `siteLocalOf`; `packages/domain/src/points/summary.ts` `pointTitle`.
-  class: question
-  state: ~~open (owner: the integrated epic review)~~ re-owned (2026-10-14, E14-A2): owner the architect, with the location-liveness decision of E14-A8 (one kernel accessor or an accepted list); the integrated review ran without settling it. | 2026-11-24 audit: partly closed: a missing location is refused (Story 20.10, batch e20f, `packages/domain/src/ops/targets.ts:174,178`, `op_target_missing`); left: a painel or coluna id is still accepted, pending the E14-A8 liveness decision (sprint-status.yaml:1373), owner: architect / Matheus
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-3-14-4-verificacoes-do-local.md`
-  summary: 2026-10-13, review of batch e14b. `MergeInfoContext.relatorios` has no production caller (`mergeTextContext` in `apps/web/src/db/sync-store.ts` passes none), so a site merge entry numbers its item by the current seed and not by its relatório's. Harmless while every seed ships the same site list.
-  evidence: `packages/domain/src/merge/info.ts` (`MergeInfoContext.relatorios`); `apps/web/src/db/sync-store.ts` `mergeTextContext`.
-  class: debt
-  state: open (owner: the story that first changes the site list)
-
 ## Deferred from: Story 14.5, the measurement table and the Chave de transferência automática (2026-10-13)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: N1, narrowed. E6 (termografia): the columns ΔT similares and ΔT ambiente are typed by the technician (optional numbers in °C, never counted as missing), and the Classe is chosen from its four options (a select in the cell, see W1 below); the verdict comes from the Classe alone (`choice_pass`, only Normal passes). The approved mock draws the two ΔT cells as calculated (`.cell-calc`, from the temperatures and the ambient value) and the Classe as text derived from them. Left out: any computed cell. Why: the grammar has no derived column ("no derived column" is the decision recorded in the spec's Never list and in `epic-14-context.md`, Dropped). Lifted by a derived column kind in the grammar, shipped as a later seed version. Revisit after the first real job with a CTA.
-  evidence: spec Design Notes, Narrowings; `packages/domain/src/seed/v5.ts` `E6_TERMOGRAFIA`; `packages/domain/src/seed/measurement.ts` (the column kinds); mock `mockups/prototype/screens/63-ficha-cta.html:326-335`.
-  class: question
-  state: open (owner: Matheus, product decision on a derived column; Bruno says after the first job whether typing the ΔT is acceptable)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: N2, narrowed. E5 (transferência): the Ajuste column is typed (optional), with two fixed cells ("limite 10 s" on "Até carga na Emergência", a dash on "Falha da Emergência"). The mock draws every Ajuste cell as dim text echoed from E4's retardos ("3 s (TD 1C)", "5 min (TD 3A)", "5 min (TD 2E)"). Left out: reading E4's Deixado into E5. Why: a cell of this grammar cannot refer to another test; the spec keeps the grammar to what one table holds. Lifted by a cross-test reference in the grammar (a later seed version), or dropped if the technicians find typing it fine. Revisit after the first real job with a CTA.
-  evidence: spec Design Notes, Narrowings; `packages/domain/src/seed/v5.ts` `E5_TRANSFERENCIA` (column `ajuste`, the two `fixed` rows); mock `63-ficha-cta.html:305-309`.
-  class: question
-  state: open (owner: Matheus, product decision; Bruno's answer after the first job)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: N3, narrowed. The mock's row note under "Falha da Normal até partida" (`.cta-skip`, shown when the método is the controller's test button) is not built. In its place the método option itself carries the wording in the test's values line, on the sheet and in the printed MÉTODO line (the option's `phrase`, which says the engine-start delay TD 1C is skipped), as § 8.4 asks ("the sheet notes the method beside the times"). Left out: a helper text on one row that depends on a test value. Why: the grammar has no row note. Lifted by a row note conditional on a value (a later seed version) if the line beside the times proves not enough.
-  evidence: spec Design Notes, Narrowings; `packages/domain/src/seed/v5.ts` `E5_TRANSFERENCIA.values` (`metodo`, option `botao_teste`); `packages/domain/src/print/section-9.ts` `measurementTestPart` (the values line); mock `63-ficha-cta.html:107-108, 305`; `sprint-change-proposal-2026-10-08.md` § 8.4, the sentence under "Options of E5".
-  class: question
-  state: open (owner: Bruno, after the first real job with a CTA: is the method line enough, and is its wording right)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: N5, narrowed. The CTA's configuration (tensão, polos, neutro, transição, bypass) is set on the sheet, in its Configuração section, through `block/{id}/config`; a block added from either palette starts on the seed defaults (BT, 3 polos, neutro sólido, transição aberta, sem bypass). The Template composer adds the type with the Quantity stepper only: its type dialog asks nothing about the configuration, because the approved composer mock draws no such step. Left out: preparing the configuration in the office, in the template. Lifted by a configuration step in the composer (needs a mock first).
-  evidence: spec Design Notes, Narrowings and Keys; `packages/domain/src/relatorio/measurement-evaluation.ts` `configFieldsOf`, `blockConfigWithOption`; `apps/web/src/surfaces/ficha/configuracao-section.tsx`; mock `mockups/prototype/screens/42-template-composer.html:186-188, 283`.
-  class: question
-  state: open (owner: Matheus, product decision and a mock; revisit after the first real job with a CTA)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
   summary: N6, narrowed. Only E1 (the instruments registered for resistência de contato) and E2 and E3 (those for isolação) offer the instrument picker and print an instrument line. E4 (ajustes do controlador), E5 (transferência) and E6 (termografia) offer none and print none, and an instrument put on them is refused. Why: an instrument in the registry is flagged for the seeded test kinds only, and the spec forbids a new registry field in this story. Left out: naming the timer or analyser of E5 and the thermal camera of E6 on the relatório. Lifted by a registry flag for those uses and `instrument_of` gaining the values.
@@ -754,36 +398,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   evidence: `packages/domain/src/seed/v5.ts` `E2_ISOLAMENTO_PRINCIPAL.criteria` (`seeded: 'isolacao'`, `when` tensão mt); `packages/domain/src/seed/criteria.ts`; spec I/O matrix row "Absolute"; `sprint-change-proposal-2026-10-08.md` § 8.4 (E2 row) and § 8.5 items 1 and 2.
   class: question
   state: open (owner: Bruno; recorded, to adjust after first use)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: W1, narrowed in the web slice. A choice cell with two options (E4 "Falta de fase": Ligado, Desligado) is a Segmented control in the mock's `td.cell-yn`, as the spec's task says. A choice cell with more than two options (E4 "Exercitador", E6 "Classe": four each) is the sheet's select (`select.input`), with "Selecione" (clears the cell) and "Não medido" among its options. Why: four segments in each of four columns fit no tablet side by side, and the approved CTA mock draws these cells as a value box, not as segments. Left out: a Segmented control for every choice cell, as the spec's task line reads literally. Decide whether the select stands.
-  evidence: spec Tasks, phase 2, first bullet ("choice cells as Segmented control"); `apps/web/src/surfaces/ficha/measurement-test-section.tsx` `ChoiceCell` (`SEGMENTED_OPTIONS`); mock `mockups/prototype/screens/63-ficha-cta.html` (the "Falta de fase" and "Exercitador" rows; page rule `td.cell-yn`); `mockups/MOCK-GUIDE.md` ("linha sim/não como segmentado").
-  class: question
-  state: ~~open (owner: Matheus, at the browser pass on the integrated main)~~ re-owned (2026-10-14, E14-A2): owner Matheus, product decision listed in E14-A9 (14.5 W1); the browser pass on the integrated main ran (`epic-14-qa-2026-10-13.md` section 3) without a finding on it.
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: W2, narrowed in the web slice. Text the mock draws and the sheet does not: the helper lines under Tensão ("BT: E2 a 1.000 Vcc ...") and Polos ("4 polos: E1 e E2 ganham a linha do neutro (N)") in Configuração, the helper under the E5 Método, the section notes of E3 and E4, the table titles (`.mt-title`: "Polo × lado", "Tempos") and the prose after each criterion source. Why: each restates a fact the seed owns (a criterion value, which rows a configuration shows) or is example data, and the grammar carries no helper, note or table title, so the web would hold a second copy that a later seed version could contradict. The criterion text and its source are the kernel's and are shown. Lifted by `helper` and `note` fields on the grammar's config field, value and test (a later seed version) if the technicians miss them.
-  evidence: `apps/web/src/surfaces/ficha/configuracao-section.tsx`, `apps/web/src/surfaces/ficha/measurement-test-section.tsx`; `packages/domain/src/seed/measurement.ts` (`configFieldSchema`, `measurementValueSchema`, `measurementTestSchema`); mock `63-ficha-cta.html` (the `.helper`, `.section-note` and `.mt-title` elements of the Configuração and E1 to E6 sections).
-  class: question
-  state: open (owner: Bruno for the wording, Matheus for adding the fields; after the first real job with a CTA)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: W3, the spec's first acceptance criterion against an older narrowing. The criterion says that after the composer adds a CTA "the node shows it with the suggested TAG". The Template composer has never drawn the mock's `.qty-tag` line ("TAG ao criar: CTA-C05") for any type: Stories 3.3 and 3.4 left it out and Story 14.2 kept it out. Built: the node lists the type by name with its stepper and the template totals name it; the suggested TAG is shown where the app shows suggested TAGs, on the field palette's row ("17 itens · até 6 ensaios · CTA-GERADORES") and on the block at creation. Left out: `.qty-tag` on the composer's quantity rows, which would be for all nine types and touches the composer of batch e14a.
-  evidence: spec Acceptance Criteria, first bullet; `_bmad-output/implementation-artifacts/spec-3-3-3-4-templates-list-and-composer.md:67` ("no ... TAG suggestions (`.qty-tag`)"); `apps/web/src/surfaces/templates/templates.css:17`; `apps/web/src/surfaces/templates/skeleton-list.tsx` `QtyGrid`; `apps/web/src/surfaces/relatorio/block-palette-field.tsx` `ItemBody`; mock `mockups/prototype/screens/42-template-composer.html:283`.
-  class: question
-  state: open (owner: Matheus: draw `.qty-tag` in the composer for every type, or reword the criterion)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: W5, narrowed in the web slice. A measurement test's table has no "Ler visor" and no Dictation button, and its Instrument picker (E1 to E3) shows no "Sugerido" instrument and "Concluir ficha" writes none: the display-reading fixtures, the table utterance parser and `suggestedInstruments` are the four seeded grammars'. The picker lists the registry instruments that fit the seeded test kind the seed names (`instrument_of`), the one last used for that kind in the relatório first, and stores the header under the measurement test's own key. Every cell is typed. Left out: the three assists on a library type's tables.
-  evidence: `apps/web/src/surfaces/ficha/measurement-test-section.tsx` (no `.mt-actions`); `apps/web/src/surfaces/ficha/instrument-picker.tsx` (`instrumentOf`); `packages/domain/src/relatorio/instrument-pick.ts` `suggestedInstruments` (walks `definition.tests`); `apps/web/src/surfaces/ficha/ensaios-section.tsx` (the seeded `TestSection` carries the three).
-  class: question
-  state: ~~open (owner: Matheus; after the first real job with a CTA says which assist is missed)~~ partly closed (2026-10-13, review patch of this story: E1 to E3 take the "Sugerido" instrument through `instrument_of`, `suggestedInstrument`/`suggestedInstruments` in `packages/domain/src/relatorio/instrument-pick.ts`). Open (owner: Matheus, after the first real job with a CTA): "Ler visor" and Dictation on a measurement table
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: W6, a reading taken in the web slice. Below 768 px a measurement table of one or two value columns stays a table (E1, E3, E5) and one of more stacks into a card per row (E2, E4, E6), the rule EXPERIENCE.md states for the Measurement table. The approved mock stacks every table of this sheet on phone. Built: EXPERIENCE.md, which wins over a mock; the spec's phone criterion names E4 only. To check at the browser pass: E1 and E5 at 390 px, where each row holds two fields with their unit and Overflow, and E4 on a tablet, whose four columns and unbroken row labels make the table scroll inside its own box (never the page) below about 1100 px of content width.
-  evidence: `EXPERIENCE.md` › Measurement table ("With one or two value columns the table stays a table on phone"); `apps/web/src/surfaces/ficha/measurement-test-section.tsx` (`TABLE_COLUMNS_ON_PHONE`); `apps/web/src/styles/app.css` (the `.lib-cards` and `.has-cards` translations); mock `63-ficha-cta.html:93-95`; spec Acceptance Criteria, the 390 px bullet.
-  class: question
-  state: ~~open (owner: the integrated review's browser pass at 390, 768 and 1280 px; Matheus decides if E1 and E5 should stack too)~~ re-owned (2026-10-14, E14-A2): the browser pass ran (`epic-14-qa-2026-10-13.md` section 3: "14.5 sheet fit (tables scroll inside their box), dark" pass at 390 and 768 px); owner Matheus, whether E1 and E5 should stack too, listed in E14-A9 (14.5 W6).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
   summary: R1, review finding left open. A CTA's configuration and its test switches are written as one whole `block/{id}/config` put, so two devices editing the same sheet offline (one sets polos, the other switches E6 off) end with the last writer's whole config and the other choice silently reverted. The eight types never wrote config from the sheet, so the last-writer rule was not reachable there.
@@ -803,18 +417,6 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: bug
   state: open (owner: Story 14.6, when company types make cell kinds data: a fold refusal with its sync-route test)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: R4, review finding rejected as low, recorded. The Conflict view and `enabledCells` enumerate every row and value of a measurement test, the rows hidden by polos, the values hidden by `when` and a skipped E5 table included, so a conflict on a cell the sheet no longer draws is still listed for a decision.
-  evidence: `packages/domain/src/merge/conflicts.ts` (measurement enumeration), `packages/domain/src/relatorio/sheet-state.ts` `enabledCells`. Edge Case Hunter, review of 2026-10-13.
-  class: bug
-  state: open (owner: Matheus; low: needs two devices and a polos change between them)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-5-measurement-table-cta.md`
-  summary: R5, test gap deferred by the review. `sheet/test/value` was added to the SM-C1 suggestion metric's families with no assertion; no suggestion source writes a test value today, so the metric cannot differ yet.
-  evidence: `packages/domain/src/print/sm-c1.ts:17`; `packages/domain/src/print/section-10.test.ts` (no value path). Verification Gap Reviewer, review of 2026-10-13.
-  class: test-gap
-  state: open (owner: the story that first suggests a test value)
-
 ## Deferred from: Epic 14 QA fix batch (2026-10-14)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
@@ -823,23 +425,13 @@ From now on a row moves to the archive when it closes: strike its state through,
   class: question
   state: open (owner: Matheus, joins ledger (h): either a local holding site work written after its removal stays offered past the cut, or the site work raises a decision, which is a new mark in the fold and a contract bump)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
-  summary: Q-16. Story 14.4's DoD asks that the DOCX and its PDF are checked against the approved print mock; no PDF check exists in the repository. The QA pass read the text of revision 1's PDF (14 pages, VERIFICAÇÕES DO LOCAL twice, both painel bands, E5) but not its layout against `key-print-section-9.html`.
-  evidence: `epic-14-qa-2026-10-13.md` Q-16 and § 3 (the 14.4 PDF row, "partial"); `mockups/key-print-section-9.html`.
-  class: test-gap
-  state: open (owner: the next print story)
-
 ## Deferred from: production deploy v0.2.0 (2026-10-14)
 
 All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Story 14.10 lane B (2026-10-15)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-10-carry-over-2-b.md`
-  summary: Open questions of the batch, kept conservative: a sync request still in flight but slow (no failure yet) keeps the previous badge word until it fails (no client timeout on sync calls, by the spec), so "Tentando de novo" shows only after a failed cycle; and the "Hoje" chip of Próxima intervenção shows on an empty field only (13.4's rule).
-  evidence: `apps/web/src/sync/engine.ts` `probeServer`; `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx`.
-  class: question
-  state: open (owner: Matheus, listed in the PR)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Story 14.10 lane A, carry-over 2 (2026-10-15)
 
@@ -852,12 +444,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/seed/v6.ts` `quadroNameplate`; `relatorio/reading-evaluation.ts` `bandCriterion`.
   class: question
   state: ~~open (owner: Matheus, listed in the PR)~~ decided 2026-10-21 (Bruno via Matheus, answer 1): the yes/no plate field is kept; SELV and PELV mean a circuit voltage up to 120 V d.c. or 50 V a.c., per NBR 5410. Its help text and a non-blocking notice when it reads SIM above 50 V are Story 14.14 (backlog)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-9-14-11-qgbt-oil-dry.md`
-  summary: The oil crossing's "N itens de óleo apagados" counts each oil item that held a result, an observation or a photo once, and VOL. ÓLEO once ("2 itens" for one answered item with its photo and VOL. ÓLEO). A write that copies the plate ("Igual à ⟨TAG⟩?", "Copiar da última visita") or confirms a reading carries the crossing in its batch but keeps its own toast. A crossing is read on the device's photos as last drawn (`snapshot.files`), the blocks fresh.
-  evidence: `relatorio/oil-rule.ts` `oilCrossingClearedCount`; `apps/web/src/surfaces/ficha/ficha-ops.ts` `withOilCrossing`; `nameplate-section.tsx`, `nameplate-suggestions.tsx`.
-  class: decision
-  state: open (owner: Bruno reviews the toast wording, listed in the PR)
 
 - source_spec: `_bmad-output/implementation-artifacts/epic-batch-orchestrator.md`
   summary: 2026-10-20, coordinator: the second root-owned-file breakage from the `tools` container running with `--user root`. After the 2026-10-14 `.vite-temp` crash loop, the main stack's `install` service (user `node`) failed with ERR_PNPM_CMD_SHIM_CHMOD on `node_modules/.pnpm/esbuild@0.25.12/...` owned by root, which stopped a wave gate before it ran; `chown -R node:node /workspace/node_modules` fixed it. Root cause: gate runs as root write into the shared `node_modules` volume.
@@ -874,22 +460,10 @@ All rows closed; see deferred-work-archive.md
 ## Deferred from: Story 14.12, learned company options (2026-10-21)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-14-12-learned-options.md`
-  summary: The site checklist (Verificações do local) learns nothing: an NC observation typed on a site item stays a recent of its relatório only, never a company option (answer 7 scopes learned phrases per equipment type and item). Whether site items learn too is open.
-  evidence: `apps/web/src/surfaces/local/verificacoes-surface.tsx` `siteRowTarget` (`ncChipPhrases` with no learned rows); `apps/api/src/sync/apply.ts` `learnPushedOptions` reads `sheet/...` paths only.
-  class: decision
-  state: open (owner: a later dated decision by Matheus or Bruno)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-12-learned-options.md`
   summary: A partial text may be learned. The observation field commits after 500 ms of idle typing and a push runs every 60 s (or on "Sincronizar agora"), so a push can carry a half-typed observation ("Fuga no buj") and the server learns that piece; the settled text learns too on the next push. The office removes the stray phrase in Cadastros › Frases de NC; a removed phrase is never learned again.
   evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `useTypedText` (idle commit); `packages/domain/src/registry/nc-phrase-row.ts` `learnedOptionCandidates` (reads the end-of-push row).
   class: debt
   state: open (owner: Bruno's first real job with the feature; a fix would learn only from a sheet left or concluded)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-14-12-learned-options.md`
-  summary: The refusal branches of `learnPushedOptions` (a learned create that does not validate is skipped; a refused savepoint is logged and the push still commits) have no test that forces a refusal; the precedent `upgradePushedTemplates` has the same gap. Closing it needs a fault-injection seam for both post-passes.
-  evidence: `apps/api/src/sync/apply.ts` `learnPushedOptions` and `upgradePushedTemplates` catch blocks; Verification Gap review of Story 14.12.
-  class: verification-gap
-  state: open (owner: the Epic 14 integrated review)
 
 ## Deferred from: UX pass fixes (2026-10-22)
 
@@ -904,11 +478,6 @@ All rows closed; see deferred-work-archive.md
   evidence: review finding 8; the report is the backlog source until then.
   class: backlog
   state: ~~open (owner: Matheus)~~ open since 2026-10-22 (owner: Matheus, the triage into stories or the next epic's carry-over batch; dated 2026-11-03, E15-A1: untriaged as a list since the pass, while Epics 16 to 19 took single findings from Bruno's feedback)
-- source_spec: `_bmad-output/implementation-artifacts/spec-ux-pass-fixes-2026-10-22.md`
-  summary: With TAP Nº now read from the plate, a transformer ratio row is named by a number ("5, V primário"); the dictation parser (`parse/utterance.ts` `tableDictationLabel`) may take that leading number as the value.
-  evidence: review finding 17, unverified (maybe-false, medium if true). Settle with a dictation parse test over a row named "5".
-  class: verification-gap
-  state: ~~open (owner: next fix batch)~~ open (owner: Story 13.9, dictation on behind one line of consent, in the backlog since 2026-10-21; dictation reaches no user before it, so its build adds the parse test over a row named "5"; re-owned 2026-11-03, E15-A1: `parse/utterance.test.ts` still has no such case)
 
 ## Deferred from: Stories 15.3 and 15.6, seed v9 and the ratio with √3 (2026-10-22)
 
@@ -934,11 +503,6 @@ All rows closed; see deferred-work-archive.md
 
 Source: `_bmad-output/test-artifacts/manual/qa-e16-2026-10-26.md` (verdict pass; no P1, no P2; the three P3 gaps below). The tablet soft keyboard limit of Story 16.4 is not listed here: it is a product decision recorded under the story in `epics.md` (candidate Story 16.5).
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-17-1-17-4-section-7-by-hand-display-shots-numbered.md`
-  summary: A relatório whose latest revision predates Stories 17.1 and 17.4 and that holds sheet, local or display-shot photos shows "Números da revisão N" in the gallery while its badges read the new document-order numbers, which that revision's document does not carry (the 16.3 drift again, in the other direction). A revision stores no numbers; the unchanged snapshot is what freezes them, so the label is right again at the next revision.
-  evidence: `photoNumbersStatusText(latest, edited)` and `numberPhotos(snapshot)` in `gallery-surface.tsx`; the rule changed, the snapshot did not.
-  class: known-open
-  state: open (owner: ends by itself at the next revision of each such relatório; a line under Story 17.4 if Bruno notices)
 - source_spec: `_bmad-output/implementation-artifacts/spec-17-2-17-7-device-camera-app-save-to-device.md`
   summary: With "Câmera do aparelho" on, two quick "Ler visor" taps (the second before the first photo's row landed in the snapshot) compute the same start cell, so both display photos would target row 0; the viewfinder burst counts its shots locally and never does.
   evidence: `read-display.tsx` `target()` recomputes `displayBurstStart` from the snapshot at every press; the picker path has no per-session counter. Unverified whether a user can tap again before the commit lands (camera app round trip plus encode, 1-3 s). The sequential two-tap e2e (17.2-E2E-001) is green.
@@ -949,11 +513,6 @@ Source: `_bmad-output/test-artifacts/manual/qa-e16-2026-10-26.md` (verdict pass;
   evidence: `photo-viewer.tsx` `useSaveFile` runs `photoSaveFile` on landing; the viewer already fetches the `print` variant for its picture, so the original is a second, larger download per photo.
   class: question
   state: open (owner: Matheus; keep the prefetch, fetch on the press (a share after the await may fall back to a download on iPadOS), or serve the picture and the save from one fetched original)
-- source_spec: `_bmad-output/implementation-artifacts/spec-17-2-17-7-device-camera-app-save-to-device.md`
-  summary: A touch-screen laptop or desktop (`navigator.maxTouchPoints > 0`) defaults to the camera app, where `capture` is ignored and a file picker opens instead of the webcam viewfinder.
-  evidence: The default rule is the 2026-10-27 decision (touch points); the Conta switch is the remedy on such a machine.
-  class: question
-  state: open (owner: Matheus; a `(pointer: coarse)` media query would refine the default)
 
 ## Deferred from: Epic 17 integrated QA browser pass (2026-10-28)
 
@@ -990,11 +549,6 @@ Source: `_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md` § D
   evidence: `packages/domain/src/photos/save.ts:39-45`. A disambiguator (the photo's document number when numbered, else a sequence) in `PhotoSaveRow`.
   class: improvement
   state: open (owner: the next batch touching `photos/save.ts`)
-- source_spec: `_bmad-output/implementation-artifacts/spec-17-1-17-4-section-7-by-hand-display-shots-numbered.md`
-  summary: Gallery numbers come from the snapshot and tiles from a separate query, so for one render after a shot a tile can draw no badge and the viewer read "Foto" before "Foto 12 de 12"; no test pins the convergence (retro R13).
-  evidence: `gallery-surface.tsx:117-120`, `photo-viewer.tsx:160-163`. A component test rendering a tile absent from the snapshot, then the snapshot update.
-  class: test-gap
-  state: open (owner: the next gallery batch)
 
 ## Deferred from: production pass, epic by epic (2026-10-28)
 
@@ -1047,11 +601,7 @@ All rows closed; see deferred-work-archive.md
 
 Source: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`.
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
-  summary: Narrowed instrumentation: a control pressed from the keyboard (Enter or Space on a React Aria button) may queue no `action`, since the listener reads the native click; `wait` of kind `generate` and `preview` times the request, not the job until the document is ready; a natively `disabled` control queues `disabled_tap` only where the browser dispatches `pointerdown` to it (the app's own Button uses `aria-disabled`, which always does); "Renomear TAG" is tracked from the sheet only, not from the Sumário tree; `upload` waits are not tracked.
-  evidence: `apps/web/src/telemetry/instrument.ts`, `apps/web/src/state/sync.tsx` (`generate`, `preview`), `apps/web/src/surfaces/ficha/ficha-dialogs.tsx`.
-  class: debt
-  state: open (owner: Story 18.3's first friction read says which of these the funnel needs; 2026-10-30, first production read: the first preview took 26.8 s on the screen and 176 ms in the `waits` view, so the `preview` and `generate` kinds of that view read the request, not the wait, until a story times them until the document opens; `reading` and `sync` are right, `epic-18-context.md`) 2026-10-30, Matheus's "pode fazer": the re-timing of the `preview` and `generate` waits is owned by Story 18.4 (`epics.md`), the keyboard activation note stays with E18-A1. *(2026-11-03, batch s184, Story 18.4: the `preview` and `generate` part is done: both waits time the press, `use-preview.ts` until the tab is pointed at the PDF and `use-generate.ts` until the ready revision is held, one wait per press across the `not_caught_up` retries; `sync.tsx` keeps only their error codes; the `document_waits` view reads them by `app_version`. The other parts of this row stay as they were.)* | 2026-11-24 audit: preview and generate presses done (batch s184); left: `apps/web/src/telemetry/instrument.ts:100-101` listens to `click` and `pointerdown` only, so keyboard press, native disabled, rename and upload are still not tracked, owner: agent
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Story 19.2 review (2026-10-30)
 
@@ -1068,30 +618,10 @@ All rows closed; see deferred-work-archive.md
 ## Deferred from: batch e18fa (2026-11-03)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
-  summary: The end-to-end half of R-E3 (a tap on a read-only checklist segment queues a `disabled_tap`) cannot be observed in a browser: `.is-readonly .tri-state { pointer-events: none; }` (the locked `components.css:817`, repeated in `ficha.css:28`) sends the tap to the row beneath, so no `[data-telemetry]` control receives the `pointerdown`.
-  evidence: Batch e18fa: the instrument treats a control inside `[aria-readonly="true"]` as disabled (`instrument.ts` `isDisabled`) and the unit test proves it in jsdom, where no stylesheet applies; the `E5-A2-E2E-004` assertion the spec asked for was not written, since it would fail on every project. To decide: accept the unit coverage, or let the read-only group take pointer events (an `app.css` mirror of the mock rule without `pointer-events: none`, the Tri-state's own guard already refusing the press), which is a look-and-behaviour change for Sally and Matheus.
-  class: risk
-  state: open (owner: Matheus decides; the coordinator records it in the PR)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
-  summary: The reading watcher no longer sees a photo whose only change reached this device through a snapshot download rather than the pulled op log (`remote_ops`), nor a photo of another device that arrives through a stream whose cursor lags the highest pulled `seq` (photos pending at the last look are read by key, and photos shot here through the outbox since review fix ECH-4, so both cases are photos this device never waited for).
-  evidence: R-A14 narrowing (`telemetry/readings.ts`): after the baseline, a look reads the photos pending at the last look and the `file` entities named by `remote_ops` rows above the last seen `seq`. A relatório downloaded as a snapshot writes entities without `remote_ops` rows, so a reading that lands that way is not tracked; a photo pending at the last look is still read by key. Spec Design Notes.
-  class: risk
-  state: open (owner: Story 18.4, if the first digest shows reading waits missing) *(2026-11-03, batch s184: Story 18.4 was built before the first digest, so this row is the first digest's to raise; owner then the next epic's carry-over batch.)*
-- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
   summary: A 401 on `POST /api/telemetry` still deletes the batch (only 429 was named for keeping), so a session that expires with a full queue loses it.
   evidence: `telemetry/flush.ts` `drain`: kept on a 5xx, a network failure, a timeout and a 429; deleted on every other 4xx, 401 included (Q1 of Story 18.1). The retro's production read saw one 401 batch dropped after `prodpass.sh cleanup`. Open question of the PR.
   class: risk
   state: open (owner: Matheus decides; Story 18.4 if kept) *(2026-11-03, batch s184: no decision yet, so Story 18.4 left the 401 rule as it was; the runbook says a 401 drops the batch.)*
-- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
-  summary: Structural block puts (`location_id`, `order_key`, `removed_at`, `feeds_block_id`) left the friction read's spans and re-edits but still count in `device_op_count`.
-  evidence: R-A16 (`apps/api/src/db/friction-read.ts`): the item named spans and re-edits only. Whether the device op count should drop them too is an open question of the PR.
-  class: question
-  state: open (owner: Matheus decides at the first digest, E18-A7)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e18fa-code-fix-batch.md`
-  summary: The friction read's "typed after a failed reading" compares the device's `client_ts` with the server's `received_at` of the failure (R-A17), so a device clock running behind the server never counts a value typed after the failure, and one running ahead counts a value typed offline while the reading still ran.
-  evidence: Review ECH-3 of batch e18fa (2026-11-03): `apps/api/src/db/friction-read.ts` `foldFriction` (`ts > photo.armed.failedAt`); the comparison is the one E18-A1 prescribed. A skew window, or the put's own `received_at` against the failure's, would bound it.
-  class: risk
-  state: open (owner: the first digest, E18-A7, reads the count beside the device clocks it can see)
 
   state: ~~open (owner: the next infra batch, E18-A2 or E15-A10)~~ done (2026-11-03, batch e18fb: step 6 presses the preview through `previewRequest` (`e2e/production/preview-tab.ts`), which retries once, and only when the tab closed before the preview request was seen: it records the dialog's failure line and the page's console errors to `test-results/production-smoke/preview-retry.json` and the log, closes the dialog, reloads the Sumário and presses once more; a second close fails the step with the first error, any other error at once; the eight steps and every assertion unchanged. Unit test with fakes `scripts/preview-tab.test.ts`. The suite's own re-run by the deploy stays open question Q-1)
 
@@ -1104,36 +634,11 @@ Source: `epic-15-retro-2026-10-26.md` (E15-A1: R15-13, R15-14), `epic-16-retro-2
   evidence: PR #167 body § Known open ("The mocks draw none on bands; the header's 'NC abertos' tap opens the path to the sheet"); `epics.md:4016`; `epic-15-retro-2026-10-26.md` R15-13. The bands draw `ncBadge` for the site card and for sheets only (`apps/web/src/surfaces/relatorio/relatorio-tree-rail.tsx:80,121`).
   class: known-open
   state: open (owner: Matheus, with Bruno at his tablet session (E17-A3): whether a collapsed band needs an indicator the mocks do not draw; if yes, the next epic's carry-over batch, the count derived in the kernel's tree, AD-1)
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18b.md`
-  summary: The friction read loads every op row of the company into memory at once (`readFriction` selects all ops of the company ordered by `seq` and folds them in memory); fine for the one-shot CLI at today's volume, a large company would need paging by `seq`.
-  evidence: spec frontmatter `deferred:` (severity low); `apps/api/src/db/friction-read.ts` `readFriction` (one repeatable-read transaction over the relatórios, blocks and ops); `epic-18-retro-2026-10-30.md` P7 (i).
-  class: debt
-  state: open (owner: the first monthly digest, E18-A7 on 2026-11-30, which is the read's first production run: it records the run time and the task's memory; paging by `seq` becomes a carry-over item only if that run nears the migrate task's memory)
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
   summary: One unknown event refuses the whole telemetry batch with `400 telemetry_invalid` and the device deletes it, so a bundle and an api that disagree on a closed list (the minutes of a deploy) lose that device's batch (retro R-A2, confirmed by design).
   evidence: `apps/api/src/http/telemetry.ts:61-63`, `apps/web/src/telemetry/flush.ts:64-65` (line numbers of `3b45e83c`); `epic-18-retro-2026-10-30.md` R-A2. The rule that keeps the window short (names, kinds and targets are appended, never removed or renamed within a release) belongs in `docs/observability.md` § Adding an event name, the E18-A3 docs part owned by this wave's observability lane.
   class: risk
   state: open (owner: the first monthly digest, E18-A7: count the api's `telemetry_invalid` answers in `/fasor/production/api` over the month; a per-event parse (keep the valid events, drop the unknown) is cut as a story only if the count is not zero outside deploy minutes)
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
-  summary: Two tabs of one device share one telemetry queue and can both post the same oldest rows, since the in-flight guard is module state per tab (retro R-A5, plausible); rare on a tablet PWA, possible on a desktop review.
-  evidence: `apps/web/src/telemetry/flush.ts:33-35` (line numbers of `3b45e83c`); `epic-18-retro-2026-10-30.md` R-A5. Fix: Web Locks (`navigator.locks.request`) around the drain.
-  class: risk
-  state: open (owner: the next epic's carry-over batch, playbook § 6, E6-A7; the digest can see duplicates as two rows with one `ts`, `session_id` and `name`)
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
-  summary: The beacon awaits an IndexedDB read before `navigator.sendBeacon`, so a tab closed at once may hand nothing to the browser; the rows are not lost (they go with the next sync) but can land on a later day (retro R-A6, plausible). The `pagehide` listener is E18-A1's one-line fix; this row is the deferred half, a synchronous in-memory mirror of the unsent rows the beacon can send without awaiting.
-  evidence: `apps/web/src/telemetry/flush.ts:110-118`, `apps/web/src/telemetry/instrument.ts:59-66` (only `visibilitychange` listened to); `epic-18-retro-2026-10-30.md` R-A6.
-  class: improvement
-  state: open (owner: the next epic's carry-over batch, after E18-A1 adds `pagehide`; measure first at the digest whether late rows show, `received_at` days after `ts`)
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
-  summary: One `sync_result` row and one `POST /api/telemetry` per `ran` cycle: the engine runs a cycle every 60 s while the tab is visible and every 5 s while a reading is pending, and an empty outbox still pulls, so the `syncs` view is dominated by idle cycles and is read as ratios, not counts (retro R-A13; per Story 18.1's criterion "`sync_result` per finished cycle"). About 500 rows and 500 requests a day per active device, within the cost line.
-  evidence: `apps/web/src/state/sync.tsx` `observeCycle` (`:257-262` at `3b45e83c`); `apps/web/src/sync/engine.ts:164,173`; first production read of 2026-10-30 (23 `ran` rows in fifteen minutes on one device, 19 in one minute on the smoke runner); `epic-18-retro-2026-10-30.md` R-A13.
-  class: decision
-  state: open (owner: Matheus, E18-A5 item 2, after the first digest (E18-A7) measures the share of `sync_result` rows: keep one row per ran cycle, or amend Story 18.1 to transitions and cycles that moved data)
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-18-o18a.md`
-  summary: The `reading` wait counts from the shot's `captured_at`, so offline time and a failed first attempt inflate it, and a re-read ("Ler de novo") measures from the original shot, not from the re-read tap (retro R-E4, accepted as Story 18.1's "shot stored to result").
-  evidence: `apps/web/src/telemetry/readings.ts:49-52`; `epic-18-retro-2026-10-30.md` R-E4. The runbook caveat ("reading waits count from the shot") is the E18-A3 docs part in `docs/observability.md`, owned by this wave's observability lane.
-  class: improvement
-  state: open (owner: Story 18.4, which re-times the waits (its scope item 5 times `preview` and `generate`) and extracts the observer around `sync.tsx` `rereadPhoto` (`:542`), where a re-read could stamp its own start for `readings.ts`; if 18.4 leaves it, the next epic's carry-over batch) *(2026-11-03, batch s184: Story 18.4 left it: the observer moved to `telemetry/sync-observer.ts` and `rereadPhoto` still tracks only its error code, so a re-read is still measured from the original shot; owner now the next epic's carry-over batch.)*
 
 ## Deferred from: the integrated review of Epics 15 and 16 (2026-11-03, E15-A5 and E16-A6)
 
@@ -1163,11 +668,6 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `infra/bin/deploy` reads `previous_tag` from the image-tag parameter right before `put-parameter`; a first run that recorded the tag and then died leaves the parameter at the new tag. Review finding ECH-5 of batch e18fb. To decide: persist the pre-deploy tag (a file under `test-results/` or an SSM tag) or let `--resume` take `--previous-tag`.
   class: risk
   state: open (owner: the next infra batch)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e18fb-observability-and-tooling.md`
-  summary: The smoke step 6 retry (`e2e/production/preview-tab.ts`) is unit-tested with fakes only; the `openTab` and `recover` callbacks the suite passes (press, Escape, reload the Sumário, reopen the dialog) run only against production.
-  evidence: `scripts/preview-tab.test.ts` covers the retry decision; the suite has no local run. Review finding VGR-4 of batch e18fb. The next deploy whose preview tab closes early is the proof: its log line `pressing it once more` and `test-results/production-smoke/preview-retry.json`.
-  class: risk
-  state: open (owner: the coordinator, at the next deploy that shows the retry)
 
 ## Deferred from: the Epic 19 retrospective (2026-11-03, E19-A3)
 
@@ -1200,11 +700,6 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   class: question
   state: open (owner: the first digest says whether the reading by hand suffices; else a story adds `from` to `dialog_open` and `dialog_cancel`)
 - source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
-  summary: Narrowed refusal points: a sheet number or measurement field reports a refusal on blur and Enter, not on Shift+Enter (which commits through `commitNow`, never a refusal report) or a unit chip; the setup altitude's refusal is always `not_a_number`, named in `apps/web` because its parse is the surface's own (`parseAltitude`), not the kernel's; the date picker's one refusal is `out_of_range` on leaving it; an `input_refused` target is checked against `TELEMETRY_TARGET_PATTERN` by the schema, like every target, and against `UX_INPUT_TARGETS` by `targets.test.ts`.
-  evidence: `apps/web/src/components/number-input.tsx` `onRefuse` (blur and Enter only), `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx`, `apps/web/src/surfaces/ficha/ficha-fields.tsx` `DatePickerField`, `apps/web/src/telemetry/targets.test.ts`.
-  class: debt
-  state: open (owner: the first digest says whether a missing path matters; the altitude's reason moves to the kernel with its parse if a story moves the parse) | 2026-11-24 audit: the altitude half is already stale (the e20s row on altitude refusals says the reason is now also `out_of_range`); the rest waits on the first digest, owner: coordinator
-- source_spec: `_bmad-output/implementation-artifacts/spec-s184-events-say-how-long.md`
   summary: On a sign-out and another user's sign-in in the same tab, the events tracked while no database was configured (the first user's last `screen_view`, written when the login opens) take the new user's session id, so the `paths` view can show the first user's last screen at the start of the second user's session (review ECH-9, second half; the rotated `session_start` now takes the earliest held `ts`).
   evidence: `apps/web/src/telemetry/track.ts` `configureTelemetry` (held events re-stamped, batch e18fa R-A15 design); `apps/web/src/telemetry/views.ts` (the view left on the route to the login).
   class: risk
@@ -1217,16 +712,6 @@ Source: `_bmad-output/test-artifacts/review-e15-e16-integrated-2026-11-03.md` (m
   evidence: `packages/domain/src/status/table.ts` `statusMoveVerdict`; `apps/api/src/sync/status-transition.integration.test.ts` (the undo of the back move on an unchanged revision applies).
   class: risk
   state: open (owner: Matheus; if the undo must apply, the kernel can accept a move back to the status the op named by `prev_op_id` replaced, which needs that op's previous value in the log)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
-  summary: Two inputs outside the Story 20.9 inventory take no `maxLength`: the `CnpjField` (format-validated) and the `RegistryPickerField` behind a sheet's manufacturer and voltage class fields; the server still caps both (short text). The setup altitude's `input_refused` reason is now `out_of_range` for a whole number outside -500 to 9 000 m, so the batch s184 row that says it is always `not_a_number` reads one case short.
-  evidence: `apps/web/src/components/registry-picker-field.tsx`; `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx` `parseAltitude`.
-  class: debt
-  state: open (owner: the next story that touches those fields)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e20s-server-rules.md`
-  summary: The dev-only field fixture (`/__fixture/field`) writes `relatorio/setup/local` puts to a fixed relatório id no company holds, so since contract 29 the server refuses them (`op_target_missing`) and they stay dead rows on the device. The durability specs that use it assert only the device side and pass; A5-E2E-003, which needs its put acked, seeds that relatório as the server holds it (tombstoned at once, so no Home shows it).
-  evidence: `apps/web/src/surfaces/fixtures/field-fixture-surface.tsx` `FIXTURE_RELATORIO_ID`; `e2e/support/durability.ts`; `e2e/ui-hygiene.spec.ts` A5-E2E-003.
-  class: debt
-  state: open (owner: the next story touching the fixture; it could create its own relatório)
 
 ## Deferred from: batch e20w (2026-11-03)
 
@@ -1234,11 +719,6 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 20 batch e20e (2026-11-04)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-e20e-device-quotas-edges.md`
-  summary: The sign-out unsent count counts a photo whose create op and bytes both wait once per item the uploader sees: the create op is counted while unacknowledged, and the original only once its create is acknowledged (`pendingUploads` lists a file only after the server holds its row), so the double count of the spec's reading (1) does not happen; a refused (`dead`) upload is counted too, since Sair would delete it.
-  evidence: `apps/web/src/surfaces/account/account-surface.tsx` `unsentCount`; `apps/web/src/db/file-store.ts` `pendingUploads`.
-  class: note
-  state: open (owner: Matheus, to confirm the reading)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e20e-device-quotas-edges.md`
   summary: The matrix projects (`durability-android-chrome`, `durability-webkit`) run only `*durability.spec.ts` files (`playwright.config.ts` `testMatch`), so `security-device.spec.ts` and `auth.spec.ts` run on `desktop-chrome` only; the boot and sign-in paths reach WebKit through `durability.spec.ts`.
   evidence: `playwright.config.ts` projects.
@@ -1249,11 +729,6 @@ All rows closed; see deferred-work-archive.md
   evidence: e20g review VGR-1. The proof of the `-Via` change is manual (domain and CloudFront fallback blocks through a throwaway `caddy:2.11.4-alpine`); the IP block needs its ACME certificate.
   class: risk
   state: open (owner: Matheus; a stub upstream on `127.0.0.1:3000` in `infra/bin/check` closes it)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e20g-no-blank-page.md`
-  summary: The plain-HTTP redirect still sends `Server: Caddy`; removing it means replacing Caddy's implicit `:80` redirect with explicit `http://` site blocks on the port that also answers the HTTP-01 challenges of both certificates, which cannot be proven without an ACME server.
-  evidence: e20g Design Notes; `.scratch-e20g` probe of the redirect.
-  class: note
-  state: open (owner: Matheus, cosmetic)
 - source_spec: `_bmad-output/implementation-artifacts/spec-test-speed-2.md`
   summary: Two tests in `e2e/durability.spec.ts` still tap "Sincronizar agora" by hand (go to `/sync`, wait for the button to lose `aria-disabled`, click, then poll a store). E5-A1 calls that readiness signal racy, and `e2e/support/sync.ts` `syncNow` waits on the cycle's end instead. They are the one at about line 426 (`tab`) and the one at about line 674.
   evidence: T2 review; 1.8-E2E-002 in the same file moved to `syncNow` in T2. Neither is a wait on the 60 s tick, so the C-4 guard does not read them.
@@ -1328,11 +803,6 @@ All rows closed; see deferred-work-archive.md
 ## Deferred from: e22c (2026-11-06)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
-  summary: A point of origin `nc` or `reading` relinked to another equipment or local (Story 20.4 pick, or a later `point/{id}/equipment_id` put) keeps its `item_key`/`test_key` but changes its owner, so it suppresses the new owner's entry and the original entry prints again; needs an immutable source (the block id at create) or a relink guard when `origin !== 'manual'`.
-  evidence: `packages/domain/src/points/derived.ts` `pointSource`; review findings EC3 and VG8 of the e22c pass.
-  class: bug
-  state: ~~open (owner: the Epic 22 wave A integrated review)~~ partly superseded 2026-11-10 by fix batch e24h (no automatic points): no entry is suppressed and none prints again. What remains, open (owner: batch e24b's spec, Story 24.7): a relinked point keeps its `item_key` or `test_key` under its new owner, so "Origem resolvida" and Story 24.7's question read it against the wrong row; 2026-11-11, batch e24b (`spec-e24b-screen-lane.md` D5): Story 24.7 asks by owner and `item_key` as the story defines it, so a relinked point is asked about by its new owner's row of the same item; an immutable source or a relink guard is a product decision, not built. Open (owner: Matheus)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e22c-parecer-follows-fichas.md`
   summary: A stricter parecer verdict, once tapped, stays stored after the fichas clear (the stored LWW object has no "follow the derived verdict" state), so the effective verdict can stay stricter than the fichas with no way back but tapping the derived one, which also stores it.
   evidence: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx` verdict tap; `relatorio/parecer.ts` `effectiveParecer`; review finding EC8.
   class: decision
@@ -1376,21 +846,11 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
 
 ## Deferred from: Epic 22 batch e22s (2026-11-06)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.11)
-  summary: "Section 3 counts it": section 3 (LIMITE DE ESCOPO) is seeded boilerplate with no equipment list or count in any seed version, so there is nothing for the Inspeção de QGBT to be counted in; the batch counts it where totals exist (`templates/text.ts` `TOTALS_ORDER`, the composer's totals) and prints it in section 9. A section 3 equipment list is a new feature. Owner: Matheus or Bruno.
-  evidence: `packages/domain/src/seed/sections-v1.ts` `SECTION_3`; `relatorio/section-variables.ts` `section3Blocks`.
-  class: decision
-  state: open (owner: Matheus)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.9)
   summary: The DoR and the AC write ACEITÁVEL as "± 1,2 %"; the kernel's one criterion format (`formatCriterionValue`) prints "±1,2 %" with no space, as v1 to v11 print "±0,5 %". Kept, so older documents print byte-identical. Owner: Bruno, if the spaced form is wanted on every seed.
   evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
   class: decision
   state: open (owner: Bruno, relayed by Matheus) | 2026-11-24 audit: Bruno answered on 2026-11-11 (`docs/context/epic-24/respostas-bruno-2026-11-11.md` item 9: "± 5 %" with a space). Applied only to `nominal_pct` (`packages/domain/src/seed/criteria.ts:145-146`); the generic `±` still prints `${operator}${value}` (`:151`). Needs a new seed (v19) since v1-v18 are layout-locked; owner: agent (with Matheus's go for v19)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.8, OQ-1)
-  summary: The notice follows Bruno's "0,5 ou 1 kV na BT": a winding rated at most 1000 V warns only above 1 kV, not above the DoR's 0,5 kV band (under which the 1 kV default would warn on every 220 V transformer). A two-level secondary ("380/220 V") is rated by its higher side.
-  evidence: `packages/domain/src/relatorio/row-voltage.ts` `rowVoltageNotice`.
-  class: decision
-  state: open (owner: Bruno, relayed by Matheus)
 
 ## Deferred from: Epic 22 fix batch e22f (2026-11-06)
 
@@ -1407,11 +867,6 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 22 fix batch e22h (2026-11-07)
 
-- source_spec: `_bmad-output/implementation-artifacts/epic-22-wave-c-integrated-review-2026-11-07.md` (N7)
-  summary: The api's `toSnapshot` loads every `equipment_type_version` row of the company for every snapshot and generate, and `buildSnapshot` keeps the referenced ones. Fine at today's scale (a few types per company); filter the query by the type ids the relatório's blocks reference when a company holds many versions.
-  evidence: `apps/api/src/sync/snapshot.ts:45-47`.
-  class: performance
-  state: open (owner: the first batch that sees a company with more than about 50 published versions, or the next batch touching `sync/snapshot.ts`)
 - source_spec: `_bmad-output/implementation-artifacts/epic-22-wave-c-integrated-review-2026-11-07.md` (N10)
   summary: The review asked that `formatCriterionValue` print `>=` and `<=` as "≥" and "≤", on the premise that seeded criteria use only `>`, `<` and `±`. That premise is wrong: the Quadro elétrico's NBR 5410 bands (seeds v5 and v6) are `>=` and have printed "Aceitável >=0,5 MΩ" and "critério: >=0,5 MΩ" on the sheet and in the DOCX since seed v5 (`e2e/qgbt.spec.ts`, `docx-qgbt.test.ts`, `quadro-eletrico.test.ts`). Changing the formatter moves every printed QGBT relatório (the protected layout: print changes only the asked delta), and changing it for company rows alone would print "≥" and ">=" side by side on a copy that carries the bands (S1). e22h left the formatter as it is. Decision for Bruno: "≥ 0,5 MΩ" everywhere (seeded and company, one formatter change, goldens and specs re-read), or ">=" as today.
   evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`; `packages/domain/src/seed/v6.ts` bands.
@@ -1438,24 +893,11 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 23 batch e23b (2026-11-08)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-e23b-nameplate-applicability.md` (Design Notes, "Open with Bruno, kept as read")
-  summary: Read as the spec says until Bruno answers: both equipment temperatures optional (the base marks them required; Story 23.5 falls back to the ambient), DESLIGADOR ÍNTEGRO as SIM or NÃO (the base's "sem desligador" is the field's N/A), an unmeasured unmarked tap row printed "-", the TTR Yd factor (B-2) and the TP insulation criterion (B-4) untouched. The authored pt-BR wordings of the batch are listed in its PR for him.
-  evidence: `packages/domain/src/seed/v13.ts` (the e23b section); `packages/domain/src/print/section-9.ts` `measurementTable`.
-  class: decision
-  state: open (owner: Bruno, through Matheus) | 2026-11-24 audit: Answered 2026-11-09 (`respostas-bruno-rev08-2026-11-08.md` § 5 B-2, B-4; § 6 items 2, 3). Left: an unmeasured unmarked tap row printing "-" and the batch's authored wordings (E23-A7); owner: Bruno via Matheus
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 23 fix batch e23g (2026-11-09)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-e23g-wave1-fixes.md` (R2-1, "Rows in table order")
-  summary: `measurementSuggestions` (every pending Measurement fill of a block) still sorts by the numeric row key, so on a v13 TTR whose taps descend its list reads 11400 before 13800. Its consumers do not depend on that order today (`read-display.tsx` keys its map by cell, `suggestion-store.ts` reads one entry); "Confirmar todos" and its verify count re-sort a table's fills by the table's row order (`tableFills`). A consumer that walks the list in reading order would need the same table-order sort.
-  evidence: `packages/domain/src/relatorio/measurement-suggestions.ts` `measurementSuggestions`, `tableFills`.
-  class: note
-  state: open (owner: the next batch reading `measurementSuggestions` in order)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e23g-wave1-fixes.md` (review, Edge Case Hunter, low)
-  summary: the TTR table on the sheet still chooses its tap-row markup by `row.tap !== null` in `apps/web` (the position cell, V PRIMÁRIO and V SECUNDÁRIO drawn as text, the tap card): e23b's render branches. e23g moved the tap count and the "optional" and "tap table" predicates to the kernel; the input-as-text branch partly mirrors `tapCellTyped`, whose off-plate reading differs, so it was left as e23b drew it.
-  evidence: `apps/web/src/surfaces/ficha/ensaios-section.tsx` `MeasurementTable` (row.tap branches); `packages/domain/src/relatorio/tap-rows.ts` `tapCellTyped`.
-  class: note
-  state: open (owner: the next batch touching the TTR's markup, Epic 23 wave 2 or later)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 23 batch e23v (2026-11-09)
 
@@ -1479,11 +921,6 @@ All rows closed; see deferred-work-archive.md
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (authored strings, listed for Bruno)
   summary: The authored pt-BR texts of the batch: the parecer group "por pré-requisito do ensaio não atendido" (the floor's existing word); the contact rise's reason "alta de {N} % sobre {valor} da manutenção anterior, rev. {n} de {dd/mm/aaaa}, acima do limite de {pct} %" (the rise rounded up to one decimal), in the point and the conclusion clause, and its helper "Acima do aceitável: {motivo}".
   evidence: `packages/domain/src/relatorio/parecer.ts` `REPROVADO_REASONS`; `relatorio/restriction.ts` `applyHistoryRise`.
-  class: decision
-  state: open (owner: Bruno, through Matheus)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e23w-wave2-fixes.md` (B-6 narrowings)
-  summary: The contact rise judges only measured readings on both visits (a reading above the instrument's limit on either side judges nothing) and only a previous visit issued on seed v13 or later; the rule's base status stays the restriction's CONFIRMADO (one status per restriction), although DJ-03 and SC-03 are PADRÃO FASOR.
-  evidence: `packages/domain/src/relatorio/restriction.ts` `applyHistoryRise`; `seed/v13.ts` `E23V_KEYS`.
   class: decision
   state: open (owner: Bruno, through Matheus)
 
@@ -1518,11 +955,6 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 23 fix batch e23z (2026-11-10)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (item 2 reading; I/O matrix)
-  summary: how this batch reads Bruno's item 6 (2026-11-09). A Reprovado chosen by hand starts with the recommendations of the sheet's restricted tests when any test is restricted, else of every in-force test that has one. Texts are taken once each, in definition order. Bruno decides whether he wants only one test's recommendation, or none when no test is restricted.
-  evidence: `packages/domain/src/points/derived.ts` `reprovadoRecommendations`.
-  class: decision
-  state: open (owner: Bruno, through Matheus); 2026-11-10 (evening): after fix batch e24h (no automatic points) nothing starts a point by itself. Story 24.17 keeps this picking rule for the point its create action starts on a Reprovado chosen by hand; Bruno's decision is still open | 2026-11-24 audit: He said yes to the recommendation (`respostas-bruno-rev08-2026-11-08.md` § 6 item 6); the "only one, or none" question (question 3 of `textos-para-bruno.md`) was never sent. Rule live in `points/derived.ts:454-472`; owner: Bruno via Matheus
 - source_spec: `_bmad-output/implementation-artifacts/spec-e23z-final-fixes.md` (authored strings, listed for Bruno)
   summary: the batch's authored pt-BR texts:
   - "Apagar leitura" and "Leitura apagada";
@@ -1554,11 +986,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/print/last-nameplate.ts:38-41`; `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`OffPlateClearButton`, `.catch(() => undefined)`).
   class: note
   state: open (owner: the next batch touching the nameplate copy or the TTR's off-plate rows)
-- source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md` (Behavior verification, owner: E23-A5)
-  summary: The read-only preview of Bruno's v5 relatório after the deploy, planned in `epic-23-context.md` § Coordinator decisions ("Bruno's v5 relatório"), has no run on record for any of the three Epic 23 deploys. The v5 layout-lock golden covers the same risk in tests; the production check is the one that was planned.
-  evidence: `epic-23-context.md:341` against § Deploy.
-  class: verification
-  state: open (owner: the coordinator: run it and record it, or record why it was dropped)
 
 ## Deferred from: Epic 24 fix batch e24h (2026-11-10)
 
@@ -1593,11 +1020,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/print/group-for-print.ts` (`cabos_saida` without `alimentacao`); `packages/domain/src/relatorio/e23z-final-fixes.test.ts` (W3-3).
   class: narrowing
   state: open (owner: Matheus, Epic 24 planning)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (R-1, Design Notes D1)
-  summary: The conclusion basis is unchanged by R-1, so a paragraph confirmed before the fix with "dentro dos critérios de aceitação" over an unjudged reading keeps printing its confirmed words; only the composed text changed. A production count found no relatório on seed v13 (R-1a's path); R-1b's path is a company copy of the Quadro elétrico with a second test.
-  evidence: `packages/domain/src/relatorio/conclusion.ts` (`composeConclusion`, the basis).
-  class: decision
-  state: open (owner: Matheus: keep the confirmed texts, or another reading)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (authored strings listed for Bruno)
   summary: Two authored pt-BR sentences: the helper of a measured cell the deviation between phases could not judge, "Conferir: leitura sem comparação com as outras fases, sem critério aplicado"; and, reused on two new paths, the paragraph's existing "valores medidos com leitura a conferir".
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` `UNJUDGED_DEVIATION_HELPER`; `packages/domain/src/relatorio/conclusion.ts`.
@@ -1608,11 +1030,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `apps/web/src/surfaces/relatorio/setup/setup-fields.ts` `useTextField`; `apps/web/src/surfaces/relatorio/setup/etapa2-escopo.tsx` (the exclusions' resync); `apps/web/src/input/field-commit.ts` `FIELD_COMMIT_IDLE_MS`.
   class: defect
   state: open (owner: the next batch touching the setup fields)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (R-9)
-  summary: The spec's I/O row asks that "Igual à ⟨TAG⟩?" counts the copied fields in its toast; the product's toast reads "Copiado de ⟨TAG⟩" with no count (only "Copiar da última visita" counts). The new case asserts the product's words and counts the copied fields from the outbox; no behaviour was changed.
-  evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` `copySame`; `apps/web/src/copy/pt-br.ts` `nameplate.copiedFrom`; `e2e/v13-nameplate.spec.ts` e24f-E2E-002.
-  class: decision
-  state: open (owner: Matheus: a count in that toast too, or as is)
 - source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8CAP-E2E-010)
   summary: FABRICAÇÃO's combobox list was re-mounted between the "Criar ⟨nome⟩" option's resolution and the press, twice in three runs at load 6 to 10 (Playwright: "element was detached from the DOM"), while the sheet re-rendered under the sync engine's retries of a held upload. The test now retries the press. Whether a tap on a slow tablet is lost the same way is not known; not fixed (outside the batch's behaviour scope).
   evidence: `.scratch-e24f/e2e-repeat-2.log`, `e2e-repeat-3.log` (worktree, not tracked); `apps/web/src/components/registry-picker-field.tsx`.
@@ -1631,11 +1048,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/relatorio/instantiate.ts` (the run), `relatorio/tag.ts` `reuseKeyFor`; Story 24.21 states the template-side limits.
   class: design
   state: open (owner: Matheus, with the next decision on equipment identity)
-- source_spec: `spec-e24b-screen-lane.md` (review ECH-6, ECH-7)
-  summary: "Foto térmica · N" counts the sheet's photos with no item whose caption is the thermography's context caption: a sheet renamed after its shots counts 0, and a sheet-camera photo with that caption counts. No stored marker of a thermal shot exists; one needs a file field (a contract). Screen only.
-  evidence: `packages/domain/src/photos/text.ts` `thermalPhotoText`.
-  class: debt
-  state: open (owner: the next ficha batch)
 - source_spec: `spec-e24b-screen-lane.md` (review ECH-14)
   summary: `moveTagQuestion`, `renameToText`, `MoveTagSuggestion` and the Move dialog's rename branch are dead now that `moveTagSuggestion()` is always null.
   evidence: `packages/domain/src/relatorio/move.ts`; `apps/web/src/surfaces/relatorio/move-block-dialog.tsx`.
@@ -1649,24 +1061,10 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 24 batch e24a (2026-11-11)
 
-- source_spec: `spec-e24a-conclusion-rules.md` (phase B report)
-  summary: `e2e/cta.spec.ts` 14.5-E2E-001 and `e2e/qgbt.spec.ts` 14.9-E2E-001 build their template in the composer, which always takes the current seed; to keep asserting the v13 conclusion they pin the template's seed with a server-op helper (`pinTemplateSeed`) instead of a tap.
-  evidence: `e2e/support/` (`pinTemplateSeed`), the two specs.
-  class: debt
-  state: open (owner: the next carry-over batch: give these two specs a v14 twin or a seeded template)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 24 batch e24c (2026-11-11)
 
-- source_spec: `spec-e24c-company-types.md` (Design Notes D3; Story 24.20)
-  summary: the story asked "the strict schema refuses the same draft on the server". The rule is a publish rule instead: the editor's issue and the push route's refusal (`checkClientOp`, `op_invalid`). The strict schema runs in the fold of every pulled version create, so a rule there would stop a fresh device's sync on a version already published broken (possible before e23z). An older build cannot publish such a type either, because contract 44 refuses its pull.
-  evidence: `packages/domain/src/types/validate.ts` `vectorGroupPublishIssue`; `apps/api/src/sync/rules.ts` `checkClientOp`.
-  class: note
-  state: open (owner: Matheus, to accept the narrowing)
-- source_spec: `spec-e24c-company-types.md` (Story 24.19, the coordinator's readings)
-  summary: the original is hidden in the template composer's palette too, and the copy takes the original's place in the list instead of sitting at the end of "Outros equipamentos" (both coordinator's readings, built as written). A copy whose base the relatório's seed does not ship (a library type first shipped by a later seed) hides nothing there and stays at the end of "Outros equipamentos".
-  evidence: `packages/domain/src/relatorio/tree.ts` `hidingCopies`, `paletteTypeGroups`.
-  class: decision
-  state: open (owner: Matheus)
 - source_spec: `spec-e24c-company-types.md` (authored strings, listed for Bruno)
   summary: the batch's authored pt-BR texts: the rule word "nominal ± %" and the line of rules with it after "entre"; the inputs "Valor nominal" and "Tolerância (%)"; the issues "informe a tolerância (%).", "a tolerância (%) precisa ser maior que zero.", "só a regra "nominal ± %" tem tolerância.", "informe o valor nominal." and "a regra "nominal ± %" julga uma leitura, não o desvio da relação de transformação; escolha outra regra."; the palette mark "Tipo da empresa · …"; the hidden line "Oculto nas paletas: a cópia … está publicada." (several: "as cópias … e … estão publicadas."); the new `libraryNote`; Story 24.20's issue ("… a relação de transformação é calculada pelo grupo de ligação do campo … da placa, que não está mais na placa como a lista dos grupos. Remova este ensaio, ou comece de novo com "Duplicar".", summary "… sem o campo …") and its refusal toast ("O campo … não pode mudar de tipo nem de opções: …").
   evidence: every `// authored (e24c, listed for Bruno)` in `packages/domain/src` and `apps/web/src/copy/pt-br.ts`.
@@ -1680,11 +1078,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line and the W2-1 branch above it).
   class: defect
   state: open (owner: the next batch touching `print/last-results.ts`; low)
-- source_spec: `spec-e24p-print.md` (Design Notes D5; Story 24.17)
-  summary: a reading back within its criterion does not ask about the point written from its test, as an NC row back to Conforme asks (Story 24.7): the story does not ask for it. The point keeps "Origem resolvida" and the card's "Remover ponto".
-  evidence: `packages/domain/src/points/derived.ts` `resolvedOriginPoints`; `apps/web/src/surfaces/ficha/point-place.tsx`.
-  class: decision
-  state: open (owner: Matheus)
 - source_spec: `spec-e24p-print.md` (authored strings, listed for Bruno)
   summary: the batch's authored pt-BR text: the note line's opening and form "Em relação à manutenção anterior: ⟨onde⟩, ⟨motivo⟩; ⟨onde⟩, ⟨motivo⟩." (Story 24.16). The header's second line is a date; the editor's helpers "Da recomendação do ensaio · editável" and "Das recomendações dos ensaios · editável" are the frame's.
   evidence: every `// authored (e24p, listed for Bruno)` in `packages/domain/src`.
@@ -1711,39 +1104,19 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/relatorio/instantiate.ts` (`free`, the reuse run); `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `packages/domain/src/relatorio/visit-context.ts` `visitContextOf`; `packages/domain/src/types/duplicate.ts` `seededTagPrefix`.
   class: decision
   state: open (owner: Matheus: thread the definitions through the visit context for a family-aware previous visit, or keep the binding to one type)
-- source_spec: `spec-e24x-review-fixes.md` (A1, Design Notes N1, listed for Matheus)
-  summary: with the seed's phrases alone automatic (decision 17), a learned or a recent chip tapped and left untouched is now kept with the warning when its row leaves NC (one tap on "Apagar observação" removes it, with "Desfazer"), where Story 24.6 removed it; and a seed phrase typed letter by letter still reads as automatic and is removed (no stored provenance tells a tap from typing; one would be a contract).
-  evidence: `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`.
-  class: decision
-  state: open (owner: Matheus)
 - source_spec: `spec-e24x-review-fixes.md` (D4, ledger only; e24p Design Notes D4)
   summary: a top entry from before Story 24.15 (no `service_date`; service 2026-11-03, issued 2026-11-10) is dated by its issue day, so a re-test with service 2026-11-08 issued after the deploy compares as older than it and is filed as its prior: the earlier visit stays on top and the re-test's sheets read nothing newer.
   evidence: `packages/domain/src/print/visit-date.ts` `visitDateOf`, `compareVisits`; `packages/domain/src/print/last-results.ts` `lastResults` (the `order` line).
   class: decision
   state: open (owner: Matheus)
 - source_spec: `spec-e24x-review-fixes.md` (review X8)
-  summary: D1 on the Não ensaiado band (the editor kept open through its autosave, the focus on "Desfazer") has a web test over a live snapshot but no end-to-end step.
-  evidence: `apps/web/src/surfaces/ficha/point-place.test.tsx`; `e2e/points.spec.ts`.
-  class: test-gap
-  state: open (owner: the next batch touching the band; low)
-- source_spec: `spec-e24x-review-fixes.md` (review X8)
   summary: no test re-issues a top entry from before Story 24.15 (no `service_date`) after the reading relatório's service date, where D3 and D4 meet.
   evidence: `packages/domain/src/print/reading-slots.ts` `previousResultsFor`; `print/last-results.ts` `lastResults`.
   class: test-gap
   state: open (owner: the next batch touching the previous visit; low)
-- source_spec: `spec-e24x-review-fixes.md` (review X8)
-  summary: decision 17's composer row (the hidden original kept for its defaults) is untested at 390 px and with several published copies of one type.
-  evidence: `apps/web/src/surfaces/templates/block-palette.tsx`; `packages/domain/src/types/palette-meta.ts` `composerHiddenTypes`.
-  class: test-gap
-  state: open (owner: the next batch touching the composer; low)
 
 ## Deferred from: Epic 24 fix batch e24y (2026-11-11)
 
-- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N6; P6)
-  summary: not a defect. In the composer's palette the company copy "Chave seccionadora (SC)" (from before Story 24.8) is the one copy that hides the seeded seccionadora, so Story 24.19 proposes it; "Chave seccionadora (cópia)", made before fix batch e23z, carries no `base_block_type`, hides nothing and sits under "Outros equipamentos", and a type duplicated from it inherits none. An older copy without a base never hides its original.
-  evidence: `packages/domain/src/relatorio/panel.ts` `proposedFor`; `packages/domain/src/relatorio/tree.ts` `hidingCopies`.
-  class: note
-  state: open (owner: Matheus: whether copies made before e23z should learn their base)
 - source_spec: `spec-e24y-pass-fixes.md` (Design Notes N7; F7)
   summary: a conclusion and section 10 name only the first pole out by its criterion; a rise on another pole appears only in the note line.
   evidence: `packages/domain/src/relatorio/conclusion.ts` (`worstReadings`); `packages/domain/src/relatorio/parecer.ts`.
@@ -1754,11 +1127,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/relatorio/conclusion.ts` (`composeConclusion`, `ncClauseText`).
   class: decision
   state: open (owner: Bruno, through Matheus)
-- source_spec: `spec-e24y-pass-fixes.md` (Design Notes N7; F15)
-  summary: "Último envio" shows another device's older push.
-  evidence: the hands-on pass of 2026-11-11; `apps/web/src/surfaces/sync/`.
-  class: defect
-  state: open (owner: the next batch touching the sync status; low)
 - source_spec: `spec-e24y-pass-fixes.md` (P5, Design Notes N4)
   summary: like with like is judged on the current reading only: a reading corrected from the cabine's ambient (the plate's TEMPERATURA DO ÓLEO, or DO ENROLAMENTO, not typed) is not compared with the previous visit on v14. The stored previous reading keeps no record of where its temperature came from (a new synced field would be a fold change), so a previous visit corrected from its own ambient is still compared with a current one corrected from the plate. v13 keeps comparing as before.
   evidence: `packages/domain/src/relatorio/reading-evaluation.ts` (`unlike`), `packages/domain/src/relatorio/measurement-evaluation.ts` `applyHistory`; `packages/domain/src/schemas/entities.ts` `lastResultReadingSchema`.
@@ -1774,11 +1142,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
   class: decision
   state: open (owner: Matheus: the v14-only form of "±" and "≥", or keep)
-- source_spec: `spec-e24y-pass-fixes.md` (P8c, P8d)
-  summary: what was found while changing Bruno's words: "Origem resolvida" is screen only (the Pontos flag and the point question's description), so nothing printed moves; "paleta" also stood in two sentences the spec's lines did not list, changed the same way ("lista de tipos aberta de dentro da ficha" in the field palette's office note; "local onde a lista de tipos abriu" in the panel's reason line); "Toque em um tipo da lista para adicionar." avoids "tipo da lista de tipos".
-  evidence: `apps/web/src/copy/pt-br.ts`; `packages/domain/src/relatorio/panel.ts`; every `// authored (e24y, corrected by Bruno 2026-11-11)`.
-  class: note
-  state: open (owner: Bruno, through Matheus, with the authored list)
 - source_spec: `spec-e24y-pass-fixes.md` (review Y1, P5)
   summary: when a v14 reading is held back from the previous-visit comparison (the previous visit typed TEMPERATURA DO ÓLEO, or DO ENROLAMENTO, and this one has not), its cell says nothing about it: no existing sentence fits (the missing-temperature line asks for a temperature the ambient already stands in for). A proposal for Bruno: "Sem comparar com a manutenção anterior: ela foi corrigida pela temperatura da placa; informe a temperatura do óleo."
   evidence: `packages/domain/src/relatorio/reading-evaluation.ts` (`unlike`), `packages/domain/src/relatorio/measurement-evaluation.ts` `applyHistory`; `relatorio/temperature-correction.ts` `missingNote`.
@@ -1809,11 +1172,6 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` (`prefilled`, `helper`); `packages/domain/src/relatorio/nameplate-copy.ts` `nameplateTagPrefill`; `e2e/sheet-knows-12-3-12-4.spec.ts` 12.3-E2E-001.
   class: decision
   state: open (owner: Matheus: whether the helper goes once the technician typed the TAG, and what tells the field so without a stored cell)
-- source_spec: fix batch e24z (`verificacoes-surface.test.tsx`, Story 24.6 test)
-  summary: the unit test read the outbox, saw the chip's observation written, and tapped "Conforme" before the surface had re-read the row: `ncObservationOnLeave` then compares the field's text with the stored observation still empty and answers `keep` (e24x A2: a text ahead of the store is kept), so only the result was written (7 ops, not 8). A probe that taps "Conforme" right after the chip shows the same on every run: the phrase kept, with "Observação mantida: o texto foi editado." and "Apagar observação". Not a lost write; the test now opens the surface again before the tap, so it reads the stored row. On a slow device the same tap within the store's echo keeps a chip phrase and calls it edited; the person can clear it with "Apagar observação".
-  evidence: `apps/web/src/surfaces/ficha/checklist-section.tsx` (`write`, `ncObservationOnLeave(result, value, stored, ..., typed.text)`); `packages/domain/src/relatorio/ficha.ts` `ncObservationOnLeave`; the batch's loop (old test: 1 red in 28 runs, 25 alone and 3 beside a whole web run; new test: 28 of 28 green, 25 alone and 3 beside a whole web run).
-  class: note
-  state: open (owner: Matheus, low: whether the warning should say "mantida" without "editado" when the text is a chip phrase still being saved)
 - source_spec: fix batch e24z (the oil-field family)
   summary: since e24s an oil field of a non-oil unit is drawn read-only without `data-field-key`, so `missingMarker(page, 'vol_oleo')` toHaveCount(0) on a dry or non-oil unit passes whatever the field shows (`dry-transformer.durability.spec.ts` R8DRY-E2E-001 to -003, `oil-dry.spec.ts` and `seed-v7.spec.ts` beside their read-only checks). Not red, but empty where no read-only check stands beside it.
   evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` `ReadOnlyField`; the specs named.
@@ -1823,16 +1181,11 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
 ## Epic 24 integrated gate (2026-11-11)
 
 - **The api process exits when its database restarts, and stays down in compose.** Seen in gate run 1 on `76c74711`: under a load of 32 the stack's Postgres restarted (its health-check exec was cut, "untracked child process terminated by signal 13"), a pool connection raised `PostgresError: the database system is not yet accepting connections` as an uncaught exception, and the node process exited; the container stayed up and unhealthy. In production the service restarts the task, so the effect is a short outage, not a stuck api. Open: catch the connection error and retry, or give the compose service a restart policy. Candidate for Epic 25.
-- **`e2e/cta.spec.ts` 14.5-E2E-001 is sensitive to the load of the document queue.** In gate run 3 on `ee0859cc` its download did not start within 30 s (`e2e/support/download.ts:13`) in the queue lane; alone it passed 3 of 3, and it passed in run 2. Open: whether the 30 s wait should follow the document job's own bound.
-- **The final hands-on pass of 2026-11-11** (`_bmad-output/test-artifacts/manual/behaviour-pass-e24-2026-11-11.md`, findings G1 to G14), open rows: G1, a deadline typed by hand in the point editor leaves a draft behind and "Rascunho encontrado" shows on the next load (sent to batch e25a; whether it is older than Epic 24 is being checked); G4, the "Não ensaiado" band shows no link to its point once it exists; G5, a sheet whose plate TAG was typed before fix batch e24y keeps a plate TAG different from the equipment's; G6, a line break between "75" and "°C" in a note line; G7, the v14 Malha's helper still says "na placa"; G8, the Malha's conclusion ends ", sem itens verificados registrados" though the sheet has no checklist; G9, the QGBT header says "Leituras prontas" with no reading; G10, a comparison held back for a missing temperature says nothing on screen; G11, the rename toast wraps into four lines at 390 px; G12, "(critério: …, aceitável na ficha)" reads as if the rejected value were acceptable (for Bruno); G13 and G14 are older than Epic 24 (the obra's count of relatórios on the device; "Criar" offered beside an exact client name). | 2026-11-24 audit: G6 closed (resolved: On seed v18 the note is `print/history-note.ts` (Story 28.8, `9b7659e0`) with `NBSP` at :128 and :159; v14 to v17 are frozen byte-identical by design)
+- **The final hands-on pass of 2026-11-11** (`_bmad-output/test-artifacts/manual/behaviour-pass-e24-2026-11-11.md`, findings G1 to G14), open rows: G1, a deadline typed by hand in the point editor leaves a draft behind and "Rascunho encontrado" shows on the next load (sent to batch e25a; whether it is older than Epic 24 is being checked); G4, the "Não ensaiado" band shows no link to its point once it exists; ~~G5, a sheet whose plate TAG was typed before fix batch e24y keeps a plate TAG different from the equipment's~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Legacy and cosmetic); G6, a line break between "75" and "°C" in a note line; G7, the v14 Malha's helper still says "na placa"; G8, the Malha's conclusion ends ", sem itens verificados registrados" though the sheet has no checklist; G9, the QGBT header says "Leituras prontas" with no reading; G10, a comparison held back for a missing temperature says nothing on screen; G11, the rename toast wraps into four lines at 390 px; G12, "(critério: …, aceitável na ficha)" reads as if the rejected value were acceptable (for Bruno); G13 and G14 are older than Epic 24 (the obra's count of relatórios on the device; "Criar" offered beside an exact client name). | 2026-11-24 audit: G6 closed (resolved: On seed v18 the note is `print/history-note.ts` (Story 28.8, `9b7659e0`) with `NBSP` at :128 and :159; v14 to v17 are frozen byte-identical by design)
 
 ## Deferred from: Epic 25 batch e25b (2026-11-11)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-e25b-revision-verdicts.md` (Story 25.4, review finding ECH-3)
-  summary: On an open ficha whose floor sets a pair the technician has not chosen, `relatorioVerdicts` answers the effective pair before any issue and the printed halves (null where no X printed) once a revision records them, as the story words it ("as section 9 printed it"; "else the effective ones"). A raw count of Reprovado can therefore drop for an open sheet after an issue.
-  evidence: `packages/domain/src/print/printed-verdicts.ts` `relatorioVerdicts`; `relatorio/conclusion.ts` `printedConclusionPair` (an open sheet prints the chosen halves).
-  class: decision
-  state: open (owner: Matheus: whether a raw reader of an open sheet takes the printed or the effective pair; no reader exists yet)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: the Epic 24 retrospective (2026-11-11)
 
@@ -1849,19 +1202,9 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
 
 ## Deferred from: Epic 25 batch e25a (2026-11-11)
 
-- source_spec: `spec-e25a-saving-and-sync.md` (Design Notes D2, the e24z R8CAP-E2E-010 lead (2))
-  summary: not reproduced by reading the code. On the sheet, `WordField` drops every null React Aria reports while a created name has not landed (`created`) or while the stored name is not in the registry, so the leave whose text equals its baseline (`commitLeft` `release()`) cannot clear a stored name through it; a clear now goes only through `onClear` (the technician emptied the field). Two component tests drive "Criar" then leaves before and after the registry row and the value land (`registry-picker-field.test.tsx`, `ficha-fields.test.tsx`, "D2"); ~~they pass on the reading of the code, to be confirmed in the batch's runs.~~ *(2026-11-11, phase B: both ran green, so no leave clears a stored name through the sheet's field; R8CAP-E2E-010 ran green in the touched specs.)* The empty FABRICAÇÃO with "1 pendente" of the e24z gate stays unexplained; the retry of (1) no longer fills the same text.
-  evidence: `apps/web/src/components/registry-picker-field.tsx` (`commitLeft`, `release`); `apps/web/src/surfaces/ficha/ficha-fields.tsx` `WordField`; `e2e/review-photo-failures.spec.ts` `createManufacturer`.
-  class: gap
-  state: open (owner: the next run of R8CAP-E2E-010 under `--repeat-each`; a red there with the outbox dump names the op)
 - source_spec: `spec-e25a-saving-and-sync.md` (Design Notes D5, fix batch e24x B1)
   summary: a hung push still holds its cycle up to about 18 min (three attempts at 360 s): this batch bounds the file transfers, not the push; edits wait behind it, now with the `late` badge and line after one minute.
   evidence: `apps/web/src/sync/client.ts` `requestHeadersTimeoutMs`; `apps/web/src/sync/engine.ts` `withRetry`.
-  class: note
-  state: open (owner: the next batch touching sync; low)
-- source_spec: `spec-e25a-saving-and-sync.md` (Story 25.3, the late alert's clock)
-  summary: the moment the device last became able to send (`canSendSince`, `state/sync.tsx`) is read at mount on the corrected clock; on the very first load of a device whose clock is fast, before any server answer has taught the offset, it is read on the raw clock, so the alert can come late by up to the offset, on that load only (the offset is stored afterwards). Never early.
-  evidence: `apps/web/src/state/sync.tsx` (`canSendSince`); `apps/web/src/clock.ts` (`now`, `learnServerClock`).
   class: note
   state: open (owner: the next batch touching sync; low)
 - source_spec: `spec-e25a-saving-and-sync.md` (story gate on `2a862662`)
@@ -1872,21 +1215,7 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
 
 ## Deferred from: Epic 25 fix batch e25r (2026-11-11)
 
-- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B1; test T4)
-  summary: `printed_parecer: null` on a revision has two meanings. (1) Section 10 was not printed (its block removed or switched off). (2) Section 10 printed "[Parecer]" because an op reopened a sheet between the route's check and the snapshot the job froze (the job does not run the check again). The print is older than Story 25.4; the ambiguous record is new. Behaviour not changed; pinned by `25.4-UNIT (g)` in `print/printed-verdicts.test.ts` (kernel only: a test cannot reach the worker without the route).
-  evidence: `packages/domain/src/print/printed-verdicts.ts` `printedVerdicts`; `apps/api/src/jobs/generate/job.ts` (no second check).
-  class: decision
-  state: open (owner: Matheus: keep one null, record a third value, or have the job refuse)
-- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B2)
-  summary: a sheet marked not tested with a defect reason floors the parecer but has no entry in `printed_conclusions` (section 9 prints no CONCLUSÃO row for it). A count that reads the record to explain a Não apto will not find that sheet there.
-  evidence: `packages/domain/src/print/printed-verdicts.ts` `conclusionSheets` (`printsConclusionRow`).
-  class: note
-  state: open (owner: the first story that counts from the record)
-- source_spec: `spec-e25r-like-with-like.md` (wave 1 review of e25b, B3)
-  summary: revisions written before contract 48 carry no printed keys and get no backfill; a raw reader falls back to the effective values (the story's own fallback). Pinned through the sync route by 25.4-API-003 (T1).
-  evidence: `packages/domain/src/print/printed-verdicts.ts` `relatorioVerdicts`.
-  class: note
-  state: open (owner: Matheus, only if an old revision's printed verdicts are ever needed)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 25 fix batch e25x, the wave 1 review fixes (2026-11-12)
 
@@ -1926,11 +1255,6 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
   evidence: `packages/domain/src/types/test-base-update.ts` `planTestBaseUpdate` (about line 233).
   class: gap
   state: open (owner: the next batch touching the test base update; low)
-- source_spec: Story 25.20 (review of PR #333, finding 4; not fixed)
-  summary: `connectionLabel` and the reading cell's label are not gated by seed, so a company copy whose connection column is named like "XXs" prints as written on v14 too. No seeded column is affected; goldens byte-equal.
-  evidence: `packages/domain/src/print/section-9.ts` `connectionLabel` (about lines 53-65); `packages/domain/src/relatorio/reading-cells.ts` (about line 364).
-  class: gap
-  state: open (owner: the next batch touching section 9; low)
 - source_spec: Story 25.23 (seen while fixing finding 1 of the review of PR #333; not fixed)
   summary: the update's draft for a copy of an older seed (v12) that gains current-seed tests fails the strict definition schema (`applies_when` and `winding_correction` name nameplate fields the old copy lacks), so that draft cannot be published as is.
   evidence: `packages/domain/src/types/test-base-update.ts` `addSeedTests`; reproduce with `companyTypeDefinitionSchema.safeParse` on the TR-OL draft of the AC2 case in `test-base-update.test.ts`.
@@ -1985,12 +1309,6 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 26 batch e26d, Stories 26.9, 26.11 and 26.6 web (2026-11-22)
 
-- source_spec: Story 26.11 (out of scope)
-  summary: An Admin view of what a device holds unsent (the server cannot know it) and exporting the unsent work of a paused user to a file are not built.
-  evidence: Story 26.11 "Out of scope".
-  class: gap
-  state: open (owner: Matheus, when someone asks)
-
 - source_spec: Story 26.6 web half (frames 13 and 14)
   summary: The set-password page does not say the invitee's name, e-mail or the link's expiry ("Olá, Fernanda", the read-only e-mail, "vale até 23/11 10:30"): the link route gives no lookup of the token, so the page cannot know them. A used link is known only when "Salvar senha" is pressed. A read-only `GET` that names the user and the expiry of a token would let the page show them.
   evidence: `apps/web/src/surfaces/login/set-password-surface.tsx`.
@@ -2005,16 +1323,6 @@ All rows closed; see deferred-work-archive.md
   summary: Frame 92's row lines are not drawn: "convite enviado em ..., vale até ..." (invited), "pausado em ... por ..." (paused) and "removido em ... por ..." (removed). The rows show the role and the last access only. The dates and the actor need data the kernel row does not hold (when and by whom a status was set; the invitation's expiry is in a `verification` row).
   evidence: `mockups/prototype/screens/92-usuarios.html`; `packages/domain/src/permissions/user-list.ts` `userRowDetailText`.
   class: gap
-  state: open (owner: next UX pass)
-- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22)
-  summary: At 390 px the App bar pill of an offline device reads "Off". It predates Epic 26: the word is `syncBadgeShort` in `packages/domain/src/sync/counts.ts` and the phone rule in `components.css`, both from Story 1.6 (commit 3395035d, 2026-09-22; the word set was fixed by review F-29, 2026-10-06). The pass read it as a defect only beside the paused state; with F2-3 a paused account no longer shows "Off".
-  evidence: `packages/domain/src/sync/counts.ts` (the 'Off' return); `apps/web/src/styles/components.css:117`.
-  class: observation
-  state: open (owner: next UX pass, wording only if Matheus wants a clearer word)
-- source_spec: spec-e26s-pass-fixes.md (hands-on pass of Epic 26, 2026-11-22)
-  summary: The Login page, signed out, makes one `GET /api/account` that answers 401 and shows as one console error. It is the boot check of the session (expected), not a defect of the page; silencing it would need a lighter session probe the browser does not log.
-  evidence: `apps/web/src/api/auth-client.ts` account read; `apps/web/src/state/session.tsx` boot.
-  class: observation
   state: open (owner: next UX pass)
 - source_spec: spec-e27c-layout.md (Story 27.14, the Home half; coordinator's decision of 2026-11-22)
   summary: A Home card for a relatório not on the device shows no date, and two such cards of the same client and obra cannot be told apart (F21). The card comes from the company pull summary, which carries no service date. It needs `service_start` and `service_end` in `relatorioSummarySchema` (`packages/domain/src/contract/sync.ts`) and in the summary `apps/api/src/sync/pull.ts` builds, one contract number (Story 10.4's optional `progress` in the same summary took contract 11), then the line composed in `packages/domain/src/home/cards.ts` with its "27.14-UNIT" test and the Home case of `e2e/templates-home-cards.spec.ts`.

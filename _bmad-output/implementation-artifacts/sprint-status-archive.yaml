@@ -1368,6 +1368,203 @@ action_items:
     owner: "field engineer, through Matheus"
     status: done  # 2026-11-24 audit: resolved: answered 2026-11-22; 25.17 dropped, Stories 28.3 and 28.8 done
     ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+  - id: "epic-2-retro-item-16-e2-a4-dod-every-user-facing-ac-exercised"
+    epic: 2
+    action: "E2-A4 DoD: every user-facing AC exercised through a mounted screen or
+      moved in epics.md with a date; at least one @p0 per story"
+    owner: "Matheus"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: in-progress
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-3-retro-item-18-e3-a1-record-the-r-009-seed-review-under"
+    epic: 3
+    action: "E3-A1 Record the R-009 seed review under Story 3.1 and decide D-2 ({obra}),
+      D-3 (NA defaults, subtypes) and D-6 (roles), as seed v2 or a deliberate v1 unfreeze
+      (blocks Story 4.1)"
+    owner: "Matheus"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: open  # 2026-09-23 deferred to before Epic 5 by Matheus; Epic 4 proceeds on seed v1
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-19-e3-a2-decide-the-not_tested_reason-for-t"
+    epic: 3
+    action: "E3-A2 Decide the not_tested_reason for the Porto Seguro untested blocks
+      (solicitacao_cliente vs impossibilidade_desligamento)"
+    owner: "Matheus"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-22-e3-a5-decide-d-4-template-version-d-5-co"
+    epic: 3
+    action: "E3-A5 Decide D-4 template.version, D-5 contact-insulation row offset
+      in the kernel, D-7 array last-writer-wins, before instantiateTemplate and the
+      renderer"
+    owner: "Winston + Matheus"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: in-progress  # 2026-09-23 D-4 decided by Matheus: template.version increments on edit (Story 4.1); D-5, D-7 open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-23-e3-a6-process-a-seed-fixture-freeze-requ"
+    epic: 3
+    action: "E3-A6 Process: a seed/fixture freeze requires the human review record
+      first; goldens get an explicit assertion against the source document"
+    owner: "Matheus / SM"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-5-retro-item-39-e5-a3-decide-oq-1-oq-6-of-reviews-epic-5"
+    epic: 5
+    action: "E5-A3 Decide OQ-1..OQ-6 of reviews/epic-5-review-qa.md, the carried questions
+      (humidity threshold, CONDICOES when out, single TAP row, fixture kV unit, Q15,
+      item 23) and the authored conclusion wording; record dated notes under each
+      story"
+    owner: "Matheus (with Bruno for wording)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-12-retro-item-44-e12-a1-add-the-epic-12-product-questions"
+    epic: 12
+    action: "E12-A1 Add the Epic 12 product questions to the E5-A3 session: D-2 residue
+      (fold complete sections), D-4 residue (a stale Proxima ficha label concluding
+      and writing the suggested instruments), Bruno's authored copy (Ficha completa,
+      falta campo, cabine count wording, pre-issue row, Equipamento inacessivel justification),
+      printed OBSERVACOES with NC items, TAG field final form, status on generate
+      (J-19)"
+    owner: "Matheus (with Bruno for wording)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-6-retro-item-54-e6-a4-add-the-epic-6-product-questions-to-the"
+    epic: 6
+    action: "E6-A4 Add the Epic 6 product questions to the E5-A3 session: manual points
+      naming an equipment (E6-Q9), caption period and agreement, row 8 counts with
+      the derived entry, four authored texts, criterion_override shape {raw, unit},
+      edited conclusion text unguarded, point editor without Cancelar, confirm or
+      reverse photos never block Gerar"
+    owner: "Matheus (with Bruno for wording)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-7-retro-item-70-e7-a5-answer-the-epic-7-product-questions"
+    epic: 7
+    action: "E7-A5 Answer or date as deferred: Rascunho may generate (E4 item 25),
+      blank ART line (E78-Q10), parecer suggestion timing, dual secondary for VAL
+      CALCULADO, TAG in not-tested bullets, who writes feeds_block_id, SM-C1 logged
+      vs stored, one 'concluídas' definition (E78-R2); before the Epic 9 carry-over
+      batch"
+    owner: "Matheus (with Bruno for wording)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-60-e8-a3-epic-8-product-questions"
+    epic: 8
+    action: "E8-A3 Add to the E5-A3 session: PARSeq vs PP-OCRv5, Confirmar todos and
+      the create-hint manufacturer (and its toast), megôhmetro range source (Story
+      9.1), plate tile on other types, one concluded-sheet definition (E78-R2), 12.1
+      tap-guard timing, E6-A2 e2e:full rule, the carried Epic 7 questions; answers
+      as dated lines"
+    owner: "Matheus (Bruno for wording); coordinator records"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-63-e8-a6-pipeline-e2e-through-the-real-job"
+    epic: 8
+    action: "E8-A6 A feature with a server pipeline gets one @p1 e2e from the UI entry
+      through the real job under fake providers, no server-op seeding; playbook now,
+      DoD wording for Matheus"
+    owner: "coordinator; Matheus approves the DoD wording"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: in-progress  # playbook rule a2cd053, applied in 9.1; DoD wording for Matheus
+    ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-9-retro-item-80-e9-a8-epic-9-product-questions"
+    epic: 9
+    action: "E9-A8 Add to the E5-A3 session: E9-Q15, Q16 (a blocker before Epic 11),
+      Q17, Q18 (range source, display walk across rows, print-only values), the Conferir
+      line layout at 1280, the per-user SW pin (AD-8); dated answers under Stories
+      9.1-9.5"
+    owner: "Matheus (Bruno for wording)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-11-retro-item-92-e11-a3-visible-gate-lock"
+    epic: 11
+    action: "E11-A3 Wrap the gate lock in a script that records holder pid, session,
+      command and start time and refuses to wait silently behind a holder older than
+      60 min (a stuck measure.sh held it about 4 h; lock waits of 1-3.7 h per batch);
+      target Epic 12: no wait over 30 min from a dead or stuck holder"
+    owner: "coordinator (playbook and script)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-93-e11-a4-rotate-password-seed-from-ssm"
+    epic: 11
+    action: "E11-A4 Rotate the production admin password exposed in the chat and in
+      the ECS task description; seed through a task definition reading the password
+      from SSM (secrets, not an env override) or a seed entry point in the prod image;
+      playbook: agents never open or print a secrets file"
+    owner: "Matheus (rotation); coordinator (task definition, playbook)"
+    status: done  # 2026-11-24, Matheus: "nao precisa" (rotation not needed); was: in-progress  # PR #83: seed-users reads SEED_USER_PASSWORD; rotating the exposed production password is still Matheus's
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-95-e11-a6-epic-11-product-questions"
+    epic: 11
+    action: "E11-A6 Add to the E5-A3 session: the per-relatório rich editor vs Story
+      11.4's plain-text AC (PR #79), Graviton vs x86-64, panel to Textract or ocr-svc,
+      rail rows with 'Mover para…', rename checked by default, obra name as template
+      default, 'pontos sem prazo' prazo or priority, the empty action-plan table,
+      authored P4 hint and toasts, the CloudFront fallback HTTP leg, the 401 wording;
+      dated answers under Stories 11.1-11.10"
+    owner: "Matheus (Bruno for wording)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-13-retro-item-107-e13-a8-epic-13-product-questions"
+    epic: 13
+    action: "E13-A8 Add to the E5-A3 session: authored copy pending Bruno (13.2 torch/zoom/refusal,
+      13.8 audit copy and .precheck look, Ler de novo, Recorte na tela, F-09 banner
+      and burst line, wait announcements), Q-2 Hoje on Proxima intervencao, Q-4 cables
+      nameplate, the 13.4 typed-year-over-suggestion parse, the #110 toast priority
+      rule (arrival opt-in); dated answers under Stories 13.2-13.8"
+    owner: "Matheus (Bruno for wording)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: open  # 2026-10-15: Bruno's answers (relayed by Matheus) close Q-2: a "Hoje" chip on Proxima intervencao is wanted, built in Story 14.10 part 9. The authored copy (13.2 torch/zoom/refusal, Ler de novo, Recorte na tela, the audit notice) goes to a 10-minute tablet session Bruno accepted, not yet scheduled by Matheus. Still open: that session, Q-4 cables nameplate, the 13.4 typed-year parse, the #110 toast rule
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-14-retro-item-118-e14-a9-epic-14-product-decisions"
+    epic: 14
+    action: "E14-A9 Decide before the first real job: site NCs in NC abertos and the
+      parecer suggestion plus an item link on a point (Q-4, count-based blind spot),
+      Q-8 offline site work on a removed local, Q-9 site photos of a removed local
+      in section 7, Q-15/R2 CTA config change on Emitido, 14.3 O1/O2/O4, cabine incompleta
+      row for a local with no equipment, 14.5 W1 select vs segmented and W6 E1/E5
+      stacking on phone; target dated answers under Stories 14.3-14.5"
+    owner: "Matheus"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: open  # 2026-10-14: partly answered by Bruno, PR #130 (b6765c2): Q-4 settled (a site NC counts in NC abertos, the tap focuses its local, the parecer suggests Apto com restricoes naming the item). Still open: the item link on a point, Q-8, Q-9, Q-15/R2, 14.3 O1/O2/O4, cabine incompleta row, 14.5 W1 and W6  # 2026-10-15: Bruno's answers close no further part; answer 6 accepts the parecer wording for a site NC (the Q-4 suggestion), answer 3 records the manufacturer's value as the preferred criterion source and opens a product question (a per-equipment manufacturer criterion on the sheet), answer 2 keeps E4's 14 rows. The parts listed above stay open
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-15-retro-item-128-e15-a6-story-15-1-bruno-dod"
+    epic: 15
+    action: "E15-A6 Meet Story 15.1 DoD (Bruno sees the phone frame, his answer dated
+      under the story) now that v0.3.0 is on his phone, or narrow the clause with
+      a dated line; same for Story 14.1"
+    owner: "Matheus"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-131-e15-a9-success-signal"
+    epic: 15
+    action: "E15-A9 Measure the success signal: on Bruno's next relatorio from the
+      phone, record dated under Epic 15 which of the seven workarounds he still needed"
+    owner: "Matheus (record); coordinator (line)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-24-retro-item-184-e24-a5-matheus-decisions"
+    epic: 24
+    action: "E24-A5 Matheus decisions, one dated line each: the open readings of the
+      fix batches (the Marcar como form of the other pills; the plus-minus and >=
+      signs on seeded criteria; the helper after a rename typed in the plate's field;
+      B4, a copy that never binds its base type's equipment; whether v13 also takes
+      like with like; a stale conclusion in another open relatorio of the obra); X3's
+      change of Origem resolvida on older seeds (R-2); Story 24.6 after fix A1, a
+      learned or recent chip left untouched is kept with the warning; publish the
+      release page of v0.9.0; the three proposed status transitions (E23-A1 done,
+      E23-A4 and E23-A7 in progress)."
+    owner: "Matheus (decision); coordinator (record)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-185-e24-a6-records"
+    epic: 24
+    action: "E24-A6 Records, no code: the Epic 24 story rows of sprint-status.yaml
+      that still say not deployed; the ledger rows the deploy left open (close the
+      paid eval row of e24s with its result, carry the v14 lock row to E24-A2); a
+      dated line under the byte-identical rule of Epic 24 in epics.md (what changed
+      on older seeds, and on whose word); whether Nova Pro's 5 of 6 real plates on
+      prompt 9 is variation, one more run, counts only; the read-only preview of Bruno's
+      v5 relatorio, run and recorded or dropped with the reason (planned in two epics,
+      run in neither); the four lines of E23-A5, still unwritten."
+    owner: "coordinator (draft); Matheus (approve the epics.md lines; the AWS login
+      for the eval run)"
+    status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
 
 # Original trailing comments of development_status, as of main e687b442, archived 2026-11-24.
 development_status_history:
