@@ -332,7 +332,7 @@ development_status:
   25-24-the-conferencia-por-ia-says-when-it-is-out-of-date: done  # 2026-11-15: deployed 2026-11-12 as 8d5e9e2e (smoke 8/8, tag v0.11.0) | was backlog # added 2026-11-11 (M16 and the last part of M20; decision 10); wave 5, e25q, last; every seed, one contract number; never runs by itself (M-8)
 
   epic-26: done  # 2026-11-22: deployed with Epic 27 as 886af55e (v0.13.0, smoke 8 of 8) after one full gate green on that commit; retrospective open | was in-progress: 2026-11-22: every story done on main, not deployed; fix batches e26r (#358) and e26s (#360) merged; waits for the shared final gate with Epic 27 and the one deploy | was: 2026-11-22: every story but 26.7 on main, not deployed; full gate green on 8a214062; review done, fix batch e26r running; one deploy with Epic 27 (Matheus) | was: 2026-11-21: e26a merged (#342, b43effe6: 26.2, 26.3, 26.4, contract 55); frames PR #341 open, waiting for Matheus | was backlog  # added 2026-11-21: users, roles and permissions; Matheus's seven decisions of 2026-11-21; inputs from Winston, Sally and Amelia; 11 stories in four waves; AD-29 and the source-deltas row are planned; story list approved by Matheus 2026-11-21 ("ok"), with one full gate at the end of the epic instead of one per wave and batches in parallel; 26.7 on hold
-  epic-26-retrospective: optional
+  epic-26-retrospective: done  # 2026-11-24: epic-26-retro-2026-11-24.md, headless; machine verdict accepted-with-open-items (all 11 stories done; open: E26-A1 to E26-A9, chiefly the SPEC and source-deltas reconciliation, the untracked pass report, the production Admin count, the iPad check, Matheus's open readings)
   26-1-the-epic-26-frames-in-the-mocks: done  # 2026-11-21: frames approved by Matheus ("aprovado") and merged (#341, 716d4a2b) | was backlog  # added 2026-11-21; wave 0, coordinator with bmad-ux; no app code
   26-2-the-kernel-knows-the-keys-the-roles-and-who-may-do-what: done  # 2026-11-21: done on main, not deployed (batch e26a, PR #342, b43effe6, contract 55) | was backlog  # added 2026-11-21; wave 1, e26a, first; AD-29; one contract number
   26-3-roles-and-user-status-live-in-the-companys-data: done  # 2026-11-21: done on main, not deployed (batch e26a, PR #342, b43effe6, contract 55) | was backlog  # added 2026-11-21; wave 1, e26a; every existing user becomes Admin (decision 6)
@@ -2183,6 +2183,85 @@ action_items:
     owner: "coordinator"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+  - id: "epic-26-retro-item-193-e26-a1-delete-the-stray-docs-kbs-log-md"
+    epic: 26
+    action: "E26-A1 Delete the stray docs/kbs/log.md-e (a sed backup committed in
+      the PR #352 merge 678f3f42) and keep editor and sed backup files out of the
+      tree."
+    owner: "the coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-26-retro-item-194-e26-a2-spec-reconciliation-strike-throug"
+    epic: 26
+    action: "E26-A2 Spec reconciliation: strike through and date SPEC.md lines 52,
+      173 and 201 (the no-roles words), and extend the source-deltas.md row of 2026-11-21
+      with e26b, e26d, e26e, e26r, e26s, e26t, e26u, the deploy 886af55e and contract
+      57 as dated built records."
+    owner: "John writes, Matheus applies"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-26-retro-item-195-e26-a3-write-the-hands-on-pass-as-the-fi"
+    epic: 26
+    action: "E26-A3 Write the hands-on pass as the five roles and the integrated review
+      of 8a214062 as tracked reports under _bmad-output/test-artifacts/manual/ (role,
+      width, finding, fix commit; no screenshots, no client data)."
+    owner: "the coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-26-retro-item-196-e26-a4-count-the-production-users-with-t"
+    epic: 26
+    action: "E26-A4 Count the production users with the read-only recipe: each user
+      that existed before the migration is an active Admin, and how many hold another
+      role now. Counts only; record a dated line in epic-26-context.md."
+    owner: "Matheus (the word to touch production); the coordinator (run and record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-26-retro-item-197-e26-a5-on-a-real-ipad-sign-in-pause-the"
+    epic: 26
+    action: "E26-A5 On a real iPad: sign in, pause the user from another device, reactivate,
+      sign in again, check the unsent work arrives; fill the ipad manual template."
+    owner: "Matheus (the device)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-26-retro-item-198-e26-a6-decide-one-dated-line-each-under"
+    epic: 26
+    action: "E26-A6 Decide, one dated line each under its story in epics.md: the open
+      coordinator readings of Stories 26.2, 26.4, 26.5, 26.6, 26.8, 26.9 and 26.10;
+      suggestion.review and relatorio.delete open nothing a user can see; ultimo acesso
+      past sign-out (column or op), frame 92 row lines, the set-password page name
+      and expiry."
+    owner: "Matheus (decisions); the coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-26-retro-item-199-e26-a7-dated-lines-in-epic-batch-orchest"
+    epic: 26
+    action: "E26-A7 Dated lines in epic-batch-orchestrator.md section 12 and the Epic
+      26 rules: additive list entries and input fixtures in old tests are allowed,
+      never an assertion; a fix batch after an epic full gate that changes product
+      code or session/sync behaviour runs the matrix projects of every durability
+      spec it touches or adds; a trace that finds a gap in the batch own fix becomes
+      a fix or a test in that batch; a permission key story checks the key opens something
+      reachable; the browser pass on a deploy candidate includes one launch over the
+      previous build; the three E25-A6 lines still owed."
+    owner: "the coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-26-retro-item-200-e26-a8-make-a-root-owned-node_modules-vi"
+    epic: 26
+    action: "E26-A8 Make a root-owned node_modules/.vite-temp under apps/api and packages/domain
+      impossible or caught: load the Vitest config in memory as Story 14.10 did for
+      Vite, or extend scripts/preflight.ts to name it before a gate starts."
+    owner: "the next test-hardening batch (with E23-A4 and E24-A4)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+  - id: "epic-26-retro-item-201-e26-a9-record-the-two-manual-steps-of-st"
+    epic: 26
+    action: "E26-A9 Record the two manual steps of Story 26.7 in infra/README.md E-mail
+      as dated lines: the three DKIM records typed at the registrar by Bruno, and
+      SES production access granted, both on 2026-11-22."
+    owner: "the coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
   - id: "epic-28-retro-item-193-e28-a1-decide-the-seven-open-readings-em"
     epic: 28
     action: "E28-A1 Decide the seven open readings (empty utility name blocks the
