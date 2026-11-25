@@ -25,11 +25,13 @@ At most two batch stacks up at a time. The main checkout's stack is stopped whil
 | 1 | e30b | 30.3 | 31 | main `29072a91` or later | 60 (main's plus one) | fable · high |
 | 2 | e30c | 30.4 | 30 | main after wave 1 is merged | main's plus one at its merge (61 if e30b took 60) | opus · high |
 | 2 | e30d | 30.5 | 31 | main after wave 1 is merged; merges main again before its PR | none expected | opus · high |
+| 3 | e30g | 30.6 | 30 | main `ace4bfd0` (Stories 30.1 to 30.5 merged) | none (usage-event fields, apart from the sync contract) | opus · high |
 
 - e30a and e30b run side by side. They share only `deferred-work.md` (different rows) and `docs/kbs/log.md` (append only); the PR that merges second merges main first.
 - Story 30.2 rides in e30a, not in a batch of its own: the two-stack limit, one batch per wave, and no file shared with 30.1.
 - e30c starts once wave 1 is merged and its full gate is green. e30d starts when e30c's batch gate has finished and no other stack is up: it measures under a load it makes itself.
 - Images: each batch tags its own `app-api-e30x` and `app-tools-e30x` from the shared images and never builds from scratch.
+- *(2026-11-25, coordinator: Story 30.6 added on Matheus's word "é o tablet do Bruno, pode registrar o tipo do aparelho", after the production read of the usage events showed Bruno's tablet at phone width in 106 of 159 sessions. One batch, e30g, alone on the host, port base 30. It touches the usage-event contract (`contract/telemetry.ts`), `apps/web/src/telemetry/context.ts`, one view of `infra/production/observability.tf` and the audit's answer 4; no seed, golden, op or contract number.)*
 
 ## Facts the batches share
 
