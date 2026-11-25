@@ -103,6 +103,9 @@ function Buttons() {
       <button type="button" onClick={() => showToast('Seção removida', { action: { label: 'Desfazer', onPress: () => undefined } })}>
         desfazer
       </button>
+      <button type="button" onClick={() => showToast(TEXT_A, { action: { label: 'Ver', onPress: () => undefined }, arrival: true, notice: true })}>
+        de novo
+      </button>
       <button type="button" onClick={dismissToast}>
         fechar
       </button>
@@ -177,6 +180,17 @@ describe('e30h-UNIT-002 the removed-local notice is shown once and really shown'
     expect(toastText()).toContain('Seção removida');
     await close();
     expect(toastText()).toContain(TEXT_A);
+  });
+
+  it('a notice asked again with the text on screen replaces itself in place and is not queued a second time', async () => {
+    mocked.held = held(A);
+    render(<Shell timers={fakeTimers()} />);
+    await settle();
+    expect(toastText()).toContain(TEXT_A);
+    await userEvent.click(screen.getByText('de novo'));
+    expect(toastText()).toContain(TEXT_A);
+    await close();
+    expect(toastText()).toBeNull();
   });
 
   it('Story 30.5 kept: a notice waits behind the plain answer to a press for its 6 s', async () => {

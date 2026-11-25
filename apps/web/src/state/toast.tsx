@@ -213,7 +213,7 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
         slot.display(entry);
         return;
       }
-      if (options.arrival === true && on !== null && (on.options.arrival !== true || options.notice === true) && on.options.status !== true) {
+      if (options.arrival === true && on !== null && (on.options.arrival !== true || (options.notice === true && on.text !== text)) && on.options.status !== true) {
         // Story 30.5 (11.11-E2E-001): an arrival never takes the slot from a toast on screen (the
         // answer to the user's own press, a plain one included, or a job outcome): it waits.
         // Fix batch e30h: a notice waits behind another arrival too ("N leituras prontas — Ver").
