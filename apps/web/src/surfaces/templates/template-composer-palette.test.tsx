@@ -278,6 +278,8 @@ describe('3.4 composer: quantities per node', () => {
       await userEvent.click(add);
       const drawer = await screen.findByRole('dialog', { name: 'Blocos' });
       expect(drawer.querySelector('.pal-target')).toHaveTextContent('Toque para adicionar em: Cabine de transformação, direto no local');
+      // 30.1-UNIT-G (E15-R2): opening the drawer says where the block will go: it is described by its target line.
+      expect(drawer).toHaveAccessibleDescription('Toque para adicionar em: Cabine de transformação, direto no local');
       expect(within(drawer).getByRole('group', { name: 'Transformadores, 0' })).toBeVisible();
       expect(card).toHaveClass('is-current');
       await userEvent.keyboard('{Escape}');

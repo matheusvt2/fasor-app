@@ -46,6 +46,8 @@ export interface BlockPaletteProps {
   /** Present when the palette is a drawer or a sheet: its head closes it. */
   onClose?: () => void;
   headingId?: string;
+  /** Story 30.1 G (E15-R2): the id of the `.pal-target` line, given by the drawer it describes. */
+  targetId?: string;
   /** The equipment types the template places somewhere: only those have defaults to edit. */
   placedTypes: ReadonlySet<BlockTypeKey>;
   /** Opens the sub-block defaults of a type (Story 3.5). */
@@ -82,10 +84,12 @@ export function BlockPaletteContent({
   firstSectionRef,
   onClose,
   headingId,
+  targetId,
   placedTypes,
   onEditDefaults,
 }: BlockPaletteProps) {
-  const reasonId = useId();
+  const ownId = useId();
+  const reasonId = targetId ?? ownId;
   const naming = useTypeNaming();
   const definitions = naming.definitions;
   /** A library row's line: what it holds, then (a company type) the version the template records and the newer one. */
@@ -295,7 +299,7 @@ export function PaletteEquipmentRow({ type, meta = null, value, isDisabled, disa
   );
 }
 
-export interface PaletteDrawerProps extends Omit<BlockPaletteProps, 'onClose' | 'headingId'> {
+export interface PaletteDrawerProps extends Omit<BlockPaletteProps, 'onClose' | 'headingId' | 'targetId'> {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }
@@ -307,6 +311,9 @@ export interface PaletteDrawerProps extends Omit<BlockPaletteProps, 'onClose' | 
  */
 export function PaletteDrawer({ isOpen, onOpenChange, ...props }: PaletteDrawerProps) {
   const headingId = useId();
+  // Story 30.1 G (E15-R2): the drawer is described by its target line, so opening it says where the block will go
+  // (the line's `aria-live` speaks only a change while it is open).
+  const targetId = useId();
   return (
     <DialogShell
       className="block-palette composer-palette"
@@ -314,8 +321,9 @@ export function PaletteDrawer({ isOpen, onOpenChange, ...props }: PaletteDrawerP
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       aria-labelledby={headingId}
+      aria-describedby={targetId}
     >
-      <BlockPaletteContent {...props} headingId={headingId} onClose={() => onOpenChange(false)} />
+      <BlockPaletteContent {...props} headingId={headingId} targetId={targetId} onClose={() => onOpenChange(false)} />
     </DialogShell>
   );
 }
