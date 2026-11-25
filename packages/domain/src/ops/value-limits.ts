@@ -367,6 +367,16 @@ export function opDepthIssue(raw: unknown): string | null {
     const depth = valueDepth((raw as Record<string, unknown>)[key]);
     if (depth > VALUE_MAX_DEPTH) return `${key} nests more than ${VALUE_MAX_DEPTH} levels deep`;
   }
+  // Story 30.1 D (R-12 (E20)): `meta` keeps every key its emitter stamped (`opMetaSchema` is loose), so it is
+  // also held to the caps a value has, whole: no array longer than `VALUE_MAX_ITEMS` and at most
+  // `VALUE_MAX_BYTES` serialized. Asked after the depth, so the walks below never meet a deep meta.
+  const meta = (raw as Record<string, unknown>).meta;
+  if (meta !== null && typeof meta === 'object') {
+    const longest = longestArrayOf(meta, 'meta');
+    if (longest !== null && longest.length > VALUE_MAX_ITEMS) return `${longest.where} holds ${longest.length} items, over ${VALUE_MAX_ITEMS}`;
+    const bytes = serializedBytes(meta);
+    if (bytes > VALUE_MAX_BYTES) return `meta weighs ${bytes} bytes, over ${VALUE_MAX_BYTES}`;
+  }
   return null;
 }
 
