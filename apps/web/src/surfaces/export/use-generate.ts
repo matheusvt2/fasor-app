@@ -282,12 +282,13 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
             // Recorded and emitted whether or not the dialog is still open: the server job
             // runs either way, and the status op belongs to the press, not to the view.
             await writeGenerateAwaiting(db, relatorioId, { number: answer.revision_number, job_id: answer.job_id }).catch(() => undefined);
-            if (answer.outcome === 'queued') {
-              try {
-                await emitStatusRef.current('queued');
-              } catch (error) {
-                console.error('generate status op failed', error);
-              }
+            // Story 30.1 A (L1696): `running` is a retry whose first answer was lost (the job
+            // that press queued already runs), so it moves the relatório as `queued` does. A
+            // second answer finds the status already moved and the kernel writes nothing more.
+            try {
+              await emitStatusRef.current('queued');
+            } catch (error) {
+              console.error('generate status op failed', error);
             }
             if (mounted.current) setPhase({ kind: 'working', number: answer.revision_number, jobId: answer.job_id });
           } else {
