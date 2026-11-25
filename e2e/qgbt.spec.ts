@@ -287,13 +287,13 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
 
   // The insulation: four rows against MASSA judged by the 380 V band; FASE C under 0,5 MΩ.
   await goToStep(page, 'Ensaios', 'ensaios');
-  await expect(page.locator('.ficha-mt').first().locator('.mt-criterion')).toHaveText('Aceitável ≥ 0,5 MΩ'); // Batch e30b (Story 30.3 (a)): a relatório born on v19 writes the criterion with its sign and a space (was ">=0,5 MΩ").
+  await expect(page.locator('.ficha-mt').first().locator('.mt-criterion')).toHaveText('Aceitável >=0,5 MΩ');
   await page.locator('.ficha-mt').first().locator('details.mt-source summary').click();
   await expect(page.locator('.ficha-mt').first().locator('details.mt-source p')).toHaveText('NBR 5410');
   const readings = ['850', '1200', '0,4', '900'];
   for (const [i, row] of ROWS.entries()) await typeReading(page, row, readings[i]!);
   await expect(cellBox(page, 2).locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
-  await expect(cellBox(page, 2).locator('.mf-helper[role="status"]')).toContainText('Abaixo do aceitável (≥ 0,5 MΩ)');
+  await expect(cellBox(page, 2).locator('.mf-helper[role="status"]')).toContainText('Abaixo do aceitável (>=0,5 MΩ)');
   for (const row of [0, 1, 3]) await expect(cellBox(page, row).locator('.measurement-field')).not.toHaveAttribute('data-state', 'out-of-limit');
   await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible({ timeout: 15_000 });
 
@@ -377,7 +377,7 @@ test('@p0 14.9-E2E-001 at 1280: the composer adds a Quadro elétrico from "Outro
   const conclusion = titled('CONCLUSÃO').find((table) => (table[2]?.[0] ?? '').includes(localTag))!;
   expect(conclusion[1]).toEqual(['APROVADO', '', 'REPROVADO', 'X', 'SEM RESTRIÇÕES', '', 'COM RESTRIÇÕES (VER OBSERVAÇÕES)', 'X']);
   expect(conclusion[2]![0]).toContain(`(item ${nc + 1}, NC)`);
-  expect(conclusion[2]![0]).toContain('0,4 MΩ em Fase C–Massa (critério: ≥ 0,5 MΩ, NBR 5410)');
+  expect(conclusion[2]![0]).toContain('0,4 MΩ em Fase C–Massa (critério: >=0,5 MΩ, NBR 5410)');
 });
 
 // --- 14.9-E2E-002 ------------------------------------------------------------------------

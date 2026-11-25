@@ -9,7 +9,7 @@ import { expandLocation, section9Chevron } from './support/tree.ts';
 
 /*
  * 30.3-E2E-001 (batch e30b, Epic 30, Story 30.3; seed v19 opens equal to v18 and changes three texts). A new relatório
- * of the standard template is born on the current seed (v19), every sheet with it. At 1280 px, as a person would:
+ * of the standard template is born on the current seed (v19), every sheet with it. At 1280 px for the TP's sheet and 1024 px from the palette on, as a person would:
  *   (a) the TP's ratio test reads its criterion "± 0,5 %" (v1 to v18: "±0,5 %");
  *   (c) a Malha de aterramento added at the local Geradores, with VALOR DE PROJETO empty and 3 Ω typed, shows the helper
  *       "Sem VALOR DE PROJETO em Dados da malha, vale ≤ 5 Ω." (v13 to v18: "na placa");
@@ -56,6 +56,8 @@ test('@p0 30.3-E2E-001 a new relatório is born on v19: the ratio\'s criterion r
   await expect(testSection(page, RATIO).locator('.mt-criterion')).not.toContainText('±0,5 %');
 
   // --- a Malha de aterramento at the local Geradores ---
+  // At 1024 px, where the local's field palette draws its rows (as `ground-grid.spec.ts` drives it).
+  await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   const chevron = section9Chevron(page);
@@ -95,6 +97,12 @@ test('@p0 30.3-E2E-001 a new relatório is born on v19: the ratio\'s criterion r
   await expect(page.locator('.ficha-conc-text')).not.toContainText('itens verificados');
   await page.getByRole('group', { name: 'Prévia da conclusão' }).getByRole('button', { name: 'Confirmar' }).click();
   await expect.poll(async () => (await outboxValues(database, page, `sheet/${blockId}/conclusion/result`)).at(-1)).toBe('aprovado');
+  // The composed text confirmed too: it is the text the document prints, and its put is in the outbox without the clause.
+  await page.locator('.suggestion-field.is-generated').getByRole('button', { name: 'Confirmar' }).click();
+  await expect.poll(async () => (await outboxValues(database, page, `sheet/${blockId}/conclusion/text_status`)).at(-1)).toBe('confirmed');
+  const stored = String((await outboxValues(database, page, `sheet/${blockId}/conclusion/text`)).at(-1));
+  expect(stored).toContain(`${tag} apresentou valores medidos dentro dos critérios de aceitação.`);
+  expect(stored).not.toContain('itens verificados');
 
   // --- issued: the DOCX prints the three texts ---
   const snapshot = await deviceSnapshot(page, database, relatorioId);
@@ -117,7 +125,10 @@ test('@p0 30.3-E2E-001 a new relatório is born on v19: the ratio\'s criterion r
   expect(text).not.toContain('±0,5 %');
   expect(text).not.toContain('>400 MΩ');
   expect(text).not.toContain('<250 µΩ');
-  const sentence = structure.paragraphs.find((paragraph) => paragraph.includes(`${tag} apresentou`));
+  // The sheet's conclusion is a cell of its CONCLUSÃO table; a paragraph is searched too, wherever the layout puts it.
+  const texts = [...structure.paragraphs, ...structure.tables.flatMap((table) => table.flat())];
+  // The printed TAG may carry no-break characters, so the sentence is found by its subject's noun.
+  const sentence = texts.find((one) => /^A malha de aterramento .* apresentou /u.test(one));
   expect(sentence, 'the Malha\'s conclusion in the DOCX').toBeDefined();
   expect(sentence).toContain('apresentou valores medidos dentro dos critérios de aceitação.');
   expect(sentence).not.toContain(CLAUSE);
