@@ -82,9 +82,35 @@ export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep
     const markerIn = (host: HTMLElement) => (missing ? ([...host.querySelectorAll<HTMLElement>(selector)].find((element) => element.getClientRects().length > 0) ?? null) : null);
     /** What the land (or the watch below) last gave the focus to. */
     let landed: HTMLElement | null = null;
+    // Story 30.5 (25.2-E2E-002, 12.1-E2E-012): the land comes three frames after the tap, and on a
+    // slow tablet those frames can last long enough for the person to tap a cell and type in it.
+    // A land then took the focus from that cell, whose blur committed the first digit alone ("5"
+    // saved for "548"). So the land is the jump's only while the person has done nothing since:
+    // no pointer down and no key (a held key's repeats aside), and the focus still where the jump
+    // left it (the control that asked for it, the body, a control the closing menu removed, the
+    // menu's trigger, the step itself or what an earlier land gave it).
+    const from = document.activeElement;
+    let interacted = false;
+    const stop = (event: Event) => {
+      if (event instanceof KeyboardEvent && event.repeat) return;
+      interacted = true;
+    };
+    const events = ['pointerdown', 'keydown'] as const;
+    for (const type of events) document.addEventListener(type, stop, { capture: true });
+    let listening = true;
+    const unlisten = () => {
+      if (!listening) return;
+      listening = false;
+      for (const type of events) document.removeEventListener(type, stop, { capture: true });
+    };
+    const stillTheJumps = (host: HTMLElement): boolean => {
+      if (interacted) return false;
+      const active = document.activeElement;
+      return active === null || active === document.body || !active.isConnected || active === from || active === host || active === landed || active.matches('.overflow-trigger');
+    };
     const land = () => {
       const host = hostOf();
-      if (host === null) return;
+      if (host === null || !stillTheJumps(host)) return;
       host.scrollIntoView?.({ block: 'start' });
       const marker = markerIn(host);
       landed = marker === null ? host : focusableIn(marker);
@@ -93,10 +119,11 @@ export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep
     afterFrames(land);
     // A menu that closed on the action hands its focus back to its trigger on its own
     // schedule; land again only if that is where the focus went (never over a control the
-    // engineer moved to in the meantime).
+    // engineer moved to in the meantime, and never after a press or a key of theirs).
     afterFrames(() => {
       const active = document.activeElement;
       if (active === null || active === document.body || active.matches('.overflow-trigger')) land();
+      if (!missing) unlisten();
     }, 12);
     // E6-Q6: the sheet can be drawn from rows older than the ones "Concluir ficha" read (the
     // value committed just before it -- "Com restrições" asking for the observation --
@@ -106,17 +133,11 @@ export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep
     // it (the step, that stale marker, the body, the menu's trigger), never from a control
     // they moved to.
     if (missing) {
-      let interacted = false;
-      const stop = () => {
-        interacted = true;
-      };
-      const events = ['pointerdown', 'keydown'] as const;
-      for (const type of events) document.addEventListener(type, stop, { capture: true });
       let frames = 0;
       const tick = () => {
         frames += 1;
         if (interacted || frames > LIST_FOCUS_WATCH_FRAMES) {
-          for (const type of events) document.removeEventListener(type, stop, { capture: true });
+          unlisten();
           return;
         }
         const host = hostOf();

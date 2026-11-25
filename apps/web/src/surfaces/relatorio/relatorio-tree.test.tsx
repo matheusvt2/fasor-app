@@ -340,9 +340,22 @@ describe('4.4 location tree (Sumário presentation)', () => {
   it('Q7: a move is announced, with its toast, in the render that draws it, well before the settle fallback', async () => {
     database = await seeded();
     await openCabine();
-    eqRow(SEC_TEST).querySelector<HTMLElement>('.s9-eq-open')!.focus();
-    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
-    await waitFor(() => expect(announcer()).toHaveTextContent('SEC-TEST movido para a posição 2 de 3'), { timeout: SETTLE_TIMEOUT_MS / 2 });
+    // Story 30.5 (item 13): ~~the announcement was awaited within half the settle time on the wall clock~~, which a
+    // loaded CPU stretched past 500 ms (red at 1940 ms beside an e2e run). What the test proves is that the render
+    // that draws the move says it, not the settle fallback: so the fallback's timer is never started, and the
+    // announcement can only come from the render, however long that render takes.
+    const realSetTimeout = globalThis.setTimeout;
+    const fallback = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((callback: () => void, ms?: number, ...rest: unknown[]) =>
+      ms === SETTLE_TIMEOUT_MS ? (0 as unknown as ReturnType<typeof setTimeout>) : realSetTimeout(callback, ms, ...rest)) as typeof setTimeout);
+    try {
+      eqRow(SEC_TEST).querySelector<HTMLElement>('.s9-eq-open')!.focus();
+      await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+      await waitFor(() => expect(announcer()).toHaveTextContent('SEC-TEST movido para a posição 2 de 3'));
+      // The settle was asked for (its fallback held back), so the words above are the render's.
+      expect(fallback.mock.calls.some(([, ms]) => ms === SETTLE_TIMEOUT_MS)).toBe(true);
+    } finally {
+      fallback.mockRestore();
+    }
     expect(tags(tree().querySelector('li.s9-local')!)).toEqual(['DJ-TEST', 'SEC-TEST', 'TR-TEST']);
     expect(document.querySelector('.toast')).toHaveTextContent('SEC-TEST movido para a posição 2 de 3');
   });

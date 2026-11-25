@@ -184,6 +184,47 @@ describe('scripts/e2e.ts summary', () => {
     ]);
   });
 
+  it('Story 30.5: counts each run of a test under --repeat-each, the first under its plain title, the others numbered', () => {
+    const repeated = {
+      ...report,
+      suites: [
+        {
+          title: 'a.spec.ts',
+          // Playwright 1.63's JSON report lists one spec entry per run of the test (each with its projects' tests),
+          // with no repeat index (seen on the batch's `--repeat-each 6` run of home.spec.ts).
+          specs: [
+            {
+              title: 'one',
+              file: 'a.spec.ts',
+              tests: [
+                { projectName: 'desktop-chrome', status: 'expected' as const },
+                { projectName: 'durability-desktop-chrome', status: 'expected' as const },
+              ],
+            },
+            { title: 'one', file: 'a.spec.ts', tests: [{ projectName: 'desktop-chrome', status: 'unexpected' as const }] },
+            {
+              title: 'one',
+              file: 'a.spec.ts',
+              tests: [
+                { projectName: 'desktop-chrome', status: 'expected' as const },
+                { projectName: 'durability-desktop-chrome', status: 'expected' as const },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const summary = summarize('parallel', 1, repeated);
+    expect(summary).toMatchObject({ tests: 5, passed: 4, failed: 1 });
+    expect(summary.results).toEqual({
+      'desktop-chrome > a.spec.ts > one': 'expected',
+      'desktop-chrome > a.spec.ts > one [repeat 2]': 'unexpected',
+      'desktop-chrome > a.spec.ts > one [repeat 3]': 'expected',
+      'durability-desktop-chrome > a.spec.ts > one': 'expected',
+      'durability-desktop-chrome > a.spec.ts > one [repeat 2]': 'expected',
+    });
+  });
+
   it('treats a missing report as a failed group, even when Playwright exited 0', () => {
     expect(summarize('queue', 0, null)).toMatchObject({ exitCode: 1, tests: 0 });
   });

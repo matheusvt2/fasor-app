@@ -181,11 +181,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `test-results/wave-e13/attempt1/verify-plain.log` (E13-A1 worktree) around line 675; the `RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}"` step.
   class: defect
   state: open (owner: the next carry-over batch)
-- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md`
-  summary: `scripts/e2e.ts` `summarize` keys results by title, so under `--repeat-each` the summary counts each title once with its last outcome (a run with 2 failed repeats printed "14 passed" while Playwright exited 1). The exit code stays right; only `summary.json` and the printed counts undercount.
-  evidence: `scripts/e2e.ts` `collect()` (`into.results[...] = test.status`); the batch's `--repeat-each=5` run of `journey-forward.spec.ts` (PR #116 body). Predates the batch.
-  class: bug
-  state: open (owner: the next carry-over batch)
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md` (independent review of PR #116, r8gate-rules-2)
   summary: `playwright/no-wait-for-timeout` warns on e2e/** since PR #116, with an allow-list of the files whose fixed waits are the gesture or schedule under test (`e2e/support/taps.ts`, `e2e/lost-taps.durability.spec.ts`). The other 24 `waitForTimeout` calls warn on every lint run until each is shrunk, sized from an app constant or allowed (review TST-7).
   evidence: `eslint.config.js` (the e2e block and its allow-list); `pnpm lint` reports 24 warnings, 0 errors.
@@ -672,11 +667,6 @@ All rows closed; see deferred-work-archive.md
   evidence: e20g review VGR-1. The proof of the `-Via` change is manual (domain and CloudFront fallback blocks through a throwaway `caddy:2.11.4-alpine`); the IP block needs its ACME certificate.
   class: risk
   state: open (owner: Matheus; a stub upstream on `127.0.0.1:3000` in `infra/bin/check` closes it)
-- source_spec: `_bmad-output/implementation-artifacts/spec-test-speed-2.md`
-  summary: Two tests in `e2e/durability.spec.ts` still tap "Sincronizar agora" by hand (go to `/sync`, wait for the button to lose `aria-disabled`, click, then poll a store). E5-A1 calls that readiness signal racy, and `e2e/support/sync.ts` `syncNow` waits on the cycle's end instead. They are the one at about line 426 (`tab`) and the one at about line 674.
-  evidence: T2 review; 1.8-E2E-002 in the same file moved to `syncNow` in T2. Neither is a wait on the 60 s tick, so the C-4 guard does not read them.
-  class: note
-  state: open (owner: the next batch touching `durability.spec.ts`)
 
 ## Deferred from: the Epic 20 retrospective (2026-11-04, E20-A3)
 
@@ -955,16 +945,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/relatorio/measurement-evaluation.ts` `UNJUDGED_DEVIATION_HELPER`; `packages/domain/src/relatorio/conclusion.ts`.
   class: decision
   state: open (owner: Bruno, through Matheus)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8CAP-E2E-010)
-  summary: FABRICAÇÃO's combobox list was re-mounted between the "Criar ⟨nome⟩" option's resolution and the press, twice in three runs at load 6 to 10 (Playwright: "element was detached from the DOM"), while the sheet re-rendered under the sync engine's retries of a held upload. The test now retries the press. Whether a tap on a slow tablet is lost the same way is not known; not fixed (outside the batch's behaviour scope).
-  evidence: `.scratch-e24f/e2e-repeat-2.log`, `e2e-repeat-3.log` (worktree, not tracked); `apps/web/src/components/registry-picker-field.tsx`.
-  class: risk
-  state: open (owner: the next batch touching the registry picker)
-- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8LAY-E2E-008)
-  summary: "Novo relatório" pressed on a Home that already shows its status board can be lost while the launch still re-renders (the dialog never opened in the load reds). The test now repeats the press until the dialog opens, so this lost press, which a user would meet too, no longer fails any test. The cause is not found; nothing in the product changed.
-  evidence: `e2e/review-layout-interaction-2026-10-08.spec.ts` R8LAY-E2E-008; `apps/web/src/surfaces/home/home-surface.tsx` (the "Novo relatório" button).
-  class: flake
-  state: open (owner: the next batch touching the Home launch)
 
 ## Deferred from: Epic 24 batch e24b (2026-11-11)
 
@@ -1090,7 +1070,7 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
 
 ## Epic 24 integrated gate (2026-11-11)
 
-- **The api process exits when its database restarts, and stays down in compose.** Seen in gate run 1 on `76c74711`: under a load of 32 the stack's Postgres restarted (its health-check exec was cut, "untracked child process terminated by signal 13"), a pool connection raised `PostgresError: the database system is not yet accepting connections` as an uncaught exception, and the node process exited; the container stayed up and unhealthy. In production the service restarts the task, so the effect is a short outage, not a stuck api. Open: catch the connection error and retry, or give the compose service a restart policy. Candidate for Epic 25.
+- **The api process exits when its database restarts, and stays down in compose.** Seen in gate run 1 on `76c74711`: under a load of 32 the stack's Postgres restarted (its health-check exec was cut, "untracked child process terminated by signal 13"), a pool connection raised `PostgresError: the database system is not yet accepting connections` as an uncaught exception, and the node process exited; the container stayed up and unhealthy. In production the service restarts the task, so the effect is a short outage, not a stuck api. Open: catch the connection error and retry, or give the compose service a restart policy. Candidate for Epic 25. *(2026-11-25, Story 30.5, batch e30d, PR #390: the exit did not reproduce: a clean restart of the stack's Postgres, a SIGKILL restart under ten health requests a second and a SIGKILL restart during an e2e run on two workers each left the api answering 503 for under a second, pg-boss logging its errors, then 200 again; and the recorded restart happened twice on its own during the batch (Postgres's "untracked child process … terminated by signal 13", then "reinitializing", at load 9 to 15), and the api survived both. The other half is confirmed: when the api's node process dies, `tsx watch` (the compose `dev` command) keeps the container up, the health check takes 150 s to call it unhealthy and compose never restarts it. Open: that half, for a decision (a restart that follows the health check, or a dev command that exits with its child).)*
 - **The final hands-on pass of 2026-11-11** (`_bmad-output/test-artifacts/manual/behaviour-pass-e24-2026-11-11.md`, findings G1 to G14), open rows: G1, a deadline typed by hand in the point editor leaves a draft behind and "Rascunho encontrado" shows on the next load (sent to batch e25a; whether it is older than Epic 24 is being checked); G4, the "Não ensaiado" band shows no link to its point once it exists; ~~G5, a sheet whose plate TAG was typed before fix batch e24y keeps a plate TAG different from the equipment's~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Legacy and cosmetic); G6, a line break between "75" and "°C" in a note line; ~~G7, the v14 Malha's helper still says "na placa"~~ closed (2026-11-24, batch e30b, Story 30.3 (c), PR #386: on seed v19 the helper names the block the field is in, "Sem VALOR DE PROJETO em Dados da malha, vale ≤ 5 Ω.", flag `helper_names_plate_block`; v13 to v18 keep "na placa"; the note is screen only, it is not printed); ~~G8, the Malha's conclusion ends ", sem itens verificados registrados" though the sheet has no checklist~~ closed (2026-11-24, batch e30b, Story 30.3 (b), PR #386: on seed v19 a type with no checklist concludes "{verbo} {leituras}.", flag `conclusion_no_checklist_clause`; v13 to v18 print the clause as before); G9, the QGBT header says "Leituras prontas" with no reading; G10, a comparison held back for a missing temperature says nothing on screen; G11, the rename toast wraps into four lines at 390 px; G12, "(critério: …, aceitável na ficha)" reads as if the rejected value were acceptable (for Bruno); G13 and G14 are older than Epic 24 (the obra's count of relatórios on the device; "Criar" offered beside an exact client name). | 2026-11-24 audit: G6 closed (resolved: On seed v18 the note is `print/history-note.ts` (Story 28.8, `9b7659e0`) with `NBSP` at :128 and :159; v14 to v17 are frozen byte-identical by design)
 
 ## Deferred from: Epic 25 batch e25b (2026-11-11)
@@ -1117,11 +1097,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `apps/web/src/sync/client.ts` `requestHeadersTimeoutMs`; `apps/web/src/sync/engine.ts` `withRetry`.
   class: note
   state: open (owner: the next batch touching sync; low)
-- source_spec: `spec-e25a-saving-and-sync.md` (story gate on `2a862662`)
-  summary: two reds in the gate, both green alone. (1) `journeys-12-3-12-4.spec.ts` 24.10-E2E-005 (solo lane): the tap on "Nº série" right after "Criar" on FABRICAÇÃO found the page still inert (`pointer-events: none` while React Aria draws the list closed) after the 2 s settle of `humanTap`, so its centre hit `div.nameplate-grid`; green 3 of 3 alone. Since this batch a commit asks for a cycle 2 s later, which adds a push, a pull and a render in that settle window, so the batch adds load at that moment without a defect of its own. (2) `device-clock.durability.spec.ts` e20f-DUR-001 on `durability-webkit`: the press on Home's "Novo relatório" opened no dialog while the launch cycle's pull was drawing the relatório list (the snapshot shows it drawn); no code of this batch runs between the load and that press (no commit, no visibility change); green 3 of 3 alone on each of the three durability projects (36 of 36 for the spec).
-  evidence: `.scratch-e25a/gate/` and `.scratch-e25a/reruns/` logs of the batch (load 3.7 at the gate's start, 7.1 at its end; 2.8 to 5.4 for the reruns).
-  class: test-gap
-  state: open (owner: the wave 1 integrated gate; if either goes red again, harden it: wait for the list to be gone after "Criar" in the journey helpers, and wait for Home's list before "Novo relatório" in `createProjectFromHome`)
 
 ## Deferred from: Epic 25 fix batch e25r (2026-11-11)
 
@@ -1261,21 +1236,6 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epics 28 and 29, the wave gates and the hands-on pass (2026-11-23 and 2026-11-24)
 
-- source_spec: wave gate of Epics 28 and 29 on `d1180f5c` (2026-11-23)
-  summary: `sheet-photos.spec.ts` 11.11-E2E-001 failed once under `test:e2e:full`, a toast race; green alone, 39 of 39 with 3 repeats. Another stack had come up during the gate, so the load is a suspect, not proven.
-  evidence: `e2e/sheet-photos.spec.ts`; the wave gate log of 2026-11-23.
-  class: test-gap
-  state: open (owner: the next e2e speed or flake pass; no code defect shown)
-- source_spec: final gate of Epics 28 and 29 on `de79700b` (2026-11-24, machine idle)
-  summary: `photos.spec.ts` 6.2-E2E-001 failed once under `test:e2e:full` (the retried photo's upload pill stayed); green alone three times in a row. This wave did not touch photo upload.
-  evidence: `e2e/photos.spec.ts`; the final gate log of 2026-11-24.
-  class: test-gap
-  state: open (owner: the next e2e flake pass; watch whether it comes back on an idle machine)
-- source_spec: fix batch e28w (#377) gate, 2026-11-24
-  summary: `ficha` 12.1-E2E-012 and `home` 1.6-E2E-001 were red under load in the e28w batch gate and green alone.
-  evidence: `e2e/ficha.spec.ts` (12.1-E2E-012 already went red once in three on an earlier batch, see its comment); `e2e/home.spec.ts`; the e28w batch gate output.
-  class: test-gap
-  state: open (owner: the next e2e flake pass)
 - source_spec: hands-on pass of 2026-11-23 (N1), `_bmad-output/test-artifacts/manual/hands-on-pass-2026-11-23.md`
   summary: The Gerar dialog has no "Cancelar" button.
   evidence: `apps/web/src/surfaces/export/export-dialog.tsx`.
@@ -1306,3 +1266,21 @@ All rows closed; see deferred-work-archive.md
   evidence: `_bmad-output/test-artifacts/manual/hands-on-pass-2026-11-23.md`.
   class: test-gap
   state: open (owner: the next manual pass; the real Android or iPad device first)
+
+## Deferred from: Story 30.5, batch e30d, the unstable tests (2026-11-25)
+
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 30.5 item 11 (14.5-E2E-001)
+  summary: After "Revisão 1 pronta", the Export dialog lays out again and its "DOCX — abrir no Word" row moves 48 px up 40 to 270 ms later (6 of 10 diagnosed runs), so a press that meets the move lands beside the button and fetches nothing; the arriving element that shifts the centred dialog was not named. A person tapping as the revision lands can miss the same way.
+  evidence: `apps/web/src/surfaces/export/export-dialog.tsx` (the ready phase); the batch's diagnosed run (`.scratch-e30d/logs/r13-cta-diag.log` in its worktree, not tracked) and the pfinal red (no `GET /api/revisions/…/docx`).
+  class: bug
+  state: open (owner: Matheus decides the fix: draw the ready body once all it shows is on the device, as Home's `settled` does, or keep the dialog's top fixed in that phase; the next batch touching the Export dialog builds it)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 30.5 item 2 (1.6-E2E-001), closed there as "cause not found"
+  summary: Red 1 of 20 at the gate's load: after the tap on the Emitido card, "Baixando o relatório…" stayed 27.6 s until the 30 s test timeout, while passing runs take 2.4 to 4.9 s in all; a stalled Sumário pull, not the test's budget. The static hunt's lead (the held stream unrouted while its handler sleeps) was refuted 3 of 3. Not reproduced on six workers (0 of 12).
+  evidence: `e2e/home.spec.ts` 1.6-E2E-001; `apps/web/src/surfaces/relatorio/relatorio-gate.tsx` (the pull on open); `apps/web/src/sync/engine.ts` `syncRelatorio`; the batch's pfinal run (`timings-parallel.json`, one 27.6 s wait).
+  class: test-gap
+  state: open (owner: the next e2e flake pass; record the device's sync state and the engine's cycle at the red to find the stall)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 30.5 item 9 (24.10-E2E-005), closed there as "cause not found"
+  summary: Red 1 of 20 in the solo lane: after the "13,8 kV" pick on TENSÃO DE PLACA, its list "Sugestões Tensão de placa" was open again (or still) 2 s later, so the page stayed `aria-hidden` and the next tap ("Corrente nominal") hit the grid. Why the list was open was not found; a person would meet the same blocked tap.
+  evidence: `e2e/journeys-12-3-12-4.spec.ts` `pickWord`; `apps/web/src/components/registry-picker-field.tsx`; `apps/web/src/components/combobox.tsx`; the batch's pfinal run (the page snapshot holds the open list).
+  class: bug
+  state: open (owner: the next batch touching the registry picker; with the R8CAP-E2E-010 history)

@@ -736,14 +736,13 @@ test('@p0 R8LAY-E2E-008 DA-1 the phone\'s "Novo relatório" dialogs fit the view
     if (size === FIRST_DIALOG_SIZE) await signIn(page, account.email);
     else await page.goto('/');
     const first = page.getByRole('dialog', { name: 'Novo relatório', exact: true });
-    // Fix batch e24f (E23-A4): a press on a Home still mounting (the session read, the shell swap, the launch cycle's
+    // ~~Fix batch e24f (E23-A4): a press on a Home still mounting (the session read, the shell swap, the launch cycle's
     // re-renders) can be lost, and the dialog never opened (red under load, not visible within 5 s). The press waits
-    // for the Home's status board, and is pressed again only while the dialog is not open.
-    await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible({ timeout: 30_000 });
-    await expect(async () => {
-      if (!(await first.isVisible())) await page.getByRole('button', { name: 'Novo relatório' }).click({ timeout: 5_000 });
-      await expect(first).toBeVisible({ timeout: 5_000 });
-    }).toPass({ timeout: 30_000 });
+    // for the Home's status board, and is pressed again only while the dialog is not open.~~ Story 30.5 (2026-11-25):
+    // the cause was the shortcut row and the Status board arriving above an already enabled "Novo relatório"; Home now
+    // draws its controls once both reads are in (`home-surface.tsx` `settled`), so one press opens the dialog.
+    await page.getByRole('button', { name: 'Novo relatório' }).click();
+    await expect(first).toBeVisible();
     await expectDialogFits(first, `${where} Novo relatório`, phone);
     await first.getByRole('combobox', { name: 'Cliente' }).fill(`${CLIENT} ${size.width}`);
     await page.getByRole('option', { name: `Criar “${CLIENT} ${size.width}”` }).click();

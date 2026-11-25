@@ -551,10 +551,11 @@ describe('Home: the active list and its page (Story 19.2)', () => {
   it('E19-A2 (R-3): until the provider has read the summary, the list and the board stay pending; once it has, they render', async () => {
     const drafts = many('rascunho', 3, 100);
     const { rerender } = renderHome(syncState({ summaryRelatorios: [], summaryRead: false }));
-    // The device's own reads answer (the shortcut sub-line is a live query too); the gate is the provider's flag.
-    await waitFor(() => expect(screen.getByText('1 template')).toBeVisible());
+    // ~~The device's own reads answer (the shortcut sub-line is a live query too); the gate is the provider's flag.~~
+    // Story 30.5: the shortcut row waits for the same flag now (the test below), so the device's reads are given
+    // time to answer instead; the gate is the provider's flag.
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 200));
     });
     expect(screen.getByText(/Carregando relatórios/)).toBeVisible();
     expect(screen.queryByRole('group', { name: 'Relatórios por status' })).toBeNull();
@@ -563,6 +564,27 @@ describe('Home: the active list and its page (Story 19.2)', () => {
     rerender(homeTree(syncState({ summaryRelatorios: drafts, summaryRead: true })));
     await waitFor(() => expect(listIds()).toEqual(drafts.map((entry) => entry.id)));
     expect(screen.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+    expect(screen.getByText('1 template')).toBeVisible();
+  });
+
+  it('Story 30.5: while the list is loading no control is drawn; the board, the shortcuts, the search and "Novo relatório" come in one commit, in their final place', async () => {
+    const drafts = many('rascunho', 3, 100);
+    const { rerender } = renderHome(syncState({ summaryRelatorios: [], summaryRead: false }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+    // The page is still being filled above the list: nothing a finger could be aimed at moves later.
+    expect(screen.getByText(/Carregando relatórios/)).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Relatórios' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Novo relatório' })).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(document.querySelector('.shortcut-row')).toBeNull();
+
+    rerender(homeTree(syncState({ summaryRelatorios: drafts, summaryRead: true })));
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Relatórios por status' })).toBeVisible());
+    expect(screen.getByRole('button', { name: 'Novo relatório' })).toBeVisible();
+    expect(screen.getByRole('searchbox')).toBeVisible();
+    expect(document.querySelector('.shortcut-row')).not.toBeNull();
   });
 
   it('E19-A2 (R-3): answered with no company stream yet (a fresh device), the list renders empty', async () => {

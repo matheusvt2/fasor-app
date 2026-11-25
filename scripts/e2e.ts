@@ -256,14 +256,21 @@ interface Collected {
   results: Record<string, Outcome>;
   files: Set<string>;
   locations: Map<string, SpecLocation>;
+  /** Story 30.5: how many runs of each title were read so far (one spec entry per run under `--repeat-each`). */
+  runs: Map<string, number>;
 }
 
 function collect(suite: JsonSuite, path: string[], around: readonly SpecLocation[], into: Collected): void {
   const here = suite.title === '' ? path : [...path, suite.title];
   const describes = [...around, ...describeAt(suite)];
   for (const spec of suite.specs ?? []) {
+    // Story 30.5 (the ledger's summary row): under `--repeat-each` the report lists one spec entry per run of the
+    // test, with no repeat index; the first run keeps the plain title, the others are numbered.
     for (const test of spec.tests) {
-      into.results[[test.projectName, ...here, spec.title].join(' > ')] = test.status;
+      const title = [test.projectName, ...here, spec.title].join(' > ');
+      const run = (into.runs.get(title) ?? 0) + 1;
+      into.runs.set(title, run);
+      into.results[run === 1 ? title : `${title} [repeat ${run}]`] = test.status;
       // A skipped test ran nothing: it matches no spec path (review 2026-10-08, PR #116).
       if (test.status === 'skipped') continue;
       into.files.add(spec.file);
@@ -277,7 +284,7 @@ function collect(suite: JsonSuite, path: string[], around: readonly SpecLocation
 
 /** Reads one group's JSON report into its summary; a missing report counts as a failure. */
 export function summarize(group: E2eGroup, exitCode: number, report: JsonReport | null): GroupSummary {
-  const collected: Collected = { results: {}, files: new Set(), locations: new Map() };
+  const collected: Collected = { results: {}, files: new Set(), locations: new Map(), runs: new Map() };
   for (const suite of report?.suites ?? []) collect(suite, [], [], collected);
   const { results, files, locations } = collected;
   const outcomes = Object.values(results);
