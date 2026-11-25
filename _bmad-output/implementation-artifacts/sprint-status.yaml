@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-24-2026 21:37
+last_updated: 11-25-2026 19:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -345,7 +345,7 @@ development_status:
   26-11-a-paused-user-keeps-the-unsent-work: done  # 2026-11-22: done on main, not deployed (batch e26d, PR #353, 3b4fd755); pause keeps sessions, Matheus 2026-11-22 | was backlog  # added 2026-11-21 (decision 5); wave 2, e26d
 
   epic-27: done  # 2026-11-22: all 14 stories deployed as 886af55e (smoke 8/8, tag v0.13.0, contract 57) with Epic 26; open: Story 27.5 AC2 (Matheus decides), the Home half of 27.14, the retrospective
-  epic-27-retrospective: optional
+  epic-27-retrospective: done
   27-1-the-document-carries-the-company-the-screen-shows: done  # 2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57); the cause of the op-less empresa row was never found, the guard stands
   27-2-the-impossible-value-is-refused-the-improbable-one-is-remarked: done  # 2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57)
   27-3-a-ficha-not-yet-concluded-does-not-read-as-reprovada: done  # 2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57)
@@ -384,7 +384,7 @@ development_status:
   30-4-a-notice-when-a-local-this-device-answered-was-removed-elsewhere: done  # 2026-11-25: batch e30c, PR #389 (not merged yet when written); Q-8 closed; contract 61; no review loop in the batch (one review per wave)
   30-5-the-unstable-tests-each-cause-found-and-fixed: done  # 2026-11-25: batch e30d, PR #390 (not merged yet when written); 16 items closed: 6 fixed (three causes in the product, one in a test), 9 recorded as not reproduced or cause not found (14.5 found in part, not fixed), 1 counted (21.1, fixed by e30f) | was backlog: wave 2, batch e30d, machine idle; E28-A6
   30-6-the-session-start-records-what-kind-of-device-it-is: done  # 2026-11-25: merged (PR #391), deployed as b209c0ea; the dashboard view device_kinds applied by that deploy | was review: 2026-11-25: batch e30g, added by Matheus's word ("é o tablet do Bruno, pode registrar o tipo do aparelho"); no contract number; PR open, not merged
-  epic-30-retrospective: optional
+  epic-30-retrospective: done
 
   # Deferred or dropped stories (not tracked as keys). No script status means "deferred" or "dropped", so these two are
   # comments, not keys: with a backlog key, sprint_plan.py status recommends them as the next story. The deferred stories
@@ -813,3 +813,184 @@ action_items:
     owner: "coordinator (batch); Matheus (decides)"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-29-retro-2026-11-24.md"
+  - id: "epic-27-retro-item-46-e27-a1-decide-story-27-5-ac2-remove-the"
+    epic: 27
+    action: "E27-A1 Decide Story 27.5 AC2: remove the cross-type reorder from the
+      template (the coordinator's recommendation), or make the relatório follow the
+      template's order. Add a ledger row in deferred-work.md now, since none exists,
+      and write one dated line under Story 27.5 with the decision; if removal, one
+      small story. Story 27.14's \"one number per section\" already depends on it."
+    owner: "Matheus (decision); coordinator (row, line)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+  - id: "epic-27-retro-item-47-e27-a2-confirm-or-change-the-coordinator"
+    epic: 27
+    action: "E27-A2 Confirm or change the coordinator's readings of Stories 27.1,
+      27.3, 27.5, 27.7, 27.8, 27.9, 27.11, 27.13 and 27.14 (including the Position
+      box of 27.14), one dated line each under its story, as E26-A6 asks for Epic
+      26."
+    owner: "Matheus (decision); coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+  - id: "epic-27-retro-item-48-e27-a3-put-epic-27-into-the-one-message"
+    epic: 27
+    action: "E27-A3 Put Epic 27 into the one message to Bruno of E28-A2: the corrected
+      words (ITEM, TPs e TCs, Para-raios, 1º Subsolo), the authored sentences listed
+      in #345, #350, #356 and #362, and the two questions F22 (contact resistance
+      headers Linha / Terra / Guard over the cell names) and F41 (number agreement
+      in the Definições text), cited by ux-pass-2026-11-21.md lines 53 and 82. Record
+      his replies as dated lines."
+    owner: "Matheus (send); coordinator (draft, record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+  - id: "epic-27-retro-item-49-e27-a4-write-the-kb-concept-lines-the-st"
+    epic: 27
+    action: "E27-A4 Write the KB concept lines the stories name: architecture/sync.md
+      (one live empresa per company, op_forbidden on a second create or a restore),
+      architecture/ops-and-local-first.md (Story 27.2's limits and remarks), architecture/kernel-and-seed.md
+      (the new pre-issue kinds, printedParecer, the flags parecer_open_apart, wording_pass,
+      caption_para_raios), with a log.md line."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+  - id: "epic-27-retro-item-50-e27-a5-write-the-browser-pass-of-886af55"
+    epic: 27
+    action: "E27-A5 Write the browser pass of 886af55e as a tracked report under _bmad-output/test-artifacts/manual/
+      from epic-27-context.md:83 (no screenshots, no client data), with the form revision
+      check the Definition of Done names; or, if Matheus accepts the context file
+      as the report, one dated line in the epic's Definition of Done saying so. Fold
+      with E26-A3 and E28-A3."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+  - id: "epic-27-retro-item-51-e27-a6-playbook-lines-in-epic-batch-orch"
+    epic: 27
+    action: "E27-A6 Playbook lines in epic-batch-orchestrator.md § 12, edited once
+      together with E25-A6, E26-A7 and E28-A5: (a) a story that changes an input's
+      shape (single line to many) or a derived sentence lists every reader of the
+      value (screen, Etapa, DOCX, PDF) in its \"Today\" and in its acceptance criteria
+      (X7, R1, R2); (b) a change of the case or the order of derived text, or the
+      geometry of a fixed bar, runs the specs found by a case-insensitive grep of
+      the sentence and the specs that tap rows under the bar (23.9-E2E-001, 23.8-E2E-001
+      slipped through the batch gates); (c) a test patched for a cause only inferred
+      keeps the failing trace (P-3)."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+  - id: "epic-27-retro-item-52-e27-a7-close-f1-as-cause-not-found-guard"
+    epic: 27
+    action: "E27-A7 Close F1 as \"cause not found, guard in place, production clean\"\
+      , and clean the stray empresa row of the local dev database with the command
+      in #345's body, or record that the local database was reset."
+    owner: "Matheus (close); coordinator (the local row)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+  - id: "epic-27-retro-item-53-e27-a8-decide-the-two-clientes-panel-row"
+    epic: 27
+    action: "E27-A8 Decide the two Clientes panel rows together with the audit's L4300:
+      refuse a nameless client, and give the panel a leave confirmation or not (closing
+      it while a repeated name is held drops the waiting fields without a word). The
+      audit holds only the first."
+    owner: "Matheus (decision); coordinator (batch if yes)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-54-e30-a1-decide-the-open-readings-one-date"
+    epic: 30
+    action: "E30-A1 Decide the open readings, one dated line each under its story
+      in epics.md: #386 (space after \">\" and \"<\"; the composer writes SEED_VERSION's
+      form; the Malha's helper does not print; the no-reading no-checklist sentence
+      kept), #389 (three surfaces and two actions; counts at show time; a moved photo
+      or point is not attributed; \"Deixar removido\" has no \"Desfazer\"; the Toast
+      shows on every device of the writer; the \"dois casos\" note; the Toast wrap
+      at 390), #391 (tablet line at 600 px, large phones read tablet; the unreadable
+      value sent as 0; a bad value refuses the batch; \"Uso do aplicativo\" on Conta),
+      #392 (work written before v0.15.0 on a local removed later raises no notice;
+      Home with no reason line on a first sign-in behind a failing network). Add the
+      first of #392 to source-deltas.md row 224."
+    owner: "Matheus (decide); coordinator (record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-55-e30-a2-send-bruno-with-the-message-of-e2"
+    epic: 30
+    action: "E30-A2 Send Bruno, with the message of E28-A2, the authored sentences
+      of #386 (\"Sem VALOR DE PROJETO em Dados da malha, vale <= 5 ohm.\" and the
+      new criterion forms), #387 (four pre-issue texts) and #389 (the removed-local
+      notice, its two buttons and its Toast); add the audit's question about the tablet
+      at phone width (zoom, split screen or upright). Record his answers."
+    owner: "Matheus (send); Bruno (answer); coordinator (list, record)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-56-e30-a3-after-bruno-s-next-session-read-t"
+    epic: 30
+    action: "E30-A3 After Bruno's next session, read the new device_kinds view once
+      (counts only) and record, under audit answer 4, what device 01a1c707 reports
+      (device_kind, os, pointer, viewport) and that the query ran; the view's first
+      run in Logs Insights has not been recorded."
+    owner: "coordinator (read, record); Matheus (the AWS login)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-57-e30-a4-add-the-lesson-of-finding-3-to-th"
+    epic: 30
+    action: "E30-A4 Add the lesson of finding 3 to the story template and epic-batch-orchestrator.md
+      § 12: a story that changes the fold's derived columns carries a test that folds
+      a history older than its contract both as the server does (row left by the old
+      reducer, then each later op) and as a device does (the whole log), in both arrival
+      orders, and a derived column depends only on what the op carries. Cite e30h-UNIT-001.
+      Fold into E28-A5."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-58-e30-a5-records-hygiene-in-one-records-pr"
+    epic: 30
+    action: "E30-A5 Records hygiene in one records PR: in epic-30-context.md, a section
+      with the wave 1 gate on 8fe202ef (counts and the two reds), the one-gate-for-three-waves
+      deviation and the review's findings table with the list of files it did not
+      read (the unreviewed scope of finding 19); change the \"not merged yet\" parentheticals
+      in the done lines of Stories 30.1 to 30.5 (sprint-status.yaml 381 to 385, epics.md
+      outcome lines) to the merge facts; and record the load reds of finding 6, with
+      the rule candidate \"no batch stack beside another batch's test:unit\", for
+      Matheus."
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-59-e30-a6-close-what-story-30-5-left-red-a"
+    epic: 30
+    action: "E30-A6 Close what Story 30.5 left red: (a) the Export dialog's ready
+      phase draws once all it shows is on the device, or keeps its top fixed, so \"\
+      DOCX\" does not move under a press (14.5-E2E-001; Matheus decides the direction);
+      (b) record the engine's cycle and the device's sync state at the red of 1.6-E2E-001,
+      and the open-list cause of 24.10-E2E-005; (c) decide whether the api in dev
+      compose restarts when its node process dies (docker-compose.yml tsx watch);
+      (d) the chip-then-Conforme test once the wording is decided. Each red first,
+      no retry. This closes E24-A4."
+    owner: "Matheus (decides a, c, d); coordinator (batch)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-60-e30-a7-decide-whether-home-says-why-it-s"
+    epic: 30
+    action: "E30-A7 Decide whether Home says why it shows no list and no \"Novo relatorio\"\
+      \ on a first sign-in behind a failing network (the fail-closed Home of Story
+      26.5, ROLE_UNKNOWN_TEXT is only for the offline case), and build the line."
+    owner: "Matheus (decide); coordinator (batch)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-61-e30-a8-add-the-epic-30-rows-to-the-real"
+    epic: 30
+    action: "E30-A8 Add the Epic 30 rows to the real-device pass of E28-A3: \"Abrindo
+      camera\" on \"Ler visor\" and \"Fotografar equipamento\", the picker with every
+      cell read, the removed-local Toast, Banner and the two buttons on an iPad and
+      an Android tablet, a 40-character TAG on the phone Sumario in Safari (container
+      query units), and the \"Marcar como enviado\" then Esc path."
+    owner: "coordinator (pass); Matheus (the device)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+  - id: "epic-30-retro-item-62-e30-a9-optional-on-matheus-s-word-for-th"
+    epic: 30
+    action: "E30-A9 Optional, on Matheus's word for the spend: a read-only bmad-review
+      of the unreviewed scope (finding 19) as one diff: the v19 print path, preflight.ts,
+      e2e.ts, the camera changes, the TAG CSS and last-results.ts. My read found nothing
+      to fix, and the v19 print path is guarded by goldens, so this is a second reader,
+      not a known gap."
+    owner: "Matheus (the word); coordinator (run)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
