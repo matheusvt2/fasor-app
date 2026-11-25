@@ -754,8 +754,8 @@ test('@p1 14.3-E2E-003 the sheet\'s "Do local" block carries the entry line with
   await expect(railRow.locator('button.tree-body')).toHaveAccessibleName(`Verificações do local · 2 de ${N} · 1 NC — Cubículo Enel`);
   // Its NC item carries the card's NC badge (F37).
   await expect(railRow.locator('.eq-card-status .nc-badge')).toHaveText('1 NC');
-  // Story 15.2: the card's NC badge is part of its name.
-  await railRow.getByRole('button', { name: 'Verificações do local · 1 NC — Cubículo Enel', exact: true }).click();
+  // Story 15.2: the card's NC badge is part of its name (Story 30.1 F: after its counter).
+  await railRow.getByRole('button', { name: `Verificações do local · 2 de ${N} · 1 NC — Cubículo Enel`, exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/local/${enelId}/verificacoes$`));
 });
 

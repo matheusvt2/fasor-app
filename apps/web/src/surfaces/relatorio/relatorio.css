@@ -425,5 +425,5 @@
      itself, but only when it cannot fit on a line of its own: as a flex item of the wrapping title row its
      hypothetical size is its whole width, so a TAG that fits moves to a new line whole (the F-07 rule above)
      and only one wider than the row shrinks and breaks. Nothing is hidden (no ellipsis). */
-  [data-route="/relatorio/:id"] .s9-eq-open .block-tag { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+  [data-route="/relatorio/:id"] .s9-eq-open .block-tag { flex: 0 1 auto; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 }
