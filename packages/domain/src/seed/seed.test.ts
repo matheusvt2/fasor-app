@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { BASE_EQUIPMENT_BLOCK_TYPES, EQUIPMENT_BLOCK_TYPES, ITEM_KEYS, SITE_ITEM_KEYS, SUB_BLOCK_KEYS } from '../schemas/block-config.ts';
-import { SEEDED_CRITERIA } from './criteria.ts';
+import { criterionTextInUnit, formatCriterionValue, SEEDED_CRITERIA } from './criteria.ts';
+import { currentCriterionText } from './criteria-view.ts';
 import { CRITERION_ROW_STATUSES, NETA_100_1, NETA_100_5 } from './criteria-tables.ts';
 import {
+  criterionSymbols,
   equipmentTypesOf,
   findDefinition,
   findSeed,
@@ -3079,7 +3081,8 @@ describe('28.2-UNIT-002 seed v17 is frozen as it shipped at the deploy of 886af5
  * v19 as it ships (Epic 30, Story 30.3); until its deploy a batch that changes it re-pins it, after it a change is a new
  * version. Batch e30b, opening commit (2026-11-24): v19 opens equal to v18, the same content and the same rule flags.
  */
-const V19_HASH = 'e26da0166fa33f8b9bc81ca2027bc259d26263f3b50e02f9c8381754be7e49fb';
+// Batch e30b (2026-11-24, Story 30.3 (a), (b) and (c)): the three rule flags (was e26da016… at the opening commit).
+const V19_HASH = 'a501a31e00e62364addafbc58c8c3feaff42f4fb6eceaa6421d494b4fd9fe2a5';
 
 /**
  * Batch e30b (Story 30.3): each delta on v19, undone, in the order `seed/v19.ts` applies them. A delta adds its own
@@ -3087,7 +3090,25 @@ const V19_HASH = 'e26da0166fa33f8b9bc81ca2027bc259d26263f3b50e02f9c8381754be7e49
  * line, and names it here, so `withoutE30b(v19)` stays v18 and "30.3-UNIT-001" keeps pinning that every other byte of
  * v19 is v18's.
  */
-const E30B_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [];
+// Story 30.3 (a): the rule flag `criterion_symbols` (`withoutE30bA` below).
+// Story 30.3 (b): the rule flag `conclusion_no_checklist_clause` (`withoutE30bB` below).
+// Story 30.3 (c): the rule flag `helper_names_plate_block` (`withoutE30bC` below).
+const E30B_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE30bA, withoutE30bB, withoutE30bC];
+
+/** v19 without Story 30.3 (a)'s delta: its one rule flag. */
+function withoutE30bA(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['criterion_symbols']);
+}
+
+/** v19 without Story 30.3 (b)'s delta: its one rule flag. */
+function withoutE30bB(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['conclusion_no_checklist_clause']);
+}
+
+/** v19 without Story 30.3 (c)'s delta: its one rule flag. */
+function withoutE30bC(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['helper_names_plate_block']);
+}
 
 /** v19 with every delta of Story 30.3 undone: v18 as it shipped. */
 function withoutE30b(seed: ReportSeed): ReportSeed {
@@ -3113,6 +3134,49 @@ describe('30.3-UNIT-001 seed v19 (Epic 30, Story 30.3) opens equal to v18', () =
   it('keeps every rule flag v18 turns on (a v19 relatório concludes and prints as a v18 one but for the three deltas)', () => {
     expect(withoutE30b(v19).rules).toEqual(v18.rules);
     for (const flag of Object.keys(v18.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v19', flag), flag).toBe(true);
+  });
+});
+
+describe('30.3-UNIT-FLAGS seed v19 (Story 30.3): its three rule flags, one per delta, on v19 only', () => {
+  it('turns on criterion_symbols, conclusion_no_checklist_clause and helper_names_plate_block in v19 and in no version before it', () => {
+    for (const flag of E30B_FLAGS) {
+      expect(seedRule('v19', flag), flag).toBe(true);
+      for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v19')) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
+    }
+    expect(criterionSymbols('v19')).toBe(true);
+    expect(criterionSymbols('v18')).toBe(false);
+    expect(criterionSymbols(undefined)).toBe(false);
+  });
+
+  it('v19\'s rules are v18\'s plus the three, and nothing else of the seed differs', () => {
+    const v18 = getSeed('v18', 'cabine_primaria');
+    const v19 = getSeed('v19', 'cabine_primaria');
+    expect(v19.rules).toEqual({ ...v18.rules, ...Object.fromEntries(E30B_FLAGS.map((flag) => [flag, true])) });
+    expect(JSON.stringify({ ...v19, rules: v18.rules })).toBe(JSON.stringify(v18));
+  });
+
+  it('formatCriterionValue with symbols: the sign and a space; a text of its own, a nominal, a range and pass-or-fail unchanged', () => {
+    const unit = (operator: string, value: number, u: string | null) => ({ operator, value, unit: u });
+    expect(formatCriterionValue(unit('>=', 5, 'GΩ'), true)).toBe('≥ 5 GΩ');
+    expect(formatCriterionValue(unit('<=', 0.5, 'Ω'), true)).toBe('≤ 0,5 Ω');
+    expect(formatCriterionValue(unit('>', 400, 'MΩ'), true)).toBe('> 400 MΩ');
+    expect(formatCriterionValue(unit('<', 250, 'µΩ'), true)).toBe('< 250 µΩ');
+    expect(formatCriterionValue(unit('±', 0.5, '%'), true)).toBe('± 0,5 %');
+    expect(formatCriterionValue(unit('>=', 2, null), true)).toBe('≥ 2');
+    // Without it, v1 to v18's glued form.
+    expect(formatCriterionValue(unit('>=', 5, 'GΩ'))).toBe('>=5 GΩ');
+    expect(formatCriterionValue(unit('±', 0.5, '%'))).toBe('±0,5 %');
+    for (const symbols of [false, true]) {
+      expect(formatCriterionValue({ ...unit('>=', 5000, 'MΩ'), text: '≥ 5.000 MΩ' }, symbols)).toBe('≥ 5.000 MΩ');
+      expect(formatCriterionValue({ ...unit('nominal_pct', 220, 'V'), tolerance_pct: 5 }, symbols)).toBe('220 V ± 5 %');
+      expect(formatCriterionValue({ ...unit('between', 1, 'V'), value_max: 2 }, symbols)).toBe('entre 1 e 2 V');
+      expect(formatCriterionValue(unit('pass_fail', 1, null), symbols)).toBe('aprovado ou reprovado');
+    }
+    // The Critérios tab and the type editor belong to no relatório: the form of the current seed.
+    expect(SEEDED_CRITERIA.map((criterion) => currentCriterionText(criterion))).toEqual(['> 400 MΩ', '< 250 µΩ', '± 0,5 %']);
+    // A reading's remark cites the criterion in the reading's unit, in the same form.
+    expect(criterionTextInUnit(unit('>', 400, 'MΩ'), 'GΩ', true)).toBe('> 0,4 GΩ');
+    expect(criterionTextInUnit(unit('>', 400, 'MΩ'), 'GΩ')).toBe('>0,4 GΩ');
   });
 });
 

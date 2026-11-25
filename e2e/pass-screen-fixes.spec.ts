@@ -199,6 +199,8 @@ test('24.9-E2E-002 the winding resistance names each criterion by its medium and
   const line = page.locator('.criteria-line');
   await expect(line).toContainText(riseItem, { timeout: 30_000 });
   await expect(line).not.toContainText('critério <250 µΩ');
+  // Batch e30b (Story 30.3 (a)): the form a v19 relatório writes the criterion in.
+  await expect(line).not.toContainText('critério < 250 µΩ');
 });
 
 test('24.9-E2E-003 "Agrupar por tipo" is a switch in the local\'s dialog, from "Adicionar local" at 1280 px and from "Função e nome" at 390 px; the DOCX groups the local by type', async ({ page }) => {

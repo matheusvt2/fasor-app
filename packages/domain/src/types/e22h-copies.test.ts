@@ -183,16 +183,17 @@ describe('e22h S1: the Critérios tab reads the plate-picked criterion (plateCri
     const at = quadro.criteria.findIndex((criterion) => criterion.key === quadro.tests[0]!.criterion_key);
     expect(plateCriterionOf(quadro, at)).toEqual({
       lead: 'Escolhido pela placa: a faixa de tensão do campo TENSÃO NOMINAL julga cada leitura.',
-      lines: expect.arrayContaining(['até 500 V: >=0,5 MΩ · NBR 5410', 'até 1000 V: >=1 MΩ · NBR 5410', 'acima de 1000 V: critério não avaliado']) as unknown as string[],
+      // Story 30.3 (a): the type editor writes a criterion in the form of the current seed (v19).
+      lines: expect.arrayContaining(['até 500 V: ≥ 0,5 MΩ · NBR 5410', 'até 1000 V: ≥ 1 MΩ · NBR 5410', 'acima de 1000 V: critério não avaliado']) as unknown as string[],
       rowJudges: false,
       rowNote: 'Esta linha não julga nenhuma leitura: a faixa da placa decide. Editar as faixas virá depois.',
     });
-    expect(plateCriterionOf(quadro, at)!.lines[0]).toMatch(/SIM: >=0,25 MΩ · NBR 5410$/);
+    expect(plateCriterionOf(quadro, at)!.lines[0]).toMatch(/SIM: ≥ 0,25 MΩ · NBR 5410$/);
     const tc = duplicateSeededType(SEED, 'tc').draft;
     const ratio = tc.criteria.findIndex((criterion) => criterion.key === tc.tests.find((test) => test.key === 'relacao_transformacao')!.criterion_key);
     const view = plateCriterionOf(tc, ratio)!;
     expect(view.rowJudges).toBe(true);
-    expect(view.lines).toEqual(['classe de medição (0,3 · 0,6 · 1,2…): ± o valor da classe, em %', '3P: ±3 %', '5P: ±1 %', '6P: ±6 %', '10P: ±3 %']);
+    expect(view.lines).toEqual(['classe de medição (0,3 · 0,6 · 1,2…): ± o valor da classe, em %', '3P: ± 3 %', '5P: ± 1 %', '6P: ± 6 %', '10P: ± 3 %']);
     expect(view.rowNote).toBe('Esta linha julga só enquanto a placa não informa a classe no campo EXATIDÃO.');
     // A row no plate-picking test names: none (the TC's insulation row).
     const plain = tc.criteria.findIndex((criterion) => criterion.key !== tc.criteria[ratio]!.key);

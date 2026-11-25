@@ -151,7 +151,8 @@ describe('the type in the palettes, its TAG and its words', () => {
       conclusion: { enabled: true },
     });
     expect(config.na_defaults).toEqual([]);
-    expect(subBlockSummaryText(definition(), 'isolacao')).toBe('Fase A · Fase B · Fase C · Neutro × 1 minuto · >=0,5 MΩ até 500 V · >=1 MΩ até 1000 V · >=0,25 MΩ SELV/PELV (NBR 5410)');
+    // Story 30.3 (a): the composer writes a criterion in the form of the current seed (v19).
+    expect(subBlockSummaryText(definition(), 'isolacao')).toBe('Fase A · Fase B · Fase C · Neutro × 1 minuto · ≥ 0,5 MΩ até 500 V · ≥ 1 MΩ até 1000 V · ≥ 0,25 MΩ SELV/PELV (NBR 5410)');
     expect(subBlockSummaryText(definition(), 'nameplate')).toBe('10 campos');
   });
 
