@@ -1,0 +1,1649 @@
+# sprint-status archive, 2026-11-24.
+#
+# What this is: the history cut out of sprint-status.yaml so that file stays small and current. It holds
+#   1. action_items: every action item whose status is `done` (closed, resolved, superseded, moot and duplicate
+#      items included), whole and unchanged, in the order they had in sprint-status.yaml, ids kept;
+#   2. development_status_history: the full original trailing comment of every development_status key whose comment
+#      was shortened or replaced on 2026-11-24, as a mapping from key to the original string, verbatim (comments of keys
+#      that left development_status, such as 13-9 and 25-17, are here too).
+# The live file keeps only `open` and `in-progress` action items. The BMAD scripts read the live file only; nothing here
+# is read by them, and an update by id to an archived item is not expected.
+# Items marked "2026-11-24 audit:" were closed on that date by the sprint-status cleanup (evidence on the status line).
+# Archived items keep their `ref` values as they were written (some start with /home/matheus/Documentos/fasor/, which
+# is this repository's root on the old machine; every target exists under the repository root).
+action_items:
+  - id: "epic-1-retro-item-2-a2-decide-the-identity-model-before-epic"
+    epic: 1
+    action: "A2 Decide the identity model before Epic 2: uuidv7 user and company ids
+      validated by the seed CLI, user rows projected to the company stream, registration
+      save as user/{id}/{field} ops, account reads through the contract"
+    owner: "Architecture, then first Epic 2 story"
+    status: done  # PR #9
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-3-a3-persist-the-service-worker-hold-shell"
+    epic: 1
+    action: "A3 Persist the service worker hold-shell flag (Cache Storage sentinel
+      or IndexedDB), test the worker-restart lifecycle and re-run QA D-1 in a real
+      browser (blocking before Epics 5 and 6)"
+    owner: "Follow-up story (opus/high)"
+    status: done  # PR #11
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-4-a4-stamp-the-minted-device_id-in-commitd"
+    epic: 1
+    action: "A4 Stamp the minted device_id in CommitDeps/commitBatch and drop the
+      user-id fallback in the fixture before any Epic 2 op emitter"
+    owner: "Next story"
+    status: done  # PR #9
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-5-a5-ui-hygiene-story-checked-in-a-real-br"
+    epic: 1
+    action: "A5 UI hygiene story checked in a real browser at 390/768/1280: translate
+      .frame-* mock selectors (Home 2x2, dialog fonts), online event triggers sync,
+      login messages by failure kind, port Login/Registration/SignOut to shared components,
+      ConfirmDialog aria-modal, Toggle/Checkbox/FilterChip on-state, link styles,
+      draft toast dismiss, badge when server unreachable, back chevron, per-route
+      title, favicon"
+    owner: "Next story (opus/high)"
+    status: done  # PR #12
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-6-a6-stabilize-and-widen-the-gate-testtime"
+    epic: 1
+    action: "A6 Stabilize and widen the gate: testTimeout for jsdom and tooling, move
+      DB-touching tests out of test:unit, retag e2e by priority, add emoji/laudo scans
+      and pnpm audit, rebuild the tools image, keep one reset mechanism"
+    owner: "Process"
+    status: done  # PR #10
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-7-a7-move-status-words-plurals-counts-and"
+    epic: 1
+    action: "A7 Move status words, plurals, counts and the auto-pull rule into the
+      kernel; brand applyOps and toSnapshot with CompanyId; document where a new string
+      goes"
+    owner: "Architecture"
+    status: done  # PR #9
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-8-a8-keep-the-last-session-pointer-on-a-bo"
+    epic: 1
+    action: "A8 Keep the last-session pointer on a boot-time 401 so offline cold opens
+      reach local data behind the re-auth banner"
+    owner: "Next story"
+    status: done  # PR #9
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-9-a9-refresh-readme-agents-md-running-and"
+    epic: 1
+    action: "A9 Refresh README, AGENTS.md Running and verifying, Docker-only prod
+      doc, dist build before Caddy, desktop CA, seed usage and a sample-relatorio
+      seed flag; strike Story 1.7 CI AC through"
+    owner: "Process (bmad-project-context)"
+    status: done  # PR #10
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-10-a10-merge-every-spec-deferred-item-into"
+    epic: 1
+    action: "A10 Merge every spec deferred item into deferred-work.md with a class,
+      close resolved ones, add a cross-tenant case per new route to the DoD"
+    owner: "Process"
+    status: done  # PR #10
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-11-a11-pipeline-independent-review-on-every"
+    epic: 1
+    action: "A11 Pipeline: independent review on every PR re-examining its own patch,
+      mandatory real-browser pass for UI and SW stories, opus/high floor for component/a11y/security
+      stories, smaller specs with ACs only against existing artifacts, epic-close
+      gate checks manual ACs, parallel-story start checklist"
+    owner: "Process (bmad-build.toml, model guide)"
+    status: done  # PR #10
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-1-retro-item-12-a12-before-any-exposure-beyond-the-offic"
+    epic: 1
+    action: "A12 Before any exposure beyond the office LAN: rate limiting, security
+      headers, Vite bound to 127.0.0.1, push body limit, refuse the default SESSION_SECRET
+      outside dev"
+    owner: "Architecture (Epic 11 checklist)"
+    status: done  # PR #83 (security headers, body and rate limits, SESSION_SECRET refused in production, Vite on loopback); duplicate of E11-A5
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-13-e2-a1-fix-d-1-server-merge-of-manufactur"
+    epic: 2
+    action: "E2-A1 Fix D-1: server merge of manufacturer/voltage_class emits a system
+      op retiring the merged-away id on the originating device, redirect persisted,
+      two-cycle convergence test"
+    owner: "dev"
+    status: done  # PR #17
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-14-e2-a2-fix-d-2-wire-registrypickerfield-i"
+    epic: 2
+    action: "E2-A2 Fix D-2: wire RegistryPickerField into the instrument Fabricante
+      field with an offline Criar e2e; move AC 2.4-2 to Epic 4 in epics.md"
+    owner: "dev"
+    status: done  # PR #17
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-15-e2-a3-fix-d-3-d-8-open-certificate-empre"
+    epic: 2
+    action: "E2-A3 Fix D-3..D-8 (open certificate, Empresa @p0, visible defaults,
+      voltage-class kV form, phone full-screen form, polish)"
+    owner: "dev"
+    status: done  # PR #17
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-17-e2-a5-human-style-pass-covers-each-form"
+    epic: 2
+    action: "E2-A5 Human-style pass covers each form at 390 and one second-cycle or
+      second-device scenario"
+    owner: "dev and reviewers"
+    status: done  # no PR; adopted as process in the retro (commit 5feb8d7)
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-3-retro-item-20-e3-a3-validate-sheet-path-segments-again"
+    epic: 3
+    action: "E3-A3 Validate sheet/* path segments against getDefinition in applyOp
+      before Epic 4 writes sheet values"
+    owner: "dev"
+    status: done  # PR #30; assertSeedPath, cell row/col stay structural
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-21-e3-a4-stabilize-the-gate-templates-list"
+    epic: 3
+    action: "E3-A4 Stabilize the gate: Templates list empty for 30 s after sign-in
+      under load (3.6-E2E-001), and cut unit-suite jsdom/axe cost"
+    owner: "dev"
+    status: done  # PR #40; Epic 6 batch F
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-24-e3-a7-process-one-story-per-pr-or-a-reco"
+    epic: 3
+    action: "E3-A7 Process: one story per PR or a recorded exception; Dev model changes
+      noted in epics.md with a date"
+    owner: "Matheus / SM"
+    status: done  # no PR; adopted as process in the retro (commit 91f1664)
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-25-e3-a8-process-focus-asserted-after-every"
+    epic: 3
+    action: "E3-A8 Process: focus asserted after every destructive action; contenteditable
+      and touch ACs run once on Android Chrome or WebKit before close"
+    owner: "dev + reviewers"
+    status: done  # no PR; adopted as process in the retro (commit 91f1664)
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-26-e3-a9-deferred-polish-toggle-sub-lines-f"
+    epic: 3
+    action: "E3-A9 Deferred polish: toggle-sub lines from kernel text, one bullet
+      4 in section 8, synthetic names in remaining tests, blank-rename message, open
+      Editar texto from the card"
+    owner: "dev"
+    status: done  # section-8.ts derivedGroupText, PR #51 (Epic 7 retro)
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-4-retro-item-28-e4-a1-fix-the-generate-and-status-seams"
+    epic: 4
+    action: "E4-A1 Fix the generate and status seams: one kernel editedSince limited
+      to the equipment the relatorio references (with Q15), no issue over edits after
+      snapshot_seq, issue on unchanged, setup asks statusTable(status); add a @p0
+      generate-edit-regenerate e2e (before Epic 5)"
+    owner: "dev (opus)"
+    status: done  # PR #29; item 23 and Q15 product choice stay open questions
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-29-e4-a2-q4-across-devices-pull-the-project"
+    epic: 4
+    action: "E4-A2 Q4 across devices: pull the project equipment before Criar relatorio
+      (or refuse offline) so reuse never mints duplicates; add a two-device test"
+    owner: "dev"
+    status: done  # PR #29; item 23 and Q15 product choice stay open questions
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-30-e4-a3-section-text-and-exclusions-one-sh"
+    epic: 4
+    action: "E4-A3 Section text and exclusions: one shared undo-toast/edit-queue hook
+      (stale Desfazer, swallowed errors), Sumario meta for an edited text, blank exclusions
+      filtered and removable, decide template section 3 vs setup exclusions"
+    owner: "dev"
+    status: done  # PR #29; item 23 and Q15 product choice stay open questions
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-31-e4-a4-small-fixes-one-putrelatoriostatus"
+    epic: 4
+    action: "E4-A4 Small fixes: one putRelatorioStatusOp/putBlockOp for every write,
+      web uses the kernel projectLabel, drop the stale ART comment in document-control.ts"
+    owner: "dev"
+    status: done  # PR #29; item 23 and Q15 product choice stay open questions
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-32-e4-a5-spec-reconciliation-dated-narrowin"
+    epic: 4
+    action: "E4-A5 Spec reconciliation: dated narrowings in epics.md for items 27,
+      28, 30, 31; decide whether Rascunho may generate (25); schedule 29 and 14 with
+      Epic 7"
+    owner: "Matheus with the coordinator"
+    status: done  # 2026-10-05 audit-2026-09-30: only item 25 was left, carried by E7-A5
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-33-e4-a6-bruno-reads-the-skeleton-docx-revi"
+    epic: 4
+    action: "E4-A6 Bruno reads the skeleton DOCX (reviews/qa-epic-4-D) and his remarks
+      are recorded under Story 4.8; Matheus confirms or reverses the Q3 and Q4 decisions"
+    owner: "Matheus"
+    status: done  # 2026-11-24 audit: superseded: Bruno has read real relatorios and likes the document (epics.md:6331, 2026-11-06); v5 layout locked (Story 23.2)
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-34-e4-a7-refactor-when-next-touched-split-s"
+    epic: 4
+    action: "E4-A7 Refactor when next touched: split setup-surface.tsx, extract the
+      Sumario row actions, unify the focus-restore helpers, move project helpers out
+      of sumario.ts"
+    owner: "dev"
+    status: done  # PR #40; Epic 6 batch F
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-35-e4-a8-process-integrated-human-style-qa"
+    epic: 4
+    action: "E4-A8 Process: integrated human-style QA on clean main before each epic
+      closes; every cross-batch AC gets a named wiring owner in the spec phase; identity/reuse
+      rules get a two-device test; fix agents report product choices as open questions"
+    owner: "coordinator / SM"
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-36-e4-a9-gate-run-test-e2e-matrix-at-epic-c"
+    epic: 4
+    action: "E4-A9 Gate: run test:e2e:matrix at epic close, at most two concurrent
+      verifies, a shared SyncState test factory, an orchestrator watchdog with ISO
+      timestamps"
+    owner: "dev / coordinator"
+    status: done  # PR #48 (makeSyncState); host lock and watchdog rule in epic-batch-orchestrator.md (commit b08f622)
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-37-e5-a1-stabilize-the-e2e-gate-before-epic"
+    epic: 5
+    action: "E5-A1 Stabilize the e2e gate before Epic 6: fix 3.6-E2E-001 (E3-A4) and
+      the timing flakes 4.1-E2E-002, 4.3-E2E-002, 1.6-E2E-001, 5.5-E2E-001 and the
+      E5-Q8 test by waiting on committed state; three green full runs in a row"
+    owner: "dev (opus)"
+    status: done  # PR #34
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-38-e5-a2-add-the-sheet-to-the-durability-ma"
+    epic: 5
+    action: "E5-A2 Add the sheet to the durability matrix (tri-state taps, phone unit
+      chip row, sticky bar with the keyboard, Nao ensaiado) and to the E1-A1 manual
+      device script"
+    owner: "dev, then Matheus"
+    status: done  # PR #40 dev part; the device run is carried by E1-A1 (audit-2026-09-30)
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-40-e5-a4-small-fixes-with-the-epic-7-print"
+    epic: 5
+    action: "E5-A4 Small fixes with the Epic 7 print path: apply criterion_override,
+      a cleared result leaves no printable confirmed text, guard the stale basis on
+      confirm, remaining E5-Q18 e2e"
+    owner: "dev"
+    status: done  # PR #40; E5-Q18 (b) moves to Epic 7
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-41-e5-a5-kernel-path-builders-for-every-op"
+    epic: 5
+    action: "E5-A5 Kernel path builders for every op family the web writes (ficha-ops,
+      relatorio-ops, setup-surface puts), folded into E4-A7 with the setup-surface
+      split"
+    owner: "dev"
+    status: done  # PR #40; Epic 6 batch F
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-42-e5-a6-dod-a-new-kernel-refusal-of-a-writ"
+    epic: 5
+    action: "E5-A6 DoD: a new kernel refusal of a write ships with an api integration
+      test through the sync route; a batch adding a table or wide control asserts
+      its 390 px fit in an e2e"
+    owner: "coordinator / SM"
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-43-e5-a7-keep-the-epic-5-token-economy-deli"
+    epic: 5
+    action: "E5-A7 Keep the Epic 5 token-economy delivery shape while tokens are scarce,
+      orchestrate on opus, cut batches along data dependencies"
+    owner: "coordinator"
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-12-retro-item-45-e12-a2-add-the-prefilled-tag-deferral-to"
+    epic: 12
+    action: "E12-A2 Add the prefilled-TAG deferral to deferred-work.md and the Epic
+      7 context: the TAG is never written as an op, so the printer and the last_nameplate
+      projection must read nameplateTagPrefill"
+    owner: "coordinator"
+    status: done  # no PR; epic-7-context.md carry-over (commit 1582cdd)
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-46-e12-a3-add-to-the-e1-a1-manual-device-sc"
+    epic: 12
+    action: "E12-A3 Add to the E1-A1 manual device script the soft keyboard after
+      Outro and Criar (E12-Q7) and the lost-tap paths on a real tablet"
+    owner: "Matheus"
+    status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-47-e12-a4-every-seed-version-bump-names-how"
+    epic: 12
+    action: "E12-A4 Every seed version bump names how existing companies reach it;
+      decide whether the template upgrade runs on API start, and before a seed version
+      that changes template block shape reject a content put whose base predates the
+      seed_version change (E12-Q4, E12-R1)"
+    owner: "architect / dev"
+    status: done  # 2026-11-24 audit: resolved: templates upgrade on api start (apps/api/src/main.ts:50) and on a push (apps/api/src/sync/apply.ts:952-966); older seeds stay frozen
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-48-e12-a5-recompute-every-numeric-ac-target"
+    epic: 12
+    action: "E12-A5 Recompute every numeric AC target (taps, keys, times) against
+      the decisions of its source document before a story is marked ready (E12-Q5)"
+    owner: "coordinator / SM"
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-49-e12-a6-gate-and-agents-new-p0-specs-wait"
+    epic: 12
+    action: "E12-A6 Gate and agents: new @p0 specs wait on the target's committed
+      state; a mechanism fix ships with a mutation run proving the gate goes red without
+      it; QA writes its report inside its worktree; agents block on background commands;
+      one coordinator per checkout"
+    owner: "coordinator"
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-50-e12-a7-visual-follow-ups-with-epic-6-s-s"
+    epic: 12
+    action: "E12-A7 Visual follow-ups with Epic 6's sheet work: 1024 landscape capture
+      (12.5 AC2), stepper double underline, section 9 header at 390, batch D deferred
+      lows, MOCK-GUIDE note that the before mocks now render with v0.9 CSS"
+    owner: "dev; coordinator for MOCK-GUIDE"
+    status: done  # PR #48
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-6-retro-item-51-e6-a1-gate-time-next-action-fix-the-sync-push"
+    epic: 6
+    action: "E6-A1 Gate time, next action: fix the sync push slowdown under overlap
+      (POST /api/sync/ops about 1.2 s alone vs about 17 s median; one transaction
+      per push batch or find the serializing lock or pool), repeat the PR #45 3 serial
+      vs 3 parallel full-run validation and switch the gate to 3 workers if it holds,
+      bringing verify back under 15 min (measured 17-21 min)"
+    owner: "Epic 7 carry-over batch (dev)"
+    status: done  # #48 push fix, #53 1499 s -> 1268 s; the 900 s target is superseded by epic-8-retro-item-58
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-52-e6-a2-gate-policy-one-verify-at-a-time-on-this"
+    epic: 6
+    action: "E6-A2 Gate policy: one verify at a time on this machine (replaces E4-A9
+      at most two); a batch touching the sheet, overlays or shared layout also runs
+      test:e2e:full before merge, and the epic's last story PR always does"
+    owner: "coordinator; Matheus decides the e2e:full rule"
+    status: done  # superseded by the split merge gate (AGENTS.md 2026-09-30, E10-A1) and E11-A3 (audit-2026-09-30)
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-53-e6-a3-document-the-new-e2e-runner-in-agents-md"
+    epic: 6
+    action: "E6-A3 Document the new e2e runner in AGENTS.md Running and verifying:
+      scripts/e2e.ts, per-worker companies, the serial export group, the leak check
+      and --workers opt-in"
+    owner: "coordinator"
+    status: done  # PR #48
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-55-e6-a5-add-to-the-e1-a1-manual-device-script-tc"
+    epic: 6
+    action: "E6-A5 Add to the E1-A1 manual device script (TC-12 at Epic 6 close) a
+      camera burst and an import on a real tablet, photo durability on iPad Safari
+      (untested in Playwright WebKit) and the soft keyboard after programmatic focus"
+    owner: "Matheus"
+    status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-56-e6-a6-epic-7-carry-over-lows-persist-the-point"
+    epic: 6
+    action: "E6-A6 Epic 7 carry-over lows: persist the point draft on each input,
+      debounced (E6-R1); chip tap in Editar texto regenerates with a notice or chips
+      shown inactive (E6-R2); Sumario aguardando envio stops counting com erro photos;
+      a test on which picture the viewer shows"
+    owner: "Epic 7 carry-over batch (dev)"
+    status: done  # PR #48
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-57-e6-a7-process-and-structure-retarget-stacked-p"
+    epic: 6
+    action: "E6-A7 Process and structure: retarget stacked PRs with --base main after
+      the first merges; every narrowing in deferred-work.md also gets a dated line
+      under its story in epics.md; split ficha-surface.tsx (704 lines) when next touched;
+      keep the carry-over-first batch in each epic"
+    owner: "coordinator (batch instruction file); dev for the split"
+    status: done  # PR #48 (split, dated narrowings); process rules in epic-batch-orchestrator.md (commit b08f622)
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-7-retro-item-66-e7-a1-gate-time-device-snapshot-first"
+    epic: 7
+    action: "E7-A1 Gate time back under budget: stop the device rebuilding the whole
+      relatório snapshot per commit (measure per-commit cost before/after), then re-validate
+      3 workers; target verify <= 900 s median of 3, e2e @p0 <= 600 s, test:e2e:full
+      <= 1200 s, 0 timing failures in 3 consecutive --workers=3 full runs; otherwise
+      a dated DoD budget line with the measured number"
+    owner: "Epic 9 carry-over batch (dev); coordinator accepts on the numbers"
+    status: done  # superseded by the split merge gate (AGENTS.md 2026-09-30) and E11-A1 (audit-2026-09-30); PR #57 incremental snapshot
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-67-e7-a2-gate-throughput-queue-and-load-flakes"
+    epic: 7
+    action: "E7-A2 Gate throughput: targeted specs, unit and api before queueing for
+      the full gate; record lock wait and gate time per batch; load-independent waits
+      in template-composer-undo, setup-surface, relatorio-tree-edits; target lock
+      wait <= 10 min per batch and 0 unit-file timeouts in the next epic's gates"
+    owner: "coordinator (playbook); dev (unit files)"
+    status: done  # superseded by the split merge gate and E11-A3 (audit-2026-09-30); dev part in PR #57
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-68-e7-a3-track-e78-q10-q12-q15"
+    epic: 7
+    action: "E7-A3 Add deferred-work entries with owners for E78-Q10, E78-Q12 and
+      E78-Q15, and fix the fixture TTR value (13200 to 13.2) in the next batch touching
+      the Porto Seguro fixture"
+    owner: "coordinator"
+    status: done  # entries a2cd053; fixture TTR 13.2 in PR #57
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-69-e7-a4-re-own-epic-7-carry-over-rows"
+    epic: 7
+    action: "E7-A4 Re-own the open Epic 7 deferred-work rows (cert_number_mismatch
+      and unpaired_cable rows, calibration row over section11Instruments, small-fixture
+      sub-blocks, ÍNDICE 9.x, section 9 first-sheet split) and close the stale missing-certificate
+      entry (pre-issue.ts:361)"
+    owner: "coordinator (re-own); Epic 9 carry-over batch (dev)"
+    status: done  # PR #57 (fixed or re-owned; stale certificate entry closed)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-71-e7-a6-playbook-shared-renderer-and-cut-batches"
+    epic: 7
+    action: "E7-A6 Playbook: a batch touching docx.ts, layout.ts, the golden or the
+      contract merges main and runs test:e2e:full before its PR; document tests assert
+      from their own section heading; a batch cut by a usage limit or API timeout
+      leaves a handoff note (branch, last green stage, failing tests, conflicts)"
+    owner: "coordinator"
+    status: done  # epic-batch-orchestrator.md a2cd053
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-72-e7-a7-gate-without-the-network"
+    epic: 7
+    action: "E7-A7 Bake or cache the pnpm binary in the tools image so verify and
+      test:e2e:matrix start without registry.npmjs.org; target: a gate started offline
+      gets past install"
+    owner: "dev"
+    status: done  # PR #57 (COREPACK_ENABLE_NETWORK=0, offline gate start proven)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-58-e8-a1-gate-under-budget-incremental-snapshot"
+    epic: 8
+    action: "E8-A1 Make the device relatório snapshot incremental (the whole-snapshot
+      rebuild per commit is the next lever); target under the host lock: verify <=
+      900 s in two consecutive runs, e2e @p0 <= 600 s, commit-to-render before/after,
+      workers raised only after three green `test:e2e:full --workers=3`; if 900 s
+      is missed, Matheus decides a dated DoD clause 3 amendment or a split gate"
+    owner: "Epic 9 carry-over batch (dev); Matheus for the stop rule"
+    status: done  # superseded with E7-A1 (audit-2026-09-30)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-59-e8-a2-bake-pnpm-into-the-tools-image"
+    epic: 8
+    action: "E8-A2 Bake the pinned pnpm binary into the tools image so no gate downloads
+      at start; proof: a gate starts its first test with the network off"
+    owner: "Epic 9 carry-over batch (dev)"
+    status: done  # PR #57
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-61-e8-a4-sidecar-contract-drift-gate"
+    epic: 8
+    action: "E8-A4 Owner for deferred 'OCR contract change passes verify without the
+      sidecar': a PR touching contract/ocr.ts, the committed schema or services/ocr
+      runs the sidecar build and pytest under the lock and pastes the output"
+    owner: "coordinator (playbook); dev for an optional tooling check"
+    status: done  # playbook rule a2cd053; applied in PR #56; tooling check in batch C2
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-62-e8-a5-epic-9-carry-over-lows"
+    epic: 8
+    action: "E8-A5 Epic 9 carry-over lows: E78-R1 crop region, EXIF orientation of
+      thumb/print, crop-blob eviction and re-download, close the stale 'tile stays
+      queued' entry with the QA refutation"
+    owner: "Epic 9 carry-over batch (dev); coordinator for the stale entry"
+    status: done  # PR #57 (crop region, eviction, re-download, stale entry); EXIF in PR #60
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-64-e8-a7-tc-12-plate-flow-on-a-device"
+    epic: 8
+    action: "E8-A7 Add the plate flow (offline shot, queued line, upload on signal,
+      toast, Confirmar todos, Criar offline) to the E1-A1 script and run it with E6-A5
+      and E12-A3; evidence in test-artifacts/manual"
+    owner: "Matheus"
+    status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-9-retro-item-73-e9-a1-gate-budget-stop-rule"
+    epic: 9
+    action: "E9-A1 Decide the gate-budget stop rule (E9-Q6): a dated AGENTS.md/DoD
+      amendment to a measured budget, or a split gate; name the lock-wait target;
+      supersedes the 900 s targets of E7-A1/E8-A1, before Epic 10's first story PR"
+    owner: "Matheus"
+    status: done  # AGENTS.md 2026-09-30 split merge gate (Matheus)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-74-e9-a2-no-merge-on-red-gate"
+    epic: 9
+    action: "E9-A2 No merge with a red or partial gate: a flake needs a green verify
+      on the same commit and an explained failing state; a PR that merges main after
+      its gate re-runs full verify; Epic 10 target 0 such merges"
+    owner: "coordinator (playbook)"
+    status: done  # playbook 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-75-e9-a3-lock-aware-agents"
+    epic: 9
+    action: "E9-A3 Agents never block a stream on flock (gate in the background, polls
+      of at most 60 s); per-batch scratchpad/<batch>/; reports go only to the parent;
+      lock wait recorded per PR; Epic 10 target 0 watchdog kills, 0 shared-file overwrites"
+    owner: "coordinator (playbook)"
+    status: done  # playbook 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-76-e9-a4-cross-story-interaction-tests"
+    epic: 9
+    action: "E9-A4 The epic context lists every story pair sharing a cell, entity,
+      op path or undo batch, and the later batch owns an e2e for each pair; 390 px
+      checks assert table scroll containers, not only the page"
+    owner: "coordinator"
+    status: done  # Epic 10 retro: pairs owned and tested; per-item gap carried by E10-A3
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-77-e9-a5-deferred-ledger-ownership"
+    epic: 9
+    action: "E9-A5 deferred-work: close 1113 (fixed E9-Q2) and 1125 (refuted by QA
+      (g)); re-own 1065-1137; route 1149 (accept), 1155 (add verify-fill-under-dictation
+      e2e), 1161 (Epic 10); target 0 entries owned by a finished review or retro"
+    owner: "Epic 10 carry-over batch"
+    status: done  # PR #63
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-79-e9-a7-split-suggestions-ts"
+    epic: 9
+    action: "E9-A7 Split packages/domain/src/relatorio/suggestions.ts (905 lines,
+      68 exports) by concern (plate crop, measurement/display, env, text), no behavior
+      change; no relatorio/ file over 500 lines"
+    owner: "Epic 10 carry-over batch"
+    status: done  # PR #63
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-81-e9-a9-speech-engine-default"
+    epic: 9
+    action: "E9-A9 Until vendor audio is approved (Q18), default VITE_SPEECH_ENGINE
+      to none in docker-compose.yml and .env.example, or add consent text before the
+      first dictation"
+    owner: "dev; Matheus approves"
+    status: done  # PR #63
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-82-e9-a10-device-script-epic-9-flows"
+    epic: 9
+    action: "E9-A10 Add Ler visor on real displays, dictation on a real tablet (Chrome/Safari)
+      and Fotografar equipamento to the E1-A1 device script; run it with E6-A5, E8-A7,
+      E12-A3; evidence in test-artifacts/manual/"
+    owner: "Matheus"
+    status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-83-e10-a1-gate-decision-draft"
+    epic: 10
+    action: "E10-A1 Draft the E9-A1 decision from Epic 10 data: split gate (story
+      PR = lint, static, unit, api, @p0 e2e plus touched specs and their durability
+      specs on the matrix; e2e:full and full matrix once per wave on integrated main
+      and at the epic QA; #68 precedent), with X's two 70-min cycles and the 948-2162
+      s wave-2 lock waits"
+    owner: "coordinator drafts; Matheus decides"
+    status: done  # AGENTS.md 2026-09-30 split merge gate (Matheus)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-84-e10-a2-push-wip-checkpoints"
+    epic: 10
+    action: "E10-A2 Batches push their branch to origin after each commit that precedes
+      a gate run and before any long wait, not only commit (the 18:10 restart wiped
+      /tmp with the fix branch unpushed); Epic 11 target: every gate run starts from
+      a commit on origin"
+    owner: "coordinator (playbook)"
+    status: done  # applied by the coordinator 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-85-e10-a3-one-test-per-shared-item"
+    epic: 10
+    action: "E10-A3 Refine E9-A4: every item in a pair's 'What they share' cell gets
+      its own named assertion in the epic context, and the undo of each new op kind
+      or resolution against the Epic 5 inverse is always a listed pair (E10-Q2, E10-Q3
+      fell between batches)"
+    owner: "coordinator"
+    status: done  # applied by the coordinator 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-86-e10-a4-targeted-matrix-per-batch"
+    epic: 10
+    action: "E10-A4 A batch changing the fold, the commit path or a live query on
+      the ficha runs its touched durability specs on test:e2e:matrix (three projects,
+      targeted) before its PR; Epic 11 target 0 matrix regressions first found at
+      the epic QA"
+    owner: "coordinator (playbook)"
+    status: done  # applied by the coordinator 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-87-e10-a5-relocate-story-10-4-narrowing"
+    epic: 10
+    action: "E10-A5 Move the PR #65 narrowing from epics.md:489 (Epic List overview,
+      stray leading '#') to under Story 10.4 with a dated relocation note"
+    owner: "coordinator"
+    status: done  # applied by the coordinator 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-89-e10-a7-device-script-two-tablets"
+    epic: 10
+    action: "E10-A7 Add to the E1-A1 manual device script a two-tablet NC/C merge,
+      a cell contradiction with Aplicar and Desfazer, and a removed-versus-edited
+      block via Sincronizar agora; run it with E6-A5, E8-A7, E9-A10, E12-A3; evidence
+      in test-artifacts/manual/"
+    owner: "Matheus"
+    status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-11-retro-item-90-e11-a1-gate-time-answer"
+    epic: 11
+    action: "E11-A1 Answer 'os testes estão demorando muito': profile the @p0 e2e
+      (1405-1738 s of every verify) and propose either a story verify of lint, static,
+      unit, api and touched specs with the full @p0 in the per-wave integrated gate
+      (Epic 11 precedent), or a dated DoD budget with the measured number; target
+      story gate <= 15 min or the dated budget"
+    owner: "coordinator drafts; Matheus decides"
+    status: done  # 2026-10-08, Matheus: story gate (lint, static, unit, api, touched specs), full @p0 per wave; AGENTS.md Decisions of record
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-91-e11-a2-close-11-8-live-evidence"
+    epic: 11
+    action: "E11-A2 Close Story 11.8: explain the 502 on /api/health at 15:10 on 2026-09-30
+      (ECS events, exit codes, OOM), record DEPLOY-SMOKE as the post-merge step, 11.8-ROLE
+      through the ECS task role (DetectDocumentText, a denied Converse outside the
+      allow list, simulate-principal-policy with the budget deny), one night stop/start
+      and one Caddy renewal; then 11-8 done, deferred-work.md:1224 closed, first bill
+      compared with USD 78.83"
+    owner: "Matheus (AWS login) with the coordinator"
+    status: done  # 2026-09-30 coordinator: the 15:10 502 is the api roll of the #79 deploy (ECS events 18:10:53-18:12:38 UTC); health all up after; budget action fasor-monthly APPLY_IAM_POLICY AUTOMATIC STANDBY at 100 % on fasor-production-app and fasor-app; task role = fasor-app-bedrock-textract + files-bucket; live Textract through fasor-app 42 tokens (PR #69)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-94-e11-a5-a12-hardening-story"
+    epic: 11
+    action: "E11-A5 Make A12 a story via bmad-correct-course before the production
+      URL goes to the design partner: rate limiting on /api/auth/* and the push route,
+      Caddy security headers, a push body limit, better-auth production rate-limit
+      defaults checked; target headers present, 429 after N failed sign-ins, 413 on
+      an oversized push, A12 closed"
+    owner: "Matheus (priority); architect"
+    status: done  # PR #83 (api headers and CSP, body limits, rate limits, production SESSION_SECRET check, HSTS at the edge)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-96-e11-a7-recheck-pr-79"
+    epic: 11
+    action: "E11-A7 QA re-check of PR #79 (DOCX and PDF download and share as files,
+      every loading state, the rich editor on the per-relatório surface) appended
+      to reviews/epic-11-review-qa.md; the real iPadOS and Android file share added
+      to the E1-A1 device script; the leaked screenshot deleted from the main checkout"
+    owner: "coordinator (re-check); Matheus (device)"
+    status: done  # 2026-11-24 audit: superseded: desktop download held in the production pass (prod-pass-2026-10-28.md row 11.1); the device share is part of E1-A1
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-97-e11-a8-playbook-shared-fix-stale-api-paths"
+    epic: 11
+    action: "E11-A8 Playbook: a shared-file fix two batches need (toast.tsx) has one
+      owning batch named by the coordinator; a batch restarts the compose api after
+      changing packages/domain before a gate; QA and MCP screenshot paths are absolute
+      inside the agent worktree; target Epic 12: 0 duplicate shared fixes, 0 stale-api
+      false reds, 0 leaked files"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-11-24 audit: resolved: one owning batch per shared file (epic-13-context.md:35); the api restart is playbook § 7 (E16-A8)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-98-e11-a9-unblock-story-11-6"
+    epic: 11
+    action: "E11-A9 Track the Bedrock quota support case; when a quota is above 0
+      run the 11.6 Definition of Ready (Converse through fasor-app on Sonnet 5.5 and
+      one cheaper candidate), then build 11.6 with MIN raised to 14 or later (PR #72)
+      and ai_features on"
+    owner: "Matheus (support case); coordinator (batch L)"
+    status: done  # Bedrock unblocked 2026-10-05 on Haiku 4.5; Story 11.6 merged in PR #88
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-13-retro-item-100-e13-a1-wave-gate-on-75c4bad"
+    epic: 13
+    action: "E13-A1 Run the wave gate on integrated main 75c4bad before Epic 14 starts:
+      full @p0, test:e2e:full and the full test:e2e:matrix under the lock with the
+      main stack stopped; a red stage becomes a fix batch; target all three green,
+      only failures also red on b1c2c6b left, each with a ledger row"
+    owner: "coordinator"
+    status: done  # 2026-10-08 on a8b9b0e: verify green, e2e:full 409/415, matrix 80/93, failures known or pre-epic (deferred-work rows)
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-101-e13-a2-fix-recurring-unit-failures"
+    epic: 13
+    action: "E13-A2 Fix the three recurring unit failures (theme.test.tsx, export-dialog.test.tsx
+      drain under load, number-input.test.tsx:21 harness timer); until then a PR names
+      each red unit test and its isolated pass; target test:unit exit 0 in two consecutive
+      story gates, 0 PRs merged with a red stage"
+    owner: "next carry-over batch"
+    status: done  # 2026-10-15: PR #137; test:unit exit 0 in two consecutive gates on an idle host (#137 gate 4122/4122, #133 pre-merge 4134/4134, wave gate 2026-10-15 green); load-only timeouts remain when three stacks share the VM
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-102-e13-a3-epic-13-device-script"
+    epic: 13
+    action: "E13-A3 Add the Epic 13 device steps to test-artifacts/manual/offline-proof-script.md
+      (13.1 capture size per path on Android and iPad, 13.2 torch/zoom/focus in a
+      dark cubicle, 13.3 iPad pinch, 13.4 iOS decimal pad commit by tap, 13.3/13.6
+      WebKit legs), meeting the 13.1/13.2 DoD as written; run with E6-A5, E8-A7, E9-A10,
+      E10-A7, E12-A3; evidence in test-artifacts/manual"
+    owner: "coordinator (script lines); Matheus (device run)"
+    status: done  # 2026-10-14: steps 9-13 in test-artifacts/manual/offline-proof-script.md and rows in its result template; the device run itself is Matheus's, with the other device items
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-103-e13-a4-ledger-cleanup"
+    epic: 13
+    action: "E13-A4 deferred-work: close the EXPERIENCE.md Salvo row (landed #109);
+      re-own the panel wait-text/cancel-order test row and the audit worker invalid-payload
+      test row to the next carry-over batch; record the 2026-10-07 every-device decision
+      on the panel palette row and route or accept the two-device double-confirm risk;
+      target 0 rows owned by a finished batch"
+    owner: "coordinator"
+    status: done  # 2026-10-14: deferred-work Salvo row closed (#109), panel palette decision recorded and the double-confirm risk routed, wait-text and ?panel= rows re-owned
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-104-e13-a5-handoff-every-phase"
+    epic: 13
+    action: "E13-A5 Playbook: WIP commit, push and HANDOFF.md update at every phase
+      boundary (spec ready, review done, gate started), and a coordinator resume procedure
+      from HANDOFF.md, after three classifier stalls killed orchestrators in Epic
+      13; target a stalled Epic 14 batch resumes with no rework beyond its last phase"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-10-14: folded into E14-A6 (epic-batch-orchestrator.md section 3)
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-105-e13-a6-capture-refactor"
+    epic: 13
+    action: "E13-A6 Refactor without behavior change: one pointer-gesture core shared
+      by use-pinch-zoom.ts and the camera controls, and camera-view.tsx (899 lines)
+      split into stream/session, capabilities/controls and single-shot modules; target
+      no camera file over 400 lines, camera, zoom and plate-shot-fallback specs green"
+    owner: "next carry-over batch"
+    status: done  # 2026-10-15: PR #133 (pointer-gesture core, camera-view.tsx split, no camera file over 400 lines); camera, zoom and plate-shot specs green
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-106-e13-a7-fallback-and-capture-test-rules"
+    epic: 13
+    action: "E13-A7 Playbook test rules: a story adopting a browser API with a fallback
+      ships an e2e on the real surface stubbing the API to reject and to hang (plate-shot-fallback.spec.ts
+      pattern); an e2e that captures asserts a property of the captured file (its
+      size), not only that it exists"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-10-14: rules in epic-batch-orchestrator.md section 4
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-108-e13-a9-decide-story-13-9"
+    epic: 13
+    action: "E13-A9 Decide Story 13.9: settle its DoR (consent wording, webspeech
+      default) and schedule it, or move it to a later epic with a dated line, so epic-13
+      can close"
+    owner: "Matheus"
+    status: done  # 2026-10-21 (Bruno via Matheus, answer 11): Story 13.9 deferred, moved to the epics.md "Backlog: deferred stories" section with a dated line; epic-13 closes
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-13-retro-item-109-e13-a10-measure-story-gate"
+    epic: 13
+    action: "E13-A10 Measure the 2026-10-08 story gate and load rules on Epic 14's
+      first wave from the PR bodies (lock wait, gate wall time, reruns per batch);
+      fold in E11-A3 lock-holder visibility if a wait exceeds 60 min; target every
+      lock wait under 60 min, at most one rerun per batch"
+    owner: "coordinator"
+    status: done  # 2026-10-14: measured on PRs #126-#130 in epic-14-retro-2026-10-14.md (longest lock wait 1074 s, gate wall 10-34 min, #127 two reruns); E11-A3 not folded (no wait over 60 min)
+    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+  - id: "epic-14-retro-item-110-e14-a1-full-and-matrix-on-62db6c2"
+    epic: 14
+    action: "E14-A1 Run test:e2e:full and the full test:e2e:matrix on main 62db6c2
+      before the next epic, under the lock with the main stack stopped; a red stage
+      becomes a fix batch; target both green or only failures also red on 4bce905,
+      each with a ledger row"
+    owner: "coordinator"
+    status: done  # 2026-10-14 on main f2c0bb8 (lock wait 0 s): test:e2e:full 480 of 485 passed, 1 failed, 4 skipped (1847 s); test:e2e:matrix 102 of 114 passed, 1 failed, 11 skipped (358 s). The two reds are the known points 6.6-E2E-011 and WebKit ficha.durability F-11, both in E14-A7 (carry-over); no Epic 14 red
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-111-e14-a2-ledger-cleanup"
+    epic: 14
+    action: "E14-A2 deferred-work: close or re-own the ten Epic 14 rows owned by a
+      finished event (epic QA, integrated review, wave gate, browser pass, unscheduled
+      epic 14 deferred sweep, batch e14a), close the boot-wiring and relatorio-tree-edges
+      rows, fold in the E13-A4 leftovers (1382, 1403); target 0 rows owned by a finished
+      batch, review, QA, gate or unscheduled sweep"
+    owner: "coordinator"
+    status: done  # 2026-10-14: deferred-work rows owned by finished events closed or re-owned (boot-wiring and relatorio-tree-edges closed); the rows held by co14a/co14b left to them
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-112-e14-a3-closed-list-spec-rule"
+    epic: 14
+    action: "E14-A3 Playbook: a batch that adds a value to a closed list other specs
+      assert (block type, palette row, enum value, seed version) runs every spec asserting
+      that list (found by grep) beside its touched specs; specs read such lists from
+      the kernel (e2e/support/palette.ts), never a literal; target next wave gate
+      0 reds from stale expectations"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 4
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-113-e14-a4-dor-capability-check"
+    epic: 14
+    action: "E14-A4 Definition of Ready check: every verb a criterion asks of a surface
+      (remove, move, restore) is checked against what the surface does today and against
+      the ledger; a missing capability becomes named scope with its own criteria before
+      the build (14.2 removal gap, deferred-work 1203); target 0 scope additions at
+      PR review in the next epic"
+    owner: "Matheus (with John at story writing); coordinator (DoR check)"
+    status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 6 and docs/kbs/workflow/story-delivery.md
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-114-e14-a5-patched-not-re-reviewed"
+    epic: 14
+    action: "E14-A5 Playbook: a review-loop patch to an evaluation, verdict or lock
+      rule ships with a boundary test (zero, negative, equal, at limit) and is listed
+      in the PR body under patched, not re-reviewed, which the integrated review reads
+      first (Q-3, Q-12 came from such patches); target every PR body carries the list,
+      QA finds 0 defects in listed patches"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 4
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-115-e14-a6-orchestrator-handback-and-handoff"
+    epic: 14
+    action: "E14-A6 Playbook: land E13-A5 (WIP commit, push and HANDOFF.md at every
+      phase boundary, coordinator resume from it); an orchestrator never hands back
+      while a child it launched still runs and its final message states every child;
+      add the stacked-merge recipe (take main for files the batch did not change,
+      re-apply its delta); target 0 coordinator resumes of a handed-back orchestrator
+      in the next epic"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-10-14: rules in epic-batch-orchestrator.md sections 3 and 4 (folds E13-A5)
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-116-e14-a7-carry-over-batch-first"
+    epic: 14
+    action: "E14-A7 Run a carry-over batch first in the next epic (E6-A7): quantity-stepper
+      flake (deferred-work 1685), open e2e failures 6.6-E2E-011, 7.5-E2E-003, WebKit
+      F-11, E13-A6 camera-view.tsx split (992 lines), relatorio-tree.tsx split by
+      presentation (1029 lines), camera returnFocus row (1931), panel reading painel
+      target (1791); target test:unit exit 0 in two consecutive story gates, no camera
+      or tree surface file over 600 lines"
+    owner: "coordinator (launch); next carry-over batch"
+    status: done  # 2026-10-15: carry-over batches co14a (#137) and co14b (#133) merged; wave gate on 0b67a20 found one interaction (14.2-E2E-002, a menu item picked by the focus scroll of #137 under the pointer) fixed in fix/wave-e14-carry-over
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-119-e14-a10-bruno-copy-review"
+    epic: 14
+    action: "E14-A10 Bruno's copy review before the first real job: NC phrases of
+      the 19 site items, NO-BREAK DE COMANDO and the 51 CTA phrases (docs/nc-chip-phrases.md),
+      criteria wording and sources, the // authored: strings of PRs #126-#129; target
+      dated answers, 0 rows marked before the first real job open when it starts"
+    owner: "Matheus (Bruno for wording)"
+    status: done  # 2026-11-24 audit: duplicate: E17-A3 (epic-17-retro-item-146-e17-a3-bruno-tablet-session) | was open: 2026-10-14: not yet reviewed; PR #130 added more // authored: strings (site NC hint, summary and Criterios lines, Corrente de ensaio label) and E4 waits for Bruno's list of rows  # 2026-10-15: Bruno reviewed and accepted the NC phrases (19 site items, NO-BREAK DE COMANDO, 51 CTA) and the CTA criteria wording and sources (manufacturer's value preferred); E1 test current required; E4 keeps its rows. Still open: the // authored: strings of PRs #126-#130, pending the tablet session Matheus schedules  # 2026-10-20: Bruno's answers accept copy outside this item's list (the 17 QGBT/QD NC phrases of Story 14.9, the coluna group title of Story 14.10 part 8) and close no part of it; E13-A8 and E14-A9 are not touched by these answers  # 2026-10-21 (answer 12): the 10-minute tablet session with Bruno to review the authored copy stays open; Matheus schedules it
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-120-e14-a11-story-14-4-pdf-dod"
+    epic: 14
+    action: "E14-A11 Meet Story 14.4 DoD: check a v5 relatorio PDF layout against
+      key-print-section-9.html and record it under Story 14.4, or narrow the clause
+      with a dated line (Q-16); target a dated line under Story 14.4"
+    owner: "coordinator (check); Matheus (narrowing)"
+    status: done  # 2026-11-24 audit: moot: v5 is locked byte-identical as printed in production (Story 23.2, epics.md:6331); later seeds have their own approved frames
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-121-e14-a12-real-jobs-and-wave-3-gate"
+    epic: 14
+    action: "E14-A12 For each next real relatorio record under Story 14.6, dated:
+      every local carried its checklist, any equipment recorded outside the sheets,
+      count of new-type and adjustment requests; wave 3 starts after two or three
+      such jobs; decide whether epic-14 stays in-progress or 14.6-14.8 move to a later
+      epic; target 2-3 dated job records and a dated line on the epic status"
+    owner: "Matheus (records, decision); coordinator (lines)"
+    status: done  # 2026-11-24 audit: superseded: Matheus lifted the gate 2026-11-06; 14.6 to 14.8 built in Epic 22 wave C (#274, #276) | was open: 2026-10-21 (Bruno via Matheus, answer 13): Bruno has real jobs ready to test as soon as the app is released to him; the count of 2-3 real relatorios starts when he gets production access, each job recorded under Story 14.6
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-14-retro-item-122-e14-a13-pnpm-tmp-files"
+    epic: 14
+    action: "E14-A13 Stop the _tmp_13_* files pnpm 12.5.1's link probe leaves in bind-mounted
+      worktrees: a .gitignore rule plus an install cleanup, or a pnpm package-import-method
+      that skips the probe; target a batch worktree shows no _tmp_* file after install"
+    owner: "coordinator (tooling)"
+    status: done  # 2026-10-15: PR #133, pnpm_config_store_dir in x-app-env skips the probe; a fresh batch install left no _tmp_* file
+    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+  - id: "epic-15-retro-item-123-e15-a1-ledger-hygiene"
+    epic: 15
+    action: "E15-A1 Ledger hygiene for Epic 15: close the 15.3 dry-template row (moot,
+      epics.md 15.6 decision of 2026-10-23), add a row for the PR #167 known open
+      (a collapsed band shows no NC indicator), give named owners to the rows owned
+      by the next fix batch and a later story, date the UX-pass P2/P3 triage row;
+      target 0 Epic 15 rows owned by a finished batch or unscheduled event"
+    owner: "coordinator"
+    status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-124-e15-a2-ratio-verdict-feeds-conclusion"
+    epic: 15
+    action: "E15-A2 Decide whether a ratio row INSATISFATORIO feeds the conclusion
+      suggestion, pre-issue rows and parecer count (deferred-work.md UX pass row),
+      and schedule the fix if yes; target a dated decision on the row"
+    owner: "Matheus (decision); next fix batch (build)"
+    status: done  # 2026-10-27: Bruno's answer 6 (yes); built as Story 17.5 (Epic 17 wave A)
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-125-e15-a3-seed-bump-literal-grep"
+    epic: 15
+    action: "E15-A3 Playbook rule for a seed bump: grep e2e/ for the previous count
+      and section literals and run every hit beside the touched specs, replace each
+      with the kernel value, restart the api container after regenerating a fake-provider
+      fixture; target 0 stale-literal reds at the next seed-bump wave gate"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 (E17-A5) carries the rule; verified by batch e18fd, PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-126-e15-a4-no-gate-overlap"
+    epic: 15
+    action: "E15-A4 Load rule: no story gate overlaps a wave gate; a unit stage red
+      only under load is re-run alone under the lock before merge and both runs go
+      in the PR; target 0 PRs merged on a red unit stage without a recorded isolated
+      green re-run"
+    owner: "coordinator"
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 carries the load rule with E16-A10; verified PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-127-e15-a5-integrated-code-review"
+    epic: 15
+    action: "E15-A5 Run the integrated code review the Epic 15 batches deferred (Blind
+      Hunter and Intent Alignment) over 6e5d8aee..be2f46fb or record a dated waiver;
+      playbook: a batch that skips a lens names the review that will run it and the
+      coordinator schedules it"
+    owner: "coordinator; Matheus (waiver)"
+    status: done  # 2026-11-03: Blind Hunter and intent alignment run 2026-11-03 over 6e5d8aee..be2f46fb on main 0fede8ac: test-artifacts/review-e15-e16-integrated-2026-11-03.md; E15-R1 and E15-R2 ledger rows, E15-R3 accepted
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-129-e15-a7-story-15-7-carried"
+    epic: 15
+    action: "E15-A7 Story 15.7 carried: ask Bruno for the TC checklist (items in order,
+      oil items, NA subtypes) and decide whether 15.7 stays under Epic 15 (epic stays
+      in-progress) or moves to a later epic so Epic 15 can close; target Bruno's list
+      or a dated move line under Story 15.7"
+    owner: "Matheus"
+    status: done  # 2026-11-24 audit: resolved: Bruno's list came 2026-10-27 (epics.md:4211) and 15.7 was built in PR #193
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-130-e15-a8-epic-15-copy-review"
+    epic: 15
+    action: "E15-A8 Fold Epic 15 authored copy into the E14-A10 Bruno review: site
+      items 20 and 21 labels and phrases, item 12 absorbed phrase, Calculado U1 x
+      sqrt3 / U2, Nenhum equipamento nesta coluna, N automaticos; target dated answers
+      under Stories 15.2, 15.3, 15.5, 15.6"
+    owner: "Matheus (Bruno for the wording)"
+    status: done  # 2026-11-24 audit: duplicate: E17-A3 (epic-17-retro-item-146-e17-a3-bruno-tablet-session)
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-15-retro-item-132-e15-a10-deploy-lost-ecs-endpoint"
+    epic: 15
+    action: "E15-A10 Make infra/bin/deploy survive a lost ECS endpoint after the rollout
+      (v0.3.0 first run exit 255 before the tag record): diagnose, make tag record
+      and smoke resumable, add a ledger row now; target the next deploy records tag
+      and smoke on its first run"
+    owner: "coordinator (infra)"
+    status: done  # 2026-11-24 audit: resolved: infra/bin/deploy has --resume and aws_retry (PR #230, f085d7ec)
+    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-134-e16-a1-na-on-tablet-keypad"
+    epic: 16
+    action: "E16-A1 Decide how a tablet or phone enters N.A in a nameplate or cabine
+      number field (inputMode decimal has no letters): a text keypad on those fields
+      or an N.A control beside them (candidate Story 16.5); then cut the story"
+    owner: "Matheus (decision); next batch (build)"
+    status: done  # 2026-10-27: Bruno's answer 3 (a clickable option beside the field); cut as Story 17.3 (Epic 17 wave A)
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-135-e16-a2-section-8-display-shot-ref"
+    epic: 16
+    action: "E16-A2 Decide what section 8 prints for a ponto de atencao citing a display
+      shot (today imagem removida): keep it or print the shot's caption sentence;
+      ask with Bruno's question 1; dated line under Story 16.3"
+    owner: "Matheus"
+    status: done  # 2026-10-27: Bruno's answers 1 and 5 (numbered; the caption): Story 17.4 returns the numbers, so a cited display shot prints Imagem N again; dated line under Story 16.3
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-136-e16-a3-bruno-answers-and-copy"
+    epic: 16
+    action: "E16-A3 Record Bruno's answers: question 1 (display shots under their
+      test or not at all), question 2 (N.A or NA), whether the v0.3.2 logo is whole
+      in Word, and the Epic 16 authored copy (banner verb gerado, row tag anterior
+      as alteracoes, Foto for a display shot), folded into E14-A10 and E15-A8"
+    owner: "Matheus (Bruno for the answers)"
+    status: done  # 2026-11-24 audit: superseded: answers recorded 2026-10-27 (epics.md:4270); the copy part is folded into E17-A3
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-137-e16-a4-github-release-v0-3-3"
+    epic: 16
+    action: "E16-A4 Create the GitHub release v0.3.3 from the notes drafted in the
+      deploy session (the agent may not create a public release) and record in the
+      deploy playbook who creates a release"
+    owner: "Matheus"
+    status: done  # 2026-10-26: release v0.3.3 created with gh on Matheus's instruction (https://github.com/matheusvt2/fasor-app/releases/tag/v0.3.3); releases stay a human-authorized step
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-138-e16-a5-ledger-hygiene"
+    epic: 16
+    action: "E16-A5 Ledger hygiene for Epic 16: ledger rows for the pre-16.3 frozen
+      gallery numbers and the imagem removida reference (spec frontmatter deferred),
+      a low row for point-editor.tsx:741 filtering display shots itself, and a scheduled
+      owner for QA G1 and G2 instead of the next fix batch"
+    owner: "coordinator"
+    status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-139-e16-a6-integrated-review-epic-16"
+    epic: 16
+    action: "E16-A6 Run Blind Hunter and Intent Alignment over be2f46fb..541ceb97,
+      starting with the patched-not-re-reviewed hunks (acceptsNotApplicable opt-in
+      of PR #183, seed-v7 locators and photo viewer of PR #181), together with E15-A5,
+      or record a dated waiver"
+    owner: "coordinator; Matheus (waiver)"
+    status: done  # 2026-11-03: same review over be2f46fb..541ceb97: E16-R1 to batch s184 (Story 18.4 wave), E16-R2 ledger row for Matheus and Bruno, E16-R3 accepted; the PR #183 and #181 hunks hold or are moot
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-141-e16-a8-restart-api-before-story-e2e"
+    epic: 16
+    action: "E16-A8 Playbook: before the story gate's e2e a batch restarts its api
+      container when packages/domain or apps/api changed since it started (tsx watch
+      misses changes across the podman VM mount), widening E15-A3; a batch stack idle
+      overnight is stopped or restarted before its gate"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7; verified PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-142-e16-a9-static-after-review-patches"
+    epic: 16
+    action: "E16-A9 Playbook: after the review's patches re-run lint and static on
+      the head that merges, not only the patched test files (16.1 left main red on
+      static, TS2345, fixed in PR #181)"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7; verified PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-16-retro-item-143-e16-a10-template-composer-load-timeouts"
+    epic: 16
+    action: "E16-A10 Make the template-composer unit tests load-independent (15 s
+      timeouts and the 1 s findByRole on Adicionar painel, red in PR #179, PR #183
+      and the wave B gate), and record the host load average and its source at the
+      start of every wave gate"
+    owner: "coordinator (tooling)"
+    status: done  # 2026-11-24 audit: superseded: carried by E24-A4 and the load-line rule (playbook §§ 7-8)
+    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+  - id: "epic-17-retro-item-144-e17-a1-fix-batch-code-findings"
+    epic: 17
+    action: "E17-A1 Fix batch for the Epic 17 code findings, one branch, kernel tests
+      first: QA G1 (one predicate shared by the oil rule and acceptsNotApplicable),
+      QA G2 (ratio cells' names with a blank TAP), R4 (restrictionWarning composed
+      from parts), R5 (one blank-label fallback in failedRatioRows), R11 (an authored
+      nothing-left-to-read sentence), R18 (gallery note and Geral radio take sectionMention(snapshot,
+      7), web unit test on a compact snapshot); target the six items closed in one
+      PR with its story gate"
+    owner: "coordinator (batch); Bruno's wording for R18"
+    status: done  # 2026-10-28, fix batch fx17r, PR #199 (2c0748a0)
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-147-e17-a4-deploy-v0-4-0"
+    epic: 17
+    action: "E17-A4 Deploy v0.4.0 (contract 27) from the integrated main: aws login
+      --profile fasor-admin (Matheus), infra/bin/deploy, smoke 8 of 8, tag v0.4.0,
+      record in epic-17-context.md and docs/kbs/log.md; a GitHub release only on Matheus's
+      word; E15-A10 stays open (no recovery for a lost ECS endpoint); target tag recorded
+      and smoke green on the first run"
+    owner: "Matheus (login, release word); coordinator (deploy, record)"
+    status: done  # 2026-11-03: v0.4.0 deployed 8f5fa154, smoke 8/8, tag pushed (epic-17-context.md); later deploys supersede it; v0.4.0 stays a tag without a release page (release-notes-v0.5.0.md), v0.5.0 page published
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-148-e17-a5-playbook-rules"
+    epic: 17
+    action: "E17-A5 Playbook: write into epic-batch-orchestrator.md (unchanged since
+      2026-10-15) the rules carried only by epic-17-context.md and the batch specs:
+      E15-A3, E15-A4, E16-A8, E16-A9, E16-A10, plus gate logs inside .scratch-<tag>/
+      never /tmp, a batch's last steps as a script the coordinator can run with its
+      own watcher on the gate log, and a facts-the-batches-share line per epic context
+      (reading_kind caption); target 0 process rules living only in an epic context
+      file"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 written 2026-10-28 plus the .scratch-<tag> log rule; verified PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-149-e17-a6-ledger-hygiene"
+    epic: 17
+    action: "E17-A6 Ledger hygiene for Epic 17: re-own the two-tap row to Bruno's
+      session, name the E17-A1 batch as owner of QA G1 and G2, add rows for the e17a
+      VGR-1 item (viewer remove step on a site-item photo), R1 (camera-off fallback
+      picker guard), R3 (HEIC conversion failure loses the photo), R6 (one preference
+      read per session), R10 (same-second file names), R13 (tiles and numbers from
+      two sources for one render); target every confirmed finding has a row or a story
+      line, 0 rows owned by a finished event"
+    owner: "coordinator"
+    status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-17-retro-item-151-e17-a8-load-on-one-vm"
+    epic: 17
+    action: "E17-A8 Load on one VM: E16-A10 recurred (template-composer-defaults and
+      template-composer-local red under load in e17a's pre-merge run) and e17b's test:api
+      missed its timing target under the same load; make those tests load-independent
+      or run the unit and api stages of batch gates under the host lock as the Playwright
+      stages are, measure one epic, record the host load at every wave gate; target
+      0 superseded unit or api stages in Epic 18"
+    owner: "coordinator (tooling); Matheus (two batch stacks)"
+    status: done  # 2026-11-24 audit: superseded: folded into E24-A4 and the load-line rule (playbook § 7 line 308, § 8 line 336)
+    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+  - id: "epic-18-retro-item-152-e18-a1-code-fix-batch"
+    epic: 18
+    action: "E18-A1 Fix batch for the Epic 18 code findings, one branch, red-first:
+      device (keep the batch on 429 and end the flush; fetch timeout; pagehide; photoReadingStates
+      narrowed to pending and pulled files; session id rotation on a new database;
+      undo: true on the four registry toasts; network failure of Sincronizar agora
+      reads offline; read-only tri-state taps as disabled_tap; primary-pointer guard),
+      api (256 KB body limit on the telemetry route; stdout sink ts field), friction
+      read (structural block fields out of spans and re-edits; typed-after-failure
+      by client_ts against the failure's received_at; a restored photo re-arms; refusal
+      without the value; guarded sql.end), the tests the verification lens named (R-V2
+      to R-V9, R-V11, R-V12 unit part; the route-table test) and usage-events.spec.ts
+      promoted to @p0"
+    owner: "coordinator (batch)"
+    status: done  # 2026-11-03: batch e18fa, PR #231, deployed in cf468e3d  (was: open)
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-153-e18-a2-observability-fix-batch"
+    epic: 18
+    action: "E18-A2 Observability fix batch: local.ux_events_log_group from the Terraform
+      resource; drop logs:DescribeLogStreams; filter company_id != var.smoke_company_id
+      on the nine queries; sessions_per_day by the device day; the tooling test binding
+      the queries' names and fields to the kernel and the SOURCE literal to the group;
+      a telemetry step in the production smoke and infra/bin/deploy (a session_start
+      with the deployed tag in the group, no ux_event_sink_failed since the deploy);
+      offline fmt, init -backend=false, validate; applied by the next deploy on Matheus's
+      go; 2026-10-30, Matheus's pode fazer on the data-sufficiency review: a tenth
+      view, sessions and events by user_id and company_id, and a read-only id-to-name
+      CLI per company for the digest (the user stays an id in the events); part 1,
+      the users view, the users column of sessions_per_day and the id-to-name CLI,
+      built 2026-10-30 on branch e18-a2-users-view (Matheus: controlar os usuarios
+      logados), merged as PR #220 and applied to production the same day (ten widgets);
+      the CLI ships with the next deploy; the other E18-A2 items stay open; 2026-11-03:
+      name labels (PR #222, var.user_names in the operator's tfvars) and the CLI deployed
+      in 54b11947 (smoke red at step 6 once, 8 of 8 on the re-run); the CLI's first
+      production run by Matheus the same day (exit 0, two users, the two labels confirmed)"
+    owner: "coordinator (batch); Matheus (deploy go)"
+    status: done  # 2026-11-03: users view (#221, #222, #223) and the remainder in batch e18fb, PR #230, deployed in cf468e3d  (was: open)
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-154-e18-a3-docs-ledger-playbook"
+    epic: 18
+    action: "E18-A3 Docs, ledger and playbook, no code: docs/observability.md (LGPD
+      sentence names the pattern for controls; receipt-time window and sessions_per_day
+      until E18-A2; reading waits count from the shot; one sync_result row per ran
+      cycle; structural block fields in spans until E18-A1; append-only vocabulary
+      within a release; the digest greps ux_event_sink_failed); deferred-work.md (o18b
+      memory row; the 2026-10-29 ask row closed with the deploy; rows for R-A2, R-A5,
+      R-A6, R-A13, R-E4, the sync.tsx observer extraction; R-A12 accepted); epic-batch-orchestrator.md
+      (a residual risk that changes how a view is read is a runbook sentence in the
+      same PR; the wave gate record carries the host load line)"
+    owner: "coordinator"
+    status: done  # 2026-11-03: PR #227 and the docs/observability.md part in PR #230  (was: in-progress  # 2026-11-03: ledger and playbook parts done in PR #227; the docs/observability.md part is in batch e18fb)
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-18-retro-item-157-e18-a6-gate-record-before-deploy"
+    epic: 18
+    action: "E18-A6 Gate record rule in the playbook's deploy checklist: before infra/bin/deploy
+      of an integrated main, test:e2e:full green on that main with the host load line,
+      recorded in the epic context (E10-A1, E11-A1, E17-A8 restated); for Epic 18
+      the record is the retrospective's run of 2026-10-30"
+    owner: "coordinator (playbook)"
+    status: done  # 2026-11-03: epic-batch-orchestrator.md § 8 and infra/PUBLISHING.md step 1, PR #227
+    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+  - id: "epic-19-retro-item-160-e19-a2-home-fix-batch"
+    epic: 19
+    action: "E19-A2 Home fix batch, red-first, story gate plus the two Home specs:
+      current card by its own rule (pre-19.2 latest service start) with a two-Em-campo
+      kernel test (R-2); list pending until the company stream state is read (R-3);
+      FilterChipGroup moveTo clicks only on a changed target, onChange fallback for
+      a missing ref (R-5); HOME_ACTIVE_STATUSES derived or pinned (R-7); app-layout
+      toBeInViewport ratio 1 (R-8); 19.2-E2E-001 places an unsynced new relatorio
+      and asserts is-current (R-9); readHomePageSize falls back to 10 (R-11); a role=status
+      line for the note (R-12)."
+    owner: "coordinator (batch)"
+    status: done  # 2026-11-03: batch f19, PR #232, deployed in cf468e3d  (was: open)
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+  - id: "epic-19-retro-item-161-e19-a3-ledger-rows"
+    epic: 19
+    action: "E19-A3 Ledger rows in deferred-work.md under Deferred from: the Epic
+      19 retrospective: R-4 positive created-here signal from the outbox; R-6 homeCards
+      filter dropped or homeList option renamed; R-10 optimistic page size and a surfaced
+      write failure; R-13 the size control only below the list and focus on unmount
+      (UX question for Matheus and Sally)."
+    owner: "coordinator"
+    status: done  # 2026-11-03: four rows in deferred-work.md, PR #232  (was: open)
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+  - id: "epic-19-retro-item-162-e19-a4-process-lessons"
+    epic: 19
+    action: "E19-A4 Process lessons: record the 2026-11-03 wave gate test:e2e:full
+      on main (holding the Epic 19 code) with the host load line in epic-19-context.md
+      as Epic 19 P1 coverage check (P-1, pairs with E18-A6); a dated playbook line
+      in epic-batch-orchestrator.md: a story built without a spec still gets a verification-gap
+      read recorded in one line of its sprint-status note (P-2)."
+    owner: "coordinator"
+    status: done  # 2026-11-03: wave gate record in epic-19-context.md and two playbook lines in epic-batch-orchestrator.md § 8  (was: open)
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+  - id: "epic-20-retro-item-163-e20-a1-fix-batch"
+    epic: 20
+    action: "E20-A1 Fix batch, red-first, story gate plus touched and durability specs:
+      relatorio budget (restore, growth not full value, same byte measure, server
+      rows out, in-push test; R-1); Reenviar restamp scope, commit order, instant
+      shift by clock error (R-2); durations on a monotonic clock, stale offset dropped
+      (R-3); account-surface db null opens the pending dialog, clearUserStorage in
+      runPendingWipes, no altitude write after sign-out (R-4); removed relatorio cover
+      photo 404 and PUT refusal (R-5); point editor finish awaits every write, refused
+      write keeps it open, two e2e cases (R-7); section 7 note and points break from
+      the built section 9 (R-10); node-server 413 test at the cap and cap+1 (R-11);
+      module cycle, RangeError log, orphaned copy, errors.ts docs (R-12, R-8); R-6
+      test after E20-A2."
+    owner: "coordinator (batch, opus high)"
+    status: done  # 2026-11-04: merged #250 (e0b47ad4), wave gate full 570/574 and matrix 136/150 with 0 failed, deployed e0b47ad4 with smoke 8/8; the R-6 test waits on E20-A2 and goes with that decision
+    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+  - id: "epic-20-retro-item-165-e20-a3-records"
+    epic: 20
+    action: "E20-A3 Records: epic-20 backlog to done in sprint-status; close the stale
+      deferred-work rows (e20w home.search, e20e Reenviar unchanged); run or record
+      skipped the PR #239 over-cap count in production; ledger rows for the R-5 extra
+      query and the R-12 meta caps."
+    owner: "coordinator; Matheus for the production count"
+    status: done  # 2026-11-04: (1) epic-20 done and (2) the two stale rows closed in #249, (4) the three ledger rows added in #249; (3) the PR #239 over-cap count ran in production after the e0b47ad4 deploy, 0 values over cap, recorded in the e20s row
+    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+  - id: "epic-20-retro-item-166-e20-a4-process-lessons"
+    epic: 20
+    action: "E20-A4 Playbook lines: the integrated review adds a code-read pass over
+      the union of every patched-not-re-reviewed list and the fix batch items added
+      after its review (P-1); a batch with no spec and no sprint-status line records
+      its verification-gap read in the PR body (P-2); the deploy checklist lists and
+      records every ledger row marked before the deploy (P-3); a budget or quota rule
+      ships with restore and shrink tests (R-1)."
+    owner: "coordinator"
+    status: done  # 2026-11-04: four dated lines in epic-batch-orchestrator.md section 9 (P-1 two-pass integrated review, P-2 verification-gap read in the PR body, P-3 before-the-deploy rows in the deploy record, R-1 restore and shrink tests)
+    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+  - id: "epic-21-retro-item-167-e21-a1-reading-fix-batch"
+    epic: 21
+    action: "E21-A1 Reading fix batch, red-first, story gate plus plate, plate-reading,
+      plate-every-type and seed-v11 specs, after e21g merges: the fold keeps the model
+      group entry when no known diagram id is left (R-1); one kernel predicate for
+      printed / other group / diagram / dropped used by buildReadingSuggestions, withVectorDiagram
+      and bedrock-eval groupRead (R-2); a reading vector diagram log line with the
+      fold outcome (R-3); the unique-key refine on fakeStructuringFixtureSchema and
+      withoutUncitedValues in a provider-neutral module (R-4); a job-level test that
+      printed Dyn1 plus diagram facts stays suggested (R-9). No prompt change."
+    owner: "coordinator (batch, opus high)"
+    status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
+    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+  - id: "epic-21-retro-item-169-e21-a3-records"
+    epic: 21
+    action: "E21-A3 Records after e21g merges: epic-21-context.md gains v0.6.0 tag
+      and publication, the 2026-11-06 real-set eval (ids and counts only) and e21g;
+      deferred-work.md closes the e21r eval row with the real-set result and updates
+      the e21r uncited-diagram row; epics.md dated line under Story 21.2 (real-set
+      eval after the deploy, accepted deviation; N-4 and N-5 accepted as designed)."
+    owner: "coordinator"
+    status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
+    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+  - id: "epic-21-retro-item-170-e21-a4-process-lessons"
+    epic: 21
+    action: "E21-A4 Playbook section 10, one dated line each: an AC that depends on
+      model perception runs its paid eval (synthetic plus a real set kept out of the
+      repository under docs/media) before its batch PR merges, run by the coordinator,
+      table as merge evidence, fake tests named plumbing tests (P-1); a reading prompt
+      asks for perceptual facts and a kernel function composes codes and verdicts,
+      plus a KB line (P-2); the integrated review stack and browser stay down during
+      the integrated gate unit and e2e stages, and a test red under load in two gates
+      of one epic gets a ledger row and an owner (P-3); a fix batch after the integrated
+      review runs the second-pass brief over its own diff and records it in its PR
+      body (P-4)."
+    owner: "coordinator"
+    status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
+    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+  - id: "epic-23-retro-item-172-e23-a1-review-fix-batch"
+    epic: 23
+    action: "E23-A1 Fix batch from the retrospective's review of e23z and e23p, red-first,
+      story gate plus the touched specs: the conclusion paragraph treats an unjudged
+      measurement like a reading to check, with a helper on the cell (R-1); changing
+      a test recommendation in the editor clears its index_recommendation (R-3); the
+      cable-copy test asserts what the product does and the row is written as a narrowing
+      (R-4); a clear on a stored off-plate row is accepted whatever its cells hold,
+      with a two-device api case (R-5); one Playwright case for Atualizar with a pending
+      op while the pull answers 426 (R-7); one more sheet in the PDF test with every
+      capture column filled and long values (R-8); an end-to-end case for Igual a
+      between two v13 transformers (R-9)."
+    owner: "coordinator (batch); suggested as the carry-over batch that opens Epic
+      24"
+    status: done  # 2026-11-24 audit: resolved: fix batch e24f, PR #309 (8bddd986, contract 42) | was open: 2026-11-10 evening: e24f starts after fix batch e24h (no automatic points, contract 41) merges; its item R-3 is reworded in epic-24-context.md | 2026-11-10: Matheus said yes; planned as fix batch e24f, beside Epic 24 wave 0 (epic-24-context.md)
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-173-e23-a2-matheus-decisions"
+    epic: 23
+    action: "E23-A2 Matheus decisions, one dated line each: contract 41 with MIN 41
+      for e23p or the gap accepted (R-2); lock seed v13's layout with goldens before
+      seed v14 opens (R-6); run or waive the Epic 22 retrospective (P-8); leave the
+      two base quotes of PR #295 in the git history or rewrite it (P-7); the open
+      e23p row on the oil fields of a dry unit; the three proposed status transitions
+      of the Epic 21 items (E21-A1, E21-A3 and E21-A4 done)."
+    owner: "Matheus (decision); coordinator (record)"
+    status: done  # 2026-11-10 evening: contract 41 with MIN 41 comes with fix batch e24h, before e24a, which takes 42 | 2026-11-10: Matheus decided all six: the e23p contract gap accepted (contract 41 comes with e24a); v13 layout lock yes (Story 24.2); the Epic 22 retrospective waived; the two base quotes stay in the git history; oil fields of a dry unit read-only (Story 24.11); E21-A1, E21-A3 and E21-A4 done, E21-A2 in progress
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-174-e23-a3-process-rules"
+    epic: 23
+    action: "E23-A3 Playbook section 11, one dated line each: no deploy of an integrated
+      main before the behaviour pass of its waves has run with a tracked report, and
+      the deploy checklist lists every open verification row owned by a review or
+      QA pass (P-1); a printed table change carries a test that reads the PDF and
+      a crop in the PR (P-1); a story adding a field to an existing entity lists that
+      entity's readers and writers in its DoR, and the epic context carries the E10-A3
+      cross-story table (P-1); deploy after the wave's fix batch, an earlier deploy
+      names the known findings and Matheus's word first, and a fix after a deploy
+      states its contract choice (P-2); a PR that bumps a reading prompt carries its
+      eval table or does not merge (P-3); the plan says whether a wave may start beside
+      the previous wave's fix batch and each gate record names what else ran on the
+      host (P-4); a gate's record is written when the gate ends, green means no red,
+      a handover cites the record (P-5); a batch that reads the base checks its diff
+      for word runs of the base (P-7)."
+    owner: "coordinator"
+    status: done  # 2026-11-24 audit: resolved: playbook § 11 written (epic-batch-orchestrator.md:412-452, 2026-11-11; docs/kbs/log.md:254)
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-175-e23-a4-test-hardening-batch"
+    epic: 23
+    action: "E23-A4 A test-hardening batch with an owner for the tests red under load
+      in two or more gates: 21.1-E2E-002, R8CAP-E2E-010 and 4.8-E2E-005 (first find
+      why the device sent no request for 150 s after the job finished) from Epic 23;
+      setup-surface.test.tsx, reading-arrivals.test.tsx, home-surface.test.tsx and
+      R8LAY-E2E-008 from the Epic 21 row; relatorio-tree-edges.test.tsx from the open
+      e23v row."
+    owner: "coordinator (batch)"
+    status: done  # 2026-11-24 audit: superseded: e24f hardened all eight; the two that recurred are carried by E24-A4 | was open: 2026-11-10 evening: e24f starts after fix batch e24h merges | 2026-11-10: Matheus said yes; planned inside fix batch e24f (epic-24-context.md)
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-176-e23-a5-records"
+    epic: 23
+    action: "E23-A5 Records, no code: a dated line under the deploys-once rule of
+      Epic 23 in epics.md (three deploys and why); a dated line under Stories 23.7,
+      23.17 and 23.18 (the paid eval ran after the first deploy, with its result);
+      what else ran on the host during the wave 2 and wave 3 gates, or not recorded;
+      the read-only preview of Bruno's v5 relatorio after the deploy, run and recorded
+      or dropped with the reason."
+    owner: "coordinator (draft); Matheus (approve the epics.md lines)"
+    status: done  # 2026-11-24 audit: resolved: items 1 to 3 written (docs/kbs/log.md:254); item 4 (v5 preview) is carried by E24-A6 item 5
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-23-retro-item-179-e23-a8-handover-to-epic-24"
+    epic: 23
+    action: "E23-A8 Hand over to Epic 24, named in the retrospective and planned there:
+      F6, the print half of F4 and F9 to F20 of the behaviour pass; the three decisions
+      folded in (the arrester's prerequisite, the cable's fake plate fixture, the
+      publish issue); the tap budget documents with seed v14; hiding a library type
+      that has a company copy; whether a cable copy carries a role (R-4); the two
+      open e23f print rows and the open e23b and e23g notes."
+    owner: "coordinator (Epic 24 planning)"
+    status: done  # 2026-11-10: handed over in sprint-change-proposal-2026-11-10.md and epics.md, Epic 24
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+  - id: "epic-24-retro-item-180-e24-a1-like-with-like-after-issue"
+    epic: 24
+    action: "E24-A1 Fix R-1 red-first in the first Epic 25 batch that touches the
+      kernel's rules: on seed v14 the like-with-like rule (history_needs_like_with_like)
+      still holds after the relatorio itself is issued and when a later relatorio
+      is issued on top (the previous visit's plate read from where it survives the
+      issue, or kept beside its results); a previous temperature counts only when
+      it is a number; the batch states its contract choice, since seed v14 is frozen
+      and in production; G1's cause (the shown deadline catches up one render late
+      in point-editor.tsx, code older than Epic 24) goes to batch e25a with its fix.
+      Done when a kernel test that fails on 2009fa30 issues revision 1, edits nothing
+      and finds the flags as before the issue, and G1 is closed by a test that types
+      a deadline, concludes and reloads."
+    owner: "batch e25c of Epic 25 (R-1); batch e25a (G1); the coordinator assigns"
+    status: done  # 2026-11-12: closed by #330 (fix batch e25r merged on main, not deployed) | was open: 2026-11-11: items 1 to 3 built by fix batch e25r (spec-e25r-like-with-like.md; R-1 reproduced through the issue job, plate_measured travels with last_results, contract 49, MIN 49), PR open, not merged; status unchanged
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-181-e24-a2-v14-layout-lock"
+    epic: 24
+    action: "E24-A2 The v14 layout lock, close its records: batch e25b took the lock
+      from 2009fa30 (PR #325, commit 7a8c7aa6) after the deploy, while the retrospective
+      ran (R-3). Close the e24a ledger row on the v14 lock with the commit; a dated
+      line in epic-24-context.md, Deploy: the v14 golden, listed before the deploy,
+      was taken after it, and by whom; Story 25.5's text and DoR say what is left
+      of the v14 lock (it keeps the golden byte-equal and adds its second fixture);
+      check the golden once against R-3's list (a second visit with previous values
+      on the paired tables, an ACEITAVEL column, the No-break sheet, section 10 with
+      a finding, the DOCX). Done when the three records are dated and the check is
+      written in the ledger row."
+    owner: "coordinator"
+    status: done  # 2026-11-24 audit: resolved: v14 layout lock recorded (deferred-work.md:3689, epic-24-context.md:413-415, epics.md:9639)
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-182-e24-a3-process-rules"
+    epic: 24
+    action: "E24-A3 Playbook section 11, one dated line each, carrying the eight unwritten
+      lines of E23-A3 and these: a broken word or number seen in a golden or a PDF
+      is a defect row with an owner batch, and a finding a pass repeats is put to
+      Matheus the first time (P-1); the last product-code commit before a deploy gets
+      a read, and a test of an editor types into it and waits past its autosave (P-2);
+      a batch's PR body lists the grep it ran over e2e and the web tests for what
+      it changes, with its hits, and the integrated gate never runs beside a building
+      batch (P-3); a batch's Auto Run Result has one line per orchestrator cut, and
+      the handoff file is written at each phase boundary (P-5); a corrected sentence
+      is checked in its place on the screen before it is built, and the deploy record
+      closes or carries each before-the-deploy row by name (P-6); the questions for
+      the field engineer go out when the stories are written, and a story that rests
+      on an open question says so in its DoR (P-7). Done when the lines are dated
+      in the playbook, the KB line is in workflow/story-delivery.md and E23-A3 is
+      closed with it."
+    owner: "coordinator"
+    status: done  # 2026-11-24 audit: resolved: playbook lines in epic-batch-orchestrator.md:453-483; KB line in docs/kbs/workflow/story-delivery.md:17
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-24-retro-item-186-e24-a7-carried-from-epic-23"
+    epic: 24
+    action: "E24-A7 Carried from Epic 23, still open: import Bruno's test base in
+      production and check one relatorio (E23-A6); the Epic 23 rows that wait for
+      Bruno go out with the Epic 25 questions B-1 to B-16 (E23-A7)."
+    owner: "Matheus (the import, the message); coordinator (the check, the list and
+      the record)"
+    status: done  # 2026-11-24 audit: duplicate: E23-A6 (epic-23-retro-item-177-e23-a6-production-base-import) and E23-A7 (epic-23-retro-item-178-e23-a7-list-for-bruno)
+    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+  - id: "epic-25-retro-item-187-e25-a1-run-the-paid-plate-evaluation-wit"
+    epic: 25
+    action: "E25-A1 Run the paid plate evaluation with the A SECO option and record
+      its counts."
+    owner: "Matheus (the word for the spend); coordinator (run and record)"
+    status: done  # 2026-11-24 audit: resolved: the eval ran on v18 on Matheus's word 2026-11-24, record in epic-28-context.md:97-107
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+  - id: "epic-25-retro-item-189-e25-a3-get-b-1-b-2-b-4-and-b-7-answered"
+    epic: 25
+    action: "E25-A3 Get B-1, B-2, B-4 and B-7 answered so 25.17, the oil half of 25.19
+      and 25.21 can start."
+    owner: "field engineer, through Matheus"
+    status: done  # 2026-11-24 audit: resolved: answered 2026-11-22; 25.17 dropped, Stories 28.3 and 28.8 done
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+
+# Original trailing comments of development_status, as of main e687b442, archived 2026-11-24.
+development_status_history:
+  "epic-13": |-
+    2026-10-21 (Bruno via Matheus, answer 11): 13.9 deferred to the epics.md backlog section, so the epic closes with 13.1-13.8; E13-A9 closed |  # 13.1-13.8 done (PRs #103-#110); accepted-with-open-items by Matheus 2026-10-08; 13.9 deferred (E13-A9)
+  "epic-14": |-
+    14.1-14.5 done and deployed to production as v0.2.0 (2a5a81e) on 2026-10-14; v0.2.1 (cd33356, the Epic 14 carry-over and PRs #134 #135) deployed 2026-10-15 and checked in production in the browser; v0.2.2 (911c8cb, Story 14.10 and the #142 focus fix) deployed 2026-10-16, production smoke passed; 14.6-14.8 wait for 2-3 real jobs (E14-A12); sprint-change-proposal-2026-10-08.md; Bruno 2026-10-08; re-sliced 2026-10-09: waves 14.1 | 14.2-14.4 | 14.5 | 14.6-14.8 (after real use)
+  "14-2-a-local-holds-its-equipment-with-no-coluna": |-
+    PR #126 merged 2026-10-13 as cbce841 (contract 17; location removal and restore in the tree built in the same PR);  # batch e14a started 2026-10-13, branch story/14-2-local-painel-coluna; DoR: 14.1 composer and tree frames approved; 2026-10-10 scope: Local > Painel > Coluna (each cabine is a local), effort high
+  "14-3-verificações-do-local-capture": |-
+    PR #127 merged 2026-10-13 as f1f7ec9 (contract 18, seed v4);  # batch e14b (with 14.4) started 2026-10-13, branch story/14-3-14-4-verificacoes-do-local, stacked on the 14.2 branch (Matheus: parallel lanes);  # DoR: 14.1 checklist frames approved, 14.2 merged; NC chips reviewed by Bruno before the first real job
+  "14-5-the-measurement-table-and-two-library-types-fonte-auxiliar": |-
+    PR #128 merged 2026-10-13 as 1d46f08 (contract 19, seed v5; one type, the CTA);  # batch e14c started 2026-10-13, branch story/14-5-measurement-table-cta, stacked on e14b kernel commit fbcf432;  # added 2026-10-09 (John with Matheus); wave 2; 2026-10-10: only the CTA, Fonte auxiliar dropped; DoR: 14.3 merged, 14.1 library frames approved
+  "14-6-company-equipment-types-in-the-kernel": |-
+    2026-11-07: merged in #274, fixes #276 (Epic 22 wave C); was backlog  # 2026-11-06 (Matheus, "Cadastro e padroes"): gate E14-A12 lifted, scheduled as Epic 22 wave C (e22t); DoR (architecture step) unchanged | 2026-10-21 (Bruno via Matheus, answers 9 and 13): the office renames a type (with 14.7; library types in place or by Duplicar, settled by the architecture step); the wave-3 count of 2-3 real jobs starts when Bruno gets production access, he has jobs ready |  # wave 3, renumbered from 14.5; gate: 2-3 real jobs on the library types; DoR: bmad-architecture settles AD-21/AD-3/AD-15
+  "14-7-the-type-editor": |-
+    2026-11-07: merged in #274, fixes #276 (Epic 22 wave C); was backlog  # 2026-11-06 (Matheus): Epic 22 wave C after 14.6; Criterios tab editable on a company type | 2026-10-21 (Bruno via Matheus, answer 9): renaming a type added to the scope |  # wave 3, renumbered from 14.6; editor frames drawn first
+  "14-9-quadros-eletricos-qgbt-qd-as-a-library-type": |-
+    2026-10-21 (Bruno via Matheus, answers 1, 2, 3, 8): SELV/PELV is up to 120 V d.c. or 50 V a.c. per NBR 5410, the yes/no mark kept (help text and a >50 V notice in 14.14); empty or >1000 V stays not evaluated, confirmed; test voltage checked only with the instrument photo (14.14); TAG only, no per-equipment label |  # 2026-10-20: PR #148 merged; deployed as v0.2.3 (c016621), production smoke passed |  # 2026-10-20: DoR met, Bruno answered the 8 questions and accepted the 17 NC phrases (item 17, phases A-B-C to massa, >= 1 MOhm NBR 5410, IP list, hints not printed); seed v6 and contract 21 shared with 14.11; non-blocking opens: N row, IP list, FABRICANTE label, per-equipment label and type-name editability (Matheus)  # 2026-10-20 follow-up (Bruno): N row added (4 rows), IP list accepted, FABRICANTE is the manufacturer, criterion derived from TENSAO NOMINAL by the NBR 5410 bands (0.5 MOhm up to 500 V, 1.0 MOhm to 1000 V, 0.25 MOhm SELV/PELV); still ready-for-dev; opens for Matheus: the SELV/PELV mark, empty or >1000 V voltage, test-voltage check, per-equipment label, type-name editability |  # added 2026-10-15 (Matheus): seed v6, one library type from the Quadros Eletricos sheet of the original form; does not wait for the wave-3 gate; DoR: Bruno answers the 8 open questions or Matheus accepts the defaults, NC phrases reviewed
+  "14-10-epic-14-carry-over-2": |-
+    2026-10-16: PRs #141 #142 #143 #144 #145 merged; deployed as v0.2.2 (911c8cb) with the production smoke passing (8 of 8 steps); parts 1-11 built |  # added 2026-10-15 (Matheus): gate preflight and .vite-temp, cross-batch merge rule, audit honesty and CTA false positive, generation time, sync retrying wording, production smoke, plate-shot focus, coluna in type-group titles (Bruno 5), Hoje on Proxima intervencao (Bruno 7); Home vs Sumario count listed only; DoR: Matheus agrees the production test company and its secret; lanes co15a/co15b; 2026-10-15: part 11 (reading controls beside a typed value, Bruno voice note) in lane B, DoR: Matheus picks their look
+  "14-11-the-insulation-and-the-extinction-medium-drive-the-oil-items": |-
+    2026-10-21 (Bruno via Matheus, answer 4): the medium becomes a fixed list Ar, Gás SF6, Vácuo, Óleo and Outro (Outro shows every item in full), no typed value; built as seed v7 in 14.14, v6 unchanged |  # 2026-10-20: PR #148 merged; deployed as v0.2.3 (c016621), production smoke passed |  # 2026-10-20: DoR met, Bruno answered: oil items shown NA (not hidden), disjuntor media AR/SF6/VACUO/OLEO (PVO), TP and TC get OLEO, crossing oil/non-oil clears the oil items; seed v6 and contract 21 shared with 14.9; non-blocking opens: media labels and GVO, seccionadora media, VOL. OLEO and photos on clear  # 2026-10-20 follow-up (Bruno): OLEO (GVO) added, seccionadora unchanged, oil-to-dry also clears VOL. OLEO and unties oil-item photos (item_key null, photo kept); typed medium out of scope (14.12); still ready-for-dev |  # added 2026-10-15 (Bruno voice note, relayed by Matheus): an OLEO insulation option and oil media, dry choice handles the oil items and VOL. OLEO with no chip; shares seed v6 and one contract number with 14.9; DoR: Bruno answers hide vs NA, media list, TP/TC, answers on change
+  "14-12-options-the-office-types-become-the-companys-next-options": |-
+    2026-10-22: PR #154 merged (batch e14e, contract 23); wave gate on 74c71b4 green after isolated reruns; deployed as v0.2.4 (74c71b4), production smoke passed |  # 2026-10-21 (Bruno via Matheus, answers 4-7): fields are NC phrases and FABRICANTE only (FABRICANTE through the AD-19 Manufacturer registry), the medium leaves the story; applies at once, office reviews, edits or removes afterwards; NC phrases per type and item; DoR item 2 met, still behind the bmad-architecture decision and the review screen |  # added 2026-10-20 (Bruno answers 8 and 12): a hand-typed NC phrase or select value (first the disjuntor's medium) becomes an option on the company's next sheets; first slice of company types (14.6-14.8); DoR: bmad-architecture decision first, Matheus picks the candidate fields, review list drawn, 14.9 and 14.11 merged
+  "14-13-the-manufacturers-criterion-on-an-equipment-test": |-
+    2026-11-08 (Matheus, decision G): absorbed by Story 23.3; closes when 23.3 is done |  # added 2026-10-21 (Bruno via Matheus, answer 10): an optional per-sheet critério do fabricante per test replaces the default, over the existing criterion_override path; DoR: control drawn and approved, print wording authored, CTA measurement tests scope confirmed
+  "14-14-seed-v7-fixed-extinction-media-selv-pelv-help-test-voltage": |-
+    2026-10-22: PR #153 merged (batch e14d, contract 22, seed v7); deployed as v0.2.4 (74c71b4), production smoke passed |  # added 2026-10-21 (Bruno via Matheus, answers 1, 3, 4): disjuntor medium Ar, Gás SF6, Vácuo, Óleo, Outro (Outro shows the oil item and VOL. OLEO), SELV/PELV help text and a >50 V notice, band test voltage checked only with the instrument photo; seed v7, contract decision; DoR: open questions answered or defaults accepted
+  "epic-15": |-
+    2026-10-26: retrospective written (epic-15-retro-2026-10-26.md), machine verdict rejected only for 15.7 (backlog, Bruno's TC list); Matheus decides accepted-with-open-items and E15-A2/A5/A6/A7/A8/A9/A11 |  # 2026-10-23 evening: deployed to production as v0.3.1 (01d37c76, smoke 8 of 8); remaining: the epic retrospective, the Points surface heading row, Story 15.7 behind Bruno's TC list |  # 2026-10-23 evening: full gate on 6bfed744 green (verify whole, p0 307/307, matrix 106/106, full 518/523 with one load flake green alone twice); v0.3.1 ready to publish on Matheus's word; then the epic retrospective |  # 2026-10-23 afternoon: Matheus's five decisions recorded (coluna button idempotent, BT fallback on every seed, site card NC badge kept, NC count as a sum, "N automáticos"); fix batch fx15q (branch fix/epic-15-decisions-and-qa-gaps, port base 46) builds the two wording/behaviour changes plus QA gaps G1 and G2; then the epic retrospective |  # 2026-10-23: deployed to production as v0.3.0 (490cc24d; the first deploy run lost the ECS endpoint after the rollout, the --skip-build rerun recorded the tag and passed the smoke 8 of 8); integrated QA browser pass test-artifacts/manual/qa-e15-2026-10-23.md, no blocking defect, gaps G1 (composer band without the site checklist text) and G2 (F3); 15.1-15.6 done, 15.7 waits for Bruno's TC list; Matheus's open decisions in deferred-work.md; wave B gate on b20a06e8 green (p0 307/307, full 517/522 with one load flake green alone, matrix 106/106, unit flake green alone twice); wave A gate on e8a144a6 triaged and fixed in PR #169 (b20a06e8: three stale specs, the TTR Condição layout at 1280, seven load flakes green alone); 15.2 merged (#167); next: integrated QA browser pass, Matheus's open decisions, production deploy; 15.7 waits for Bruno's TC list |  # 2026-10-22: wave A merged (15.1 #158, 15.4+15.5 #162, 15.3+15.6 #161, e2e fixes #163 #165), wave gate started on e8a144a6; 15.2 in batch e15d; 15.7 waits for Bruno's TC list |  # added 2026-10-22 (Matheus): Bruno's "Melhorias produto.docx" of 2026-10-22, seven items against v0.2.4 on a phone; epic-15-context.md; waves A (e15a 15.4+15.5, e15b 15.3+15.6 seed v9 contract 25) and B (15.1 mocks, then 15.2); defaults taken while Bruno's seven questions are out
+  "15-2-the-tree-levels-built": |-
+    deployed as v0.3.0 (490cc24d) 2026-10-23 |  # PR #167 merged 2026-10-22 as 339e17df (batch e15d); folds UX-pass F50, F19, F37, F34; four open questions for Matheus in the PR (site card NC badge, NC count as a sum, row 8 automatic-only wording, rail not-tested reason)
+  "15-3-seed-v9-one-oil-item-tc-without-potencia-nominal-two-site-items": |-
+    deployed as v0.3.0 (490cc24d) 2026-10-23 |  # PR #161 merged 2026-10-22 as e8a144a6 (batch e15b with 15.6); seed v9, contract 25 (minimum 25); TC keeps 13 fields; no chip on v9 (oil rule); dry company templates stay on v8 (deferred-work.md)
+  "15-6-the-transformer-ratio-calculated-with-sqrt3": |-
+    deployed as v0.3.0 (490cc24d) 2026-10-23 |  # PR #161 merged 2026-10-22 as e8a144a6 (batch e15b with 15.3); ratio_factor sqrt3 on the v9 transformer table, VAL CALCULADO 62,90; BT first-number fallback on every seed (open for Matheus: limit it to ratio_factor tables)
+  "15-7-the-tcs-own-checklist-seed-v10": |-
+    2026-10-28: PR #193 squash-merged as 6c28b886 (batch e17c with 17.6; seed v10, contract 27 minimum 27) | 2026-10-28: batch e17c started (wave B) | 2026-10-27: Bruno's answer 8: the list is the spreadsheet's two TC sheets (seven items); DoR met, scheduled in Epic 17 wave B (batch e17c with 17.6, seed v10, contract 27) |  # added 2026-10-22 (Bruno's answer 7): the TC gets its own checklist; DoR: Bruno sends the list (ask at the next interaction); after 15.3 (v9)
+  "epic-16": |-
+    2026-10-27: Bruno answered the 2026-10-26 list (E16-A1, A2 and the Word look closed; recorded in epics.md); closes when Matheus settles E16-A6 and A7 |  # 2026-10-26 late: QA browser pass green (qa-e16-2026-10-26.md, no P1/P2, three P3 in deferred-work), retrospective accepted-with-open-items (epic-16-retro-2026-10-26.md); closes when Matheus settles E16-A1/A2/A4/A6/A7 and the v0.3.3 release exists |  # 2026-10-26 night: deployed as v0.3.3 (5cece708), smoke 8 of 8; wave B gate green on the follow-up (unit 4491/4491, @p0 309/309, full 520/521 with the merge setup timeout green alone, matrix 106/106); remaining: the epic QA browser pass, Matheus's decisions (N.A on the tablet keyboard, section 8 reference), the retrospective, Bruno's two answers |  # 2026-10-26 evening: 16.4 merged (#183, 5cece708); wave B gate running on 5cece708; then the record, the deploy v0.3.3 and the epic QA |  # 2026-10-26: 16.2 + 16.3 merged (#181, bc9e31df); wave A gate green on bc9e31df (verify 2100 s, full 520/520, matrix 106/106, no fix batch); batch e16c (16.4, contract 26) started |  # 2026-10-23 evening: 16.1 merged (#179) and deployed as v0.3.2; next batch e16b (16.2 + 16.3), then wave A full gate, then e16c (16.4) |  # added 2026-10-23 (Matheus): Bruno's WhatsApp feedback of 2026-10-23 (old DOCX beside a fresh preview, letters in number fields, the header logo cut); investigated against the production request log: no generate on the 23rd, the DOCX was the 22nd's revision from the "Revisões" list; epic-16-context.md; waves A (e16a 16.1 alone, shipped as v0.3.2; e16b 16.2+16.3) and B (e16c 16.4, contract 26); defaults taken while Bruno's two questions are out
+  "16-1-the-header-logo-fits-its-cell": |-
+    deployed as v0.3.2 (8124f2a4) 2026-10-23, smoke 8 of 8 |  # PR #179 merged 2026-10-23 as 8124f2a4 (batch e16a); story gate green with three load flakes green alone |  # 2026-10-23: built on branch story/16-1-header-logo-fits-its-cell, docx.test.ts 24/24, LibreOffice render whole; PR after the gate |  # 2026-10-23: batch e16a started on branch story/16-1-header-logo-fits-its-cell (oneshot spec) |  # added 2026-10-23: LOGO_MAX_WIDTH_PX ignores the cell margins (docx.ts); one cap, one cell size, a wide-logo test; first to build and deploy (v0.3.2)
+  "16-2-a-revision-older-than-the-edits-says-so": |-
+    PR #181 merged 2026-10-26 as bc9e31df (batch e16b); story gate green (lint, static, api 683/683, unit 4464/4464, touched specs 80/80, lock wait 0 s); wave A full gate running on bc9e31df |  # 2026-10-23: batch e16b started on branch story/16-2-16-3-revision-banner-display-shots (worktree fasor-app-e16b, port base 27) |  # added 2026-10-23: the mock's banner and a row tag from the kernel while edited since the latest revision; E4-E2E-001 extended
+  "16-3-display-shots-print-only-under-their-test": |-
+    PR #181 merged 2026-10-26 as bc9e31df (batch e16b); 16.3-E2E-001 red once because the batch api container had not reloaded the kernel, green after restart on the same commit |  # 2026-10-23: batch e16b started on branch story/16-2-16-3-revision-banner-display-shots (same branch as 16.2) |  # added 2026-10-23: default taken (out of section 7 and the numbering, under the test without a number); Bruno's question 1 out
+  "16-4-n-a-in-a-nameplate-or-cabine-number-field": |-
+    PR #183 merged 2026-10-26 as 5cece708 (batch e16c); story gate green (lint, static, api 684/684, unit 4491/4491 on re-run, 13 touched specs 115/115, 5 durability specs on the matrix 59/59 with 1 skip); open: N.A cannot be typed on a tablet soft keyboard (inputMode decimal), Matheus decides |  # 2026-10-26: batch e16c started on branch story/16-4-na-in-number-fields (worktree fasor-app-e16c, port base 28) after the wave A gate |  # added 2026-10-23: AD-11 state not_applicable, contract 26 minimum 26; defaults taken (scope, spellings, "N.A"); Bruno's question 2 out; after wave A's gate
+  "epic-17": |-
+    2026-10-29 night: 87ff8a9d deployed (verify green, smoke 8 of 8, contract 28), the 2026-10-15 test data tombstoned in production (batch 01a189fe-8713); remaining for Matheus: GitHub release, backlog decisions, E17-A2, E17-A3, E17-A7 |  # 2026-10-29 evening: 94ca957a deployed and re-checked in production (G1, G5 to G9 hold); fix batch fxrm merged (PR #208, d0c8c1f1, contract 28, tombstone CLI), its deploy and the test-data cleanup on Matheus's go; backlog doc for Home navigation and interaction telemetry |  # 2026-10-29: production pass fix batches merged: fxpw (PR #204, 8ea95e4d: G1 to G5, G7 to G11) and fxg6 (PR #205, d2c308b8: G6, mobile text detector, display working copy 1200 px); the eleven gap rows done in deferred-work (ECH-3, ECH-11, VG-4 left open); the deploy of the ocr image and the web fixes waits for Matheus's go, then the production re-check of "Ler visor" on the smoke company |  # 2026-10-28 late: production pass epic by epic (prod-pass-2026-10-28.md): 186 checks held over 17 epics, P1 G6 "Ler visor" dead in production (OCR sidecar OOM, Matheus decides the fix), P2 G8, nine P3 in deferred-work |  # 2026-10-28 night: deployed to production as v0.4.0 (8f5fa154, smoke 8 of 8; E17-A4 done but for the release word); closes when Matheus settles E17-A2 and E17-A7 and the v0.4.0 release exists; E17-A3 is Bruno's session |  # 2026-10-28 evening: fix batch fx17r merged (PR #199, E17-A1 done); remaining: the v0.4.0 deploy on Matheus's aws login, E17-A2 decisions, E17-A3 Bruno session, E17-A7 amendments |  # 2026-10-28 16:05: retrospective written (epic-17-retro-2026-10-28.md), machine verdict accepted-with-open-items; closes when v0.4.0 is deployed and Matheus settles E17-A2 and E17-A7 |  # 2026-10-28 afternoon: QA browser pass green (qa-e17-2026-10-28.md, no P1/P2, two P3 in deferred-work); v0.4.0 deploy waits for Matheus's aws login; then the retrospective |  # 2026-10-28: wave B merged (PRs #193, #194), wave B gate green on 3beacd40, v0.4.0 deploy (contract 27) with Matheus's go, QA pass, retrospective; wave B started (e17c 15.7+17.6, e17d 17.2+17.7) from main 1a2f0b0f; wave A merged (PRs #189, #190), wave A gate on 0bdd925a, then v0.3.4 and wave B | 2026-10-27: Matheus: Bruno's information is complete, confirmations stand as defaults, camera default confirmed; wave A started (e17a 17.1+17.4, e17b 17.3+17.5) |  # added 2026-10-27 (Matheus): Bruno's ten answers and two new items of 2026-10-27 (section 7 by hand, camera app and photos "not saved on the device"); epic-17-context.md; waves A (e17a 17.1+17.4, e17b 17.3+17.5), B (e17c 15.7+17.6 seed v10 contract 27, e17d 17.2+17.7); six confirmations out to Bruno at the afternoon tablet session; starts on Matheus's word
+  "epic-17-retrospective": |-
+    epic-17-retro-2026-10-28.md; machine verdict accepted-with-open-items (all seven stories and 15.7 done; open: eleven product decisions, Bruno's strings and tablet checks, the v0.4.0 deploy, QA G1/G2 and four review fix-now items, three criteria to amend, the playbook rules)
+  "17-1-the-registro-fotografico-holds-only-the-photos-added-by-hand": |-
+    2026-10-28: PR #190 squash-merged as 0bdd925a (batch e17a with 17.4); five decisions pending for Matheus (orphan photos, stamp in section 9, Sumário row 7, gallery note, gallery order) | 2026-10-27: batch e17a started (wave A) |  # added 2026-10-27 (Bruno's new item 1): section 7 lists the "Geral" photos only, one numbering in document order; goldens unchanged (82 Geral photos)
+  "17-2-the-devices-camera-app-takes-the-photos": |-
+    2026-10-28: PR #194 squash-merged as 3beacd40 (batch e17d with 17.7) | 2026-10-28: batch e17d started (wave B) | added 2026-10-27 (Bruno's new item 2): the capture input as the default on touch devices behind a device-local switch; copy "no relatório"; wave B after Matheus confirms the default
+  "17-3-n-a-from-a-control-beside-the-field-printed-n-a": |-
+    2026-10-28: PR #189 squash-merged as fd5efabf (batch e17b with 17.5); QA G1 closed; E16-A1 closed | 2026-10-27: batch e17b started (wave A) |  # added 2026-10-27 (Bruno's answers 2 and 3; E16-A1, QA G1): "N/A" control on the acceptsNotApplicable fields, NOT_APPLICABLE_TEXT "N/A"; no contract
+  "17-4-display-shots-keep-their-number": |-
+    2026-10-28: PR #190 squash-merged as 0bdd925a (batch e17a with 17.1); E16-A2 closed | 2026-10-27: batch e17a started (wave A) |  # added 2026-10-27 (Bruno's answers 1 and 5; E16-A2): reverses the numbering half of 16.3 (criteria amended with strike-through); same branch as 17.1
+  "17-5-a-failed-ratio-feeds-the-conclusion-suggestion": |-
+    2026-10-28: PR #189 squash-merged as fd5efabf (batch e17b with 17.3); E15-A2 closed | 2026-10-27: batch e17b started (wave A) |  # added 2026-10-27 (Bruno's answer 6; E15-A2): ratio INSATISFATORIO reaches the suggestion, the pre-issue conclusion_stale row and the parecer counts
+  "17-6-altitude-do-site-takes-n-a-contract-27": |-
+    2026-10-28: PR #193 squash-merged as 6c28b886 (batch e17c with 15.7); QA G3 closed | 2026-10-28: batch e17c started (wave B) | added 2026-10-27 (Bruno's answer 4; QA G3): site_altitude_na, the N/A control, the hint when the device gave no altitude; contract 27 minimum 27 with seed v10 (batch e17c)
+  "17-7-a-photo-saved-to-the-device": |-
+    2026-10-28: PR #194 squash-merged as 3beacd40 (batch e17d with 17.2) | 2026-10-28: batch e17d started (wave B) | added 2026-10-27 (the honest answer to "not saved on the device"): Salvar no aparelho on the photo viewer through navigator.share, else download; Conta sentence
+  "epic-18": |-
+    2026-10-30: deployed as 3b45e83c on Matheus's go (smoke 8 of 8); log group, dashboard fasor-production-ux and nine saved queries live; first production read 131 events, nine queries Complete (epic-18-context.md); retrospective 2026-10-30 accepted-with-open-items (E18-A1 to E18-A7, epic-18-retro-2026-10-30.md) | 2026-10-29: Matheus: "pode fazer a observabilidade. quero ver todo o funil"; Epic 18 written (three stories, AD-28); batches o18a (18.1+18.2) and o18b (18.3) start from main; deploy after both merge, on Matheus's go
+  "epic-18-retrospective": |-
+    epic-18-retro-2026-10-30.md; machine verdict accepted-with-open-items (all three stories done; test:e2e:full 537 of 542, one red green alone; open: E18-A1 to E18-A7, chiefly a 429 deleting a batch, the per-cycle photo scan, the smoke company in the views, the unbound queries)
+  "18-2-the-api-receives-usage-events-and-writes-them-to-cloudwatch": |-
+    2026-10-30: PR #213 squash-merged as 3b45e83c and deployed; the log group exists (90 days) and the api writes to it | 2026-10-29: batch o18a PR #213 (open, not merged; the log group appears after the deploy's Terraform apply) | 2026-10-29: batch o18a started
+  "18-3-seeing-the-funnel-dashboard-saved-queries-and-the-first-friction-digest": |-
+    2026-10-30: PR #212 squash-merged as 62bdd76c and deployed with 3b45e83c; dashboard and nine saved queries live, all nine Complete on production data; first digest due 2026-11-30 | 2026-10-29: batch o18b PR #212 (open, not merged; dashboard and saved queries appear after the deploy's Terraform apply) | 2026-10-29: batch o18b started
+  "18-4-the-events-say-how-long-in-what-order-on-what-and-for-whom": |-
+    2026-11-03: built as batch s184, PR #233 squash-merged as d39a5e6c, deployed the same day (smoke 8 of 8); Conta sentence chosen by Matheus (the short wording). Earlier: 2026-10-30: drafted in epics.md from backlog-2026-10-30-ux-data-sufficiency.md § 2 on Matheus's "pode fazer" (durations and origin on screen_view, viewport/standalone/online on session_start, input_refused, targets per tile and per size, the document waits re-timed, views, digest questions); built after the E18-A1 and E18-A2 batches on his "pode seguir"
+  "epic-19": |-
+    2026-10-30: Matheus on the 2026-10-29 analysis: "Fazer: B. Atalhos acima da lista"; 19.1 built at once from main 64fe789e; 19.2 (Emitido behind its tile, the capped list) drafted from his words, Definition of Ready waits for his word
+  "19-1-templates-and-cadastros-one-tap-from-the-top-the-shortcut-row-above-the-relatorio-list": |-
+    2026-10-30: branch story-19-1 from main 64fe789e; story gate: lint, static, test:api 733 of 733, test:unit red under load (template-composer-local, host load 9.1; E16-A10) then 4678 of 4678 alone, home.spec.ts and app-layout.spec.ts 4 of 4; deployed 2026-10-30 in main 29f030b2 (infra/bin/deploy, smoke 8 of 8)
+  "19-2-home-opens-on-the-active-work-emitido-behind-its-tile-and-the-list-capped-with-ver-todos": |-
+    2026-10-30: branch story-19-2 from main 57d3b5cc; Definition of Ready closed by Matheus (the Emitido tile; 10 · 20 · 50 · 100; most recent first by the summary's updated_seq, "1.a"; the unsynced new relatório right after the current card, "A"); review 20 triage rows (9 patched, 2 deferred to the ledger, 6 rejected, 2 planning edits, 1 intent gap answered A); story gate green three times, last run: lint 0 errors, static, test:api 733 of 733, test:unit 4707 of 4707, home.spec.ts and app-layout.spec.ts 5 of 5; hands-on browser pass at 1280, 768 and 390 px; deployed 2026-10-30 in main 29f030b2 (infra/bin/deploy, smoke 8 of 8) | 2026-10-30: drafted from Matheus's words ("talvez tirar os enviados e aí só quando clicar no card de enviados é que mostra") and Sally's option A plus the mocks' cap; Definition of Ready open: Matheus confirms the three rules
+  "epic-20": |-
+    2026-11-04: retrospective accepted-with-open-items (epic-20-retro-2026-11-04.md, E20-A1 to E20-A4); deployed as d6e8eea1 and 85e2b3d8 |  # added 2026-11-03 (Matheus): "Vamos com CONFORME por ora" plus five field feedback items relayed the same day; investigated against main cf468e3d (epic-20-context.md); waves: web lane 20.1, 20.2, 20.4; document lane 20.3, 20.5, 20.6; 2026-11-03 (Matheus): the security pass joins as 20.7 to 20.13, wave B after A (server lane 20.7, 20.8, 20.9, 20.10; edge lane 20.11, 20.12, 20.13)
+  "20-2-search-home-by-client-and-obra": |-
+    2026-11-04: merged in #237; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, "Cliente e obra"); the reading of a query with no tile pressed (every status) is the coordinator's, open to his correction
+  "20-6-each-equipment-on-its-own-page-with-all-its-photos-at-its-end": |-
+    2026-11-04: merged in #238; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, planning session); photo block after CONCLUSAO is the coordinator's reading, open to his correction
+  "20-7-the-server-decides-which-status-moves-a-relatorio-may-make": |-
+    2026-11-04: merged in #239 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S1; no roles is the coordinator's reading, open to his correction; bumps contract 29 for wave B
+  "20-8-the-server-checks-who-and-when-an-op-says": |-
+    2026-11-04: merged in #239 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S3; the 10-minute clock skew is the coordinator's reading
+  "20-9-every-op-value-has-a-size-and-a-type-the-server-enforces": |-
+    2026-11-04: merged in #239 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S4; the caps are the coordinator's reading
+  "20-10-every-op-lands-on-a-row-that-exists-in-the-relatorio-it-names": |-
+    2026-11-04: merged in #239 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S5 and part of S1; no removal of an issued relatorio is the coordinator's reading
+  "20-11-signing-out-leaves-nothing-of-the-user-on-the-device": |-
+    2026-11-04: merged in #240 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S2; wipe after flush and online-401 boot to /login are the coordinator's reading, amends AD-9
+  "20-12-paid-readings-audits-and-image-decoding-have-a-ceiling": |-
+    2026-11-04: merged in #240; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S6; quota numbers are the coordinator's reading; starts after 20.7 merges
+  "20-13-the-edges-auth-endpoints-cross-site-writes-telemetry-removed-files-hsts-and-the-login-copy": |-
+    2026-11-04: merged in #240 and fix batch e20f #241; wave gate and review in epic-20-context.md; was ready-for-dev  # added 2026-11-03 (Matheus, security pass security-pass-2026-11-03.md); S7 and S8; per-e-mail lockout kept as accepted risk is the coordinator's reading; starts after 20.7 merges
+  "epic-21": |-
+    2026-11-06: retrospective accepted-with-open-items (epic-21-retro-2026-11-06.md, E21-A1 to E21-A5); deployed as 45546f69, release v0.6.0 | 2026-11-05: all three stories merged (#254, #255, fix batch #256); integrated gate and review in epic-21-context.md |  # added 2026-11-05 (Bruno WhatsApp via Matheus): ratio by vector group and section 7 photo order; research ttr-vector-groups-2026-11-05
+  "epic-22": |-
+    2026-11-07: waves A, B and C deployed as ae3d37e0, smoke 8 of 8 | was in-progress  # 2026-11-06: wave A merged (#266, #267) | was backlog  # added 2026-11-06 (Bruno's review of a relatório concluded 2026-11-04, via Matheus; verified on 5584a6e3, the relatório is on seed v5): waves A (e22p, e22c), B (e22s, e22r), C (e22t = 14.6-14.8); epic-22-context.md
+  "epic-22-retrospective": |-
+    2026-11-10: waived by Matheus (E23-A2 item 3); the Epic 23 retrospective covered its follow-through
+  "22-5-every-nc-and-every-reprovacao-is-a-point-of-attention": |-
+    2026-11-06: merged in #267; was ready-for-dev  # added 2026-11-06 (Matheus: "Seguir o Bruno inteiro"); wave A, e22c, after 22.4; old manual points flagged "Possivel duplicado" is the coordinator's reading
+  "22-6-the-conclusao-of-the-relatorio-is-derived-from-the-fichas": |-
+    2026-11-06: merged in #267; was ready-for-dev  # added 2026-11-06 (Matheus: "Seguir o Bruno inteiro"); wave A, e22c, after 22.4; earlier typed summary kept as an observation is the coordinator's reading
+  "22-7-seed-v12-oil-transformers-deslocamento-angular-tp-checklist-defect-reason": |-
+    2026-11-07: merged in #269, fixes #273; was ready-for-dev  # added 2026-11-06 (Bruno items 1, 3, 27; Matheus: "So relatorios novos"); wave B, e22s; seed v12, contract 32; TP list and TIPO DO OLEO A/B are the coordinator's reading
+  "epic-23": |-
+    2026-11-10: retrospective accepted-with-open-items (epic-23-retro-2026-11-10.md, E23-A1 to E23-A8) | 2026-11-10 later: 47be2638 deployed (smoke 8 of 8); browser behaviour pass on it (behaviour-pass-e23-2026-11-10.md: items 3 to 8 passed, 1 and 2 failed); fix batch e23p merged (#301, 9add87b5, no contract) for F2, F3, F4 screen half, F5 and F7; Matheus's decisions on the open rows recorded in deferred-work.md; 9add87b5 deployed (smoke 8 of 8) and release v0.8.0 published; open: the retrospective |  # 2026-11-10: every story merged; integrated gate green on 47be2638 (epic-23-context.md); ef099d41 deployed 2026-11-09 (smoke 8 of 8, contract 39), 47be2638 (contract 40, e23z and T3) awaits Matheus's word to deploy | was backlog  # added 2026-11-08 (Bruno's test base rev08; Matheus's decisions A to N of docs/context/epic-23/decisoes-epic-23.md section 5): seed v13 for new relatorios only, older layouts byte-identical; waves 0 (23.1), 1 (e23a, e23b), 2 (e23v, e23h), 3 (e23t, e23e), 4 (e23x); contracts 34 to 39 reserved; starts after fix batch e23f merges; sprint-change-proposal-2026-11-08.md, epic-23-context.md
+  "epic-23-retrospective": |-
+    2026-11-10: epic-23-retro-2026-11-10.md, headless; machine verdict accepted-with-open-items (all 21 stories done; open: E23-A1 to E23-A8, chiefly the fix batch from the review of e23z and e23p, Matheus's decisions on the e23p contract and a v13 layout lock, the playbook rules on the behaviour pass before a deploy, the production base import, Bruno's list)
+  "23-6-three-levels-comparisons-and-the-previous-visit-judges": |-
+    2026-11-09: e23v, PR #290 (967d898a), contract 36; fixes e23w #293 (6acf9ca7), e23z #298 (47be2638) | was backlog  # added 2026-11-08 (decision C); wave 2, e23v; contract 36; DoR: 23.1 frames approved, wave 1 merged; vague terms out (B-1), contact vs previous out (B-6), CONDICOES word is the coordinator's reading (B-8)
+  "23-10-como-ensaiar-on-each-test-on-screen-only-offline": |-
+    2026-11-09: e23h, PR #291 (8c097ffa), contract 37 | was backlog  # added 2026-11-08 (decision M); wave 2, e23h; contract 37; DoR: 23.1 frames approved; mechanism only, seeded texts wait for 23.12 (M-1)
+  "23-11-the-tests-recommendation-is-the-derived-points-initial-text": |-
+    2026-11-09: e23h, PR #291 (8c097ffa), contract 37; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision M); wave 2, e23h, after 23.10; contract 37; starts from main after e23f and merges after e23v
+  "23-12-the-bases-help-and-recommendation-texts-in-the-seed": |-
+    2026-11-09: e23x, PR #296 (ef099d41), no contract; fix e23z #298 (47be2638) | was backlog  # added 2026-11-08 (decision M); wave 4, e23x; M-1 decided 2026-11-08: private load path (import of the JSON as company data)
+  "23-17-the-insulating-liquid-and-oil-sampling": |-
+    2026-11-09: e23t, PR #294 (fc0aa508), contract 38 | was ready-for-dev  # added 2026-11-08 (decision H); wave 3, e23t; TIPO DE ISOLACAO reading open to Matheus (M-4); Tipo ANP judges nothing until Bruno B-3; paid eval before the deploy
+  "23-21-a-new-type-malha-de-aterramento": |-
+    2026-11-09: e23e, PR #295 (7f29b243), contract 39; fix e23z #298 (47be2638) | was ready-for-dev  # added 2026-11-08 (decision I wave 1); wave 3, e23e, last; contract 39; placement at a local is the coordinator's reading (M-6)
+  "epic-24": |-
+    2026-11-11: deployed as 2009fa30 on Matheus's word (smoke 8 of 8, tag v0.9.0, seed v14 frozen, contract 47); the paid plate eval of bedrock-structuring-9 ran before it; the release page and the retrospective are open | was in-progress  # 2026-11-11, evening: every story done on main (ee0859cc, contract 47, seed v14 open); the paid plate eval, the v14 golden, the deploy and the release wait for Matheus's word; the retrospective follows the deploy | 2026-11-11: every story is built and merged, not deployed (e24b #310, e24a #311, e24c #312, e24p #314, e24s #315; main 716e26b8, contract 47); the stories stay in review until fix batch e24x (the integrated review's findings, epic-24-context.md § Integrated review) merges and the integrated gate runs on main | was backlog  # 2026-11-10 evening: two more decisions of Matheus: Story 24.21 added (M-5), and no automatic points of attention (Bruno through Matheus, urgent), built first and alone as fix batch e24h (contract 41 with MIN 41, its own deploy, not a story); fix batch e24f starts after e24h merges; contracts now e24a 42, e24b 43 (Story 24.21), e24s 44, e24p 45; Stories 24.1, 24.2, 24.3, 24.4, 24.7, 24.11, 24.12, 24.13, 24.16 and 24.17 revised with dated notes | added 2026-11-10 (Bruno's answers of 2026-11-10 to questions 18, 19, 22 to 30 and 32 to 34; Matheus's ten decisions of the same day): seed v14 for new relatorios only, older relatorios conclude and print byte-identical, screen-only behaviour on every seed; waves 0 (24.1), 1 (e24a, e24b), 2 (e24s), 3 (e24p, beside e24s); contracts 41 to 44 reserved; the hands-on pass runs before the single deploy; sprint-change-proposal-2026-11-10.md, epic-24-context.md
+  "epic-24-retrospective": |-
+    2026-11-11: epic-24-retro-2026-11-11.md, headless; machine verdict accepted-with-open-items (all 21 stories done; open: E24-A1 to E24-A7, chiefly the v14 like-with-like rule that stops holding once the relatorio is issued, the records of the v14 layout lock (taken after the deploy by batch e25b, #325), the playbook rules of Epics 23 and 24 still unwritten, a second round of test hardening, Matheus's decisions on the fix batches' open readings)
+  "24-1-the-epic-24-frames-in-the-mocks": |-
+    2026-11-10: approved by Matheus in the browser ("o resto ta ok") with one correction, the unit column of the measurement table aligned (PR #306) | was review  # 2026-11-10 frames drawn on docs/e24-frames (the list of Story 24.1 with its three evening frames, key-print-section-9-v14.html, dated amendments to DESIGN.md and EXPERIENCE.md, MOCK-GUIDE.md § 2026-11-10), checked in a browser at 390, 768 and 1280 px; approval in the browser pending | 2026-11-10 evening: three more frames after decision 12 (the Pontos screen with stored points only, the create action on a reading, the editor it opens); the UX documents strike every sentence that says a point enters by itself | added 2026-11-10; wave 0, coordinator with bmad-ux; Matheus approves the frames; the printed frame and the small controls are John's addition to the proposal's frame list
+  "24-2-seed-v14-opens-and-the-v13-layout-is-locked": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24a, merged in #311 (dee6d567); contract 44 with MIN 44 (e24b took 43); the seed-level `rules` with `seedRule`; v13 goldens taken on 8bddd986, v5, v11, v12 and Porto Seguro unchanged; row 3522 closed |2026-11-10 evening: contract 42 over 41 (fix batch e24h takes 41); the v13 lock is taken after e24h and e24f; its fixture carries a stored point for the recommendation in section 8 | added 2026-11-10 (decision 5); wave 1, e24a, first; contract 41; the v13 layout lock is taken on main before any other Epic 24 change
+  "24-3-out-of-criterion-gives-reprovado-only-restriction-is-the-technicians-choice": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24a, merged in #311 (dee6d567); flags conclusion_restriction_by_choice and prerequisite_needs_nameplate; the four coordinator's readings built as written; rows 3025 and 3351 closed; review: 2 medium and 1 low patched |2026-11-10 evening: two criteria revised after decision 12: no row and no prerequisite derives a point | added 2026-11-10 (Bruno 25, 26; decisions 1, 3, 5); wave 1, e24a, after 24.2; v14 only; DoR: 24.1 frames approved; NC row and restricted reading unchanged, the observation required under Reprovado and row 3344 on v14 only are the coordinator's reading
+  "24-4-section-10-names-the-finding": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24a, merged in #311 (dee6d567); flags parecer_names_finding, nc_clause_on_one_line, results_reference_across_runs; findings from the conclusion's clauses, not from points; rows 3134 and 3203 closed |2026-11-10 evening: one criterion revised after decision 12: section 8 holds the finding only in a point someone created | added 2026-11-10 (Bruno 28); wave 1, e24a, after 24.3; v14 only; rows 3196 and 3125; M-4 untouched
+  "24-5-the-suggested-conclusion-reads-as-a-preview": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24b (spec-e24b-screen-lane.md), merged in #310 (1c63235e); kernel conclusionPreview; verification gap: in the spec triage log | added 2026-11-10 (Bruno 24); wave 1, e24b; every seed; DoR: 24.1 frames approved
+  "24-6-the-nc-phrase-follows-its-item-and-warns-when-edited": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24b, merged in #310 (1c63235e); no fold change (the batch contract 43 is Story 24.21); row 2552 closed; a phrase learned from the row itself does not count (review patch); the recents counted as offered is open for Matheus | 2026-11-10 evening: the batch contract is 43 and Story 24.21 takes it; this story still changes no fold | added 2026-11-10 (Bruno 27); wave 1, e24b; every seed; contract 42 reserved, no fold change found in planning; row 2552; DoR: 24.1 frames approved; several chips as automatic and the warning as a line are the coordinator's reading
+  "24-7-an-item-back-to-conforme-the-app-asks-about-its-point": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24b, merged in #310 (1c63235e); stored points of origin nc only; row 3025 (the local walk) closed; the relinked point (row of e22c) stays open for Matheus | 2026-11-10 evening: after decision 12 the question and the remove action concern stored points only; the heading fix (row 2352) is fix batch e24h's; row 3025 is now the walk of a point created by the tap on a local's NC item; needs e24h merged | added 2026-11-10 (Bruno 28; decision 2); wave 1, e24b; every seed; rows 2352 and 3025; DoR: 24.1 frames approved; N.A. asked as Conforme and the card action for other origins are the coordinator's reading
+  "24-8-the-tag-the-plates-first-else-type-and-a-two-digit-number": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24b, merged in #310 (1c63235e); the match built once in Story 24.21 form (no second candidate); row 2051 closed, row 2727 open (block-palette.tsx untouched) | 2026-11-10 evening: the renamed TAG is decided: Story 24.21, next in the batch, which also retires the second match candidate; the batch may build the match once | added 2026-11-10 (Bruno 29); wave 1, e24b; new sheets on every seed; the reuse of an obra's equipment and the fixtures keep the old TAGs; rows 2051, 2727 (only if the drawer is touched); a renamed TAG still not reused (open to Matheus)
+  "24-9-small-screen-fixes-from-the-hands-on-pass": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24b, merged in #310 (1c63235e); F1, F9, F11, F16, F17, F19, F20, the three parecer keys, signIn 15 s, the table alignment; rows 1439 and the parecer-keys half of 3022 closed | added 2026-11-10 (decision 9); wave 1, e24b; every seed; pass F1, F9, F11, F16, F17, F19, F20; rows 3022, 1439; DoR: 24.1 frames approved
+  "24-10-tp-and-tc-with-their-own-checklists": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24s, merged in #315 (716e26b8); contract 47 with MIN 47 (e24c took 45, e24p 46); v14 TP 7 items with the FUSÍVEIS hint, TC 6; the tap budgets' v14 runs (24.10-E2E-002 to 005) at the v13 numbers; row 3269 closed; B-11 and the hint are the coordinator's reading | 2026-11-10 evening: contract 44 (the batch's) | added 2026-11-10 (Bruno 18); wave 2, e24s, first; contract 43 (the batch's); v14 only; tap budgets on v14 (row 3262); no new TC item is the coordinator's reading (B-11 for Bruno)
+  "24-11-the-transformer-oil-items-and-dry-items": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24s, merged in #315 (716e26b8); contract 47; `oil_rule.dry_items`, 17 items on v14, the crossing to oil clears the dry items; oil fields of a non-oil unit read-only with the reason on every seed with an oil rule (row 3494 closed) | 2026-11-10 evening: one criterion revised after decision 12: an NC row offers the create action and derives no point | added 2026-11-10 (Bruno 19); wave 2, e24s; v14 only, the read-only oil fields on every seed with an oil rule (row 3487); one new oil item, not two: the oil sampling stays the v13 test; DoR: 24.1 frames approved
+  "24-12-inspecao-de-qgbt-retightening-function-test-optional-thermography": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24s, merged in #315 (716e26b8); contract 47; 12 items and v13's thermography on v14; the thermography prints "E1 · TERMOGRAFIA" (library numbering, ledger) | 2026-11-10 evening: one criterion revised after decision 12: an NC row offers the create action and derives no point | added 2026-11-10 (Bruno 22); wave 2, e24s; v14 only; the function test as one item is the coordinator's reading
+  "24-13-a-new-type-no-break-de-comando-with-no-tests": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24s, merged in #315 (716e26b8); contract 47; `no_break_comando` (NB), 18 plate fields, 6 items, no test; prompt `bedrock-structuring-9`, paid eval pending (coordinator, before the deploy); the cables' default plate (row 3244 closed); row 3010 not needed | 2026-11-10 evening: contract 44; one criterion revised after decision 12: an NC row offers the create action and derives no point | added 2026-11-10 (Bruno 34; decision 4); wave 2, e24s; contract 43; v14 only; paid eval before the deploy; rows 3237, 3007 (third part, only if needed); DoR: 24.1 frames approved; six items and the field list are the coordinator's reading
+  "24-14-two-small-sheet-fixes-oil-sampling-outro-and-the-ground-grids-plate-block": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24s, merged in #315 (716e26b8); contract 47; measurement value kind `text` (cap 1000) for "Descreva o motivo", printed "MOTIVO: OUTRO, <texto>"; `nameplate_title` and `nameplate_photo: false` on the v14 Malha | added 2026-11-10 (decision 9); wave 2, e24s, last; v14 only; pass F10, F18; DoR: 24.1 frames approved
+  "24-15-the-previous-visits-date-in-the-table-header": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24p (the print half), merged in #314 (e5fdde82); contract 46 with MIN 46 (e24c took 45); `service_date` kept in each `last_results` entry on every seed, `lastResults` ordered by `compareVisits` (row 3087 closed), the helper names the visit's date on every seed; on v14 (`previous_visit_date`) the header's second line and the history texts name it; an open relatorio still reads a later visit before its issue (ledger, Matheus) | 2026-11-10 evening: contract 45 | added 2026-11-10 (Bruno 23; decision 6); wave 3, e24p, first; contract 44; the date kept on every seed, the header on v14; row 3087; AD-25 note in the build PR (M-3); DoR: 24.1 frames approved
+  "24-16-drops-and-rises-against-the-previous-visit-as-a-note-line": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24p, merged in #314 (e5fdde82); v14 (`history_note`): one line after the test's notes, kept with the table, the measurement test given the slot; the kernel's reasons as they stand (D2, longer than the frame's sample; Bruno); a flagged out reading is named too (review patch) | 2026-11-10 evening: one criterion revised after decision 12: section 8 names the rise only in a point someone created | added 2026-11-10 (Bruno 23; decision 7); wave 3, e24p, after 24.15; v14 only; pass F4 (print half), F6 (contact); DoR: 24.1 frames approved
+  "24-17-the-tests-recommendation-fills-acao-recomendada": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24p, merged in #314 (e5fdde82); no contract; `sheetPointFindings`: "Criar ponto de atencao" under a failed or restricted test and on the Conclusao step of a chosen Reprovado, every seed, one per test, the place names the point once it exists; on v14 (`recommendation_as_action`) the finding in the text and the recommendations in the action, action-plan rows kept whole, glued references spaced (row 3191 closed); a reading back within asks nothing (D5, Matheus) | 2026-11-10 evening: rewritten after decision 12: the story now builds "Criar ponto de atencao" on a failed test, on a restricted reading and on a ficha the technician reproved (every seed; the coordinator's reading, open to Matheus); on v14 the point it starts carries the recommendation in its action; effort high; DoR: the 24.1 frames of the action and fix batch e24h merged | added 2026-11-10 (decision 9); wave 3, e24p; v14 only; pass F15; row 3191 taken here, with the section 8 edit; DoR: 24.1 frames approved
+  "24-18-a-nominal-plus-minus-percent-criterion-on-company-types": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24c (the company-types half of e24p, started early), merged in #312 (ea6676d2); contract 45 with MIN 45 (e24a took 44); `nominal_pct` with `tolerance_pct`, read as a range row; printed "220 V ±5 %" until Bruno's B-9; a measurement table prints no ACEITÁVEL since 22.2, so the PDF check is on a seeded-grammar test (ledger, Matheus) | 2026-11-10 evening: contract 45 | added 2026-11-10 (Bruno 30); wave 3, e24p; contract 44; company types; print wording until Bruno B-9; DoR: 24.1 frames approved
+  "24-19-a-copied-type-hides-its-original-in-the-field": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24c, merged in #312 (ea6676d2); `hidingCopies` in both palettes, the panel's proposal and chips, and the type list's line; the composer's palette hides it too (coordinator's reading); a hidden placed original loses its composer "Editar padrões" entry (ledger, Matheus) | added 2026-11-10 (Bruno 32); wave 3, e24p; every seed; row 3418; DoR: 24.1 frames approved; hidden in the composer too is the coordinator's reading
+  "24-20-a-company-type-that-cannot-compute-its-ratio-is-not-published": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24c, merged in #312 (ea6676d2); contract 45 (the batch's); `vectorGroupPublishIssue` in the editor and refused by the push route, not by the strict schema (narrowed, D3: a version published broken still folds on a fresh device); the field's kind and options refused while a ratio table reads it; rows 3441 and 3464 (item 4) closed | 2026-11-10 evening: contract 45 | added 2026-11-10 (Matheus on row 3441); wave 3, e24p, last; contract 44; rows 3441, 3464 (item 4)
+  "24-21-an-equipment-keeps-its-history-when-its-tag-is-renamed": |-
+    2026-11-11: deployed on 2026-11-11 as 2009fa30 (smoke 8 of 8, tag v0.9.0) | was done  # 2026-11-11: done on main, not deployed: the integrated review's fix batches e24x (#317), e24y (#319) and e24z (#322) merged, the integrated gate accepted on ee0859cc and the final hands-on pass run (behaviour-pass-e24-2026-11-11.md) | was review  # 2026-11-11: built in batch e24b, merged in #310 (1c63235e); contract 43 with MIN 43 (e24f took 42); reuse_key write-once, no put path; the Q4 ledger row closed, its half on equipment from before the story open as a narrowing | added 2026-11-10 evening (Matheus on M-5: "pode criar uma historia a mais"); wave 1, e24b, right after 24.8; every seed, no screen and no frame; contract 43 (the batch's); the ledger row on the Q4 reuse; the key as the old rule's TAG of the placement, no key for equipment created before the story, the retired second candidate and the oldest row on a doubled key are the coordinator's reading
+  "epic-25": |-
+    2026-11-22: Bruno answered B-1 to B-17; Story 25.17 dropped (the No-break's tests go to a future "painéis" module; the type keeps its inspection items); the oil half of 25.19, the second half of 25.10 and Story 25.21 move to Epic 28 (Stories 28.3, 28.5, 28.8) | was in-progress  # 2026-11-16: four deploys, every smoke 8 of 8 (wave 1 e13a89b0 v0.9.1, wave 2 add464e1 v0.10.0, waves 4+5 8d5e9e2e v0.11.0, wave 3 4ecc3009 v0.12.0); 22 of 24 stories done; 25.17, the oil half of 25.19 and 25.21 held for B-1, B-2, B-4, B-7; retrospective written | was in-progress  # 2026-11-11: Story 25.1's frames merged (#320, #321) and the waves released by Matheus ("Pode seguir com as ondas"); wave 1 (e25a: 25.2 and 25.3; e25b: 25.4) starts once the Epic 24 integrated gate has freed the machine | was backlog  # added 2026-11-11: Bruno's 33 improvements (M01 to M33) and his answers to the Epic 24 questions; Matheus's eleven decisions of 2026-11-11 ("ok"); sprint-change-proposal-2026-11-11.md, epic-25-context.md; 24 stories in six waves; wave 1 (saving and sync) has its own deploy; waves 2 to 4 on seed v15, which opens after the Epic 24 deploy; the story list waits for Matheus's approval (M-1)
+  "25-1-the-epic-25-frames-in-the-mocks": |-
+    2026-11-11: Part A merged in #320 and Part B in #321; Matheus released the waves ("Pode seguir com as ondas"); the frames drawn on the coordinator's reading (25.17, 25.19, 25.21) are redrawn if Bruno answers otherwise | was backlog  # added 2026-11-11; wave 0, coordinator with bmad-ux; Part A (the conclusion text as text, the pending alert) before wave 1, Part B before wave 2; no app code
+  "25-2-what-is-typed-is-saved-conclusion-text-manufacturer-readings": |-
+    2026-11-12: done on main and deployed (wave 1: e13a89b0) | was done # 2026-11-12: done on main, not deployed (#328; fix batches #329, #330) | was review: 2026-11-12: fix batch e25x (spec-e25x-wave1-web-fixes.md) carries the wave 1 review's fixes for this story, PR open, not merged | 2026-11-11: built in batch e25a (spec-e25a-saving-and-sync.md), PR open, not merged; with it G1 of the Epic 24 final pass (a point stored with a typed Prazo leaves no draft); open question O1 (the Etapa 6 parecer text) for Matheus | was backlog  # added 2026-11-11 (M02; decision 2); wave 1, e25a; every seed, web only, no contract; DoR: Part A of 25.1 approved for the read-only look
+  "25-3-a-sheet-edit-is-sent-by-itself": |-
+    2026-11-12: done on main and deployed (wave 1: e13a89b0) | was done # 2026-11-12: done on main, not deployed (#328; fix batches #329, #330) | was review: 2026-11-12: fix batch e25x (spec-e25x-wave1-web-fixes.md) carries the wave 1 review's fixes for this story, PR open, not merged | 2026-11-11: built in batch e25a (spec-e25a-saving-and-sync.md), PR open, not merged; no contract; window 2 s, late after 60 s online, file transfers bounded | was backlog  # added 2026-11-11 (M03; decision 2); wave 1, e25a; every seed, web only, no contract; specs that assert a pending op go offline or pause first; DoR: Part A of 25.1 approved for the alert
+  "25-4-the-revision-keeps-the-verdicts-it-printed": |-
+    2026-11-12: done on main and deployed (wave 1: e13a89b0) | was done # 2026-11-12: done on main, not deployed (#325; fix batches #329 and #330) | was review: 2026-11-11: batch e25b built it (contract 48; the revision's printed_parecer and printed_conclusions; relatorioVerdicts; v14 layout lock taken from 2009fa30), PR open, gate in the PR body; was backlog  # added 2026-11-11 (M17 and the stored half of M01; decision 2); wave 1, e25b; every seed, one contract number; the mechanism is the coordinator's reading (M-3)
+  "25-9-na-on-a-reading-cell-and-on-a-row-and-the-helper-of-a-limit-inside-a-range": |-
+    2026-11-12: done on main and deployed (waves 1 and 2: e13a89b0, add464e1) | was backlog # added 2026-11-11 (M05; deferred-work e24x row X6); wave 2, e25c; the cell on v15, the helper on every seed; B-6 and M-5 open
+  "25-10-a-point-created-from-a-test-names-every-reading-out-of-its-criterion": |-
+    2026-11-22: B-8 answered; the starting priority, the default action and the deadline from the issue date are Epic 28, Story 28.5, on seed v18 | 2026-11-12: done on main and deployed (waves 1 and 2: e13a89b0, add464e1) | was backlog # added 2026-11-11 (M14); wave 2, e25c, last; v15, new points only; the priority and the default action wait for B-8; M-2 and M-6 open
+  "25-14-a-row-the-technician-adds-in-the-field": |-
+    2026-11-15: done on main (PR #334, 4ecc3009) and deployed the same day as 4ecc3009 (smoke 8 of 8, tag v0.12.0, seed v16, contract 54) | was done  # 2026-11-15: built in batch e25s on seed v16, PR open; done on main when merged | was backlog # added 2026-11-11 (decision 3); wave 3, e25r, first; v15, the only fold change of the epic, one contract number; its Playwright walk is built with 25.16
+  "25-15-the-thermography-nao-realizada-with-a-reason-and-points-by-equipment-type": |-
+    2026-11-15: done on main (PR #334, 4ecc3009) and deployed the same day as 4ecc3009 (smoke 8 of 8, tag v0.12.0, seed v16, contract 54) | was done  # 2026-11-15: built in batch e25s on seed v16, PR open; done on main when merged | was backlog # added 2026-11-11 (M23; Bruno's answer 4); wave 3, e25r; v15 only; B-9 and B-17 open, not blocking
+  "25-16-the-ground-grid-takes-continuity-points-beyond-the-five": |-
+    2026-11-15: done on main (PR #334, 4ecc3009) and deployed the same day as 4ecc3009 (smoke 8 of 8, tag v0.12.0, seed v16, contract 54) | was done  # 2026-11-15: built in batch e25s on seed v16, PR open; done on main when merged | was backlog # added 2026-11-11 (M30; Bruno's answer 6); wave 3, e25r; v15 only; closes the AT-02 row of deferred-work e23e
+  "25-17-the-no-break-de-comando-is-tested": |-
+    2026-11-22: DROPPED, not to be built in Epic 25 (Bruno B-1, B-2 and his follow-up; Matheus): the No-break de comando keeps its inspection items only; its tests will be built with a future "painéis" (panels) module, a new module at another time; Epic 25 closes without this story | was backlog  # added 2026-11-11 (M19; decision 4); wave 3, e25r, last; v15 only; DoR open: B-1 (Matheus aligns with Bruno) and B-2 (the voltages' pass rules); not started before both
+  "25-18-the-tc-asks-about-its-secondary-and-the-oil-transformers-items-say-what-they-mean": |-
+    2026-11-15: done on main (PR #334, 4ecc3009) and deployed the same day as 4ecc3009 (smoke 8 of 8, tag v0.12.0, seed v16, contract 54) | was done  # 2026-11-15: built in batch e25s on seed v16, PR open; done on main when merged | was backlog # added 2026-11-11 (M22, M21; Bruno's answer 11); wave 3, e25s; v15 only, one contract number for the new item key; B-5 open, not blocking
+  "25-19-one-name-for-the-insulating-medium-and-a-seco": |-
+    2026-11-22: B-4 answered; the oil half moves to Epic 28, Story 28.3, on seed v18 | 2026-11-15: done on main (PR #334, 4ecc3009) and deployed the same day as 4ecc3009 (smoke 8 of 8, tag v0.12.0, seed v16, contract 54) (the "A SECO" half only; the oil half waits for B-4) | was done  # 2026-11-15: built in batch e25s on seed v16 (the "A SECO" half only; the oil half waits for B-4), PR open; done on main when merged | was backlog # added 2026-11-11 (M29, M11; decision 9); wave 3, e25s; v15 only; DoR open for the oil half: B-4; the "A SECO" half is ready
+  "25-20-the-criterion-and-the-result-print-on-each-row": |-
+    2026-11-15: deployed 2026-11-12 as 8d5e9e2e (smoke 8/8, tag v0.11.0) | was backlog # added 2026-11-11 (M24; Bruno's answers 2, 3, 5; decision 5); wave 4, e25p; v15 print only; DoR: the printed frame approved with its widths measured; B-11 open, not blocking
+  "25-21-the-variation-note-names-only-what-matters": |-
+    2026-11-22: B-7 answered in numbers; moved to Epic 28, Story 28.8, on seed v18; closes when 28.8 is done | was backlog  # added 2026-11-11 (M31); wave 4, e25p; v15 print only; DoR open: B-7; not started before it
+  "25-22-the-fixed-texts-the-cover-and-the-headers": |-
+    2026-11-15: deployed 2026-11-12 as 8d5e9e2e (smoke 8/8, tag v0.11.0) | was backlog # added 2026-11-11 (M09, M10, M12, M13; decision 11); wave 4, e25p; v15, the names TP and TC on every seed; B-12 and B-14 open, not blocking
+  "25-23-the-test-base-is-updated-without-importing-it-again": |-
+    2026-11-15: deployed 2026-11-12 as 8d5e9e2e (smoke 8/8, tag v0.11.0) | was backlog # added 2026-11-11 (M27; Bruno's answers 7 and 10); wave 4, e25t; company types; DoR open: the new revision's file has not arrived (built against a synthetic one)
+  "25-24-the-conferencia-por-ia-says-when-it-is-out-of-date": |-
+    2026-11-15: deployed 2026-11-12 as 8d5e9e2e (smoke 8/8, tag v0.11.0) | was backlog # added 2026-11-11 (M16 and the last part of M20; decision 10); wave 5, e25q, last; every seed, one contract number; never runs by itself (M-8)
+  "epic-26": |-
+    2026-11-22: deployed with Epic 27 as 886af55e (v0.13.0, smoke 8 of 8) after one full gate green on that commit; retrospective open | was in-progress: 2026-11-22: every story done on main, not deployed; fix batches e26r (#358) and e26s (#360) merged; waits for the shared final gate with Epic 27 and the one deploy | was: 2026-11-22: every story but 26.7 on main, not deployed; full gate green on 8a214062; review done, fix batch e26r running; one deploy with Epic 27 (Matheus) | was: 2026-11-21: e26a merged (#342, b43effe6: 26.2, 26.3, 26.4, contract 55); frames PR #341 open, waiting for Matheus | was backlog  # added 2026-11-21: users, roles and permissions; Matheus's seven decisions of 2026-11-21; inputs from Winston, Sally and Amelia; 11 stories in four waves; AD-29 and the source-deltas row are planned; story list approved by Matheus 2026-11-21 ("ok"), with one full gate at the end of the epic instead of one per wave and batches in parallel; 26.7 on hold
+  "epic-26-retrospective": |-
+    2026-11-24: epic-26-retro-2026-11-24.md, headless; machine verdict accepted-with-open-items (all 11 stories done; open: E26-A1 to E26-A9, chiefly the SPEC and source-deltas reconciliation, the untracked pass report, the production Admin count, the iPad check, Matheus's open readings)
+  "26-5-the-app-shows-each-role-only-its-modules": |-
+    2026-11-22: done on main, not deployed (batch e26b, PR #348, b8e904d4, no contract change); real-browser pass moved to the hands-on pass before the deploy | was backlog  # added 2026-11-21; wave 1, e26b; DoR: 26.1 approved
+  "26-6-email-leaves-the-app-the-invitation-and-the-password-reset": |-
+    2026-11-22: web half done on main, not deployed (batch e26d, PR #353, 3b4fd755); real sending waits for Story 26.7 | was in-progress  # 2026-11-21: api half on main, not deployed (batch e26c, PR #346, bf893f05); the Login changes, the set-password page and the two e2e specs are batch e26d | was backlog  # added 2026-11-21 (decision 4); wave 2, e26c; EMAIL_PROVIDER fake by default
+  "26-7-amazon-ses-in-terraform-inside-the-budget": |-
+    2026-11-22: DKIM records at the registrar, identity verified, production access granted, a real invitation delivered; EMAIL_PROVIDER and EMAIL_FROM in ecs.tf (e26r), applied at the deploy | was in-progress  # 2026-11-21: hold lifted by Matheus (sender no-reply at the company's domain); email.tf applied (identity, DKIM, config set, IAM, alarms); open: DKIM records at the registrar, sandbox exit, env vars at the deploy, delivery check | was backlog  # 2026-11-21: ON HOLD by Matheus, who talks to Bruno first (sender domain, DNS records, sandbox exit); the rest is built with EMAIL_PROVIDER=fake | was added 2026-11-21 (decision 4); wave 2, coordinator; DoR open: sender domain, DNS records, sandbox exit (Matheus)
+  "epic-27": |-
+    2026-11-22: all 14 stories deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) with Epic 26, after one full gate green on that commit; open: Story 27.5 AC2 (Matheus decides), the Home half of 27.14 and two tables (deferred-work.md), the message to Bruno (F22, F41), the retrospective | was in-progress: 2026-11-22: wave 1 (27.1 to 27.7) merged, not deployed (batch e27a, PR #345 as 4d5c961a, contract 56; review fixes PR #350 as f29a1b15, no bump); wave 2 (e27b, 27.8 to 27.10) launched; open: Story 27.5 AC2 (Matheus decides), the manual pass of wave 1 before the deploy, the full gate falls to wave 2 | was backlog  # added 2026-11-21: the manual pass of 2026-11-21 (test-artifacts/manual/ux-pass-2026-11-21.md, F1 to F41); Matheus's three decisions of 2026-11-21 (all findings in three waves; the form words on screen and in the document through seed v17; refuse the impossible, remark the improbable); 14 stories; batches e27a to e27c, contract 56 onward, port bases 28 and 29; F27 went to Story 26.5; F22 and F41 are questions for Bruno
+  "27-1-the-document-carries-the-company-the-screen-shows": |-
+    2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57); the cause of the op-less empresa row was never found, the guard stands | was done: 2026-11-22: done on main, not deployed (batch e27a, PR #345, 4d5c961a; review fixes PR #350, f29a1b15), contract 56; the cause of the op-less empresa row was not found, the guard stands | was backlog  # added 2026-11-21 (F1); wave 1, e27a; DoR: batch e26a on main (rules.ts); task 1 finds the script that wrote an empresa with no op; the production count waits for Matheus's AWS login, not blocking
+  "27-2-the-impossible-value-is-refused-the-improbable-one-is-remarked": |-
+    2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was done: 2026-11-22: done on main, not deployed (batch e27a, PR #345, 4d5c961a; review fixes PR #350, f29a1b15), contract 56 | was backlog  # added 2026-11-21 (F2 to F6, F11; decision 3); wave 1, e27a; contract 56; DoR: batch e26a on main (contract/version.ts)
+  "27-3-a-ficha-not-yet-concluded-does-not-read-as-reprovada": |-
+    2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was done: 2026-11-22: done on main, not deployed (batch e27a, PR #345, 4d5c961a; review fixes PR #350, f29a1b15), no contract; the print splits only under seed rule parecer_open_apart (Story 27.8 sets it on v17) | was backlog  # added 2026-11-21 (F7); wave 1, e27a; the screen on every seed, the print on v17 (verified in e27b)
+  "27-4-a-point-of-attention-says-what-it-lacks": |-
+    2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was done: 2026-11-22: done on main, not deployed (batch e27a, PR #345, 4d5c961a; review fixes PR #350, f29a1b15), no contract | was backlog  # added 2026-11-21 (F8, F12); wave 1, e27a; every seed, nothing blocks
+  "27-5-the-template-numbers-its-sections-as-the-relatorio-will": |-
+    2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57); AC2 (numbers follow a reorder) is still NOT met, open decision for Matheus | was done: 2026-11-22: done on main, not deployed (batch e27a, PR #345, 4d5c961a; review fixes PR #350, f29a1b15), no contract; AC2 (numbers follow a reorder) is NOT met, open decision for Matheus | was backlog  # added 2026-11-21 (F9); wave 1, e27a
+  "27-6-criterios-de-aceitacao-shows-every-criterion": |-
+    2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was done: 2026-11-22: done on main, not deployed (batch e27a, PR #345, 4d5c961a; review fixes PR #350, f29a1b15), no contract | was backlog  # added 2026-11-21 (F10); wave 1, e27a
+  "27-7-the-corrected-column-fits-on-a-tablet-in-landscape": |-
+    2026-11-22: deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was done: 2026-11-22: done on main, not deployed (batch e27a, PR #345, 4d5c961a; review fixes PR #350, f29a1b15), no contract | was backlog  # added 2026-11-21 (F13); wave 1, e27a
+  "27-8-the-forms-words-right-on-screen-and-in-the-document-seed-v17": |-
+    2026-11-22: merged in batch e27b (PR #356, 42b0d25b, contract 57, seed v17); deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was in-progress: 2026-11-22: batch e27b launched | was backlog  # added 2026-11-21 (F30, F35; decision 2); wave 2, e27b, first; opens seed v17 and locks v16; one contract number; Bruno told after the deploy
+  "27-9-agreement-one-name-for-each-thing-and-no-internal-words": |-
+    2026-11-22: merged in batch e27b (PR #356, 42b0d25b; review fixes #362 and #365); deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was in-progress: 2026-11-22: batch e27b launched | was backlog  # added 2026-11-21 (F29, F31 to F34, F36 to F40); wave 2, e27b; the print of v16 and older held
+  "27-10-the-user-errors-the-app-lets-through": |-
+    2026-11-22: merged in batch e27b (PR #356, 42b0d25b; review fixes #362 and #365); deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was in-progress: 2026-11-22: batch e27b launched | was backlog  # added 2026-11-21 (F23 to F26, F28); wave 2, e27b; DoR: Story 26.5 on main (sumario-surface.tsx); F27 is Story 26.5
+  "27-11-the-fixed-bars-leave-room-for-the-work": |-
+    2026-11-22: merged in batch e27c (PR #362, 64ddc634; review fixes #365); deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was backlog: added 2026-11-21 (F14); wave 3, e27c; DoR: Story 26.5 on main (sumario-surface.tsx)
+  "27-13-dialogs-and-fichas-one-hint-distinct-confirmar-required-after-the-field": |-
+    2026-11-22: merged in batch e27c (PR #362, 64ddc634; review fix #365); deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was backlog: added 2026-11-21 (F17, F18, F19); wave 3, e27c
+  "27-14-templates-and-home-readable-cards-one-number-per-section": |-
+    2026-11-22: templates half only, merged in batch e27c (PR #362, 64ddc634); the Home half is deferred (deferred-work.md); deployed 2026-11-22 as 886af55e (smoke 8/8, tag v0.13.0, contract 57) | was backlog: added 2026-11-21 (F20, F21); wave 3, e27c; after Story 27.5
+  "epic-28": |-
+    2026-11-24: all ten stories merged (#368, #369 icon sprite fix, #370, #371, #373, review fixes #374, #375 and #376 plate structuring fixes, #377 hands-on pass fixes); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18); retrospective not run | was backlog: added 2026-11-22: Bruno's answers to B-1..B-17 of sprint-change-proposal-2026-11-11.md (gitignored docs/context/epic-25/respostas-bruno-2026-11-22.md); Matheus 2026-11-22 "Pode fazer o épico 28", after the joint deploy of Epics 26 and 27, not part of it; seed v18; 10 stories in three waves (0: frames; 1: e28a seed v18 and its data; 2: e28b rules and notes beside e28c Etapa 6 and fixed texts); port bases 30 and 31; contract main's plus one (at least 58) for e28a and again for e28c; one full gate, one review, one deploy at the end; epic-28-context.md
+  "28-1-the-epic-28-frames-in-the-mocks": |-
+    2026-11-24: merged as PR #368 (frames approved by Matheus 2026-11-23); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22; wave 0, coordinator with bmad-ux; no app code; may be drawn before the joint deploy; Matheus approves in the browser
+  "28-2-seed-v18-opens-and-the-v17-layout-is-locked": |-
+    2026-11-24: merged in batch e28a (PR #370, contract 58); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22; wave 1, e28a, first; DoR: the joint deploy of Epics 26 and 27 has shipped seed v17; one contract number
+  "28-3-the-oils-names-a-seco-or-a-oleo-and-oleo-vegetal": |-
+    2026-11-24: merged in batch e28a (PR #370); the paid plate eval found a structuring failure fixed by #375 and #376, rerun green on 84827c73; deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22 (B-4; the oil half of 25.19); wave 1, e28a; v18; the plate prompt bumps; the paid plate eval before the deploy on Matheus's word; Q-1 and Q-2 open, not blocking
+  "28-4-two-oil-transformer-items-two-thermography-reasons-and-equipamento-da-concessionaria": |-
+    2026-11-24: merged in batch e28a (PR #370); hands-on pass fixes in #377; deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22 (B-5, B-17, B-8); wave 1, e28a; v18; new item and reason keys on the batch's contract; Q-3 and Q-4 open, not blocking
+  "28-5-a-point-starts-with-a-priority-and-an-action-and-its-deadline-counts-from-the-issue-date": |-
+    2026-11-24: merged in batch e28b (PR #371); first-issue deadline base decided by Matheus and built in review fixes #374; deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22 (B-8; the second half of 25.10); wave 2, e28b; v18; no contract expected; Q-6 open, not blocking
+  "28-7-a-reading-above-the-instruments-limit-prints-with-its-note": |-
+    2026-11-24: merged in batch e28b (PR #371); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22 (B-6); wave 2, e28b; v18 print only; no contract
+  "28-8-the-variation-note-names-only-what-matters-by-brunos-numbers": |-
+    2026-11-24: merged in batch e28b (PR #371); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22 (B-7; Story 25.21); wave 2, e28b, last; v18; no contract expected; Q-7 open, not blocking
+  "28-9-etapa-6-takes-the-additional-items-printed-in-section-10": |-
+    2026-11-24: merged in batch e28c (PR #373, contract 59); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22 (B-15); wave 2, e28c; v18; new setup key additional_items under relatorio.fill; contract main's plus one
+  "28-10-the-fixed-texts-and-the-band": |-
+    2026-11-24: merged in batch e28c (PR #373); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was backlog: added 2026-11-22 (B-12, B-14, B-3); wave 2, e28c; the texts on v18, the band on every seed; no contract
+  "epic-29": |-
+    2026-11-24: both stories merged (#372, review fixes #374, hands-on pass fix #377); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18); retrospective not run | was in-progress: added 2026-11-23: Bruno via Matheus after v0.13.0, "investigar e corrigir agora"; one batch e29a, port base 26; no seed change
+  "29-2-closing-a-dialog-or-going-back-returns-to-the-screen-before": |-
+    2026-11-24: merged in batch e29a (PR #372), review fixes #374 and #377 (Voltar, Sumario view); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was in-progress: added 2026-11-23; investigation first
+  "backlog-deferred": |-
+    added 2026-10-21: stories moved out of their epic with a dated decision, epics.md "Backlog: deferred stories"
+  "13-9-dictation-on-behind-one-line-of-consent": |-
+    2026-10-21 (Bruno via Matheus, answer 11): moved out of Epic 13 to the backlog; DoR unchanged |  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
