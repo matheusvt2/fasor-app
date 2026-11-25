@@ -1324,14 +1324,13 @@ test('@p1 12.1-E2E-012 J-15, Story 27.11, batch e27d (X2): the Sticky action bar
   await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeVisible();
 
   // By keyboard it marks the last item; the bar does not move and the focus stays on it, never the page body.
-  // Batch e27d: the step jump's focus watch may still take the focus back for a few frames, so the press waits until
-  // the button holds it (12.1-E2E-012 went red once in three with the Enter landing elsewhere).
+  // ~~Batch e27d: the step jump's focus watch may still take the focus back for a few frames, so the press waits until
+  // the button holds it (12.1-E2E-012 went red once in three with the Enter landing elsewhere).~~ Story 30.5
+  // (2026-11-25): that was the stepper's land, three frames after the tap, taking the focus from the button the test
+  // had just given it (red 3 of 3 with the frames slowed to 150 ms). The land now leaves a focus moved since the tap
+  // alone (`use-ficha-steps.ts`), so the button is focused once, as a person would reach it.
   const markRest = head.getByRole('button', { name: 'Marcar os restantes como Conforme' });
-  await expect(async () => {
-    await markRest.focus();
-    await expect(markRest).toBeFocused({ timeout: 500 });
-  }).toPass({ timeout: 10_000 });
-  await page.waitForFunction(() => new Promise<boolean>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
+  await markRest.focus();
   await expect(markRest).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
