@@ -486,3 +486,16 @@ Source: `epics.md` § Epic 29, Story 29.1 (Bruno via Matheus, 2026-11-23: "Opç�
 | Wrong current password | "Simular: senha atual errada" (`#acc-dlg-senha-errada`) | The field in red with "A senha atual não confere." under it; nothing is stored | 29.1 |
 
 The too-short, too-long and mismatch states are those of "Criar senha" (Story 26.6) and are not drawn again. Labels authored here, listed for Bruno: "Senha" (the row), "Ao trocar, os outros aparelhos saem desta conta.", "Alterar senha", "Senha atual", "Nova senha", "A senha atual não confere.", "Alterar senha precisa de conexão", "Senha alterada. Os outros aparelhos saíram desta conta.". `prototype/index.html` was rebuilt with `build.py`.
+
+## 2026-11-25 — The notice of a local removed against site work (Story 30.4)
+
+Source: `epics.md` § Epic 30, Story 30.4 (Q-8 of the open-work audit; Matheus, 2026-11-24: "tem que ser uma notificacao"), the coordinator's reading, open to him. No new frame, class or CSS: the notice is the Conflict Banner, the Toast with an action and the Decisões list already drawn. `tokens.css` and `components.css` did not change.
+
+| Frame | Route (element) | What it shows | Built by |
+| --- | --- | --- | --- |
+| The Decisões row | `#/sync` (`#sync-conf-local`), beside "Remoção contra edição" | "**Local removido com respostas** — 2º Subsolo: removido por Eduardo em 07/09 13:50. 19 respostas de você nas Verificações do local não foram mantidas." with "Restaurar local" and "Deixar removido"; the head badge reads "4 aguardam decisão" | 30.4 |
+| The Sumário Banner | `#/relatorio/porto-seguro`, "Simular: local removido com respostas" (`#slot-removed-local` in `shell-head.html`) | The same sentence in the one Banner slot, Conflict variant, `role="alert"`, and the Toast the writer's device shows once, "2º Subsolo foi removido por Eduardo. Suas 19 respostas não foram mantidas." with "Ver" | 30.4 |
+
+Not drawn: the role without `relatorio.fill` (both actions disabled with the one `.btn-reason` line of Epic 26), the remover unknown ("2º Subsolo foi removido em outro aparelho."), and photos or points named beside the answers ("1 resposta e 1 foto"). Labels authored here, listed for Bruno: "Local removido com respostas", "removido por ⟨nome⟩ em ⟨dd/mm hh:mm⟩", "⟨N⟩ respostas de ⟨você · nome⟩ nas Verificações do local não foram mantidas.", "⟨Local⟩ foi removido por ⟨nome⟩. Suas ⟨N⟩ respostas não foram mantidas.", "⟨Local⟩ foi removido em outro aparelho.", "Restaurar local", "Deixar removido", "⟨Local⟩ continua removido. Dá para recuperar em "Restaurar ficha removida".". The section note of Decisões still says "dois casos de estrutura"; it is left as written (an open reading for Matheus). `prototype/index.html` was rebuilt with `build.py`.
+
+**Approval:** pending, Matheus in the PR.
