@@ -392,6 +392,8 @@ telemetry_count() {
 # check was green on the production deploys of Epics 21 to 23 (the ledger row's condition): 0 session_start with
 # the tag, any ux_event_sink_failed, or a read error of either group returns non-zero; the cleanup still runs and
 # the rollback hint is printed (docs/observability.md).
+# Fix batch e30h (item 3): the logs the check read, for the failure summary (empty when the outputs could not be read).
+telemetry_logs=""
 check_usage_events() {
   local ux_group api_group sessions="" failures="" attempt failed=0
   local session_pattern="{ (\$.name = \"session_start\") && (\$.app_version = \"$tag\") }"
@@ -401,6 +403,7 @@ check_usage_events() {
     echo "deploy: could not read the outputs ux_events_log_group and api_log_group; the usage events were not checked" >&2
     return 1
   fi
+  telemetry_logs="group $ux_group (session_start) and group $api_group (ux_event_sink_failed)"
   # A CloudWatch line appears seconds after the put: poll up to about 2 minutes while the count
   # reads 0. A read error stops the poll (the retry already outlasted a lost endpoint); a dry
   # run asks once.
@@ -515,6 +518,9 @@ if [ -n "$smoke_failed" ] || [ "$cleanup_failed" = 1 ]; then
         echo "deploy: the suite stopped in: $(tail -n 1 "$smoke_dir/progress.txt")" >&2
       fi
       echo "deploy: report: $smoke_dir (report.json, progress.txt, screenshots under artifacts/)" >&2
+    elif [ "$smoke_failed" = "$smoke_telemetry" ]; then
+      # Fix batch e30h (item 3): the check read the usage-event logs, not the smoke-seed task's.
+      echo "deploy: the logs it read: ${telemetry_logs:-none (the outputs ux_events_log_group and api_log_group could not be read)}" >&2
     else
       echo "deploy: its log: group $smoke_log_group" >&2
     fi

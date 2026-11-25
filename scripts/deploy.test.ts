@@ -400,4 +400,13 @@ describe('E18-A2 infra/bin/deploy --dry-run, the usage-events check', () => {
     expect(out).not.toMatch(/production smoke passed/);
     expect(out).not.toMatch(/to resume/);
   });
+
+  // Fix batch e30h, item 3: the hint names the log groups the check read, not the smoke-seed task's.
+  it('e30h-UNIT-003: a red usage-events check names the groups it read, not the smoke-seed task\'s log', () => {
+    const { status, out } = run(['--dry-run'], { DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES: '3' });
+    expect(status, out).toBe(1);
+    const summary = out.slice(out.indexOf(`deploy: smoke failed at step: ${STEP}`));
+    expect(summary).not.toContain('its log: group /fasor/production/smoke');
+    expect(summary).toContain('deploy: the logs it read: group /fasor/production/ux-events (session_start) and group /fasor/production/api (ux_event_sink_failed)');
+  });
 });
