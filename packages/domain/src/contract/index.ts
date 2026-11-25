@@ -17,6 +17,7 @@ export * from './reading.ts';
 export * from './prose.ts';
 export * from './audit.ts';
 export * from './telemetry.ts';
+export * from './telemetry-device.ts';
 // Story 26.8 (2026-11-21): the Admin's user routes.
 export * from './admin-users.ts';
 // Story 26.10 (2026-11-22): the Admin's role routes.

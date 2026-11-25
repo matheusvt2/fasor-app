@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { SCREENS, TELEMETRY_SERVER_KEYS, UX_EVENT_NAMES, UX_OUTCOMES, uxEventSchema, VIEWPORTS } from '@app/domain';
+import { DEVICE_KINDS, DEVICE_OSES, POINTERS, SCREENS, TELEMETRY_SERVER_KEYS, UX_EVENT_NAMES, UX_OUTCOMES, uxEventSchema, VIEWPORTS } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 
 /*
@@ -14,6 +14,9 @@ import { describe, expect, it } from 'vitest';
  *
  * Story 18.4 (2026-11-03): seventeen queries; `from` (written backticked, a query word as well
  * as a field) compares only with a kernel screen and `viewport` only with a kernel viewport.
+ *
+ * Story 30.6 (2026-11-25): eighteen queries; `device_kind`, `os` and `pointer` compare only with
+ * the kernel's device kinds, systems and pointers.
  */
 
 const infra = resolve(import.meta.dirname, '../infra/production');
@@ -96,7 +99,18 @@ function referencedFields(query: string): { fields: string[]; aliases: string[] 
 const shape = uxEventSchema.shape;
 const KINDS: readonly string[] = shape.kind.unwrap().options;
 const EVENT_KEYS = new Set<string>([...Object.keys(shape), ...TELEMETRY_SERVER_KEYS]);
-const CLOSED: Record<string, readonly string[]> = { name: UX_EVENT_NAMES, kind: KINDS, outcome: UX_OUTCOMES, screen: SCREENS, from: SCREENS, viewport: VIEWPORTS };
+const CLOSED: Record<string, readonly string[]> = {
+  name: UX_EVENT_NAMES,
+  kind: KINDS,
+  outcome: UX_OUTCOMES,
+  screen: SCREENS,
+  from: SCREENS,
+  viewport: VIEWPORTS,
+  // Story 30.6.
+  device_kind: DEVICE_KINDS,
+  os: DEVICE_OSES,
+  pointer: POINTERS,
+};
 
 /** The one event name the query keeps (`name = '...'`, no list), or undefined. */
 function singleName(query: string): string | undefined {
@@ -139,8 +153,8 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
   const queries = parseQueries(observability);
   const order = parseOrder(observability);
 
-  it('reads the seventeen queries and the dashboard order, each key once both ways', () => {
-    expect([...queries.keys()]).toHaveLength(17);
+  it('reads the eighteen queries and the dashboard order, each key once both ways', () => {
+    expect([...queries.keys()]).toHaveLength(18);
     expect(new Set(order).size).toBe(order.length);
     expect([...order].sort()).toEqual([...queries.keys()].sort());
   });
@@ -164,6 +178,10 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
       ['viewport', "filter name = 'session_start' and viewport = 'watch' | stats count(*) as n by viewport"],
       ['context', "filter name = 'session_start' | stats count(*) as n by stand_alone, onlin"],
       ['refusal', "filter name = 'input_refused' and kind = 'plate' | stats count(*) as n by target"],
+      // Story 30.6: one bad case per new closed field, and a field name misspelt.
+      ['kinds', "filter name = 'session_start' and device_kind = 'watch' | stats count(*) as n by device_kind"],
+      ['oses', "filter os in ['android', 'symbian'] and pointer = 'pen' | stats count(*) as n by os, pointer"],
+      ['hardware', "filter name = 'session_start' | stats count(*) as n by devicekind, screen_width"],
     ]);
     expect(bindingViolations(bad)).toEqual([
       "typo: name 'screen_veiw' is not in the kernel list",
@@ -180,6 +198,11 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
       'context: field stand_alone is not an event key, a server key or an alias',
       'context: field onlin is not an event key, a server key or an alias',
       "refusal: kind 'plate' is not a kind of input_refused",
+      "kinds: device_kind 'watch' is not in the kernel list",
+      "oses: os 'symbian' is not in the kernel list",
+      "oses: pointer 'pen' is not in the kernel list",
+      'hardware: field devicekind is not an event key, a server key or an alias',
+      'hardware: field screen_width is not an event key, a server key or an alias',
     ]);
   });
 
@@ -230,7 +253,7 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
 
   it('Story 18.4: the seven new views read the new fields: the screen durations, from, the device context, the refusals and the document waits', () => {
     const fieldsOf = (key: string) => referencedFields(queries.get(key) ?? '').fields;
-    expect(order.slice(-7)).toEqual(['screen_time', 'home_first_nav', 'paths', 'bounces', 'viewports', 'refusals', 'document_waits']);
+    expect(order.slice(10, 17)).toEqual(['screen_time', 'home_first_nav', 'paths', 'bounces', 'viewports', 'refusals', 'document_waits']);
     expect(fieldsOf('screen_time')).toEqual(expect.arrayContaining(['duration_ms', 'screen']));
     expect(comparedLiterals(queries.get('home_first_nav') ?? '', 'from')).toEqual(['login']);
     expect(comparedLiterals(queries.get('home_first_nav') ?? '', 'screen')).toEqual(['home']);
@@ -243,5 +266,15 @@ describe('the usage dashboard queries are bound to the kernel vocabulary (observ
     expect(fieldsOf('document_waits')).toEqual(expect.arrayContaining(['app_version', 'outcome']));
     // `from` is always backticked: never a bare word a query could read as its own keyword.
     for (const [key, query] of queries) expect([key, /(?<!`)\bfrom\b(?!`)/.test(query)]).toEqual([key, false]);
+  });
+
+  it('Story 30.6: the last view counts sessions and devices of the starts that say their device kind, by kind, system, pointer and viewport', () => {
+    expect(order.at(-1)).toBe('device_kinds');
+    const query = queries.get('device_kinds') ?? '';
+    expect(query.startsWith(SMOKE_FILTER)).toBe(true);
+    expect(comparedLiterals(query, 'name')).toEqual(['session_start']);
+    expect(query).toMatch(/ispresent\(device_kind\)/);
+    expect(query).toMatch(/count_distinct\(session_id\) as sessions, count_distinct\(device_id\) as devices by device_kind, os, pointer, viewport\b/);
+    expect(referencedFields(query).fields).toEqual(expect.arrayContaining(['device_kind', 'os', 'pointer', 'viewport', 'session_id', 'device_id']));
   });
 });

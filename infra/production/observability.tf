@@ -3,13 +3,15 @@
 # One CloudWatch dashboard `fasor-production-ux` with seventeen Logs Insights widgets
 # (nine of Story 18.3 and, since 2026-10-30 (E18-A2, Matheus: "controlar os usuários logados"),
 # the users view; since 2026-11-03, Story 18.4's seven: screen_time, home_first_nav, paths,
-# bounces, viewports, refusals, document_waits), and the same queries as saved query
+# bounces, viewports, refusals, document_waits; since 2026-11-25, Story 30.6's device_kinds),
+# and the same queries as saved query
 # definitions (CloudWatch > Logs Insights > Saved queries). Both read the group the api writes
 # to, `aws_cloudwatch_log_group.ux_events` of `telemetry.tf` (2026-11-03, E18-A2: no longer by
 # its literal name, so a renamed group moves the dashboard, the saved queries and the api's
 # TELEMETRY_LOG_GROUP together). Queries use only the event fields of AD-28 (`name`, `screen`,
 # `target`, `kind`, `outcome`, `duration_ms`, `session_id`, `device_id`, `ts`, `app_version`,
-# `relatorio_id`, `block_id`; Story 18.4: `from`, `viewport`, `standalone`, `online`) and the
+# `relatorio_id`, `block_id`; Story 18.4: `from`, `viewport`, `standalone`, `online`; Story 30.6:
+# `pointer`, `touch_points`, `os`, `screen_w`, `screen_h`, `viewport_w`, `device_kind`) and the
 # server's `received_at`, `user_id`, `company_id`; `scripts/telemetry-queries.test.ts`
 # binds every name, kind, outcome, screen and field they read to the kernel's closed lists
 # (`packages/domain/src/contract/telemetry.ts`).
@@ -130,10 +132,20 @@ locals {
       view  = "table"
       query = "${local.ux_smoke_filter}filter name = 'wait' and kind in ['preview', 'generate'] | stats count(*) as waits, pct(duration_ms, 50) as p50_ms, pct(duration_ms, 95) as p95_ms by kind, outcome, app_version | sort kind, outcome"
     }
+    # 2026-11-25 (Story 30.6, Matheus: "é o tablet do Bruno, pode registrar o tipo do aparelho"):
+    # what kind of device a session starts on, by the hardware (`device_kind`, the kernel's
+    # reading of touch and the screen's shorter side), beside the window's width class
+    # (`viewport`), so a tablet seen at phone width shows as one row. Starts of bundles before
+    # the story carry no `device_kind` and are left out.
+    device_kinds = {
+      title = "Sessions and devices by device kind, system, pointer and viewport"
+      view  = "table"
+      query = "${local.ux_smoke_filter}filter name = 'session_start' and ispresent(device_kind) | stats count_distinct(session_id) as sessions, count_distinct(device_id) as devices by device_kind, os, pointer, viewport | sort sessions desc"
+    }
   }
 
   # The dashboard order; every key of ux_queries appears once.
-  ux_query_order = ["funnel", "actions", "dialogs", "disabled_taps", "waits", "readings", "syncs", "sessions_per_day", "errors", "users", "screen_time", "home_first_nav", "paths", "bounces", "viewports", "refusals", "document_waits"]
+  ux_query_order = ["funnel", "actions", "dialogs", "disabled_taps", "waits", "readings", "syncs", "sessions_per_day", "errors", "users", "screen_time", "home_first_nav", "paths", "bounces", "viewports", "refusals", "document_waits", "device_kinds"]
 }
 
 resource "aws_cloudwatch_dashboard" "ux" {
