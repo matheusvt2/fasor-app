@@ -411,7 +411,11 @@ function writeLocationRemovedAt(location: CabineRow, op: Op, value: string | nul
   if (value === null) return { ...rest, removed_at: null };
   const server = op.device_id === SERVER_DEVICE_ID;
   const seen = op.meta?.seen_modified_at;
-  const removed: CabineRow = server || seen === undefined ? { ...rest, removed_at: value } : { ...rest, removed_at: value, removed_by: op.actor_id };
+  // Fix batch e30h, item 5: a put of the removal's own time on the removed local ("Deixar removido")
+  // only confirms that removal, so it keeps who removed it (a later mark names the original remover).
+  const confirms = location.removed_at !== null && value === location.removed_at;
+  const remover = confirms ? location.removed_by : server || seen === undefined ? undefined : op.actor_id;
+  const removed: CabineRow = remover === undefined ? { ...rest, removed_at: value } : { ...rest, removed_at: value, removed_by: remover };
   const site = location.site_modified_at ?? null;
   const unseenWork = seen !== undefined && site !== null && (seen ?? null) !== site;
   if (location.removed_at !== null || server || !unseenWork) return removed;

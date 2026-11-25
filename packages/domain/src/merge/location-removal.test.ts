@@ -413,4 +413,21 @@ describe('30.4-UNIT-004 the clear op ("Deixar removido")', () => {
     // The relatório row the fold read is untouched.
     expect(replay(seqd([createRelatorio, createLocal, remove, ...answers, leave])).get(relKey)).toEqual(relatorio());
   });
+
+  it('e30h-UNIT-005 "Deixar removido" keeps who removed the local: a later mark still names the original remover', () => {
+    const { f, createRelatorio, createLocal, brunoAnswers, anaRemoves } = world();
+    const remove = anaRemoves(null);
+    const answers = brunoAnswers(2);
+    const held = [createRelatorio, createLocal, remove, ...answers].reduce<EntityState>((s, op) => applyOp(s, op), new Map());
+    const leave = stampSeen(f.op({ path: `location/${LOCAL}/removed_at`, value: remove.client_ts, actor_id: BRUNO, device_id: B_DEVICE }), held);
+    const left = expectSameOnEveryLayer(seqd([createRelatorio, createLocal, remove, ...answers, leave]));
+    expect(left.removed_by).toBe(ANA);
+    // A third tablet that never saw the removal answers later: the new mark names Ana, who removed the local.
+    const late = f.op({ path: locationChecklistPath(LOCAL, KEYS[5]!, 'result'), value: 'NC', actor_id: BRUNO, device_id: 'tablet-third', meta: { seen_removed_at: null } });
+    const again = expectSameOnEveryLayer(seqd([createRelatorio, createLocal, remove, ...answers, leave, late]));
+    expect(again.removal_conflict).toEqual({ removed_by: ANA, removed_at: remove.client_ts, edited_by: BRUNO, edited_at: late.client_ts });
+    // A removal at another time is a new removal: it names its own author.
+    const again2 = f.op({ kind: 'remove', path: `location/${LOCAL}/removed_at`, value: null, actor_id: BRUNO, device_id: B_DEVICE, meta: { seen_modified_at: late.client_ts } });
+    expect(fold([createRelatorio, createLocal, remove, ...answers, leave, late, again2]).removed_by).toBe(BRUNO);
+  });
 });
