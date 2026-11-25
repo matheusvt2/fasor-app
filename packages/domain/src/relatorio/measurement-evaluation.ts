@@ -37,7 +37,7 @@ import { formatDateOfInstant } from '../format/datetime.ts';
 import { canonicalDecimal, NOT_APPLICABLE_TEXT } from '../parse/pt-br-number.ts';
 import { previousReadingsByAddress, readingAddressKey, type LastResultReading, type PreviousResults } from '../print/reading-slots.ts';
 import { previousVisitDateText } from '../print/visit-date.ts';
-import { seedRule } from '../seed/definitions.ts';
+import { criterionSymbols, seedRule } from '../seed/definitions.ts';
 import {
   correctedRaw,
   correctedText,
@@ -512,12 +512,12 @@ function typedLimitTextIn(operator: string, value: number, from: string | null, 
 }
 
 /** The limit of an absolute criterion: its own, or the seeded criterion's it names. Null when it names none. */
-function limitOf(criterion: Extract<MeasurementCriterion, { type: 'absolute' }>): Limit | null {
+function limitOf(criterion: Extract<MeasurementCriterion, { type: 'absolute' }>, symbols = false): Limit | null {
   if (criterion.seeded !== undefined) {
     // Story 14.6: a company type's criterion carries the row of its type's criteria table it names, taken first.
     const seeded = criterion.seeded_criterion ?? SEEDED_CRITERIA.find((candidate) => candidate.key === criterion.seeded);
     if (seeded === undefined) return null;
-    return { operator: seeded.operator, value: seeded.value, ...(seeded.value_max === undefined ? {} : { value_max: seeded.value_max }), unit: seeded.unit, text: formatCriterionValue(seeded), textIn: (unit) => criterionTextInUnit(seeded, unit) };
+    return { operator: seeded.operator, value: seeded.value, ...(seeded.value_max === undefined ? {} : { value_max: seeded.value_max }), unit: seeded.unit, text: formatCriterionValue(seeded, symbols), textIn: (unit) => criterionTextInUnit(seeded, unit, symbols) };
   }
   if (criterion.operator === undefined || criterion.value === undefined || criterion.unit === undefined) return null;
   const sign = OPERATOR_SIGN[criterion.operator] ?? criterion.operator;
@@ -526,10 +526,13 @@ function limitOf(criterion: Extract<MeasurementCriterion, { type: 'absolute' }>)
   return { operator, value, unit: from, text, textIn: (unit) => typedLimitTextIn(operator, value, from, text, unit) };
 }
 
-/** The criterion's wording: its own text, or the seeded criterion's value (">400 MΩ"). */
-function criterionTextOf(criterion: MeasurementCriterion): string {
+/**
+ * The criterion's wording: its own text, or the seeded criterion's value (">400 MΩ"; Story 30.3 (a): "> 400 MΩ" with
+ * `symbols`, the sheet's seed's `criterion_symbols`).
+ */
+function criterionTextOf(criterion: MeasurementCriterion, symbols = false): string {
   if (criterion.type !== 'absolute') return criterion.text;
-  return criterion.text ?? limitOf(criterion)?.text ?? '';
+  return criterion.text ?? limitOf(criterion, symbols)?.text ?? '';
 }
 
 /** Whether `value` satisfies the limit; null when the units cannot be compared (never a throw into the surface). */
@@ -625,8 +628,8 @@ function mark(cell: EvaluatedMeasurementCell, within: boolean, criterion: Measur
   cell.excess = excess;
 }
 
-function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'absolute' }>, unanswered: EvaluatedMeasurementCell[] = []): void {
-  const limit = limitOf(criterion);
+function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extract<MeasurementCriterion, { type: 'absolute' }>, unanswered: EvaluatedMeasurementCell[] = [], symbols = false): void {
+  const limit = limitOf(criterion, symbols);
   if (limit === null) return;
   // authored: the seeded tables' own helper wording (`reading-evaluation.ts`); Story 14.6: "Fora do aceitável" for a company criterion with two sides.
   // Story 27.2 (F11): the limit cited in the reading's own unit, on screen only.
@@ -640,7 +643,7 @@ function applyAbsolute(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
       if (cell.kind !== 'number' || cell.fixed !== null || !isReadingValue(cell.state)) continue;
       if (criterion.columns !== undefined && !criterion.columns.includes(cell.columnKey)) continue;
       const answer = cell.state === 'over_range' ? overRangeAnswer(Number(cell.raw), cell.unit, limit) : withinLimit(Number(cell.raw), cell.unit, limit);
-      if (answer !== null) mark(cell, answer.within, criterion, helper(cell.unit), answer.excess);
+      if (answer !== null) mark(cell, answer.within, criterion, helper(cell.unit), answer.excess, criterionTextOf(criterion, symbols));
       // Fix batch e24x (C1): a limit the criterion cannot judge (inside a range, units that do not compare).
       else if (cell.state === 'over_range') {
         unanswered.push(cell);
@@ -829,7 +832,7 @@ function groupName(entry: { row: EvaluatedMeasurementRow; cell: EvaluatedMeasure
  * Marks `cell` restricted (out > restricted > within): a cell already out keeps its verdict; a
  * restricted one keeps its first reason and gains the other's.
  */
-function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCriterion, reason: string, text: string, compared?: string, history = false): void {
+function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCriterion, reason: string, text: string, compared?: string, history = false, symbols = false): void {
   if (cell.verdict === 'out') return;
   // Fix batch e23p (P3): the point's reason, a comparison right after its own reason; merged as the reasons are.
   const point = compared === undefined ? reason : `${reason} (${compared})`;
@@ -845,7 +848,7 @@ function markRestricted(cell: EvaluatedMeasurementCell, criterion: MeasurementCr
   }
   cell.verdict = 'restricted';
   cell.restriction = { reason, text, ...(point === reason ? {} : { pointReason: point }), ...(own === null ? {} : { history: own }) };
-  cell.criterionText = criterionTextOf(criterion);
+  cell.criterionText = criterionTextOf(criterion, symbols);
   cell.sourceName = criterion.source.name;
 }
 
@@ -1008,16 +1011,22 @@ function applyMaxField(rows: readonly EvaluatedMeasurementRow[], criterion: Extr
 /**
  * Story 23.21: the helper a test judged by a `max_field` shows while its plate field is empty
  * ("Sem VALOR DE PROJETO na placa, vale ≤ 5 Ω."); authored (Story 23.21, listed for Bruno).
+ *
+ * Story 30.3 (c) (seed v19 `helper_names_plate_block`, L4011-G7): with `plateTitle`, the name a type gives its plate
+ * block (`nameplate_title`, the Malha's "Dados da malha"), the helper names that block, the one the sheet shows:
+ * "Sem VALOR DE PROJETO em Dados da malha, vale ≤ 5 Ω." Null (a seed without the flag, a type that keeps the plate's
+ * name) reads "na placa" as before. Screen only: a measurement test's notes are not printed.
  */
-export function maxFieldDefaultText(label: string, limitText: string): string {
-  return `Sem ${label} na placa, vale ${limitText}.`;
+export function maxFieldDefaultText(label: string, limitText: string, plateTitle: string | null = null): string {
+  // authored (Story 30.3, listed for Bruno): "em ⟨título do bloco⟩" in the place of "na placa".
+  return plateTitle === null ? `Sem ${label} na placa, vale ${limitText}.` : `Sem ${label} em ${plateTitle}, vale ${limitText}.`;
 }
 
 // --- the winding at 75 °C and its history (seed v13, batch e23t, Story 23.15) ----------------------
 
 /** What a test's evaluation reads beyond its block and configuration: the definition's plate and oil rule, the visit context. */
 interface MeasurementContext {
-  definition: Pick<BlockDefinition, 'nameplate' | 'oil_rule' | 'tests' | 'measurement_tests'>;
+  definition: Pick<BlockDefinition, 'nameplate' | 'oil_rule' | 'tests' | 'measurement_tests'> & Partial<Pick<BlockDefinition, 'nameplate_title'>>;
   visit: VisitContext;
   /** `measurementTestsUnnumbered` of the definition. */
   unnumbered: boolean;
@@ -1125,6 +1134,7 @@ function applyHistory(block: Pick<BlockRow, 'sheet'>, test: MeasurementTest, row
         // authored (e23p, listed for Bruno): both corrected values, as the derived point names them.
         `de ${correctedText(before.raw, before.unit)} para ${correctedText(now.raw, now.unit)}, a ${WINDING_REFERENCE_C} °C`,
         true,
+        criterionSymbols(context.seedVersion),
       );
     }
   }
@@ -1456,6 +1466,8 @@ function evaluate(
   context: MeasurementContext,
 ): MeasurementTestEvaluation {
   const enabled = test.switchable === undefined || enabledSubBlocksOf(block).has(test.key);
+  // Story 30.3 (a): the form the sheet's seed writes a seeded criterion in (`criterion_symbols`, v19).
+  const symbols = criterionSymbols(context.seedVersion);
   const columns = columnsOf(test);
   // Story 25.9 (seed v15 `reading_not_applicable`): a number cell reads a stored "Não se aplica" only on such a sheet.
   const rows = evaluateRows(block, test, config, context.seedVersion !== undefined && seedRule(context.seedVersion, 'reading_not_applicable'));
@@ -1482,14 +1494,16 @@ function evaluate(
     for (const criterion of criteria) {
       if (criterion.type !== 'max_field') continue;
       const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
-      if (byDefault) notes.push(maxFieldDefaultText(context.definition.nameplate.find((field) => field.key === criterion.field)?.label ?? criterion.field, limit.text));
+      // Story 30.3 (c) (seed v19 `helper_names_plate_block`): the block the field is in, when the type renames its plate block.
+      const plateTitle = context.seedVersion !== undefined && seedRule(context.seedVersion, 'helper_names_plate_block') ? (context.definition.nameplate_title ?? null) : null;
+      if (byDefault) notes.push(maxFieldDefaultText(context.definition.nameplate.find((field) => field.key === criterion.field)?.label ?? criterion.field, limit.text, plateTitle));
     }
     // Seed v13 (batch e23t, Stories 23.15 and 23.19): a criterion read by medium judges only the medium the oil rule reads.
     const medium = criteria.some((criterion) => criterion.type === 'phase_deviation' && criterion.medium !== undefined) ? mediumOf({ nameplate: context.definition.nameplate, ...(context.definition.oil_rule === undefined ? {} : { oil_rule: context.definition.oil_rule }) }, block) : null;
     const deviation = criteria.find((criterion) => criterion.type === 'phase_deviation' && (criterion.medium === undefined || criterion.medium === medium)) ?? criteria.find((criterion) => criterion.type === 'phase_deviation');
     if (deviation !== undefined) markOpenCircuits(rows, deviation);
     for (const criterion of criteria) {
-      if (criterion.type === 'absolute') applyAbsolute(rows, criterion, overRangeUnanswered);
+      if (criterion.type === 'absolute') applyAbsolute(rows, criterion, overRangeUnanswered, symbols);
       else if (criterion.type === 'relative_to_lowest') applyRelative(rows, columns, criterion);
       else if (criterion.type === 'equals_column') applyEquals(rows, criterion);
       else if (criterion.type === 'phase_deviation') {
@@ -1545,7 +1559,7 @@ function evaluate(
   const inForce = criteriaInForce(criteria, medium);
   const lines: MeasurementCriterionLine[] = inForce.map((criterion) => {
     // Fix batch e23p (P5): a maximum read from the plate states its number when the plate gives one.
-    if (criterion.type !== 'max_field') return { text: criterionTextOf(criterion), sourceName: criterion.source.name, sourceEdition: criterion.source.edition };
+    if (criterion.type !== 'max_field') return { text: criterionTextOf(criterion, symbols), sourceName: criterion.source.name, sourceEdition: criterion.source.edition };
     const { limit, byDefault } = maxFieldLimit(block, context.definition.nameplate, criterion);
     return { text: maxFieldCriterionText(criterion, limit, byDefault), sourceName: criterion.source.name, sourceEdition: criterion.source.edition };
   });
@@ -1603,7 +1617,7 @@ const NONE: readonly MeasurementTestEvaluation[] = Object.freeze([]);
  */
 export function evaluateSheetMeasurements(
   block: Pick<BlockRow, 'config' | 'sheet'> & Partial<Pick<BlockRow, 'seed_version'>>,
-  definition: Pick<BlockDefinition, 'measurement_tests' | 'config_fields'> & Partial<Pick<BlockDefinition, 'nameplate' | 'tests' | 'oil_rule' | 'block_type'>>,
+  definition: Pick<BlockDefinition, 'measurement_tests' | 'config_fields'> & Partial<Pick<BlockDefinition, 'nameplate' | 'tests' | 'oil_rule' | 'block_type' | 'nameplate_title'>>,
   visit: VisitContext = NO_VISIT_CONTEXT,
 ): readonly MeasurementTestEvaluation[] {
   const tests = definition.measurement_tests;
@@ -1612,7 +1626,7 @@ export function evaluateSheetMeasurements(
   // Story 23.9: a test's applicability reads the plate; a caller that hands no nameplate reads every test as applicable.
   const plate = { nameplate: definition.nameplate ?? [], tests: definition.tests ?? [], measurement_tests: tests };
   // Batch e23t (Stories 23.15 to 23.19): the plate, the oil rule and (batch e23v's) visit context a v13 test reads.
-  const context: MeasurementContext = { definition: { ...plate, ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }) }, visit, unnumbered: measurementTestsUnnumbered(definition), ...(block.seed_version === undefined ? {} : { seedVersion: block.seed_version }) };
+  const context: MeasurementContext = { definition: { ...plate, ...(definition.oil_rule === undefined ? {} : { oil_rule: definition.oil_rule }), ...(definition.nameplate_title === undefined ? {} : { nameplate_title: definition.nameplate_title }) }, visit, unnumbered: measurementTestsUnnumbered(definition), ...(block.seed_version === undefined ? {} : { seedVersion: block.seed_version }) };
   return tests.map((test, index) => evaluate(block, test, index + 1, config, testApplicability(block, plate, test.key), context));
 }
 

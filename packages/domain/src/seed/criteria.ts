@@ -130,11 +130,20 @@ export function nominalBounds(value: number, tolerancePct: number): { min: numbe
   return { min: Math.min(a, b), max: Math.max(a, b) };
 }
 
+/** Story 30.3 (a): the operators `formatCriterionValue` writes as a sign and a space on a seed with `criterion_symbols`. */
+const CRITERION_SIGNS: Readonly<Record<string, string>> = { '>': '>', '<': '<', '>=': '≥', '<=': '≤', '±': '±' };
+
 /**
  * AGENTS.md "derived text goes in `packages/domain`": the Critérios de aceitação table's
  * `.cell-crit` text, e.g. `>400 MΩ` or `±0,5 %` (pt-BR decimal comma, a space before the unit).
+ *
+ * Story 30.3 (a) (seed v19 `criterion_symbols`, Bruno's answer of 2026-11-11): with `symbols` the operator is its
+ * typographic sign and one space stands after it: "≥ 5 GΩ", "≤ 0,5 Ω", "> 400 MΩ", "< 250 µΩ", "± 0,5 %". The caller
+ * reads the flag of the seed the text belongs to (`criterionSymbols` of the block's or the relatório's seed, of
+ * `SEED_VERSION` where no relatório is in hand); without it the text is v1 to v18's. A criterion with its own text, a
+ * nominal with its tolerance, a range and a pass-or-fail read the same either way.
  */
-export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit' | 'text'> & { tolerance_pct?: number | undefined }): string {
+export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit' | 'text'> & { tolerance_pct?: number | undefined }, symbols = false): string {
   // Story 23.2 (seed v13): a criterion that carries its own text (a NETA row) reads as it.
   if (criterion.text !== undefined) return criterion.text;
   const value = String(criterion.value).replace('.', ',');
@@ -148,7 +157,8 @@ export function formatCriterionValue(criterion: Pick<CriterionSeed, 'operator' |
   // authored (Story 14.6): a company type's two operators the seeds never use, as the editor's mock words them.
   if (criterion.operator === 'between' && criterion.value_max !== undefined) return withUnit(`entre ${value} e ${String(criterion.value_max).replace('.', ',')}`);
   if (criterion.operator === 'pass_fail') return 'aprovado ou reprovado';
-  return withUnit(`${criterion.operator}${value}`);
+  const sign = symbols ? CRITERION_SIGNS[criterion.operator] : undefined;
+  return withUnit(sign === undefined ? `${criterion.operator}${value}` : `${sign} ${value}`);
 }
 
 /**
@@ -171,8 +181,8 @@ export function judgesResistance(criterion: Pick<CriterionSeed, 'type' | 'unit'>
  * judged by "≥ 5.000 MΩ", ">0,4 GΩ" by ">400 MΩ"). The criterion's own text when the units are equal,
  * not both on the Ω table, or the operator is no one-sided bound. The printed criterion never reads this.
  */
-export function criterionTextInUnit(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit' | 'text'> & { tolerance_pct?: number | undefined }, unit: string | null): string {
-  const base = formatCriterionValue(criterion);
+export function criterionTextInUnit(criterion: Pick<CriterionSeed, 'operator' | 'value' | 'value_max' | 'unit' | 'text'> & { tolerance_pct?: number | undefined }, unit: string | null, symbols = false): string {
+  const base = formatCriterionValue(criterion, symbols);
   if (unit === null || criterion.unit === null || unit === criterion.unit) return base;
   if (!(unit in OHM_SCALE) || !(criterion.unit in OHM_SCALE)) return base;
   if (!['>', '<', '>=', '<='].includes(criterion.operator)) return base;
@@ -185,7 +195,7 @@ export function criterionTextInUnit(criterion: Pick<CriterionSeed, 'operator' | 
     const sign = criterion.operator === '>=' ? '≥' : criterion.operator === '<=' ? '≤' : null;
     return sign === null ? base : `${sign} ${formatDecimalGroupedPtBr(raw)} ${unit}`;
   }
-  return formatCriterionValue({ operator: criterion.operator, value: Number(raw), unit });
+  return formatCriterionValue({ operator: criterion.operator, value: Number(raw), unit }, symbols);
 }
 
 /**

@@ -125,9 +125,10 @@ describe('contract constants', () => {
   // e27b (Story 27.8, seed v17 opens equal to v16, 2026-11-22): 57, after e27a's 56; MIN follows.
   // e28a (Stories 28.2 to 28.4, seed v18 and its item and reason keys, 2026-11-23): 58, after e27b's 57; MIN follows.
   // e28c (Story 28.9, the setup key `additional_items`, 2026-11-23): 59, after e28a's 58; MIN follows.
-  it('speaks version 59 and refuses version 58 (batch e28c, Story 28.9: a version-58 bundle cannot parse `relatorio/setup/additional_items`)', () => {
-    expect(CONTRACT_VERSION).toBe(59);
-    expect(MIN_CONTRACT_VERSION).toBe(59);
+  // e30b (Story 30.3, seed v19 opens equal to v18, 2026-11-24): 60, after e28c's 59; MIN follows.
+  it('speaks version 60 and refuses version 59 (batch e30b, Story 30.3: a version-59 bundle ships no seed v19)', () => {
+    expect(CONTRACT_VERSION).toBe(60);
+    expect(MIN_CONTRACT_VERSION).toBe(60);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');

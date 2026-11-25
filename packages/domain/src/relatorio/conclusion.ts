@@ -972,7 +972,11 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
     hasReadings && checked
       ? `${verb} ${readings} e ${checklist}`
       : hasReadings
-        ? `${verb} ${readings}, sem itens verificados registrados`
+        ? // Story 30.3 (b) (seed v19 `conclusion_no_checklist_clause`, L4011-G8): a type with no checklist (the Malha de
+          // aterramento) has no item to check, so its sentence says nothing about items.
+          definition.checklist === null && seedRule(block.seed_version, 'conclusion_no_checklist_clause')
+          ? `${verb} ${readings}`
+          : `${verb} ${readings}, sem itens verificados registrados`
         : checked
           ? // e22g (review N5): a type with nothing to measure (the Inspeção de QGBT) never says no value was recorded.
             nothingToMeasure(definition, measurements)

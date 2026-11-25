@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { BASE_EQUIPMENT_BLOCK_TYPES, EQUIPMENT_BLOCK_TYPES, ITEM_KEYS, SITE_ITEM_KEYS, SUB_BLOCK_KEYS } from '../schemas/block-config.ts';
-import { SEEDED_CRITERIA } from './criteria.ts';
+import { criterionTextInUnit, formatCriterionValue, SEEDED_CRITERIA } from './criteria.ts';
+import { currentCriterionText } from './criteria-view.ts';
 import { CRITERION_ROW_STATUSES, NETA_100_1, NETA_100_5 } from './criteria-tables.ts';
 import {
+  criterionSymbols,
   equipmentTypesOf,
   findDefinition,
   findSeed,
@@ -1789,7 +1791,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
     expect(keys('v9', 'transformador_forca')).toContain('potencia_nominal');
   });
 
-  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 to v18 (vector_group) transformador de força ratio table only', () => {
+  it('ratio_factor sits on the v9 and v10 (sqrt3) and v11 to v19 (vector_group) transformador de força ratio table only', () => {
     const factors: string[] = [];
     for (const version of Object.keys(SEED_VERSIONS)) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
@@ -1807,6 +1809,7 @@ describe('seed v9 (Stories 15.3 and 15.6): v8 with one oil-level item, the TC wi
       'v16/transformador_forca/relacao_transformacao/vector_group',
       'v17/transformador_forca/relacao_transformacao/vector_group',
       'v18/transformador_forca/relacao_transformacao/vector_group',
+      'v19/transformador_forca/relacao_transformacao/vector_group',
     ]);
   });
 
@@ -2302,6 +2305,8 @@ const E28B_FLAGS = ['point_start_priority', 'deadline_from_issue', 'row_voltage_
 const E28C_FLAGS = ['additional_items', 'earth_paragraph_with_malha'] as const;
 /** Fix batch e28w (S3, under Story 28.4, seed v18): a label lowered into a sentence keeps its acronyms. */
 const E28W_FLAGS = ['label_acronyms_inline'] as const;
+/** Batch e30b (Story 30.3): the three rule flags of seed v19, one per delta. */
+const E30B_FLAGS = ['criterion_symbols', 'conclusion_no_checklist_clause', 'helper_names_plate_block'] as const;
 
 /** Batch e24s (Story 24.11): the transformer's appended items, in order. */
 const E24S_TRANSFORMER_ITEMS = ['tanque_e_aletas', 'limpeza_das_bobinas', 'trincas_na_resina'];
@@ -2375,7 +2380,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   const FLAGS = Object.keys(seedRulesSchema.shape) as SeedRuleFlag[];
 
   it('names the five flags of batch e24a, the three of batch e24p, the three of fix batch e24y and the v15 flags of Epic 25, each true or absent', () => {
-    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS, ...E28W_FLAGS]);
+    expect(FLAGS).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS, ...E28W_FLAGS, ...E30B_FLAGS]);
     expect(seedRulesSchema.safeParse({}).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: true }).success).toBe(true);
     expect(seedRulesSchema.safeParse({ parecer_names_finding: false }).success).toBe(false);
@@ -2404,7 +2409,7 @@ describe('24.2-UNIT seed v14 (Epic 24): v13 plus the rule flags and the keys of 
   it('e24p: v14 turns on the three rule flags of Stories 24.15 to 24.17 and nothing else', () => {
     expect(withoutE24y(withoutE24a(v14)).rules).toEqual(Object.fromEntries(E24P_FLAGS.map((flag) => [flag, true])));
     expect(v14.rules).toEqual(Object.fromEntries([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS].map((flag) => [flag, true])));
-    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS, ...E28W_FLAGS]);
+    expect([...FLAGS]).toEqual([...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS, ...E25C6_FLAGS, ...E25C7_FLAGS, ...E25C9_FLAGS, ...E25C10_FLAGS, ...E25P20_FLAGS, ...E25P22_FLAGS, ...E27A_FLAGS, ...E27B8_NEW_FLAGS, ...E27B9_FLAGS, ...E28B_FLAGS, ...E28C_FLAGS, ...E28W_FLAGS, ...E30B_FLAGS]);
     for (const flag of [...E24A_FLAGS, ...E24P_FLAGS, ...E24Y_FLAGS]) expect(seedRule('v14', flag), flag).toBe(true);
     // Story 25.6: a v15 flag is off on v14.
     for (const flag of E25C6_FLAGS) expect(seedRule('v14', flag), flag).toBe(false);
@@ -2756,7 +2761,7 @@ describe('27.8-UNIT seed v17 (Epic 27 wave 2) opens equal to v16, and v16 is fro
 describe('27.8-UNIT seed v17 (Story 27.8): the form\'s words "ITEM", "Para-raios" and "realizados"; v1 to v16 unchanged', () => {
   const v17 = getSeed('v17', 'cabine_primaria');
   // Seed v18 (batch e28a) opens equal to v17 and keeps its words and flags.
-  const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v17' && version !== 'v18');
+  const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v17' && version !== 'v18' && version !== 'v19');
 
   it('the checklist header reads "ITEM" on v17 and "ÍTEM" on every older seed; the other columns are v16\'s', () => {
     expect(STORY_27_8_CHECKLIST_HEADER).toBe('ITEM');
@@ -2793,12 +2798,14 @@ describe('27.8-UNIT seed v17 (Story 27.8): the form\'s words "ITEM", "Para-raios
 describe('27.9-UNIT seed v17 (Story 27.9): the wording pass\'s printed half on v17 only', () => {
   // Seed v18 (batch e28a) keeps v17's flags.
   it('turns on wording_pass on v17 (and v18) and on no older seed', () => {
-    for (const version of Object.keys(SEED_VERSIONS)) expect(seedRule(version, 'wording_pass'), version).toBe(version === 'v17' || version === 'v18');
+    for (const version of Object.keys(SEED_VERSIONS)) expect(seedRule(version, 'wording_pass'), version).toBe(version === 'v17' || version === 'v18' || version === 'v19');
   });
 });
 
 /**
- * v18 as it ships (Epic 28); until its deploy each batch of the epic re-pins it, after it a change is a new version.
+ * v18 as it ships (Epic 28); until its deploy each batch of the epic re-pinned it. Frozen since the deploy of de79700b
+ * (2026-11-24, tag v0.14.0): the value that commit's `seed.test.ts` holds, and a change to v18 is now a new version
+ * (seed v19, batch e30b, Story 30.3).
  * Batch e28a, first commit (2026-11-23, Story 28.2): v18 opens equal to v17, the same content and the same rule flags.
  */
 // Batch e28b (2026-11-23, Stories 28.5 to 28.8): the five wave-2 rule flags (was bd769c9f… after batch e28a).
@@ -2916,10 +2923,10 @@ describe('28.2-UNIT-001 seed v18 (Epic 28) opens equal to v17', () => {
   const v18 = getSeed('v18', 'cabine_primaria');
   const VERSIONS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17'];
 
-  it('is the version a new Template is created with, offering the types of v17', () => {
-    expect(SEED_VERSION).toBe('v18');
+  // Seed v19 (batch e30b) is the version a new Template is created with since Epic 30 wave 1; v18 ships as it did.
+  it('was the version a new Template is created with until v19, offering the types of v17', () => {
     expect(SEED_VERSIONS.v18!.version).toBe('v18');
-    expect(Object.keys(SEED_VERSIONS)).toEqual([...VERSIONS, 'v18']);
+    expect(Object.keys(SEED_VERSIONS).slice(0, 18)).toEqual([...VERSIONS, 'v18']);
     expect(equipmentTypesOf('v18')).toEqual(equipmentTypesOf('v17'));
   });
 
@@ -2989,7 +2996,7 @@ describe('28.3-UNIT-001 seed v18 (Story 28.3): the oil\'s names on the transform
   });
 
   it('no seed before v18 carries `screen_after` or `implied_by`', () => {
-    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) {
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18' && one !== 'v19')) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
         for (const one of definition.nameplate) expect(one.screen_after === undefined && one.implied_by === undefined, `${version} ${definition.block_type}/${one.key}`).toBe(true);
       }
@@ -3024,7 +3031,7 @@ describe('28.4-UNIT-001 seed v18 (Story 28.4): items 18 and 19, the thermography
     for (const version of Object.keys(SEED_VERSIONS)) {
       for (const definition of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
         const dry = (definition.checklist ?? []).filter((item) => item.dry_label !== undefined).map((item) => `${definition.block_type}/${item.key}`);
-        expect(dry, version).toEqual(version === 'v18' && definition.block_type === 'transformador_forca' ? STORY_28_4_TRANSFORMER_ITEMS.map((item) => `transformador_forca/${item.key}`) : []);
+        expect(dry, version).toEqual((version === 'v18' || version === 'v19') && definition.block_type === 'transformador_forca' ? STORY_28_4_TRANSFORMER_ITEMS.map((item) => `transformador_forca/${item.key}`) : []);
       }
     }
   });
@@ -3043,7 +3050,7 @@ describe('28.4-UNIT-001 seed v18 (Story 28.4): items 18 and 19, the thermography
       'Ensaios não realizados no(s) equipamento(s) {tag}, de propriedade da concessionária {concessionaria} e destinado(s) à medição de faturamento, por não haver autorização da concessionária para intervenção.',
     );
     expect(v17.not_tested_reasons.map((reason) => reason.key)).toEqual(['impossibilidade_desligamento', 'solicitacao_cliente', 'equipamento_inacessivel', 'defeito_no_equipamento', 'outro']);
-    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) expect(getSeed(version, 'cabine_primaria').not_tested_reasons.some((reason) => reason.utility !== undefined), version).toBe(false);
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18' && one !== 'v19')) expect(getSeed(version, 'cabine_primaria').not_tested_reasons.some((reason) => reason.utility !== undefined), version).toBe(false);
   });
 
   it('the No-break de comando\'s battery date names the exchange on v18, the same key; v17 keeps its label', () => {
@@ -3066,7 +3073,127 @@ describe('28.2-UNIT-002 seed v17 is frozen as it shipped at the deploy of 886af5
     expect(hash('v15'), 'seed v15 changed after it shipped: add a new version instead').toBe(V15_HASH);
     expect(hash('v16'), 'seed v16 changed after it shipped: add a new version instead').toBe(V16_HASH);
     expect(hash('v17'), 'seed v17 changed after it shipped: add a new version instead').toBe(V17_HASH);
-    expect(hash('v18'), 'seed v18 changed: before its first deploy update this pin, after it add a new version').toBe(V18_HASH);
+    expect(hash('v18'), 'seed v18 changed after it shipped: add a new version instead').toBe(V18_HASH);
+  });
+});
+
+/**
+ * v19 as it ships (Epic 30, Story 30.3); until its deploy a batch that changes it re-pins it, after it a change is a new
+ * version. Batch e30b, opening commit (2026-11-24): v19 opens equal to v18, the same content and the same rule flags.
+ */
+// Batch e30b (2026-11-24, Story 30.3 (a), (b) and (c)): the three rule flags (was e26da016… at the opening commit).
+const V19_HASH = 'a501a31e00e62364addafbc58c8c3feaff42f4fb6eceaa6421d494b4fd9fe2a5';
+
+/**
+ * Batch e30b (Story 30.3): each delta on v19, undone, in the order `seed/v19.ts` applies them. A delta adds its own
+ * fenced section to `seed/v19.ts` (`// --- Story 30.3 (x): ... ---`) and its own `withoutE30b<x>` helper below this
+ * line, and names it here, so `withoutE30b(v19)` stays v18 and "30.3-UNIT-001" keeps pinning that every other byte of
+ * v19 is v18's.
+ */
+// Story 30.3 (a): the rule flag `criterion_symbols` (`withoutE30bA` below).
+// Story 30.3 (b): the rule flag `conclusion_no_checklist_clause` (`withoutE30bB` below).
+// Story 30.3 (c): the rule flag `helper_names_plate_block` (`withoutE30bC` below).
+const E30B_STRIPS: readonly ((seed: ReportSeed) => ReportSeed)[] = [withoutE30bA, withoutE30bB, withoutE30bC];
+
+/** v19 without Story 30.3 (a)'s delta: its one rule flag. */
+function withoutE30bA(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['criterion_symbols']);
+}
+
+/** v19 without Story 30.3 (b)'s delta: its one rule flag. */
+function withoutE30bB(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['conclusion_no_checklist_clause']);
+}
+
+/** v19 without Story 30.3 (c)'s delta: its one rule flag. */
+function withoutE30bC(seed: ReportSeed): ReportSeed {
+  return withoutRuleFlags(seed, ['helper_names_plate_block']);
+}
+
+/** v19 with every delta of Story 30.3 undone: v18 as it shipped. */
+function withoutE30b(seed: ReportSeed): ReportSeed {
+  return E30B_STRIPS.reduceRight((out, strip) => strip(out), structuredClone(seed));
+}
+
+describe('30.3-UNIT-001 seed v19 (Epic 30, Story 30.3) opens equal to v18', () => {
+  const v18 = getSeed('v18', 'cabine_primaria');
+  const v19 = getSeed('v19', 'cabine_primaria');
+  const VERSIONS = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7', 'v8', 'v9', 'v10', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17', 'v18'];
+
+  it('is the version a new Template is created with, offering the types of v18', () => {
+    expect(SEED_VERSION).toBe('v19');
+    expect(SEED_VERSIONS.v19!.version).toBe('v19');
+    expect(Object.keys(SEED_VERSIONS)).toEqual([...VERSIONS, 'v19']);
+    expect(equipmentTypesOf('v19')).toEqual(equipmentTypesOf('v18'));
+  });
+
+  it('stringifies equal to v18 once every delta of Story 30.3 is undone', () => {
+    expect(JSON.stringify(withoutE30b(v19))).toBe(JSON.stringify(v18));
+  });
+
+  it('keeps every rule flag v18 turns on (a v19 relatório concludes and prints as a v18 one but for the three deltas)', () => {
+    expect(withoutE30b(v19).rules).toEqual(v18.rules);
+    for (const flag of Object.keys(v18.rules ?? {}) as SeedRuleFlag[]) expect(seedRule('v19', flag), flag).toBe(true);
+  });
+});
+
+describe('30.3-UNIT-FLAGS seed v19 (Story 30.3): its three rule flags, one per delta, on v19 only', () => {
+  it('turns on criterion_symbols, conclusion_no_checklist_clause and helper_names_plate_block in v19 and in no version before it', () => {
+    for (const flag of E30B_FLAGS) {
+      expect(seedRule('v19', flag), flag).toBe(true);
+      for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v19')) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
+    }
+    expect(criterionSymbols('v19')).toBe(true);
+    expect(criterionSymbols('v18')).toBe(false);
+    expect(criterionSymbols(undefined)).toBe(false);
+  });
+
+  it('v19\'s rules are v18\'s plus the three, and nothing else of the seed differs', () => {
+    const v18 = getSeed('v18', 'cabine_primaria');
+    const v19 = getSeed('v19', 'cabine_primaria');
+    expect(v19.rules).toEqual({ ...v18.rules, ...Object.fromEntries(E30B_FLAGS.map((flag) => [flag, true])) });
+    expect(JSON.stringify({ ...v19, rules: v18.rules })).toBe(JSON.stringify(v18));
+  });
+
+  it('formatCriterionValue with symbols: the sign and a space; a text of its own, a nominal, a range and pass-or-fail unchanged', () => {
+    const unit = (operator: string, value: number, u: string | null) => ({ operator, value, unit: u });
+    expect(formatCriterionValue(unit('>=', 5, 'GΩ'), true)).toBe('≥ 5 GΩ');
+    expect(formatCriterionValue(unit('<=', 0.5, 'Ω'), true)).toBe('≤ 0,5 Ω');
+    expect(formatCriterionValue(unit('>', 400, 'MΩ'), true)).toBe('> 400 MΩ');
+    expect(formatCriterionValue(unit('<', 250, 'µΩ'), true)).toBe('< 250 µΩ');
+    expect(formatCriterionValue(unit('±', 0.5, '%'), true)).toBe('± 0,5 %');
+    expect(formatCriterionValue(unit('>=', 2, null), true)).toBe('≥ 2');
+    // Without it, v1 to v18's glued form.
+    expect(formatCriterionValue(unit('>=', 5, 'GΩ'))).toBe('>=5 GΩ');
+    expect(formatCriterionValue(unit('±', 0.5, '%'))).toBe('±0,5 %');
+    for (const symbols of [false, true]) {
+      expect(formatCriterionValue({ ...unit('>=', 5000, 'MΩ'), text: '≥ 5.000 MΩ' }, symbols)).toBe('≥ 5.000 MΩ');
+      expect(formatCriterionValue({ ...unit('nominal_pct', 220, 'V'), tolerance_pct: 5 }, symbols)).toBe('220 V ± 5 %');
+      expect(formatCriterionValue({ ...unit('between', 1, 'V'), value_max: 2 }, symbols)).toBe('entre 1 e 2 V');
+      expect(formatCriterionValue(unit('pass_fail', 1, null), symbols)).toBe('aprovado ou reprovado');
+    }
+    // The Critérios tab and the type editor belong to no relatório: the form of the current seed.
+    expect(SEEDED_CRITERIA.map((criterion) => currentCriterionText(criterion))).toEqual(['> 400 MΩ', '< 250 µΩ', '± 0,5 %']);
+    // A reading's remark cites the criterion in the reading's unit, in the same form.
+    expect(criterionTextInUnit(unit('>', 400, 'MΩ'), 'GΩ', true)).toBe('> 0,4 GΩ');
+    expect(criterionTextInUnit(unit('>', 400, 'MΩ'), 'GΩ')).toBe('>0,4 GΩ');
+  });
+});
+
+describe('30.3-UNIT-002 seed v18 is frozen as it shipped at the deploy of de79700b; v19 is pinned until its own', () => {
+  const hash = (version: string) => createHash('sha256').update(JSON.stringify(shipped(version))).digest('hex');
+
+  it('V18_HASH is the value v18 shipped with at the deploy of de79700b, and v11 to v17 hash as they shipped', () => {
+    expect(V18_HASH).toBe('3cf073c54ac755b4636d1e96df990cdb69fc9b13929b5b5f3a8a22d86e854951');
+    expect(hash('v11'), 'seed v11 changed after it shipped: add a new version instead').toBe(V11_HASH);
+    expect(hash('v12'), 'seed v12 changed after it shipped: add a new version instead').toBe(V12_HASH);
+    expect(hash('v13'), 'seed v13 changed after it shipped: add a new version instead').toBe(V13_HASH);
+    expect(hash('v14'), 'seed v14 changed after it shipped: add a new version instead').toBe(V14_HASH);
+    expect(hash('v15'), 'seed v15 changed after it shipped: add a new version instead').toBe(V15_HASH);
+    expect(hash('v16'), 'seed v16 changed after it shipped: add a new version instead').toBe(V16_HASH);
+    expect(hash('v17'), 'seed v17 changed after it shipped: add a new version instead').toBe(V17_HASH);
+    expect(hash('v18'), 'seed v18 changed after it shipped: add a new version instead').toBe(V18_HASH);
+    expect(hash('v19'), 'seed v19 changed: before its first deploy update this pin, after it add a new version').toBe(V19_HASH);
   });
 });
 
@@ -3190,7 +3317,7 @@ describe('25.16-UNIT seed v16 (Story 25.16): the Malha\'s continuity test takes 
       for (const block of Object.values(getSeed(version, 'cabine_primaria').blocks)) {
         for (const test of block.measurement_tests ?? []) {
           const where = `${version} ${block.block_type}/${test.key}`;
-          if (version !== 'v16' && version !== 'v17' && version !== 'v18') expect(test.added_rows, where).toBeUndefined();
+          if (version !== 'v16' && version !== 'v17' && version !== 'v18' && version !== 'v19') expect(test.added_rows, where).toBeUndefined();
           else if (block.block_type === 'malha_aterramento' && test.key === STORY_25_16_TEST) expect(test.added_rows, where).toEqual(STORY_25_16_ADDED_ROWS);
           else if (test.key !== 'termografia') expect(test.added_rows, where).toBeUndefined();
         }
@@ -3291,7 +3418,7 @@ describe('25.19-UNIT seed v16 (Story 25.19, the "A SECO" half): the dry option a
 
   // Seed v17 (batch e27b) keeps v16's "A SECO".
   it('every seed of v1 to v15 still reads "Á SECO" in its options and its subtypes', () => {
-    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v16' && one !== 'v17' && one !== 'v18')) {
+    for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v16' && one !== 'v17' && one !== 'v18' && one !== 'v19')) {
       const seed = getSeed(version, 'cabine_primaria');
       for (const type of STORY_25_19_TYPES) {
         const options = seed.blocks[type].nameplate.find((candidate) => candidate.key === 'tipo_de_isolacao')?.options;
@@ -4335,7 +4462,7 @@ describe('28.9-UNIT-SEED and 28.10-UNIT-SEED (batch e28c) the additional items, 
   it('turn on `additional_items` and `earth_paragraph_with_malha` in v18 and in no version before it', () => {
     for (const flag of ['additional_items', 'earth_paragraph_with_malha'] as const) {
       expect(seedRule('v18', flag), flag).toBe(true);
-      for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
+      for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18' && one !== 'v19')) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
     }
   });
 
@@ -4353,7 +4480,7 @@ describe('28.5-UNIT-SEED to 28.8-UNIT-SEED (batch e28b) the rule flags of the wa
   it('are on in v18 and off in every version before it', () => {
     for (const flag of FLAGS) {
       expect(seedRule('v18', flag), flag).toBe(true);
-      for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18')) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
+      for (const version of Object.keys(SEED_VERSIONS).filter((one) => one !== 'v18' && one !== 'v19')) expect(seedRule(version, flag), `${version} ${flag}`).toBe(false);
     }
   });
 });

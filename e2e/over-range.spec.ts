@@ -217,7 +217,8 @@ test('@p0 22.10-E2E-001 Cadastros sets the instrument limits; "OL" stores the 2 
  */
 test('@p0 28.7-E2E-001 v18: "OL" on an insulation reading prints "> 2 TΩ" and, under the test, Bruno\'s line naming the instrument\'s limit, in the DOCX and the PDF', async ({ page }) => {
   test.setTimeout(300_000);
-  expect(SEED_VERSION).toBe('v18');
+  // Batch e30b (Story 30.3): a new relatório is born on v19, which keeps `over_range_note`.
+  expect(SEED_VERSION).toBe('v19');
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);

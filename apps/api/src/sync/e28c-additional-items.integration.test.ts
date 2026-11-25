@@ -52,9 +52,10 @@ const itemsOp = (person: 'campo' | 'consulta', value: string[]): Op => h.clientO
 const stored = async () => (await h.rowOf<RelatorioRow>(people.campo, 'relatorio', relatorioId))?.setup.additional_items;
 
 describe('28.9-API-001 the additional items through the sync route', () => {
-  it('a relatório born on v18 holds none; the field writes two in order; a role without relatorio.fill is refused op_forbidden; past the cap op_value_invalid', async () => {
-    expect(SEED_VERSION).toBe('v18');
-    expect((await h.rowOf<RelatorioRow>(people.campo, 'relatorio', relatorioId))?.seed_version).toBe('v18');
+  // Batch e30b (Story 30.3): the current seed is v19, which keeps v18's `additional_items`; the contract moved on to 60.
+  it('a relatório born on the current seed (v19) holds none; the field writes two in order; a role without relatorio.fill is refused op_forbidden; past the cap op_value_invalid', async () => {
+    expect(SEED_VERSION).toBe('v19');
+    expect((await h.rowOf<RelatorioRow>(people.campo, 'relatorio', relatorioId))?.seed_version).toBe('v19');
     expect(await stored()).toEqual([]);
 
     const written = itemsOp('campo', ITEMS);
@@ -72,8 +73,8 @@ describe('28.9-API-001 the additional items through the sync route', () => {
     expect(await stored()).toEqual(ITEMS);
 
     // The contract before cannot parse the path: its pull of the relatório is refused, a current one reads the put.
-    expect(CONTRACT_VERSION).toBe(59);
-    expect(MIN_CONTRACT_VERSION).toBe(59);
+    expect(CONTRACT_VERSION).toBe(60);
+    expect(MIN_CONTRACT_VERSION).toBe(60);
     const old = await h.authed(people.campo, `/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '58' } });
     expect(old.status).toBe(426);
     expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');

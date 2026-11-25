@@ -56,7 +56,8 @@ async function issuePdfText(page: Page, relatorioId: string, number: number): Pr
 
 test('@p0 28.10-E2E-001 v18: section 1 reads "de ⟨cliente⟩"; section 2 prints the earth paragraph only once a Malha de aterramento is in the relatório; a v15 thermography applied by hand reads Bruno\'s band', async ({ page }) => {
   test.setTimeout(540_000);
-  expect(SEED_VERSION).toBe('v18');
+  // Batch e30b (Story 30.3): a new relatório is born on v19, which keeps section 1's words and the earth paragraph rule.
+  expect(SEED_VERSION).toBe('v19');
   const { relatorioId } = await setUpRelatorio(page, account, database);
 
   // Revision 1, no Malha: "de" in section 1, no paragraph on earth resistance.

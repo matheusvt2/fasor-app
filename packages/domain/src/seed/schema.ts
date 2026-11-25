@@ -1193,6 +1193,25 @@ export const seedRulesSchema = z
      * as v1 to v17 print it ("display, alarmes e leds").
      */
     label_acronyms_inline: z.literal(true).optional(),
+    /**
+     * Story 30.3 (a) (seed v19; Bruno's answer of 2026-11-11, item 9): a criterion with no text of its own is written
+     * with the typographic sign and one space after it: "≥ 5 GΩ", "≤ 0,5 Ω", "> 400 MΩ", "< 250 µΩ", "± 0,5 %"
+     * (`formatCriterionValue`'s `symbols`, read through `criterionSymbols`). Off, v1 to v18 glue the operator as typed
+     * (">=5 GΩ", "±0,5 %"). A criterion that carries its own text reads as it stands on every seed.
+     */
+    criterion_symbols: z.literal(true).optional(),
+    /**
+     * Story 30.3 (b) (seed v19, L4011-G8): a sheet with readings whose type has no checklist (`checklist: null`, the
+     * Malha de aterramento) concludes "{verbo} {leituras}" with no clause about checked items. Off, v1 to v18 end
+     * ", sem itens verificados registrados".
+     */
+    conclusion_no_checklist_clause: z.literal(true).optional(),
+    /**
+     * Story 30.3 (c) (seed v19, L4011-G7): the helper of a maximum read from the plate, said while the field is empty,
+     * names the block the field is in when the type renames its plate block (`nameplate_title`): "Sem VALOR DE PROJETO
+     * em Dados da malha, vale ≤ 5 Ω." Off, and on a type that keeps the plate's name, it reads "na placa".
+     */
+    helper_names_plate_block: z.literal(true).optional(),
   })
   .strict();
 export type SeedRules = z.infer<typeof seedRulesSchema>;

@@ -169,7 +169,7 @@ describe('27.3-UNIT the print keeps its bytes unless the seed turns parecer_open
   // Seed v18 (batch e28a) opens equal to v17 and keeps the flag.
   it('no shipped seed but v17 (and v18) turns the flag on', async () => {
     const actual = await vi.importActual<typeof import('../seed/definitions.ts')>('../seed/definitions.ts');
-    for (const version of Object.keys(SEED_VERSIONS)) expect(actual.seedRule(version, 'parecer_open_apart'), version).toBe(version === 'v17' || version === 'v18');
+    for (const version of Object.keys(SEED_VERSIONS)) expect(actual.seedRule(version, 'parecer_open_apart'), version).toBe(version === 'v17' || version === 'v18' || version === 'v19');
   });
 
   it('v16, flag off: parecerTextForPrint is the sentence printed before Story 27.3', () => {

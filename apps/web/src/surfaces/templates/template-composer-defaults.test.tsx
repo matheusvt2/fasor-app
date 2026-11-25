@@ -152,8 +152,9 @@ describe('3.5 composer: sub-block defaults per type', () => {
       `${getDefinition(SEED_VERSION, 'cabine_primaria', 'chave_seccionadora').nameplate.length} campos`,
       '14 itens C · NC · NA',
       'Sempre na ficha',
-      'T1 · T3 · T5 · Fase A · Fase B · Fase C × Valor · >400 MΩ (aceitável na ficha)',
-      'T1-T2 · T3-T4 · T5-T6 × Valor · <250 µΩ (aceitável na ficha)',
+      // Story 30.3 (a): the composer writes a criterion in the form of the current seed (v19: the sign and a space).
+      'T1 · T3 · T5 · Fase A · Fase B · Fase C × Valor · > 400 MΩ (aceitável na ficha)',
+      'T1-T2 · T3-T4 · T5-T6 × Valor · < 250 µΩ (aceitável na ficha)',
       'Sempre na ficha',
     ]);
     const subtype = within(dialog).getByRole('combobox', { name: 'Subtipo padrão' });

@@ -47,7 +47,7 @@ describe('standardTemplate', () => {
     }
     // v1 to v12 build the very same blocks: v13 is the first to add a sub-block to a type (v14 opens equal to v13, v15 to v14, v16 to v15, v17 to v16, v18 to v17).
     const v12 = standardTemplate({ id: ID, seedVersion: 'v12' }).blocks;
-    for (const version of versions.filter((one) => one !== 'v13' && one !== 'v14' && one !== 'v15' && one !== 'v16' && one !== 'v17' && one !== 'v18')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
+    for (const version of versions.filter((one) => one !== 'v13' && one !== 'v14' && one !== 'v15' && one !== 'v16' && one !== 'v17' && one !== 'v18' && one !== 'v19')) expect(standardTemplate({ id: ID, seedVersion: version }).blocks, version).toEqual(v12);
     expect(withVersionSubBlocks(v12, 'v12')).toEqual(v12);
   });
 
