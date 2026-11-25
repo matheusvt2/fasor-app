@@ -109,13 +109,13 @@ function parecerOp(): Op {
 const syncState = (over: SyncStateOverrides = {}): SyncState =>
   makeSyncState({ userNames: { [USER]: 'Bento Braga' }, generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: JOB_ID, revision_number: 1 })), ...over });
 
-function Harness({ sync, open = true }: { sync: SyncState; open?: boolean }) {
+function Harness({ sync, open = true, onOpenChange = () => {} }: { sync: SyncState; open?: boolean; onOpenChange?: (isOpen: boolean) => void }) {
   return (
     <MemoryRouter>
       <SyncContext value={sync}>
         <ToastProvider>
           <button type="button">Abrir</button>
-          <ExportDialog relatorioId={REL} isOpen={open} onOpenChange={() => {}} timing={TIMING} />
+          <ExportDialog relatorioId={REL} isOpen={open} onOpenChange={onOpenChange} timing={TIMING} />
           <ToastOutlet />
         </ToastProvider>
       </SyncContext>
@@ -444,6 +444,33 @@ describe('Export dialog (Story 4.8)', () => {
       );
     });
     await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
+  });
+
+  it('e30f-UNIT-001: "Marcar como enviado ao cliente" leaves the focus inside the dialog in the same commit that removes it, so an Esc pressed at once closes the dialog (21.1-E2E-002)', async () => {
+    database = await freshDb();
+    const sync = syncState();
+    const onOpenChange = vi.fn();
+    render(<Harness sync={sync} onOpenChange={onOpenChange} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    await act(async () => {
+      await applyPulled(database!, [...jobOps('done'), revisionOf(1).op]);
+    });
+    const modal = dialog();
+    const markSent = await within(modal).findByRole('button', { name: 'Marcar como enviado ao cliente' });
+    // No animation frame runs from here: the dialog's FocusScope gives a lost focus back one frame
+    // after the blur, and on a loaded device a key lands before that frame. The focus must not wait for it.
+    const frames = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0);
+    try {
+      await userEvent.click(markSent);
+      await waitFor(() => expect(within(modal).queryByRole('button', { name: 'Marcar como enviado ao cliente' })).toBeNull());
+      expect(modal.contains(document.activeElement)).toBe(true);
+      expect(document.activeElement).toBe(within(modal).getByRole('button', { name: 'Gerar de novo' }));
+      await userEvent.keyboard('{Escape}');
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    } finally {
+      frames.mockRestore();
+    }
   });
 
   it('E4 retro item 19: an edit made while the job runs keeps the relatório Em revisão; revision 1 is ready and the idle line names revision 2', async () => {
