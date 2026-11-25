@@ -54,9 +54,12 @@ variable "bedrock_model_id" {
   type        = string
   default     = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
+  # Story 30.2 A (L1296): a typo made the api crash-loop in production. Each Bedrock model id has the shape of a
+  # model or inference-profile id: an optional `global.` or region prefix, a provider, a dot, a model name
+  # (`scripts/infra-tf.test.ts` reads the pattern and runs it on today's values and the typos).
   validation {
-    condition     = length(var.bedrock_model_id) > 0
-    error_message = "bedrock_model_id is a model or inference-profile id."
+    condition     = can(regex("^((global|us|us-gov|eu|apac|jp|au|ca)\\.)?[a-z0-9-]+\\.[a-z0-9]([a-z0-9.:_-]*[a-z0-9])?$", var.bedrock_model_id))
+    error_message = "bedrock_model_id is a Bedrock model or inference-profile id: an optional global. or region prefix, a provider, a dot and a model name (anthropic.claude-haiku-4-5-20251001-v1:0)."
   }
 }
 
@@ -64,18 +67,33 @@ variable "bedrock_panel_model_id" {
   description = "BEDROCK_PANEL_MODEL_ID of the api: the model that reads panel fronts (Matheus, 2026-10-06). Qwen3 VL 235B by default; Haiku 4.5 returned the panel's block type uncited."
   type        = string
   default     = "qwen.qwen3-vl-235b-a22b"
+
+  validation {
+    condition     = can(regex("^((global|us|us-gov|eu|apac|jp|au|ca)\\.)?[a-z0-9-]+\\.[a-z0-9]([a-z0-9.:_-]*[a-z0-9])?$", var.bedrock_panel_model_id))
+    error_message = "bedrock_panel_model_id is a Bedrock model or inference-profile id: an optional global. or region prefix, a provider, a dot and a model name (qwen.qwen3-vl-235b-a22b)."
+  }
 }
 
 variable "bedrock_prose_model_id" {
   description = "BEDROCK_PROSE_MODEL_ID of the api: the caption and NC draft model. Empty uses bedrock_model_id."
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.bedrock_prose_model_id == "" || can(regex("^((global|us|us-gov|eu|apac|jp|au|ca)\\.)?[a-z0-9-]+\\.[a-z0-9]([a-z0-9.:_-]*[a-z0-9])?$", var.bedrock_prose_model_id))
+    error_message = "bedrock_prose_model_id is empty or a Bedrock model or inference-profile id: an optional global. or region prefix, a provider, a dot and a model name."
+  }
 }
 
 variable "bedrock_escalation_model_id" {
   description = "BEDROCK_ESCALATION_MODEL_ID of the api: the model a plate reading more than half Verificar is read again on (Story 11.6). Empty turns the escalation off."
   type        = string
   default     = "us.amazon.nova-pro-v1:0"
+
+  validation {
+    condition     = var.bedrock_escalation_model_id == "" || can(regex("^((global|us|us-gov|eu|apac|jp|au|ca)\\.)?[a-z0-9-]+\\.[a-z0-9]([a-z0-9.:_-]*[a-z0-9])?$", var.bedrock_escalation_model_id))
+    error_message = "bedrock_escalation_model_id is empty or a Bedrock model or inference-profile id: an optional global. or region prefix, a provider, a dot and a model name (us.amazon.nova-pro-v1:0)."
+  }
 }
 
 variable "ai_features" {
