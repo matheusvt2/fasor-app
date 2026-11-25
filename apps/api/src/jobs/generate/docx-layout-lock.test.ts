@@ -45,6 +45,12 @@ import { placeholderPages } from './toc.ts';
  * group title "TPs e TCs dos Cubículos de MT" (code, decision 2 of 2026-11-21), and nothing else of them. v17 joins
  * the lock too (`golden/layout-lock-v17/`, `golden/layout-lock-v17-epic25/`), taken on the Story 27.8 commit that puts
  * its words in: the goldens pin "ITEM" and "PARA-RAIOS" (below).
+ *
+ * Batch e30b, Epic 30, Story 30.3 (30.3-UNIT-LOCK): seed v18 froze at the deploy of de79700b and v19 opens equal to it,
+ * so v18 joins the lock: `golden/layout-lock-v18/` and `golden/layout-lock-v18-epic25/`, both taken once with
+ * `GOLDEN_UPDATE=1` on the batch's first commit, whose product code is de79700b's byte for byte (no file of an app's or
+ * the kernel's `src` differs; the commit adds 'v18' to the two lists of the fixture and nothing else). They hold the
+ * forms Story 30.3 changes on v19 (">400 MΩ", "<250 µΩ", "±0,5 %"). No older golden moved.
  */
 
 /*
@@ -125,7 +131,7 @@ async function partsOf(version: string, snapshotOf: (version: string) => Relator
   return parts;
 }
 
-describe('28.2-UNIT-LOCK (27.8-UNIT-LOCK, e25s-UNIT-LOCK, 24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
+describe('30.3-UNIT-LOCK (28.2-UNIT-LOCK, 27.8-UNIT-LOCK, e25s-UNIT-LOCK, 24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_VERSIONS)(
     '%s: every layout part of the synthetic relatório matches its golden/layout-lock directory',
     async (version) => expectGolden(version, `layout-lock-${version}`, await partsOf(version)),
@@ -155,7 +161,7 @@ describe('27.8-UNIT-LOCK the v17 goldens pin the form\'s words; the v16 ones kee
   });
 });
 
-describe('27.8-UNIT-LOCK (e25s-UNIT-LOCK, 25.5-UNIT-LOCK) the DOCX of the Epic 25 v14 to v17 relatórios is byte-equal to its golden', () => {
+describe('30.3-UNIT-LOCK (27.8-UNIT-LOCK, e25s-UNIT-LOCK, 25.5-UNIT-LOCK) the DOCX of the Epic 25 v14 to v18 relatórios is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_EPIC25_VERSIONS)(
     '%s: every layout part of the relatório holding the cases Epic 25 changes matches its golden/layout-lock-{version}-epic25',
     async (version) => expectGolden(version, layoutLockEpic25Golden(version), await partsOf(version, layoutLockEpic25Snapshot)),
