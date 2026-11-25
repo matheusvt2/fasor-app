@@ -154,7 +154,7 @@ describe('14.3 entry: the local\'s Sumário row', () => {
     expect(row(LOCAL).querySelector(':scope > ul')).toBe(list);
     const card = list.querySelector(':scope > li')!;
     expect(card).toHaveClass('s9-site-card', 'eq-card', 'block-card');
-    // The fixture answers its first item NC: the badge is part of the name, as it is seen.
+    // The fixture answers its first item NC: the badge is part of the name, as it is seen (30.1-UNIT-F2: the kernel's `spokenName`).
     const button = within(list).getByRole('button', { name: 'Verificações do local · 12 de 19 · 1 NC — Cabine de Testes' });
     expect(button).toHaveClass('s9-verif', 'eq-card-open');
     expect(button.querySelector('.eq-card-title .s9-site-name')).toHaveTextContent(/^Verificações do local$/);
@@ -225,7 +225,8 @@ describe('14.3 entry: the rail', () => {
     // progress beside the label and the sheet's state word under it.
     expect(line).toHaveClass('eq-card', 'site-card');
     // Story 15.2: the fixture answers its first item NC once any is answered; the badge is part of the name.
-    const body = within(line as HTMLElement).getByRole('button', { name: answered === 0 ? 'Verificações do local — Cabine de Testes' : 'Verificações do local · 1 NC — Cabine de Testes' });
+    // 30.1-UNIT-F2 (E15-R1): the rail card's name carries its counter "N de 19" too, from the kernel, as the Sumário's does.
+    const body = within(line as HTMLElement).getByRole('button', { name: `Verificações do local · ${text}${answered === 0 ? '' : ' · 1 NC'} — Cabine de Testes` });
     expect(body).toHaveClass('tree-body');
     expect(body.querySelector('.tree-id use')).toHaveAttribute('href', spriteHref('i-check-all'));
     expect(body.querySelector('.tree-id .tree-name')).toHaveTextContent(/^Verificações do local$/);
