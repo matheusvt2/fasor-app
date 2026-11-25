@@ -117,6 +117,12 @@ export function HomeSurface() {
   // E19-A2 (R-3): and for the provider's summary (the order's source), so a cold open never
   // cuts its first frame in the wrong order. An older double without the flag reads as answered.
   const relatoriosPending = db !== null && (loadedRelatorios === undefined || pageSize === undefined || sync.summaryRead === false);
+  // Story 30.5 (R8LAY-E2E-008, e20f-DUR-001, 1.6-E2E-001): Home's controls appear once, in their final place. The
+  // shortcut row (the role read) and the Status board (the list read) used to arrive above an already enabled
+  // "Novo relatório" tens of milliseconds apart, so a press aimed at it on a Home just opened landed on a shortcut
+  // card or was cancelled under the finger (a finger down 120 ms after the button was enabled: 6 of 8 lost). Until
+  // both reads are in, the list says it is loading and no board, shortcut, search or button is drawn.
+  const settled = !relatoriosPending && permissions?.status !== 'loading';
   const projects = useLiveQuery(() => (db === null ? Promise.resolve(NO_PROJECTS) : projectRows(db)), [db], NO_PROJECTS);
   const clients = useLiveQuery(() => (db === null ? Promise.resolve(NO_CLIENTS) : clientRows(db)), [db], NO_CLIENTS);
   const templates = useLiveQuery(
@@ -240,19 +246,19 @@ export function HomeSurface() {
               {copy.home.statusHeading}
             </h2>
             {/* No zero counts while the device store has not answered: the list below says it is loading. */}
-            {relatoriosPending ? null : (
+            {settled ? (
               <StatusBoard
                 counts={counts}
                 filter={filter}
                 onFilter={(status) => setFilter((current) => (current === status ? null : status))}
               />
-            )}
+            ) : null}
           </section>
         ) : null}
 
         {/* Story 19.1 (2026-10-30, Matheus: "Fazer: B"): the shortcuts sit between the Status board and the list, so
             Templates and Cadastros are one tap from the top whatever the list length (EXPERIENCE.md § Home). */}
-        {anyShortcut ? (
+        {settled && anyShortcut ? (
           <section className="section" aria-labelledby={shortcutsHeadingId}>
             <h2 id={shortcutsHeadingId} className="visually-hidden">
               {copy.home.shortcutsHeading}
@@ -265,43 +271,48 @@ export function HomeSurface() {
           <section className="section" aria-labelledby={listHeadingId}>
             <div className="home-head">
               <h2 id={listHeadingId}>{copy.home.relatoriosHeading}</h2>
-              {/* Story 20.2: the search, drawn from the Cadastros toolbar's field (`80-cadastros.html`).
-                  React Aria's SearchField clears on Escape and on its clear button, and keeps focus
-                  in the input; the text never leaves this component but for the kernel's match. */}
-              <SearchField className="field home-search" value={query} onChange={changeQuery}>
-                <Label className="field-label visually-hidden">{copy.home.searchLabel}</Label>
-                <div className="input">
-                  <svg className="ico" aria-hidden="true">
-                    <use href={spriteHref('i-search')} />
-                  </svg>
-                  <Input placeholder={copy.home.searchPlaceholder} />
-                  <AriaButton className="icon-btn home-search-clear" aria-label={copy.home.searchClear}>
-                    <svg className="ico" aria-hidden="true">
-                      <use href={spriteHref('i-close')} />
-                    </svg>
-                  </AriaButton>
-                </div>
-              </SearchField>
-              {canCreate ? (
-                <Button onPress={() => setCreating(true)} data-telemetry="home.new_relatorio">
-                  {copy.home.newRelatorio}
-                </Button>
-              ) : (
-                // Story 26.5 (`21-home-campo.html`): shown, disabled, with the kernel's one line of reason.
-                <div className="home-new">
-                  <Button isDisabled disabledReason={permissionRefusalText('relatorio.create')} data-telemetry="home.new_relatorio">
-                    {copy.home.newRelatorio}
-                  </Button>
-                </div>
-              )}
+              {/* Story 30.5: the search and "Novo relatório" wait with the board for both reads (`settled`). */}
+              {settled ? (
+                <>
+                  {/* Story 20.2: the search, drawn from the Cadastros toolbar's field (`80-cadastros.html`).
+                      React Aria's SearchField clears on Escape and on its clear button, and keeps focus
+                      in the input; the text never leaves this component but for the kernel's match. */}
+                  <SearchField className="field home-search" value={query} onChange={changeQuery}>
+                    <Label className="field-label visually-hidden">{copy.home.searchLabel}</Label>
+                    <div className="input">
+                      <svg className="ico" aria-hidden="true">
+                        <use href={spriteHref('i-search')} />
+                      </svg>
+                      <Input placeholder={copy.home.searchPlaceholder} />
+                      <AriaButton className="icon-btn home-search-clear" aria-label={copy.home.searchClear}>
+                        <svg className="ico" aria-hidden="true">
+                          <use href={spriteHref('i-close')} />
+                        </svg>
+                      </AriaButton>
+                    </div>
+                  </SearchField>
+                  {canCreate ? (
+                    <Button onPress={() => setCreating(true)} data-telemetry="home.new_relatorio">
+                      {copy.home.newRelatorio}
+                    </Button>
+                  ) : (
+                    // Story 26.5 (`21-home-campo.html`): shown, disabled, with the kernel's one line of reason.
+                    <div className="home-new">
+                      <Button isDisabled disabledReason={permissionRefusalText('relatorio.create')} data-telemetry="home.new_relatorio">
+                        {copy.home.newRelatorio}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : null}
             </div>
 
             {/* E19-A2 (R-12): always mounted, so a page-size or tile change to the kernel's note is announced.
                 Story 20.2: with a search, the kernel's count or no-match sentence. */}
             <p className="visually-hidden" role="status" data-testid="home-list-status">
-              {relatoriosPending ? '' : list.announcement}
+              {settled ? list.announcement : ''}
             </p>
-            {relatoriosPending ? (
+            {!settled ? (
               <LoadingNote what={copy.loadingWhat.relatorios} />
             ) : list.empty !== null ? (
               // A pressed tile can read zero, and a device can hold emitted relatórios only, so
