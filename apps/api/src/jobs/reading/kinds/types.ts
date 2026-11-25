@@ -3,6 +3,7 @@ import type { Db } from '../../../db/client.ts';
 import type { CompanyId } from '../../../db/repositories/company-id.ts';
 import type { ReadingImage } from '../image.ts';
 import type { ReadingKind } from '../payload.ts';
+import type { BilledCall } from '../providers/errors.ts';
 import type { ReadingProviders } from '../providers/index.ts';
 
 /*
@@ -49,6 +50,12 @@ export interface ReadingKindRunResult {
    * run row's `model`, `prompt_version` and `llm_usage` (read only when `structuring` is null).
    */
   model?: { model: string; prompt_version: string; usage: StructuringResult['usage'] } | null;
+  /**
+   * Story 30.2 B (L1284, L1290, L1310): every model call the provider billed in this run, in order, each with
+   * its own model, prompt version and usage (an escalation's second call too, also when it failed after
+   * billing). Absent on a kind of one call: the run row then reads `structuring` or `model` as before.
+   */
+  calls?: BilledCall[];
 }
 
 /** A target that parsed and exists: the `fake` fixture key and the reading itself. */

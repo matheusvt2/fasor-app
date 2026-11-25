@@ -14,9 +14,23 @@ import type { CompanyId } from '../../../db/repositories/company-id.ts';
 import { entities } from '../../../db/schema.ts';
 import { log } from '../../../log.ts';
 import type { PlateStructuringInput } from '../providers/bedrock.ts';
-import { PermanentReadingError } from '../providers/errors.ts';
+import { billedCallOf, PermanentReadingError, type BilledCall } from '../providers/errors.ts';
 import { readingDefinitionOf, readOcr, targetBlock } from './shared.ts';
 import type { ReadingKindHandler } from './types.ts';
+
+/** Story 30.2 B: one structuring call as the run row lists it. */
+function callOf(result: StructuringResult): BilledCall {
+  return { model: result.model, prompt_version: result.prompt_version, usage: result.usage };
+}
+
+/** Story 30.2 B: the run's total, the sum of its calls (USD rounded to the micro-dollar, as before). */
+export function totalUsage(calls: readonly BilledCall[]): StructuringResult['usage'] {
+  return {
+    input_tokens: calls.reduce((sum, call) => sum + call.usage.input_tokens, 0),
+    output_tokens: calls.reduce((sum, call) => sum + call.usage.output_tokens, 0),
+    usd: Math.round(calls.reduce((sum, call) => sum + call.usage.usd, 0) * 1e6) / 1e6,
+  };
+}
 
 /*
  * Stories 8.4 and 8.5, moved unchanged behind the Story 9.1 handler contract: a nameplate
@@ -28,7 +42,8 @@ import type { ReadingKindHandler } from './types.ts';
  * Story 11.6: when the providers carry an escalation model and the first reading is more than
  * half `verify` or empty (`shouldEscalate`), the same image, OCR and fields are structured once more on
  * it and the better reading is kept (`betterReading`: more `suggested`, then more rows, then the escalation). The
- * run row then names the model of the kept reading with the usage of both calls summed. A first
+ * run row then names the model of the kept reading with the usage of both calls summed (Story 30.2 B: and lists
+ * each call with its own model and usage in `llm_usage.calls`, the second also when it failed after billing). A first
  * reading with no suggestion escalates too, unless the OCR found no word; an escalation call
  * that fails keeps the first.
  */
@@ -125,23 +140,24 @@ export const plateHandler: ReadingKindHandler = {
         }
 
         // A failed escalation (throttled, denied, an answer the schema refuses) keeps the first
-        // reading with its own usage; it never fails an attempt the first call already read.
+        // reading; it never fails an attempt the first call already read. Story 30.2 B: every call the
+        // provider billed is kept on the run row, each with its model, the second also when it failed
+        // after billing (a throttle or a denial bills nothing).
+        const firstCall = callOf(first);
         let second: StructuringResult;
         try {
           second = await providers.escalation.structure(input);
         } catch (error) {
           log('reading escalation failed', { photo_id: photo.id, run_id: runId, error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) });
-          return { ocr, structuring: first, rows: built.rows, dropped: built.dropped };
+          const billed = billedCallOf(error);
+          const calls = billed === null ? [firstCall] : [firstCall, billed];
+          return { ocr, structuring: { ...first, usage: totalUsage(calls) }, rows: built.rows, dropped: built.dropped, calls };
         }
         const escalated = build(second);
         const keptSecond = betterReading(built.rows, escalated.rows) === escalated.rows;
         const kept = keptSecond ? { structuring: second, built: escalated } : { structuring: first, built };
-        const usage = {
-          input_tokens: first.usage.input_tokens + second.usage.input_tokens,
-          output_tokens: first.usage.output_tokens + second.usage.output_tokens,
-          usd: Math.round((first.usage.usd + second.usage.usd) * 1e6) / 1e6,
-        };
-        return { ocr, structuring: { ...kept.structuring, usage }, rows: kept.built.rows, dropped: kept.built.dropped };
+        const calls = [firstCall, callOf(second)];
+        return { ocr, structuring: { ...kept.structuring, usage: totalUsage(calls) }, rows: kept.built.rows, dropped: kept.built.dropped, calls };
       },
     };
   },
