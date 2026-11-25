@@ -6,9 +6,10 @@ import { Button, CharCount, OverflowMenu, TextButton } from '../../../components
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
+import type { FieldCommitter } from '../../../input/field-commit.ts';
 import { useFieldCommit } from '../../../input/use-field-commit.ts';
 import type { UndoableEdits } from '../../../state/use-undoable-edits.ts';
-import { exclusionsKey, useTextField, type BandRef, type CommitField } from './setup-fields.ts';
+import { exclusionsKey, useStoredEcho, useTextField, type BandRef, type CommitField } from './setup-fields.ts';
 
 // --- Etapa 2 — Objetivo e escopo ----------------------------------------------------------
 
@@ -42,13 +43,20 @@ export function Etapa2Escopo({
   // reference: `relatorioState`'s live query rebuilds a fresh array on every refresh (an
   // unrelated field's commit, a sync pull), so comparing `!==` on the array itself would
   // treat every such refresh as an external change and reset an in-progress edit.
-  const committedExclusions = useRef(exclusionsKey(setup.exclusions));
-  const nextKey = exclusionsKey(setup.exclusions);
-  if (nextKey !== committedExclusions.current) {
-    committedExclusions.current = nextKey;
-    setExclusions(setup.exclusions ?? seedExclusions);
-  }
-  const exclusionsCommitter = useFieldCommit<string[]>({ commit: (value) => onCommit('exclusions', value) });
+  // Story 30.1 B (L3626): never on the echo of this list's own write, nor while a keystroke of it waits to commit.
+  const exclusionsCommitterRef = useRef<FieldCommitter<string[]> | null>(null);
+  const noteSent = useStoredEcho(
+    exclusionsKey(setup.exclusions),
+    () => exclusionsCommitterRef.current?.pending ?? false,
+    () => setExclusions(setup.exclusions ?? seedExclusions),
+  );
+  const exclusionsCommitter = useFieldCommit<string[]>({
+    commit: (value) => {
+      noteSent(exclusionsKey(value));
+      return onCommit('exclusions', value);
+    },
+  });
+  exclusionsCommitterRef.current = exclusionsCommitter;
   // W-12: every row keeps a stable key of its own, so removing one never hands its input (its
   // focus, its DOM) to the neighbour below; a row added, restored or synced in gets a new key.
   const rowKeys = useRef<string[]>([]);
@@ -89,6 +97,7 @@ export function Etapa2Escopo({
     const keysBefore = rowKeys.current;
     rowKeys.current = keysBefore.filter((_, i) => i !== index);
     setExclusions(next);
+    noteSent(exclusionsKey(next));
     const batchId = await onWriteExclusions(next).catch(() => null);
     if (batchId === null) {
       // Nothing was written: the store still holds the row, so the view shows it again
