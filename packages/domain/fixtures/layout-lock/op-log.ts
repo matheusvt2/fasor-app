@@ -93,10 +93,16 @@ import {
  * MT" (Story 27.8, decision 2 of 2026-11-21), which is code and reaches every new revision; nothing else of them
  * moves. v17 is locked too, from the batch's Story 27.8 commit: its goldens pin the form's words ("ITEM", "PARA-RAIOS")
  * and Story 27.3's section 10 sentence, the only differences from v16 ("27.8-UNIT-SAME").
+ *
+ * 2026-11-24, batch e30b (Epic 30, Story 30.3, seed v19 opened equal to v18): v18 is locked too, as it shipped in
+ * de79700b. Both its relatórios are built by the same rules as v17's (one sheet of every type v18 offers; the Epic 25
+ * relatório on v18, which holds the Malha de aterramento with its readings and the criteria per row that Story 30.3
+ * changes on v19). Both goldens were taken on the batch's first commit, whose product code (the `src` of each app and
+ * of `packages/domain`) is de79700b's byte for byte; every older golden is untouched.
  */
 
 /** The seed versions whose printed layout is locked. */
-export const LAYOUT_LOCK_VERSIONS = ['v5', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17'] as const;
+export const LAYOUT_LOCK_VERSIONS = ['v5', 'v11', 'v12', 'v13', 'v14', 'v15', 'v16', 'v17', 'v18'] as const;
 export type LayoutLockVersion = (typeof LAYOUT_LOCK_VERSIONS)[number];
 
 /** The issue instant the DOCX golden renders with. */
@@ -634,7 +640,7 @@ export function layoutLockSnapshot(version: string, options: LayoutLockOptions =
  */
 
 /** The seed versions whose Epic 25 fixture is locked (its golden directory: `layoutLockEpic25Golden`). */
-export const LAYOUT_LOCK_EPIC25_VERSIONS = ['v14', 'v15', 'v16', 'v17'] as const;
+export const LAYOUT_LOCK_EPIC25_VERSIONS = ['v14', 'v15', 'v16', 'v17', 'v18'] as const;
 
 /** The golden directory of a version's Epic 25 fixture, beside `layout-lock-{version}`. */
 export const layoutLockEpic25Golden = (version: string): string => `layout-lock-${version}-epic25`;

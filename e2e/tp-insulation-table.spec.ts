@@ -63,11 +63,12 @@ test('@p0 e23w-B4-E2E-001 a v13 TP judged by Table 100.5 by its medium and its A
   // No medium yet: the v12 criterion, and the source asks for TIPO DE ISOLAÇÃO.
   await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
   const bare = await insulation(page, built.relatorioId, tp.blockId);
-  expect(bare.criterionText).toBe('>400 MΩ');
+  // Batch e30b (Story 30.3 (a)): a relatório born on v19 writes the criterion with its sign and a space (was ">400 MΩ").
+  expect(bare.criterionText).toBe('> 400 MΩ');
   await expect(section.locator('.mt-criterion')).toHaveText(`Aceitável ${bare.criterionText}`);
   await section.locator('summary', { hasText: 'Fonte do critério' }).click();
   await expect(section.locator('.mt-source [data-source-line]')).toHaveText(bare.sourceLines!);
-  expect(bare.sourceLines).toEqual(['Sem o tipo de isolação na placa, vale >400 MΩ. Informe-o para julgar pela Tabela 100.5.']);
+  expect(bare.sourceLines).toEqual(['Sem o tipo de isolação na placa, vale > 400 MΩ. Informe-o para julgar pela Tabela 100.5.']);
 
   // ÓLEO MINERAL: the oil minimum at the class voltage.
   await stepper(page).getByRole('button', { name: /^Placa,/ }).click();

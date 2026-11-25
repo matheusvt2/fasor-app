@@ -585,8 +585,9 @@ test('@p0 14.3-E2E-001 at 768 px: a relatório on the current seed, the surface 
     expect(tables.filter((table) => table[0]![0] === SITE_TITLE), part.heading).toHaveLength(1);
     const table = tables[2]!;
     // ~~The seed's normalized columns, read from the kernel~~ (batch e27c W4: read from the seed the check was
-    // circular): pinned, a v17 relatório prints "ITEM" (Story 27.8; was "ÍTEM"), and so does a v18 one (batch e28a keeps it).
-    expect(relatorioSeed).toBe('v18');
+    // circular): pinned, a v17 relatório prints "ITEM" (Story 27.8; was "ÍTEM"), and so do a v18 one (batch e28a keeps it)
+    // and a v19 one (batch e30b keeps it).
+    expect(relatorioSeed).toBe('v19');
     expect(table[1]).toEqual(['ITEM', 'C', 'NC', 'NA', 'OBSERVAÇÕES']);
     expect(table.filter((cells) => cells.length === 1).map((cells) => cells[0])).toEqual([SITE_TITLE, ...GROUPS]);
     const items = itemRows(table);

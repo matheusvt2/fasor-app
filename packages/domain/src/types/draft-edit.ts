@@ -1,6 +1,6 @@
 import { accuracyClassDeviation } from '../relatorio/accuracy-class.ts';
 import { SEEDED_CRITERIA, formatCriterionValue } from '../seed/criteria.ts';
-import { equipmentTypesOf, findDefinition } from '../seed/definitions.ts';
+import { criterionSymbols, equipmentTypesOf, findDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import { plural } from '../text/plural.ts';
 import type { TestHelpKey } from '../seed/test-help.ts';
@@ -721,13 +721,17 @@ export function draftCriterionText(criterion: Readonly<Record<string, unknown>> 
   if (typeof operator !== 'string' || typeof value !== 'number') return null;
   if (operator === 'between' && typeof criterion.value_max !== 'number') return null;
   if (operator === 'nominal_pct' && typeof criterion.tolerance_pct !== 'number') return null;
-  return formatCriterionValue({
-    operator,
-    value,
-    ...(typeof criterion.value_max === 'number' ? { value_max: criterion.value_max } : {}),
-    ...(operator === 'nominal_pct' ? { tolerance_pct: criterion.tolerance_pct as number } : {}),
-    unit: typeof criterion.unit === 'string' && criterion.unit !== '' ? criterion.unit : null,
-  });
+  // Story 30.3 (a): the type editor belongs to no relatório, so it writes the form of the current seed.
+  return formatCriterionValue(
+    {
+      operator,
+      value,
+      ...(typeof criterion.value_max === 'number' ? { value_max: criterion.value_max } : {}),
+      ...(operator === 'nominal_pct' ? { tolerance_pct: criterion.tolerance_pct as number } : {}),
+      unit: typeof criterion.unit === 'string' && criterion.unit !== '' ? criterion.unit : null,
+    },
+    criterionSymbols(SEED_VERSION),
+  );
 }
 
 /**
@@ -814,7 +818,7 @@ function bandText(band: Entry): string {
   const unit = typeof band.unit === 'string' ? band.unit : null;
   const operator = band.operator === '>' ? '>' : '>=';
   const source = band.source !== null && typeof band.source === 'object' ? textOf((band.source as Entry).name).trim() : '';
-  const criterion = formatCriterionValue({ operator, value, unit });
+  const criterion = formatCriterionValue({ operator, value, unit }, criterionSymbols(SEED_VERSION));
   return source === '' ? criterion : `${criterion} · ${source}`;
 }
 
@@ -856,7 +860,7 @@ export function plateCriterionOf(draft: CompanyTypeDraft | null, index: number):
   const field = fieldLabelIn(d, picked.criterion_class_field);
   const lines = [
     'classe de medição (0,3 · 0,6 · 1,2…): ± o valor da classe, em %',
-    ...PROTECTION_CLASS_ORDER.map((cls) => `${cls}: ${formatCriterionValue({ operator: '±', value: accuracyClassDeviation(cls) ?? 0, unit: '%' })}`),
+    ...PROTECTION_CLASS_ORDER.map((cls) => `${cls}: ${formatCriterionValue({ operator: '±', value: accuracyClassDeviation(cls) ?? 0, unit: '%' }, criterionSymbols(SEED_VERSION))}`),
   ];
   return {
     lead: `Escolhido pela placa: a classe de exatidão do campo ${field} julga cada leitura.`,

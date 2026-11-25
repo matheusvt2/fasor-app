@@ -49,6 +49,7 @@ import { CABINE_PRIMARIA_V15 } from './v15.ts';
 import { CABINE_PRIMARIA_V16 } from './v16.ts';
 import { CABINE_PRIMARIA_V17 } from './v17.ts';
 import { CABINE_PRIMARIA_V18 } from './v18.ts';
+import { CABINE_PRIMARIA_V19 } from './v19.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -67,7 +68,7 @@ import { CABINE_PRIMARIA_V18 } from './v18.ts';
  * moves it (`templateSeedUpgrade`, Story 14.3): every relatório made from it afterwards is
  * born on the newer version, and none already made is touched.
  */
-export const SEED_VERSION = 'v18';
+export const SEED_VERSION = 'v19';
 
 /**
  * The named variables section boilerplate may carry, resolved at generation. Seed v8 (UX pass
@@ -137,6 +138,7 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v16: bundle('v16', CABINE_PRIMARIA_V16),
   v17: bundle('v17', CABINE_PRIMARIA_V17),
   v18: bundle('v18', CABINE_PRIMARIA_V18),
+  v19: bundle('v19', CABINE_PRIMARIA_V19),
 });
 
 /**
@@ -221,6 +223,14 @@ export function findSeed(seedVersion: string): ReportSeed | null {
  */
 export function seedRule(seedVersion: string, flag: SeedRuleFlag): boolean {
   return seedRulesOf(findSeed(seedVersion), flag);
+}
+
+/**
+ * Story 30.3 (a): whether a criterion of this seed version is written with its sign and a space (`criterion_symbols`,
+ * v19), the `symbols` of `formatCriterionValue`. False for no version (a sheet with none in hand reads v1 to v18's form).
+ */
+export function criterionSymbols(seedVersion: string | undefined): boolean {
+  return seedVersion !== undefined && seedRule(seedVersion, 'criterion_symbols');
 }
 
 /** `seedRule` over a seed already resolved (or null for none): the flag is on only when the seed names it `true`. */

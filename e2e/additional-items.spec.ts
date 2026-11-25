@@ -55,7 +55,8 @@ async function removeItem(page: Page, n: number): Promise<void> {
 
 test('@p0 28.9-E2E-001 v18: Etapa 6 takes two additional items (an empty third is not stored), removes and restores one, and the PDF prints them as topics in section 10; v17 shows no list', async ({ page }) => {
   test.setTimeout(420_000);
-  expect(SEED_VERSION).toBe('v18');
+  // Batch e30b (Story 30.3): a new relatório is born on v19, which keeps `additional_items`.
+  expect(SEED_VERSION).toBe('v19');
   const { relatorioId } = await setUpRelatorio(page, account, database);
 
   // A v17 relatório of the same company: its Etapa 6 has no list.

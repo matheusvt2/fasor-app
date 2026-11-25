@@ -846,11 +846,7 @@ Deferred from: Epic 22 batch e22r (2026-11-06), Stories 22.10 and 22.12, contrac
 
 ## Deferred from: Epic 22 batch e22s (2026-11-06)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.9)
-  summary: The DoR and the AC write ACEITÁVEL as "± 1,2 %"; the kernel's one criterion format (`formatCriterionValue`) prints "±1,2 %" with no space, as v1 to v11 print "±0,5 %". Kept, so older documents print byte-identical. Owner: Bruno, if the spaced form is wanted on every seed.
-  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
-  class: decision
-  state: open (owner: Bruno, relayed by Matheus) | 2026-11-24 audit: Bruno answered on 2026-11-11 (`docs/context/epic-24/respostas-bruno-2026-11-11.md` item 9: "± 5 %" with a space). Applied only to `nominal_pct` (`packages/domain/src/seed/criteria.ts:145-146`); the generic `±` still prints `${operator}${value}` (`:151`). Needs a new seed (v19) since v1-v18 are layout-locked; owner: agent (with Matheus's go for v19)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 22 fix batch e22f (2026-11-06)
 
@@ -867,11 +863,7 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 22 fix batch e22h (2026-11-07)
 
-- source_spec: `_bmad-output/implementation-artifacts/epic-22-wave-c-integrated-review-2026-11-07.md` (N10)
-  summary: The review asked that `formatCriterionValue` print `>=` and `<=` as "≥" and "≤", on the premise that seeded criteria use only `>`, `<` and `±`. That premise is wrong: the Quadro elétrico's NBR 5410 bands (seeds v5 and v6) are `>=` and have printed "Aceitável >=0,5 MΩ" and "critério: >=0,5 MΩ" on the sheet and in the DOCX since seed v5 (`e2e/qgbt.spec.ts`, `docx-qgbt.test.ts`, `quadro-eletrico.test.ts`). Changing the formatter moves every printed QGBT relatório (the protected layout: print changes only the asked delta), and changing it for company rows alone would print "≥" and ">=" side by side on a copy that carries the bands (S1). e22h left the formatter as it is. Decision for Bruno: "≥ 0,5 MΩ" everywhere (seeded and company, one formatter change, goldens and specs re-read), or ">=" as today.
-  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`; `packages/domain/src/seed/v6.ts` bands.
-  class: decision
-  state: open (owner: Bruno, via Matheus) | 2026-11-24 audit: Bruno answered "≥" on 2026-11-11 (same file, item 9: "E '>=' ou '≥'?"). `formatCriterionValue` still prints ">=0,5 MΩ" for seeded bands (`criteria.ts:151`); only screen helpers use "≥" (`criteria.ts:185`, `relatorio/reading-evaluation.ts:443`). Needs seed v19; owner: agent (with Matheus's go for v19)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: the production check of Bruno's relatório after the deploy of `ae3d37e0` (2026-11-07)
 
@@ -1137,11 +1129,6 @@ All rows closed; see deferred-work-archive.md
   evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` (`commitPlateTag`); `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx`.
   class: decision
   state: open (owner: Matheus: whether a confirmed TAG suggestion should rename too)
-- source_spec: `spec-e24y-pass-fixes.md` (P10)
-  summary: only the "nominal ± %" criterion of company types (Story 24.18, new in Epic 24) takes the space after the sign ("220 V ± 5 %"). The ratio's and the accuracy classes' "±0,5 %", "±1,2 %" and the criteria ">=" (a company type's operator) print as before, because a v1 to v13 relatório prints them and `formatCriterionValue` knows no seed: a change would move the v5 to v13 goldens. Changing them on v14 only needs the seed carried into every criterion text, a larger change than the batch's.
-  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
-  class: decision
-  state: open (owner: Matheus: the v14-only form of "±" and "≥", or keep)
 - source_spec: `spec-e24y-pass-fixes.md` (review Y1, P5)
   summary: when a v14 reading is held back from the previous-visit comparison (the previous visit typed TEMPERATURA DO ÓLEO, or DO ENROLAMENTO, and this one has not), its cell says nothing about it: no existing sentence fits (the missing-temperature line asks for a temperature the ambient already stands in for). A proposal for Bruno: "Sem comparar com a manutenção anterior: ela foi corrigida pela temperatura da placa; informe a temperatura do óleo."
   evidence: `packages/domain/src/relatorio/reading-evaluation.ts` (`unlike`), `packages/domain/src/relatorio/measurement-evaluation.ts` `applyHistory`; `relatorio/temperature-correction.ts` `missingNote`.
@@ -1181,7 +1168,7 @@ What the integrated gate on main `7773aafa` found (2026-11-11): lint, static and
 ## Epic 24 integrated gate (2026-11-11)
 
 - **The api process exits when its database restarts, and stays down in compose.** Seen in gate run 1 on `76c74711`: under a load of 32 the stack's Postgres restarted (its health-check exec was cut, "untracked child process terminated by signal 13"), a pool connection raised `PostgresError: the database system is not yet accepting connections` as an uncaught exception, and the node process exited; the container stayed up and unhealthy. In production the service restarts the task, so the effect is a short outage, not a stuck api. Open: catch the connection error and retry, or give the compose service a restart policy. Candidate for Epic 25.
-- **The final hands-on pass of 2026-11-11** (`_bmad-output/test-artifacts/manual/behaviour-pass-e24-2026-11-11.md`, findings G1 to G14), open rows: G1, a deadline typed by hand in the point editor leaves a draft behind and "Rascunho encontrado" shows on the next load (sent to batch e25a; whether it is older than Epic 24 is being checked); G4, the "Não ensaiado" band shows no link to its point once it exists; ~~G5, a sheet whose plate TAG was typed before fix batch e24y keeps a plate TAG different from the equipment's~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Legacy and cosmetic); G6, a line break between "75" and "°C" in a note line; G7, the v14 Malha's helper still says "na placa"; G8, the Malha's conclusion ends ", sem itens verificados registrados" though the sheet has no checklist; G9, the QGBT header says "Leituras prontas" with no reading; G10, a comparison held back for a missing temperature says nothing on screen; G11, the rename toast wraps into four lines at 390 px; G12, "(critério: …, aceitável na ficha)" reads as if the rejected value were acceptable (for Bruno); G13 and G14 are older than Epic 24 (the obra's count of relatórios on the device; "Criar" offered beside an exact client name). | 2026-11-24 audit: G6 closed (resolved: On seed v18 the note is `print/history-note.ts` (Story 28.8, `9b7659e0`) with `NBSP` at :128 and :159; v14 to v17 are frozen byte-identical by design)
+- **The final hands-on pass of 2026-11-11** (`_bmad-output/test-artifacts/manual/behaviour-pass-e24-2026-11-11.md`, findings G1 to G14), open rows: G1, a deadline typed by hand in the point editor leaves a draft behind and "Rascunho encontrado" shows on the next load (sent to batch e25a; whether it is older than Epic 24 is being checked); G4, the "Não ensaiado" band shows no link to its point once it exists; ~~G5, a sheet whose plate TAG was typed before fix batch e24y keeps a plate TAG different from the equipment's~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Legacy and cosmetic); G6, a line break between "75" and "°C" in a note line; ~~G7, the v14 Malha's helper still says "na placa"~~ closed (2026-11-24, batch e30b, Story 30.3 (c), PR #386: on seed v19 the helper names the block the field is in, "Sem VALOR DE PROJETO em Dados da malha, vale ≤ 5 Ω.", flag `helper_names_plate_block`; v13 to v18 keep "na placa"; the note is screen only, it is not printed); ~~G8, the Malha's conclusion ends ", sem itens verificados registrados" though the sheet has no checklist~~ closed (2026-11-24, batch e30b, Story 30.3 (b), PR #386: on seed v19 a type with no checklist concludes "{verbo} {leituras}.", flag `conclusion_no_checklist_clause`; v13 to v18 print the clause as before); G9, the QGBT header says "Leituras prontas" with no reading; G10, a comparison held back for a missing temperature says nothing on screen; G11, the rename toast wraps into four lines at 390 px; G12, "(critério: …, aceitável na ficha)" reads as if the rejected value were acceptable (for Bruno); G13 and G14 are older than Epic 24 (the obra's count of relatórios on the device; "Criar" offered beside an exact client name). | 2026-11-24 audit: G6 closed (resolved: On seed v18 the note is `print/history-note.ts` (Story 28.8, `9b7659e0`) with `NBSP` at :128 and :159; v14 to v17 are frozen byte-identical by design)
 
 ## Deferred from: Epic 25 batch e25b (2026-11-11)
 

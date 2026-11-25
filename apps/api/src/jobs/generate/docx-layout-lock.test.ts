@@ -45,6 +45,12 @@ import { placeholderPages } from './toc.ts';
  * group title "TPs e TCs dos Cubículos de MT" (code, decision 2 of 2026-11-21), and nothing else of them. v17 joins
  * the lock too (`golden/layout-lock-v17/`, `golden/layout-lock-v17-epic25/`), taken on the Story 27.8 commit that puts
  * its words in: the goldens pin "ITEM" and "PARA-RAIOS" (below).
+ *
+ * Batch e30b, Epic 30, Story 30.3 (30.3-UNIT-LOCK): seed v18 froze at the deploy of de79700b and v19 opens equal to it,
+ * so v18 joins the lock: `golden/layout-lock-v18/` and `golden/layout-lock-v18-epic25/`, both taken once with
+ * `GOLDEN_UPDATE=1` on the batch's first commit, whose product code is de79700b's byte for byte (no file of an app's or
+ * the kernel's `src` differs; the commit adds 'v18' to the two lists of the fixture and nothing else). They hold the
+ * forms Story 30.3 changes on v19 (">400 MΩ", "<250 µΩ", "±0,5 %"). No older golden moved.
  */
 
 /*
@@ -52,7 +58,7 @@ import { placeholderPages } from './toc.ts';
  * only through `seedRule` (`seed/definitions.ts`), so the one module is mocked; every other test of the
  * file reads the flags as shipped (v5 to v13 carry none).
  */
-const rulesOff = vi.hoisted(() => ({ v14: false, v15ReadsV14: false, v16ReadsV15: false, v17ParecerOff: false, v18ReadsV17: false }));
+const rulesOff = vi.hoisted(() => ({ v14: false, v15ReadsV14: false, v16ReadsV15: false, v17ParecerOff: false, v18ReadsV17: false, v19ReadsV18: false }));
 vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../../packages/domain/src/seed/definitions.ts')>();
   return {
@@ -67,8 +73,13 @@ vi.mock('../../../../../packages/domain/src/seed/definitions.ts', async (importO
       if (rulesOff.v17ParecerOff && version === 'v17' && flag === 'parecer_open_apart') return false;
       // Batch e28a (28.2-UNIT-SAME): v18 reads v17's flags only, so a later Epic 28 flag stays out of the comparison.
       if (rulesOff.v18ReadsV17 && version === 'v18') return actual.seedRule('v17', flag);
+      // Batch e30b (30.3-UNIT-SAME): v19 reads v18's flags only, so Story 30.3's three flags stay out of the comparison.
+      if (rulesOff.v19ReadsV18 && version === 'v19') return actual.seedRule('v18', flag);
       return actual.seedRule(version, flag);
     },
+    // Batch e30b (30.3-UNIT-SAME): the criterion's form is read through `criterionSymbols`, which calls the module's own
+    // `seedRule`; while v19 reads v18's flags it reads v18's form too.
+    criterionSymbols: (version: string | undefined) => actual.criterionSymbols(rulesOff.v19ReadsV18 && version === 'v19' ? 'v18' : version),
     // Story 25.22 (25.5-UNIT-SAME): v15's own section texts and ratio headers are seed content, not flags; while v15
     // reads v14's flags it reads v14's section texts and the TP's and the TC's v14 ratio headers too.
     sectionText: (version: string, section: number, date: string) =>
@@ -125,7 +136,7 @@ async function partsOf(version: string, snapshotOf: (version: string) => Relator
   return parts;
 }
 
-describe('28.2-UNIT-LOCK (27.8-UNIT-LOCK, e25s-UNIT-LOCK, 24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
+describe('30.3-UNIT-LOCK (28.2-UNIT-LOCK, 27.8-UNIT-LOCK, e25s-UNIT-LOCK, 24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_VERSIONS)(
     '%s: every layout part of the synthetic relatório matches its golden/layout-lock directory',
     async (version) => expectGolden(version, `layout-lock-${version}`, await partsOf(version)),
@@ -155,7 +166,7 @@ describe('27.8-UNIT-LOCK the v17 goldens pin the form\'s words; the v16 ones kee
   });
 });
 
-describe('27.8-UNIT-LOCK (e25s-UNIT-LOCK, 25.5-UNIT-LOCK) the DOCX of the Epic 25 v14 to v17 relatórios is byte-equal to its golden', () => {
+describe('30.3-UNIT-LOCK (27.8-UNIT-LOCK, e25s-UNIT-LOCK, 25.5-UNIT-LOCK) the DOCX of the Epic 25 v14 to v18 relatórios is byte-equal to its golden', () => {
   it.each(LAYOUT_LOCK_EPIC25_VERSIONS)(
     '%s: every layout part of the relatório holding the cases Epic 25 changes matches its golden/layout-lock-{version}-epic25',
     async (version) => expectGolden(version, layoutLockEpic25Golden(version), await partsOf(version, layoutLockEpic25Snapshot)),
@@ -592,4 +603,81 @@ describe('28.2-UNIT-SAME a v18 relatório with the v17 fixtures\' answers conclu
     },
     120_000,
   );
+});
+
+/**
+ * Batch e30b, Story 30.3 (30.3-UNIT-SAME): seed v19 opens equal to v18 and changes three texts, each behind a rule flag
+ * and nothing else (no definition key, no section text). With those flags read off (`rulesOff.v19ReadsV18`: v19 reads
+ * v18's flags and v18's criterion form), a v19 relatório with the same answers as the v18 one (the rule-built fixture and
+ * the Epic 25 fixture, each built on both versions) concludes and prints the same: every ficha's effective pair and the
+ * composed parecer are equal, and the layout and the DOCX parts differ in nothing but the ids the fixtures derive from
+ * the version, their op ids and the version's own name. With the flags as shipped, the only texts of the layout that
+ * differ are the criteria written with their sign and a space. The v18 goldens themselves are checked above, byte-equal
+ * on the code deployed as de79700b.
+ */
+describe('30.3-UNIT-SAME a v19 relatório with the v18 fixtures\' answers concludes and prints as the v18 one but for its three flags', () => {
+  /** The version's ids, op ids and name masked (`019a6100-0NVV-…` for the four id families, `vVV`). */
+  const masked = (version: string, text: string) => {
+    const hex = Number(version.slice(1)).toString(16).padStart(2, '0');
+    let out = text;
+    for (const family of ['00', '01', '02', '03']) out = out.replaceAll(`019a6100-${family}${hex}-`, `019a6100-${family}VV-`);
+    return out.replaceAll(new RegExp(`\\b${version}\\b`, 'g'), 'vVV');
+  };
+
+  const FIXTURES = [
+    ['the rule-built fixture', (version: string) => layoutLockSnapshot(version)],
+    ['the Epic 25 fixture', layoutLockEpic25Snapshot],
+  ] as const;
+
+  const verdictsOf = (version: string, snapshotOf: (version: string) => RelatorioSnapshot) => {
+    const snapshot = snapshotOf(version);
+    const ctx = snapshotDefinitionContext(snapshot);
+    const pairs = snapshot.blocks
+      .filter((block) => block.equipment_id !== null)
+      .map((block) => [masked(version, block.id), effectiveConclusionPair(block, blockDefinitionIn(ctx, block)!, visitContextOf(snapshot, block))] as const);
+    return { pairs, parecer: masked(version, JSON.stringify(composeParecer(snapshot))) };
+  };
+  const layoutOf = (version: string, snapshotOf: (version: string) => RelatorioSnapshot) =>
+    masked(version, JSON.stringify(layoutSpec(snapshotOf(version), { revisionNumber: 1, issuedAt: LAYOUT_LOCK_ISSUED_AT })));
+
+  describe('with the three flags read off', () => {
+    beforeEach(() => {
+      rulesOff.v19ReadsV18 = true;
+    });
+    afterEach(() => {
+      rulesOff.v19ReadsV18 = false;
+    });
+
+    it.each(FIXTURES)('%s: v18 and v19 give the same verdicts, each ficha\'s pair and the parecer', (_name, snapshotOf) => {
+      expect(snapshotOf('v19').relatorio.seed_version).toBe('v19');
+      const a = verdictsOf('v18', snapshotOf);
+      const b = verdictsOf('v19', snapshotOf);
+      expect(a.pairs.length).toBeGreaterThan(10);
+      expect(b.pairs).toEqual(a.pairs);
+      expect(b.parecer).toBe(a.parecer);
+    });
+
+    it.each(FIXTURES)(
+      '%s: v18 and v19 give one layout and one DOCX once ids and the version are masked',
+      async (_name, snapshotOf) => {
+        expect(layoutOf('v19', snapshotOf)).toBe(layoutOf('v18', snapshotOf));
+        const [a, b] = await Promise.all([partsOf('v18', snapshotOf), partsOf('v19', snapshotOf)]);
+        expect([...b.keys()]).toEqual([...a.keys()]);
+        for (const [name, text] of a) expect(masked('v19', b.get(name)!) === masked('v18', text), name).toBe(true);
+      },
+      120_000,
+    );
+  });
+
+  it.each(FIXTURES)('%s: with the flags as shipped the verdicts are still v18\'s, and the layouts differ only by the criteria\'s form', (_name, snapshotOf) => {
+    const a = verdictsOf('v18', snapshotOf);
+    const b = verdictsOf('v19', snapshotOf);
+    expect(b.pairs).toEqual(a.pairs);
+    // v18's layout with its three glued forms rewritten is v19's: nothing else of the printed relatório moves.
+    const spaced = (text: string) => text.replaceAll('>400 MΩ', '> 400 MΩ').replaceAll('<250 µΩ', '< 250 µΩ').replaceAll(/±(?=\d)/g, '± ');
+    const v18 = layoutOf('v18', snapshotOf);
+    const v19 = layoutOf('v19', snapshotOf);
+    expect(v19).not.toBe(v18);
+    expect(v19).toBe(spaced(v18));
+  });
 });

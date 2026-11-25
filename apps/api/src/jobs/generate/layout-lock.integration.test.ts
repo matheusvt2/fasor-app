@@ -46,6 +46,11 @@ import { applyOps } from '../../sync/apply.ts';
  * goldens (`golden/layout-lock-v17/`, `golden/layout-lock-v17-epic25/`) were taken on the Story 27.8 commit; no commit
  * between it and the deploy moved them, and main's product code at e685c1ae is the deployed one, so this lock checks
  * them against the deployed commit as they are. Every golden stays byte-equal through Epic 28.
+ *
+ * Batch e30b, Story 30.3 (30.3-INT-001): seed v18 froze at the deploy of de79700b and v19 opens equal to it. The v18
+ * goldens (`golden/layout-lock-v18/pdf-text.json`, `golden/layout-lock-v18-epic25/pdf-text.json`) were taken once with
+ * `GOLDEN_UPDATE=1` on the batch's first commit, against an api running that commit, whose product code is
+ * de79700b's byte for byte. No older golden moved, and none moves through Epic 30.
  */
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
@@ -150,7 +155,7 @@ afterAll(async () => {
   await sql.end();
 });
 
-describe('28.2-INT-001 (27.8-INT-LOCK, e25s-INT-LOCK, 25.5-INT-LOCK, 24.2-INT-LOCK, 23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
+describe('30.3-INT-001 (28.2-INT-001, 27.8-INT-LOCK, e25s-INT-LOCK, 25.5-INT-LOCK, 24.2-INT-LOCK, 23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden', () => {
   it.each(locked.map(({ golden, fixture }) => [golden, fixture] as const))(
     '%s: the preview PDF of the synthetic relatório prints its golden text, page by page',
     async (golden, fixture) => {

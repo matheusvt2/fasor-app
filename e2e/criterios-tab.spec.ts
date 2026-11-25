@@ -1,4 +1,4 @@
-import { criteriaTablesView, formatCriterionValue, SEEDED_CRITERIA, seededCriterionAppliesText } from '@app/domain';
+import { criteriaTablesView, currentCriterionText, SEEDED_CRITERIA, seededCriterionAppliesText } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { kernelOf, openStep, testSection } from './support/e23t-flow.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
@@ -34,9 +34,11 @@ test('@p1 27.6-E2E-001 Critérios lists the seeded criteria and every row of the
 
   // The seeded criteria: each row with its criterion and its "when it applies" line.
   const seeded = page.getByRole('table').first();
+  // Batch e30b (Story 30.3 (a)): the tab belongs to no relatório, so it writes the form of the current seed (v19), pinned here.
+  expect(SEEDED_CRITERIA.map((criterion) => currentCriterionText(criterion))).toEqual(['> 400 MΩ', '< 250 µΩ', '± 0,5 %']);
   for (const criterion of SEEDED_CRITERIA) {
     const row = seeded.locator('tbody tr').filter({ hasText: criterion.label });
-    await expect(row.locator('.cell-crit')).toHaveText(formatCriterionValue(criterion));
+    await expect(row.locator('.cell-crit')).toHaveText(currentCriterionText(criterion));
     await expect(row.locator('[data-applies]')).toHaveText(seededCriterionAppliesText(criterion));
   }
 

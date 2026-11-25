@@ -98,7 +98,7 @@ describe('e28w-UNIT-002 (S3) a label inside a sentence keeps the acronyms of `SC
   };
 
   it('no older seed moves: on v1 to v17 every label still lowers whole, though the acronym rule would keep v6 to v17\'s "LEDs"', () => {
-    const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v18');
+    const older = Object.keys(SEED_VERSIONS).filter((version) => version !== 'v18' && version !== 'v19');
     expect(older).toHaveLength(17);
     for (const version of older) {
       expect(seedRule(version, 'label_acronyms_inline'), version).toBe(false);

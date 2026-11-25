@@ -209,7 +209,8 @@ test('@p0 25.11-E2E-001 the arrester\'s megôhmetro registered at 10 kV: 5 typed
  */
 test('@p0 28.6-E2E-001 v18 transformer: the rows take the header\'s test voltage, a typed row keeps its own, each says where its voltage comes from; the DOCX prints them', async ({ page }) => {
   test.setTimeout(300_000);
-  expect(SEED_VERSION).toBe('v18');
+  // Batch e30b (Story 30.3): a new relatório is born on v19, which keeps `row_voltage_from_header`.
+  expect(SEED_VERSION).toBe('v19');
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);

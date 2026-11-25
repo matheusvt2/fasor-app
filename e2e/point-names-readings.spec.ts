@@ -102,8 +102,9 @@ test('@p0 25.10-E2E-001 a v15 switch with three poles out: the tap starts a poin
   // The kernel's finding over the device's rows: the three poles in row order, the criterion once.
   const finding = (await findingsOf(page, relatorioId, blockId)).find((one) => one.testKey === TEST_KEY)!;
   expect(finding).toMatchObject({ origin: 'reading', testKey: TEST_KEY, place: 'test', positions: [] });
-  expect(finding.text).toMatch(/^Ensaio de resistência ôhmica de contato fora do critério \(<250 µΩ\): .+ 273 µΩ; .+ 266 µΩ; .+ 548 µΩ\.$/);
-  expect(finding.text.split('<250 µΩ')).toHaveLength(2);
+  // Batch e30b (Story 30.3 (a)): a relatório born on v19 writes the criterion with its sign and a space (was "<250 µΩ").
+  expect(finding.text).toMatch(/^Ensaio de resistência ôhmica de contato fora do critério \(< 250 µΩ\): .+ 273 µΩ; .+ 266 µΩ; .+ 548 µΩ\.$/);
+  expect(finding.text.split('< 250 µΩ')).toHaveLength(2);
 
   // --- the tap: the editor opens with that text; "Concluir" stores one point ---
   const place = placeOf(testSection(page));

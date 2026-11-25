@@ -137,10 +137,11 @@ describe('E3-A9 subBlockSummaryText', () => {
   });
 
   it('reads a test as its rows × captured columns, then the criterion with its source', () => {
-    expect(subBlockSummaryText(secc, 'isolacao')).toBe('T1 · T3 · T5 · Fase A · Fase B · Fase C × Valor · >400 MΩ (aceitável na ficha)');
-    expect(subBlockSummaryText(secc, 'resistencia_contato')).toBe('T1-T2 · T3-T4 · T5-T6 × Valor · <250 µΩ (aceitável na ficha)');
-    expect(subBlockSummaryText(tp, 'isolacao')).toBe('Fase R · Fase S · Fase T × 1 minuto · >400 MΩ (aceitável na ficha)');
-    expect(subBlockSummaryText(tp, 'relacao_transformacao')).toBe('Fase R · Fase S · Fase T × H1-H2 / X1-X2 · ±0,5 % (aceitável na ficha)');
+    // Story 30.3 (a): the composer writes a criterion in the form of the current seed (v19: the sign and a space).
+    expect(subBlockSummaryText(secc, 'isolacao')).toBe('T1 · T3 · T5 · Fase A · Fase B · Fase C × Valor · > 400 MΩ (aceitável na ficha)');
+    expect(subBlockSummaryText(secc, 'resistencia_contato')).toBe('T1-T2 · T3-T4 · T5-T6 × Valor · < 250 µΩ (aceitável na ficha)');
+    expect(subBlockSummaryText(tp, 'isolacao')).toBe('Fase R · Fase S · Fase T × 1 minuto · > 400 MΩ (aceitável na ficha)');
+    expect(subBlockSummaryText(tp, 'relacao_transformacao')).toBe('Fase R · Fase S · Fase T × H1-H2 / X1-X2 · ± 0,5 % (aceitável na ficha)');
   });
 
   it('is null for a sub-block with nothing to count', () => {

@@ -258,7 +258,8 @@ test('@p0 20.3/20.5/20.6-E2E-001 a new relatório prints the tests before the po
   const body = docx.paragraphs;
   expect(body.filter((text) => /^(Concluída por|Preenchido por|CRITÉRIO:|Item \d+ · )/.test(text))).toEqual([]);
   expect(body.some((text) => text.includes(' · critério '))).toBe(false);
-  expect(docx.tables.some((table) => table[1]?.at(-1) === 'ACEITÁVEL' && table[2]?.at(-1) === '>400 MΩ')).toBe(true);
+  // Batch e30b (Story 30.3 (a)): a relatório born on v19 writes the criterion with its sign and a space (was ">400 MΩ").
+  expect(docx.tables.some((table) => table[1]?.at(-1) === 'ACEITÁVEL' && table[2]?.at(-1) === '> 400 MΩ')).toBe(true);
   // The unit once: "VALORES (GΩ)" over bare cells, never "4,9 GΩ".
   const insulation = docx.tables.find((table) => table.some((row) => row.includes('4,9')))!;
   expect(insulation, 'the contato aberto table with its readings').toBeDefined();
