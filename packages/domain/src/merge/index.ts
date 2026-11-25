@@ -6,6 +6,8 @@ export {
   conflictCellHeading,
   conflictOpIds,
   holdsConflictMarks,
+  LOCATION_REMOVAL_TITLE,
+  locationRemovalToastText,
   conflictPickLabel,
   conflictSideView,
   conflictValueText,
@@ -34,6 +36,7 @@ export {
   type DecisionSide,
   type DecisionTextContext,
   type DuplicateTagDecision,
+  type LocationRemovalDecision,
   type OpFacts,
   type OpenDecisionsInput,
 } from './conflicts.ts';

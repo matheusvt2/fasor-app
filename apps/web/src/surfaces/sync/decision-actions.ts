@@ -1,11 +1,16 @@
 import {
   applyPickOps,
+  holdsLocationRemovalMark,
   keepBothTag,
   keptBothText,
   normalizeTag,
+  locationControlName,
+  locationRestorePlan,
+  locationRestoredText,
   removalKeptText,
   removalRemovedText,
   type BlockRemovalDecision,
+  type LocationRemovalDecision,
   type CellDecision,
   type ConflictPick,
   type DecisionTextContext,
@@ -24,8 +29,9 @@ import { useDefinitionContext } from '../../state/definition-context.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
+import { leaveLocationRemovedOp } from '../relatorio/relatorio-ops.ts';
 import { renameEquipmentOps } from '../relatorio/tag-rename-ops.ts';
-import { removeSheetOps, restoreSheetOps } from '../relatorio/tree-actions.ts';
+import { removeSheetOps, restoreLocationOps, restoreSheetOps } from '../relatorio/tree-actions.ts';
 
 /*
  * Stories 10.2 and 10.3 (epic-10 "Ownership"): every resolution is a plain client batch,
@@ -67,6 +73,10 @@ export interface DecisionActions {
   remove: (entry: HeldDecisions, decision: BlockRemovalDecision, context: DecisionTextContext) => Promise<void>;
   /** "Manter as duas": the later equipment takes the next free suffix (`keepBothTag`). */
   keepBoth: (entry: HeldDecisions, decision: DuplicateTagDecision, context: DecisionTextContext) => Promise<void>;
+  /** Story 30.4, "Restaurar local": the local's existing restore (`locationRestorePlan`), which clears the mark. */
+  restoreLocal: (entry: HeldDecisions, decision: LocationRemovalDecision) => Promise<void>;
+  /** Story 30.4, "Deixar removido": a put of the removal's own time (`leaveLocationRemovedOp`) clears the mark; the local stays removed. */
+  leaveRemoved: (entry: HeldDecisions, decision: LocationRemovalDecision) => Promise<void>;
 }
 
 export function useDecisionActions(): DecisionActions {
@@ -171,5 +181,38 @@ export function useDecisionActions(): DecisionActions {
     [run, db, author],
   );
 
-  return useMemo(() => ({ apply, keep, remove, keepBoth }), [apply, keep, remove, keepBoth]);
+  const restoreLocal = useCallback(
+    async (entry: HeldDecisions, decision: LocationRemovalDecision) => {
+      if (author === null || db === null) return;
+      await run(async () => {
+        const [blocks, equipment, locations] = await Promise.all([blockRowsOf(db, entry.relatorioId), equipmentRows(db, entry.projectId), allLocationRows(db, entry.relatorioId)]);
+        const local = locations.find((row) => row.id === decision.location_id && holdsLocationRemovalMark(row));
+        if (local === undefined) return null;
+        const plan = locationRestorePlan({ locations, blocks, equipment, locationId: local.id });
+        if (plan === null) return null;
+        const text = locationRestoredText(local.kind, locationControlName(locations, local.id));
+        return { ops: restoreLocationOps(author, entry.relatorioId, entry.projectId, plan), text };
+      });
+    },
+    [run, db, author],
+  );
+
+  const leaveRemoved = useCallback(
+    async (entry: HeldDecisions, decision: LocationRemovalDecision) => {
+      if (author === null || db === null) return;
+      const out: { name: string | null } = { name: null };
+      const batch = await write(async () => {
+        const locations = await allLocationRows(db, entry.relatorioId);
+        const local = locations.find((row) => row.id === decision.location_id && holdsLocationRemovalMark(row));
+        if (local === undefined || local.removed_at === null) return null;
+        out.name = local.name.trim();
+        return (await commitBatch(db, [leaveLocationRemovedOp(author, entry.relatorioId, local.id, local.removed_at)], { newId, now })).batch_id;
+      }).catch(() => null);
+      // No "Desfazer": the mark is never put back by an undo; the local stays in "Restaurar ficha removida".
+      notify(batch === null || out.name === null ? t.gone : t.leftRemoved(out.name));
+    },
+    [db, author, write, notify, t],
+  );
+
+  return useMemo(() => ({ apply, keep, remove, keepBoth, restoreLocal, leaveRemoved }), [apply, keep, remove, keepBoth, restoreLocal, leaveRemoved]);
 }

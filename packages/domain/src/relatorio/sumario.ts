@@ -12,7 +12,7 @@ import { sectionTextEdited, sectionTextEmpty } from './section-variables.ts';
 import { funcaoLabel } from './local.ts';
 import { hiddenLocationIds } from './location-live.ts';
 import { locationPathText } from './location-path.ts';
-import { locationRestoreDetailText, locationRestorePlan, removedAncestorIds, type SiteWorkRow } from './removal.ts';
+import { holdsLocationRemovalMark, locationRestoreDetailText, locationRestorePlan, removedAncestorIds, type SiteWorkRow } from './removal.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { locationControlName } from './tree.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
@@ -667,7 +667,8 @@ export function restorableEntries(input: {
   const hidden = hiddenLocationIds(locations);
   const blockRows = restorableBlockRows(onShownLocations(blocks, locations), equipment, locations, since).map((row) => ({ ...row, kind: 'block' as const }));
   const locationRows = locations
-    .filter((row): row is LocationRow & { removed_at: string } => row.removed_at !== null && (since === null || row.removed_at > since))
+    // Story 30.4: a local marked removed against site work is offered past the cut while the mark stands.
+    .filter((row): row is LocationRow & { removed_at: string } => row.removed_at !== null && (since === null || row.removed_at > since || holdsLocationRemovalMark(row)))
     .filter((row) => row.parent_id === null || !hidden.has(row.parent_id))
     .flatMap((row) => {
       const plan = locationRestorePlan({ locations, blocks, equipment, locationId: row.id, files: input.files ?? [], points: input.points ?? [] });

@@ -65,6 +65,15 @@ export function locationRemovedOp(author: Author, relatorioId: string, locationI
   return { ...envelope(author, relatorioId), kind: removed ? 'remove' : 'put', path: locationFieldPath(locationId, 'removed_at'), value: null };
 }
 
+/**
+ * Story 30.4: "Deixar removido" of a local marked removed against site work: a put of the removal's
+ * own time (`removed_at` unchanged, so the restore still tells the rows of that removal), which the
+ * fold takes as a removal that saw the work and clears the mark with (`writeLocationRemovedAt`).
+ */
+export function leaveLocationRemovedOp(author: Author, relatorioId: string, locationId: string, removedAt: string): OpDraft {
+  return { ...envelope(author, relatorioId), kind: 'put', path: locationFieldPath(locationId, 'removed_at'), value: removedAt };
+}
+
 /** `location/{id}/agrupar_por_tipo` put (the cabine's flag; the family has no field segment). */
 export function putAgruparOp(author: Author, relatorioId: string, locationId: string, value: boolean): OpDraft {
   return { ...envelope(author, relatorioId), kind: 'put', path: locationAgruparPath(locationId), value };

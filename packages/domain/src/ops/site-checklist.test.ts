@@ -170,9 +170,12 @@ describe('matrix "Item answered": a site put writes a cell on the cabine row', (
     // The observation came first, yet the stored entry reads result, then observation (the row schema's order).
     expect(Object.keys(row.checklist![ITEM]!)).toEqual(['result', 'observation']);
     expect(Object.keys(row.checklist!)).toEqual([ITEM, OTHER_ITEM]);
-    expect(without(row, 'checklist')).toEqual(local());
-    // `checklist` is the row's last key, after everything a cabine held before contract 18.
-    expect(Object.keys(row).at(-1)).toBe('checklist');
+    // Story 30.4 (contract 61): each answer is site work on the local, attributed by the fold (the latest one).
+    expect(row.site_modified_by).toBe(na.actor_id);
+    expect(row.site_modified_at).toBe(na.client_ts);
+    expect(without(without(without(row, 'checklist'), 'site_modified_by'), 'site_modified_at')).toEqual(local());
+    // `checklist` follows everything a cabine held before contract 18; the derived site columns of contract 61 follow it.
+    expect(Object.keys(row).slice(-3)).toEqual(['checklist', 'site_modified_by', 'site_modified_at']);
     expect(JSON.stringify(locationRowSchema.parse(row))).toBe(JSON.stringify(row));
   });
 
@@ -556,7 +559,8 @@ describe('a site photo and a site point carry `location_id`', () => {
   it('matrix "Site photo": a photo create with `location_id` and `item_key`, `block_id` null, is stored as written and names no block', () => {
     const f = opFactory();
     const create = f.op({ kind: 'create', path: `file/${PHOTO}`, value: sitePhoto() });
-    expect(targetsOf(create).map((r) => r.key)).toEqual([photoKey]);
+    // Story 30.4 (contract 61): the create names its local too, which its fold attributes the work to.
+    expect(targetsOf(create).map((r) => r.key)).toEqual([photoKey, locKey]);
     const stored = applyOp(state(), create).get(photoKey) as FileRow;
     expect(stored).toEqual(sitePhoto());
     expect(stored).toMatchObject({ kind: 'photo', location_id: LOCAL, item_key: ITEM, block_id: null, reading_kind: null });

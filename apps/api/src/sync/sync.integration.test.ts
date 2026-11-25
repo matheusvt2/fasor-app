@@ -1116,10 +1116,11 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 
-  it('e25s-API-002, 25.5-API-002, 25.4-API-002, 24.2-API-001, 24.18-API-002, 24.15-API-001 contract 49 (fix batch e25r, R-1; contract 48, Story 25.4, batch e25b; contract 47, Stories 24.10 to 24.14, batch e24s; contract 46, Stories 24.15 and 24.16, batch e24p; contract 45, Stories 24.18 to 24.20, batch e24c; contract 44, Stories 24.2 to 24.4, batch e24a; contract 43, Stories 24.8 and 24.21, batch e24b; contract 42, fix batch e24f; contract 41, fix batch e24h; contract 40, fix batch e23z; contract 39, Stories 23.13, 23.18, 23.20 and 23.21, batch e23e; contract 38, Stories 23.15 to 23.17 and 23.19, batch e23t; contract 37, Stories 23.10 and 23.11, batch e23h; contract 36, Stories 23.5, 23.6 and 23.14, batch e23v; contract 35, Stories 23.7 to 23.9, batch e23b; contract 33, Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"; contract 50, Story 25.5, batch e25c; contract 51, Story 25.23, batch e25p; contract 52, Story 25.24, batch e25p; contract 53, seed v16, batch e25s; contract 54, Story 25.18, batch e25s; contract 55, Story 26.2, batch e26a; contract 56, Stories 27.1 and 27.2, batch e27a; contract 57, seed v17, batch e27b; contract 58, seed v18, batch e28a; contract 59, Story 28.9, batch e28c): a version-58 pull is refused with 426 contract_outdated on every stream, a version-59 pull is answered', async () => {
-    expect(CONTRACT_VERSION).toBe(60);
-    expect(MIN_CONTRACT_VERSION).toBe(60);
+  it('e25s-API-002, 25.5-API-002, 25.4-API-002, 24.2-API-001, 24.18-API-002, 24.15-API-001 contract 49 (fix batch e25r, R-1; contract 48, Story 25.4, batch e25b; contract 47, Stories 24.10 to 24.14, batch e24s; contract 46, Stories 24.15 and 24.16, batch e24p; contract 45, Stories 24.18 to 24.20, batch e24c; contract 44, Stories 24.2 to 24.4, batch e24a; contract 43, Stories 24.8 and 24.21, batch e24b; contract 42, fix batch e24f; contract 41, fix batch e24h; contract 40, fix batch e23z; contract 39, Stories 23.13, 23.18, 23.20 and 23.21, batch e23e; contract 38, Stories 23.15 to 23.17 and 23.19, batch e23t; contract 37, Stories 23.10 and 23.11, batch e23h; contract 36, Stories 23.5, 23.6 and 23.14, batch e23v; contract 35, Stories 23.7 to 23.9, batch e23b; contract 33, Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"; contract 50, Story 25.5, batch e25c; contract 51, Story 25.23, batch e25p; contract 52, Story 25.24, batch e25p; contract 53, seed v16, batch e25s; contract 54, Story 25.18, batch e25s; contract 55, Story 26.2, batch e26a; contract 56, Stories 27.1 and 27.2, batch e27a; contract 57, seed v17, batch e27b; contract 58, seed v18, batch e28a; contract 59, Story 28.9, batch e28c; contract 61, Story 30.4, batch e30c): a version-58 pull is refused with 426 contract_outdated on every stream, a version-59 pull is answered', async () => {
+    expect(CONTRACT_VERSION).toBe(61);
+    expect(MIN_CONTRACT_VERSION).toBe(61);
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
+      // 60 neither attributes site work to a local nor marks a local removed against it (Story 30.4, batch e30c);
       // 59 ships no seed v19, so it cannot resolve a v19 relatório nor a template the server moved to v19 (Story 30.3, batch e30b);
       // 58 cannot parse `relatorio/setup/additional_items` and strips the list (Story 28.9, batch e28c);
       // 57 ships no seed v18 nor the v18 item and reason keys, so it cannot resolve a v18 relatório (Stories 28.2 to 28.4, batch e28a);
@@ -1164,13 +1165,13 @@ describe('1.5-API-005 contract skew', () => {
       // 19 cannot parse `audit_run/{id}/coverage` (Story 14.10 lane B);
       // 18 cannot parse `sheet/{id}/test/{key}/value/...`, the ninth block type nor resolve seed v5 (Story 14.5);
       // 17 cannot parse `location/{id}/checklist/...` nor resolve seed v4 (Story 14.3); 16 stays refused as since Story 14.2.
-      for (const version of ['59', '58', '57', '56', '55', '54', '53', '52', '51', '50', '49', '48', '47', '46', '45', '44', '43', '42', '41', '40', '39', '38', '37', '36', '35', '34', '33', '32', '31', '30', '29', '28', '27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
+      for (const version of ['60', '59', '58', '57', '56', '55', '54', '53', '52', '51', '50', '49', '48', '47', '46', '45', '44', '43', '42', '41', '40', '39', '38', '37', '36', '35', '34', '33', '32', '31', '30', '29', '28', '27', '26', '25', '24', '23', '22', '21', '20', '19', '18', '17', '16']) {
         const old = await pull(companyA, path, version);
         expect(old.status, `${path} at ${version}`).toBe(426);
         expect(errorResponseSchema.parse(await old.json()).code).toBe('contract_outdated');
       }
     }
-    const current = await pull(companyA, '/api/sync/company?since=0', '60');
+    const current = await pull(companyA, '/api/sync/company?since=0', '61');
     expect(current.status).toBe(200);
     // An outdated client keeps pushing (AD-13): only the pull is refused.
     const batch = [clientCreate(idsA, newId())];
@@ -1690,8 +1691,13 @@ describe('Story 14.3 (contract 18): Verificações do local through POST /api/sy
     expect(await rowOf('location', t.painel)).toEqual(before.painel);
     expect(await rowOf('location', t.coluna)).toEqual(before.coluna);
     expect(await rowOf('location', old.local)).toEqual(before.oldLocal);
-    // Only the good put changed the local.
-    expect(await rowOf('location', t.local)).toEqual({ ...(before.local as object), checklist: { [EMERGENCIA]: { result: { value: 'NC', source_suggestion_id: null, op_id: good.op_id } } } });
+    // Only the good put changed the local; Story 30.4 (contract 61): it is site work, attributed to the local.
+    expect(await rowOf('location', t.local)).toEqual({
+      ...(before.local as object),
+      checklist: { [EMERGENCIA]: { result: { value: 'NC', source_suggestion_id: null, op_id: good.op_id } } },
+      site_modified_by: good.actor_id,
+      site_modified_at: good.client_ts,
+    });
   });
 
   it('Story 15.3 (seed v9, contract 25): the two new site items are accepted on a v9 relatório and carried by its stream; a v8 relatório refuses them op_invalid', async () => {

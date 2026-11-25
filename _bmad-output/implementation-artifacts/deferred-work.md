@@ -386,11 +386,7 @@ All rows closed; see deferred-work-archive.md
 
 ## Deferred from: Epic 14 QA fix batch (2026-10-14)
 
-- source_spec: `_bmad-output/implementation-artifacts/spec-epic-14-qa-fixes.md`
-  summary: Q-8. Site work written offline on a local another device removed disappears with no sign: device B answers the 19 items and adds a point offline, device A removes the local and syncs first; on B's next pull the answers are hidden with the local, the Verificações route says "não encontradas", no merge entry or decision is raised (the edit-on-removed mark exists for blocks only), and after the next emission the local's entry is cut from "Restaurar ficha removida", so nothing brings the answers back. The fix batch closed ledger (h) for sheets (a stranded live sheet is its own restore entry); site answers, site photos and site points have no such entry.
-  evidence: `packages/domain/src/ops/apply.ts:190-202`; `apps/web/src/surfaces/local/verificacoes-surface.tsx:84-91`; `packages/domain/src/relatorio/sumario.ts` `restorableEntries` (the `since` cut, `strandedSheetRows`); `epic-14-qa-2026-10-13.md` Q-8 and R-2.
-  class: question
-  state: open (owner: Matheus, joins ledger (h): either a local holding site work written after its removal stays offered past the cut, or the site work raises a decision, which is a new mark in the fold and a contract bump)
+All rows closed; see deferred-work-archive.md
 
 ## Deferred from: production deploy v0.2.0 (2026-10-14)
 

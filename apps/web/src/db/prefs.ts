@@ -284,3 +284,23 @@ export async function readCameraApp(db: AppDatabase, touchPoints: number): Promi
 export async function writeCameraApp(db: AppDatabase, on: CameraApp): Promise<void> {
   await db.local_prefs.put({ key: CAMERA_APP_PREF, value: cameraAppSchema.parse(on) });
 }
+
+/**
+ * Story 30.4: the removals of a local this device already told its writer about (the Toast "⟨Local⟩ foi
+ * removido por ⟨nome⟩. …", shown once), keyed `⟨location id⟩:⟨removed_at⟩`, device-local. An unreadable
+ * or invalid value reads as none.
+ */
+const REMOVED_LOCAL_TOLD_PREF = 'removed_local_told';
+
+export async function readRemovedLocalTold(db: AppDatabase): Promise<string[]> {
+  try {
+    const value: unknown = (await db.local_prefs.get(REMOVED_LOCAL_TOLD_PREF))?.value;
+    return Array.isArray(value) ? value.filter((key): key is string => typeof key === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function writeRemovedLocalTold(db: AppDatabase, keys: readonly string[]): Promise<void> {
+  await db.local_prefs.put({ key: REMOVED_LOCAL_TOLD_PREF, value: [...keys] });
+}

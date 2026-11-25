@@ -282,7 +282,15 @@ export function DecisionsSection({
         <div className="conflict-list">
           {decisions.map((decision) => (
             <div className="banner" data-variant="conflict" key={decision.key} data-testid="sync-decision-row" data-kind={decision.kind}>
-              <span className="banner-text">{decision.text}</span>
+              <span className="banner-text">
+                {decision.title === undefined ? null : (
+                  <>
+                    <strong>{decision.title}</strong>
+                    {' — '}
+                  </>
+                )}
+                {decision.text}
+              </span>
               {actions === undefined ? null : <span className="banner-actions">{actions(decision)}</span>}
             </div>
           ))}

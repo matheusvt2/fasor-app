@@ -109,7 +109,7 @@
 
     <!-- ---------------- Decisões: the one cell contradiction opens the Conflict view; structure cases resolve in place ---------------- -->
     <section class="section" aria-labelledby="sync-h-conf">
-      <div class="section-head"><h2 id="sync-h-conf">Decisões</h2><span class="sync-badge is-compact" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>3 aguardam decisão</span></span></div>
+      <div class="section-head"><h2 id="sync-h-conf">Decisões</h2><span class="sync-badge is-compact" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>4 aguardam decisão</span></span></div>
       <p class="section-note">Fichas são mescladas por sub-bloco sozinhas (preenchido vence vazio · NC vence C · fotos nunca se perdem · texto: mais recente vence). Só contradições reais e dois casos de estrutura pedem decisão.</p>
       <div class="conflict-list">
         <div class="banner" data-variant="conflict" role="alert" id="sync-conf-sheet">
@@ -119,6 +119,12 @@
         <div class="banner" data-variant="conflict" role="alert" id="sync-conf-struct">
           <span class="banner-text"><strong>Remoção contra edição</strong> — DJ-C09 · Coluna 9 · Disjuntor MT: removido por você às 13:50, alterado por Eduardo às 14:12.</span>
           <span class="banner-actions"><button class="btn btn-text" data-close="#sync-conf-struct" data-toast="DJ-C09 mantido na Coluna 9 com as alterações de Eduardo" data-toast-action="Desfazer">Manter</button><button class="btn btn-text" data-tone="red" data-close="#sync-conf-struct" data-toast="DJ-C09 removido — a edição de Eduardo fica recuperável" data-toast-action="Desfazer">Remover</button></span>
+        </div>
+        <!-- 2026-11-25, Story 30.4 (Q-8, Matheus "tem que ser uma notificacao"): a local removed on one device while another
+             answered its Verificações without having seen the removal. Nothing is deleted; it resolves in place. -->
+        <div class="banner" data-variant="conflict" role="alert" id="sync-conf-local">
+          <span class="banner-text"><strong>Local removido com respostas</strong> — 2º Subsolo: removido por Eduardo em 07/09 13:50. 19 respostas de você nas Verificações do local não foram mantidas.</span>
+          <span class="banner-actions"><button class="btn btn-text" data-close="#sync-conf-local" data-toast="Local 2º Subsolo restaurado" data-toast-action="Desfazer">Restaurar local</button><button class="btn btn-text" data-close="#sync-conf-local" data-toast="2º Subsolo continua removido. Dá para recuperar em &quot;Restaurar ficha removida&quot;.">Deixar removido</button></span>
         </div>
         <div class="banner" data-variant="conflict" role="alert" id="sync-conf-tag">
           <span class="banner-text"><strong>TAG duplicada</strong> — SEC-C09 foi criada em dois aparelhos (você às 11:40, Eduardo às 11:55). Manter as duas renomeia a mais recente para SEC-C09-2.</span>

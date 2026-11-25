@@ -108,6 +108,9 @@
          No action: signing in again cannot help until the Admin reactivates the account; filling goes on and the outbox is kept. -->
     <div class="banner" id="slot-paused" role="status" hidden><span class="banner-text"><strong>Conta pausada.</strong> O que você preencher fica salvo neste aparelho e é enviado quando o administrador reativar a sua conta.</span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
     <div class="banner" id="slot-conflict" data-variant="conflict" role="alert" hidden><span class="banner-text"><strong>Contradição</strong> — SEC-C12: 1 célula em contradição com Eduardo.</span><span class="banner-actions"><button class="btn btn-text" data-go="#/sync/conflito">Ver</button><button class="btn btn-text" data-close="#slot-conflict">Depois</button></span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
+    <!-- 2026-11-25, Story 30.4: the Sumário's notice of a local removed against site work (the Conflict variant, conflict priority);
+         opened by "Simular: local removido com respostas" on the Sumário frame. -->
+    <div class="banner" id="slot-removed-local" data-variant="conflict" role="alert" hidden><span class="banner-text"><strong>Local removido com respostas</strong> — 2º Subsolo: removido por Eduardo em 07/09 13:50. 19 respostas de você nas Verificações do local não foram mantidas.</span><span class="banner-actions"><button class="btn btn-text" data-close="#slot-removed-local" data-toast="Local 2º Subsolo restaurado" data-toast-action="Desfazer">Restaurar local</button><button class="btn btn-text" data-close="#slot-removed-local" data-toast="2º Subsolo continua removido. Dá para recuperar em &quot;Restaurar ficha removida&quot;.">Deixar removido</button></span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
     <div class="banner" id="slot-draft" data-variant="info" role="status" hidden><span class="banner-text"><strong>Rascunho encontrado</strong> — esta ficha tem alterações não salvas neste aparelho.</span><span class="banner-actions"><button class="btn btn-text" data-close="#slot-draft" data-toast="Rascunho recuperado">Recuperar</button><button class="btn btn-text" data-close="#slot-draft">Agora não</button></span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
     <div class="banner" id="slot-suggestions" data-variant="info" role="status" hidden><span class="banner-text"><strong>Sugestões prontas</strong> — 3 leituras aguardam confirmação nesta ficha.</span><span class="banner-actions"><button class="btn btn-text" data-close="#slot-suggestions" data-toast="Rolando até a primeira sugestão">Ver</button></span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
     <div class="banner" id="slot-exported" role="status" hidden><span class="banner-text"><strong>Relatório emitido</strong> em 09/09 (revisão 2). Alterações geram a revisão 3.</span><span class="banner-actions"><button class="btn btn-text" data-close="#slot-exported">Entendi</button></span><button class="banner-more" data-go="#/sync" aria-label="Outras condições — abrir status de sincronização" hidden></button></div>
@@ -946,6 +949,9 @@
       <button class="overflow-trigger" data-open="#sum-menu-rel" aria-label="Mais opções do relatório"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
       <!-- prototype only: flips the status so the status-driven behavior can be seen -->
       <button class="btn btn-text sim-review" data-toggle-class="is-review" data-toggle-target="#sumario" data-toast="Simulação: relatório Em revisão — seções recolhidas, pendências em destaque">Simular: Em revisão</button>
+      <!-- 2026-11-25, Story 30.4 (prototype only): the Sumário's conflict Banner of a local removed against site work, and the Toast
+           the writer's device shows once when the sync brings it. -->
+      <button class="btn btn-text sim-review" data-open="#slot-removed-local" data-toast="2º Subsolo foi removido por Eduardo. Suas 19 respostas não foram mantidas." data-toast-action="Ver">Simular: local removido com respostas</button>
     </div>
   </div>
 
@@ -8243,7 +8249,7 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
 
     <!-- ---------------- Decisões: the one cell contradiction opens the Conflict view; structure cases resolve in place ---------------- -->
     <section class="section" aria-labelledby="sync-h-conf">
-      <div class="section-head"><h2 id="sync-h-conf">Decisões</h2><span class="sync-badge is-compact" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>3 aguardam decisão</span></span></div>
+      <div class="section-head"><h2 id="sync-h-conf">Decisões</h2><span class="sync-badge is-compact" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>4 aguardam decisão</span></span></div>
       <p class="section-note">Fichas são mescladas por sub-bloco sozinhas (preenchido vence vazio · NC vence C · fotos nunca se perdem · texto: mais recente vence). Só contradições reais e dois casos de estrutura pedem decisão.</p>
       <div class="conflict-list">
         <div class="banner" data-variant="conflict" role="alert" id="sync-conf-sheet">
@@ -8253,6 +8259,12 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
         <div class="banner" data-variant="conflict" role="alert" id="sync-conf-struct">
           <span class="banner-text"><strong>Remoção contra edição</strong> — DJ-C09 · Coluna 9 · Disjuntor MT: removido por você às 13:50, alterado por Eduardo às 14:12.</span>
           <span class="banner-actions"><button class="btn btn-text" data-close="#sync-conf-struct" data-toast="DJ-C09 mantido na Coluna 9 com as alterações de Eduardo" data-toast-action="Desfazer">Manter</button><button class="btn btn-text" data-tone="red" data-close="#sync-conf-struct" data-toast="DJ-C09 removido — a edição de Eduardo fica recuperável" data-toast-action="Desfazer">Remover</button></span>
+        </div>
+        <!-- 2026-11-25, Story 30.4 (Q-8, Matheus "tem que ser uma notificacao"): a local removed on one device while another
+             answered its Verificações without having seen the removal. Nothing is deleted; it resolves in place. -->
+        <div class="banner" data-variant="conflict" role="alert" id="sync-conf-local">
+          <span class="banner-text"><strong>Local removido com respostas</strong> — 2º Subsolo: removido por Eduardo em 07/09 13:50. 19 respostas de você nas Verificações do local não foram mantidas.</span>
+          <span class="banner-actions"><button class="btn btn-text" data-close="#sync-conf-local" data-toast="Local 2º Subsolo restaurado" data-toast-action="Desfazer">Restaurar local</button><button class="btn btn-text" data-close="#sync-conf-local" data-toast="2º Subsolo continua removido. Dá para recuperar em &quot;Restaurar ficha removida&quot;.">Deixar removido</button></span>
         </div>
         <div class="banner" data-variant="conflict" role="alert" id="sync-conf-tag">
           <span class="banner-text"><strong>TAG duplicada</strong> — SEC-C09 foi criada em dois aparelhos (você às 11:40, Eduardo às 11:55). Manter as duas renomeia a mais recente para SEC-C09-2.</span>

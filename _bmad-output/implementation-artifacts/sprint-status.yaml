@@ -381,7 +381,7 @@ development_status:
   30-1-app-fixes-each-proven-red-first: done  # 2026-11-24: batch e30a PR, A-J fixed red first, K did not reproduce (closed with evidence); not merged yet | was backlog: wave 1, batch e30a, port base 30; no seed, no contract
   30-2-infra-and-tooling-fixes: done  # 2026-11-24: batch e30a PR, A-D red first; the Terraform validation is applied at the next deploy (not planned against the real stack, no AWS session) | was backlog: wave 1, batch e30a after 30.1
   30-3-seed-v19-opens-the-v18-layout-is-locked-and-three-printed-texts-follow-bruno: done  # 2026-11-24: batch e30b, PR #386 (not merged yet when written); contract 60, seed v19, v18 layout lock from de79700b
-  30-4-a-notice-when-a-local-this-device-answered-was-removed-elsewhere: backlog  # wave 2, batch e30c; Q-8; contract main's plus one at its merge
+  30-4-a-notice-when-a-local-this-device-answered-was-removed-elsewhere: done  # 2026-11-25: batch e30c, PR #389 (not merged yet when written); Q-8 closed; contract 61; no review loop in the batch (one review per wave)
   30-5-the-unstable-tests-each-cause-found-and-fixed: backlog  # wave 2, batch e30d, machine idle; E28-A6
   epic-30-retrospective: optional
 
