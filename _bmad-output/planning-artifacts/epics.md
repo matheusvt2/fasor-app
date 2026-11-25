@@ -13241,7 +13241,7 @@ So that a generate, a setup field or a long TAG never leaves me with a wrong sta
 - **G** built (30.1-UNIT-G). **H** built; the panel capture's status line is its own (portaled), since the palette tile pressed has closed by then, so no opener is marked busy there (30.1-UNIT-H1 to H3). **I** built (30.1-UNIT-I).
 - **J** built, both halves: a re-issue now older than its prior gives the top back; one now newer than the top it sat under takes it; covers L3881 (30.1-UNIT-J).
 - **K** did not reproduce: 30.1-E2E-K on the unfixed build suggested DJ-01 once the local holding it was removed (one relatório in the obra, the company stream pulled). The row is closed with that evidence; by design a removal frees an equipment only when the device holds every relatório of the obra.
-- Not done here: the screen checks with the Playwright MCP (the batch rule of `epic-batch-orchestrator.md` keeps the human pass for the integrated QA); the e2e screenshots of C and E are under `test-results/e30a/` of the batch, untracked.
+- Screen checks, partly: E with the Playwright MCP on the batch stack at 390 and 768 px (it caught a first CSS fix that did not shrink the TAG), C from its e2e at 390 and 1280 px; screenshots under `_bmad-output/test-artifacts/manual/e30a/`. Not done: the dev@local.dev pass at 390, 768 and 1280 px for every screen item (G, H, I have component tests only); left to the integrated QA.
 
 ### Story 30.2: Infra and tooling fixes
 
