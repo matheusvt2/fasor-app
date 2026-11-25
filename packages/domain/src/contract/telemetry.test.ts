@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLOCK_SKEW_MS } from '../ops/attribution.ts';
 import { boundedEventTs } from './telemetry.ts';
+import { DEVICE_KINDS, DEVICE_OSES, DEVICE_PX_MAX, POINTERS, TOUCH_POINTS_MAX } from './telemetry-device.ts';
 import { errorCodeSchema } from './errors.ts';
 import { TELEMETRY_ROUTE } from './index.ts';
 import { HOME_PAGE_SIZES } from '../home/cards.ts';
@@ -360,6 +361,52 @@ describe('Story 18.4: how long, in what order, on what and for whom', () => {
     expect(parses({ ...bare, name: 'session_start', online: 1 })).toBe(false);
     expect(parses({ ...bare, name: 'screen_view', from: 'report' })).toBe(false);
     expect(parses({ ...bare, name: 'screen_view', from: '/relatorio/x' })).toBe(false);
+  });
+});
+
+describe('Story 30.6: a session_start says what kind of device it is', () => {
+  const bare = (() => {
+    const event: Record<string, unknown> = { ...base };
+    delete event.target;
+    return event;
+  })();
+  const start = { ...bare, name: 'session_start', screen: 'home' };
+  const hardware = { pointer: 'coarse', touch_points: 10, os: 'android', screen_w: 800, screen_h: 1280, viewport_w: 600, device_kind: 'tablet' };
+
+  it('30.6-UNIT-011: accepts the hardware fields beside the Story 18.4 context, each value of each closed list, and an old bundle\'s bare start', () => {
+    expect(parses({ ...start, viewport: 'phone', standalone: false, online: true, ...hardware })).toBe(true);
+    for (const pointer of POINTERS) expect(parses({ ...start, pointer })).toBe(true);
+    for (const os of DEVICE_OSES) expect(parses({ ...start, os })).toBe(true);
+    for (const device_kind of DEVICE_KINDS) expect(parses({ ...start, device_kind })).toBe(true);
+    // The bounds, at their edges.
+    expect(parses({ ...start, touch_points: 0, screen_w: 0, screen_h: 0, viewport_w: 0 })).toBe(true);
+    expect(parses({ ...start, touch_points: TOUCH_POINTS_MAX, screen_w: DEVICE_PX_MAX, screen_h: DEVICE_PX_MAX, viewport_w: DEVICE_PX_MAX })).toBe(true);
+    expect(parses(start)).toBe(true);
+  });
+
+  it('30.6-UNIT-012: refuses a value outside its closed list, type or bounds, and free text', () => {
+    expect(parses({ ...start, pointer: 'none' })).toBe(false);
+    expect(parses({ ...start, os: 'iPadOS 18.1' })).toBe(false);
+    expect(parses({ ...start, os: 'Mozilla/5.0 (Linux; Android 13; SM-X200)' })).toBe(false);
+    expect(parses({ ...start, device_kind: 'SM-X200' })).toBe(false);
+    expect(parses({ ...start, device_kind: 'watch' })).toBe(false);
+    expect(parses({ ...start, touch_points: TOUCH_POINTS_MAX + 1 })).toBe(false);
+    expect(parses({ ...start, touch_points: -1 })).toBe(false);
+    expect(parses({ ...start, touch_points: 2.5 })).toBe(false);
+    expect(parses({ ...start, screen_w: DEVICE_PX_MAX + 1 })).toBe(false);
+    expect(parses({ ...start, screen_h: -1 })).toBe(false);
+    expect(parses({ ...start, viewport_w: 1280.5 })).toBe(false);
+    expect(parses({ ...start, viewport_w: '1280' })).toBe(false);
+    // The raw user agent and the model have no key of their own.
+    expect(parses({ ...start, user_agent: 'Mozilla/5.0' })).toBe(false);
+    expect(parses({ ...start, model: 'SM-X200' })).toBe(false);
+  });
+
+  it('30.6-UNIT-013: refuses each hardware field on any name but session_start', () => {
+    for (const [key, value] of Object.entries(hardware)) {
+      expect([key, parses({ ...bare, name: 'screen_view', [key]: value })]).toEqual([key, false]);
+      expect([key, parses({ ...base, [key]: value })]).toEqual([key, false]);
+    }
   });
 });
 

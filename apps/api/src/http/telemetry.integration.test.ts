@@ -310,3 +310,43 @@ describe('POST /api/telemetry (Story 18.2)', () => {
     expect(events[1]).toMatchObject({ name: 'screen_view' });
   });
 });
+
+describe('POST /api/telemetry: a session_start says what kind of device it is (Story 30.6)', () => {
+  const start = (device: string, extra: Record<string, unknown> = {}) => event(device, { name: 'session_start', target: undefined, ...extra });
+  const tablet = { viewport: 'phone', standalone: false, online: true, pointer: 'coarse', touch_points: 10, os: 'android', screen_w: 800, screen_h: 1280, viewport_w: 600, device_kind: 'tablet' };
+
+  it('30.6-API-001: stores the hardware fields as sent, beside an older bundle\'s start that carries none', async () => {
+    const device = newDevice();
+    const res = await post([start(device, tablet), start(device)]);
+    expect(res.status).toBe(204);
+    expect(written).toHaveLength(1);
+    expect(written[0]![0]).toMatchObject({ name: 'session_start', ...tablet, user_id: companyA.userId });
+    expect(written[0]![1]).not.toHaveProperty('device_kind');
+    expect(written[0]![1]).not.toHaveProperty('os');
+  });
+
+  it('30.6-API-002: refuses the whole batch with 400 telemetry_invalid on a value outside the closed lists or bounds, free text, or the fields on another event', async () => {
+    const device = newDevice();
+    const bad: Record<string, unknown>[] = [
+      { os: 'Android 13' },
+      { os: 'Mozilla/5.0 (Linux; Android 13; SM-X200)' },
+      { device_kind: 'SM-X200' },
+      { pointer: 'pen' },
+      { touch_points: 11 },
+      { touch_points: 1.5 },
+      { screen_w: 10001 },
+      { screen_h: -1 },
+      { viewport_w: '600' },
+      { user_agent: 'Mozilla/5.0' },
+      { model: 'SM-X200' },
+    ];
+    for (const extra of bad) {
+      const res = await post([start(device, tablet), start(device, { ...tablet, ...extra })]);
+      expect([extra, res.status]).toEqual([extra, 400]);
+      expect(await res.json()).toMatchObject({ code: 'telemetry_invalid' });
+    }
+    const onAction = await post([event(device, { device_kind: 'tablet' })]);
+    expect(onAction.status).toBe(400);
+    expect(written).toEqual([]);
+  });
+});
