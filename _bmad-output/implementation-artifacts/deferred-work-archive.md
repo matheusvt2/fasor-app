@@ -2394,6 +2394,11 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: `apps/api/src/jobs/reading/fixtures/92d3a9fb2cdc8ae0cf174211fe614107cb03edd31093dd126be275d53d7e2ecb.json`.
   class: decision
   state: resolved (2026-11-07, fix batch e22g, Bruno's test base rev03 item 8c): "10B100" is the old NBR protection notation and now reads as "10P", an option of the v12 TC select.
+- source_spec: `_bmad-output/implementation-artifacts/spec-e22s-seed-v12.md` (Story 22.9)
+  summary: The DoR and the AC write ACEITÁVEL as "± 1,2 %"; the kernel's one criterion format (`formatCriterionValue`) prints "±1,2 %" with no space, as v1 to v11 print "±0,5 %". Kept, so older documents print byte-identical. Owner: Bruno, if the spaced form is wanted on every seed.
+  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
+  class: decision
+  state: ~~open (owner: Bruno, relayed by Matheus) | 2026-11-24 audit: Bruno answered on 2026-11-11 (`docs/context/epic-24/respostas-bruno-2026-11-11.md` item 9: "± 5 %" with a space). Applied only to `nominal_pct` (`packages/domain/src/seed/criteria.ts:145-146`); the generic `±` still prints `${operator}${value}` (`:151`). Needs a new seed (v19) since v1-v18 are layout-locked; owner: agent (with Matheus's go for v19)~~ closed (2026-11-24, batch e30b, Story 30.3 (a), PR #386: seed v19's rule flag `criterion_symbols` makes `formatCriterionValue` write a criterion with no text of its own as "≥ 0,5 MΩ", "> 400 MΩ", "< 250 µΩ", "± 0,5 %", on the sheet and in section 9 alike; v1 to v18 print as before, the v18 layout lock taken from `de79700b`; `e30b-seed-v19.test.ts` 30.3-UNIT-A)
 
 ## Deferred from: Epic 22 fix batch e22f (2026-11-06)
 
@@ -2427,6 +2432,11 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: the gate log `matrix.log` of 2026-11-07; `e2e/photo-order.durability.spec.ts:105-110` and `:158`.
   class: test-hardening
   state: ~~open (owner: the next carry-over batch)~~ closed (2026-11-08, fix batch e23f, PR #283): the five one-shot `tileIds` reads (after the imports, after the moves, 21.3-E2E-005 and -006) are `expect.poll`, as the proposed fix said; `tileIds` says it is read only that way.
+- source_spec: `_bmad-output/implementation-artifacts/epic-22-wave-c-integrated-review-2026-11-07.md` (N10)
+  summary: The review asked that `formatCriterionValue` print `>=` and `<=` as "≥" and "≤", on the premise that seeded criteria use only `>`, `<` and `±`. That premise is wrong: the Quadro elétrico's NBR 5410 bands (seeds v5 and v6) are `>=` and have printed "Aceitável >=0,5 MΩ" and "critério: >=0,5 MΩ" on the sheet and in the DOCX since seed v5 (`e2e/qgbt.spec.ts`, `docx-qgbt.test.ts`, `quadro-eletrico.test.ts`). Changing the formatter moves every printed QGBT relatório (the protected layout: print changes only the asked delta), and changing it for company rows alone would print "≥" and ">=" side by side on a copy that carries the bands (S1). e22h left the formatter as it is. Decision for Bruno: "≥ 0,5 MΩ" everywhere (seeded and company, one formatter change, goldens and specs re-read), or ">=" as today.
+  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`; `packages/domain/src/seed/v6.ts` bands.
+  class: decision
+  state: ~~open (owner: Bruno, via Matheus) | 2026-11-24 audit: Bruno answered "≥" on 2026-11-11 (same file, item 9: "E '>=' ou '≥'?"). `formatCriterionValue` still prints ">=0,5 MΩ" for seeded bands (`criteria.ts:151`); only screen helpers use "≥" (`criteria.ts:185`, `relatorio/reading-evaluation.ts:443`). Needs seed v19; owner: agent (with Matheus's go for v19)~~ closed (2026-11-24, batch e30b, Story 30.3 (a), PR #386: seed v19's rule flag `criterion_symbols` makes `formatCriterionValue` write a criterion with no text of its own as "≥ 0,5 MΩ", "> 400 MΩ", "< 250 µΩ", "± 0,5 %", on the sheet and in section 9 alike; v1 to v18 print as before, the v18 layout lock taken from `de79700b`; `e30b-seed-v19.test.ts` 30.3-UNIT-A)
 
 ## Deferred from: the production check of Bruno's relatório after the deploy of `ae3d37e0` (2026-11-07)
 
@@ -3019,6 +3029,11 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: `apps/web/src/copy/pt-br.ts`; `packages/domain/src/relatorio/panel.ts`; every `// authored (e24y, corrected by Bruno 2026-11-11)`.
   class: note
   state: ~~open (owner: Bruno, through Matheus, with the authored list)~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Built from his own corrections)
+- source_spec: `spec-e24y-pass-fixes.md` (P10)
+  summary: only the "nominal ± %" criterion of company types (Story 24.18, new in Epic 24) takes the space after the sign ("220 V ± 5 %"). The ratio's and the accuracy classes' "±0,5 %", "±1,2 %" and the criteria ">=" (a company type's operator) print as before, because a v1 to v13 relatório prints them and `formatCriterionValue` knows no seed: a change would move the v5 to v13 goldens. Changing them on v14 only needs the seed carried into every criterion text, a larger change than the batch's.
+  evidence: `packages/domain/src/seed/criteria.ts` `formatCriterionValue`.
+  class: decision
+  state: ~~open (owner: Matheus: the v14-only form of "±" and "≥", or keep)~~ closed (2026-11-24, batch e30b, Story 30.3 (a), PR #386: seed v19's rule flag `criterion_symbols` makes `formatCriterionValue` write a criterion with no text of its own as "≥ 0,5 MΩ", "> 400 MΩ", "< 250 µΩ", "± 0,5 %", on the sheet and in section 9 alike; v1 to v18 print as before, the v18 layout lock taken from `de79700b`; `e30b-seed-v19.test.ts` 30.3-UNIT-A)
 
 ## Deferred from: Epic 24 fix batch e24z, the integrated gate's reds (2026-11-11)
 
