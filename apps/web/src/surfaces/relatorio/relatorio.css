@@ -420,4 +420,10 @@
      under the handle and Position box when the row has no room for it. */
   [data-route="/relatorio/:id"] .sum-s9 .s9-eq-open { display: flex; }
   [data-route="/relatorio/:id"] .s9-eq > .s9-eq-open { min-width: min-content; }
+  /* Story 30.1 E (L1635), authored: a TAG wider than the row (a TAG of 40 characters at 390 px) made the
+     row's min-content wider than the page, which then scrolled sideways. The TAG may now break inside
+     itself, but only when it cannot fit on a line of its own: as a flex item of the wrapping title row its
+     hypothetical size is its whole width, so a TAG that fits moves to a new line whole (the F-07 rule above)
+     and only one wider than the row shrinks and breaks. Nothing is hidden (no ellipsis). */
+  [data-route="/relatorio/:id"] .s9-eq-open .block-tag { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
 }
