@@ -6,7 +6,6 @@ import {
   readOnlyReasonText,
   SEED_VERSION,
   siteItems,
-  STANDARD_SUBSOLO_NAME,
   type LocationRow,
   type OpDraft,
 } from '@app/domain';
@@ -45,6 +44,8 @@ type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
 
 const KEYS = siteItems(SEED_VERSION).map((item) => item.key);
 const N = 3;
+/** The standard template's first local, the one each test answers and removes (`localOf` checks the name). */
+const LOCAL = 'Cubículo Enel';
 
 const toast = (page: Page) => page.getByTestId('toast');
 const conflictBanner = (page: Page) => page.locator('.banner-slot .banner[data-variant="conflict"]');
@@ -59,7 +60,9 @@ async function deviceLocal(device: Pick<Device, 'page' | 'database'>, locationId
 /** The standard relatório's local (the root cabine) among its creation drafts. */
 function localOf(drafts: readonly OpDraft[]): string {
   const created = drafts.find((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { kind?: string }).kind === 'cabine');
-  return (created!.value as { id: string }).id;
+  const local = created!.value as { id: string; name: string };
+  expect(local.name).toBe(LOCAL);
+  return local.id;
 }
 
 /** Empties this worker's Empresa A and seeds Ana (with the standard template) and Eduardo again. */
@@ -95,10 +98,14 @@ async function twoDevices(page: Page, browser: Parameters<typeof colleagueContex
   return { ana, eduardo, relatorioId: built.relatorioId, localId: localOf(built.drafts) };
 }
 
-/** Eduardo answers the first `N` site items of the local "Conforme" on its Verificações surface, each committed. */
-async function answerSiteItems(device: Device, relatorioId: string, localId: string): Promise<void> {
+/**
+ * Eduardo answers the first `N` site items of the local "Conforme" on its Verificações surface, each committed; with
+ * `offline`, the tablet goes offline once the surface is open (this project has no shell cache to navigate offline).
+ */
+async function answerSiteItems(device: Device, relatorioId: string, localId: string, { offline = false }: { offline?: boolean } = {}): Promise<void> {
   await device.page.goto(`/relatorio/${relatorioId}/local/${localId}/verificacoes`);
-  await expect(device.page.locator('.sheet-header .sheet-title')).toHaveText(`Verificações do local — ${STANDARD_SUBSOLO_NAME}`, { timeout: 30_000 });
+  await expect(device.page.locator('.sheet-header .sheet-title')).toHaveText(`Verificações do local — ${LOCAL}`, { timeout: 30_000 });
+  if (offline) await device.context.setOffline(true);
   for (const key of KEYS.slice(0, N)) {
     const radio = device.page.locator(`li.checklist-row[data-item-key="${key}"]`).getByRole('radio', { name: 'Conforme', exact: true });
     await radio.click();
@@ -109,16 +116,22 @@ async function answerSiteItems(device: Device, relatorioId: string, localId: str
     .toBe(N);
 }
 
-/** Ana removes the local from the Sumário's tree (it holds sheets: the Confirm "Remover local"). */
-async function removeLocal(device: Device, relatorioId: string, localId: string): Promise<void> {
+/** The Sumário with its tree (section 8) open, so a removal can follow with no navigation (offline included). */
+async function openTree(device: Device, relatorioId: string): Promise<void> {
   const { page } = device;
   await page.goto(`/relatorio/${relatorioId}`);
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 8' });
   await expect(chevron).toBeVisible({ timeout: 30_000 });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
-  await page.getByRole('button', { name: `Mais opções de ${STANDARD_SUBSOLO_NAME}`, exact: true }).click();
+  await expect(page.getByRole('button', { name: `Mais opções de ${LOCAL}`, exact: true })).toBeVisible();
+}
+
+/** Ana removes the local from the open tree (`openTree`; it holds sheets: the Confirm "Remover local"). */
+async function removeLocal(device: Device, localId: string): Promise<void> {
+  const { page } = device;
+  await page.getByRole('button', { name: `Mais opções de ${LOCAL}`, exact: true }).click();
   await page.getByRole('menuitem', { name: 'Remover', exact: true }).click();
-  const confirm = page.getByRole('dialog', { name: `Remover ${STANDARD_SUBSOLO_NAME}?`, exact: true });
+  const confirm = page.getByRole('dialog', { name: `Remover ${LOCAL}?`, exact: true });
   await confirm.getByRole('button', { name: 'Remover local', exact: true }).click();
   await expect(confirm).toBeHidden();
   await expect
@@ -136,7 +149,7 @@ async function expectConverged(ana: Device, eduardo: Device, localId: string): P
 
 /** "Local removido com respostas — Cubículo: removido por Ana em 07/09 13:50. 3 respostas de você nas Verificações do local não foram mantidas." */
 function noticeText(removedAt: string, remover: string, writer: string): string {
-  return `${LOCATION_REMOVAL_TITLE} — ${STANDARD_SUBSOLO_NAME}: removido por ${remover} em ${formatShortDateTime(removedAt)}. ${N} respostas de ${writer} nas Verificações do local não foram mantidas.`;
+  return `${LOCATION_REMOVAL_TITLE} — ${LOCAL}: removido por ${remover} em ${formatShortDateTime(removedAt)}. ${N} respostas de ${writer} nas Verificações do local não foram mantidas.`;
 }
 
 async function expectBanner(page: Page, relatorioId: string, text: string): Promise<Locator> {
@@ -158,9 +171,9 @@ test('@p0 30.4-E2E-001a removal first: Eduardo\'s offline answers meet Ana\'s re
   test.setTimeout(300_000);
   const { ana, eduardo, relatorioId, localId } = await twoDevices(page, browser, seed);
   try {
-    await eduardo.context.setOffline(true);
-    await answerSiteItems(eduardo, relatorioId, localId);
-    await removeLocal(ana, relatorioId, localId);
+    await answerSiteItems(eduardo, relatorioId, localId, { offline: true });
+    await openTree(ana, relatorioId);
+    await removeLocal(ana, localId);
     await syncNow(ana.page);
     await eduardo.context.setOffline(false);
     await syncNow(eduardo.page);
@@ -172,14 +185,14 @@ test('@p0 30.4-E2E-001a removal first: Eduardo\'s offline answers meet Ana\'s re
     expect(Object.keys(marked.checklist ?? {})).toHaveLength(N);
 
     // The Toast, on the writer's tablet only, once, whatever screen is open (here Sync status after the cycle).
-    const said = `${STANDARD_SUBSOLO_NAME} foi removido por ${firstName(ana.account)}. Suas ${N} respostas não foram mantidas.`;
+    const said = `${LOCAL} foi removido por ${firstName(ana.account)}. Suas ${N} respostas não foram mantidas.`;
     await expect(toast(eduardo.page)).toContainText(said);
     await expect(decisionRows(eduardo.page)).toHaveCount(1);
     await expect(decisionRows(eduardo.page).locator('.banner-text')).toHaveText(noticeText(marked.removed_at!, firstName(ana.account), 'você'));
     await expect(decisionRows(eduardo.page)).toHaveAttribute('data-kind', 'location_removal');
     await expect(decisionRows(ana.page).locator('.banner-text')).toHaveText(noticeText(marked.removed_at!, 'você', firstName(eduardo.account)));
     // Ana removed the local and wrote no answer: she is not told by a Toast (her removal's own undo Toast may stand).
-    await expect(toast(ana.page)).not.toContainText('não foram mantidas');
+    await expect(toast(ana.page).filter({ hasText: 'não foram mantidas' })).toHaveCount(0);
 
     // "Ver" opens the Sumário, where the Banner stands.
     await toast(eduardo.page).getByRole('button', { name: 'Ver', exact: true }).click();
@@ -188,11 +201,11 @@ test('@p0 30.4-E2E-001a removal first: Eduardo\'s offline answers meet Ana\'s re
     // Once: a reload and another cycle say nothing again.
     await eduardo.page.reload();
     await syncNow(eduardo.page);
-    await expect(toast(eduardo.page)).not.toContainText(said);
+    await expect(toast(eduardo.page).filter({ hasText: said })).toHaveCount(0);
 
     const banner = await expectBanner(ana.page, relatorioId, noticeText(marked.removed_at!, 'você', firstName(eduardo.account)));
     await banner.getByRole('button', { name: 'Restaurar local', exact: true }).click();
-    await expect(toast(ana.page)).toContainText(`${STANDARD_SUBSOLO_NAME} restaurado`);
+    await expect(toast(ana.page)).toContainText(`${LOCAL} restaurado`);
     await expect(conflictBanner(ana.page)).toHaveCount(0);
     await syncNow(ana.page);
     await syncNow(eduardo.page);
@@ -217,10 +230,12 @@ test('@p0 30.4-E2E-001b work first: Eduardo\'s answers pushed before Ana\'s unse
   test.setTimeout(300_000);
   const { ana, eduardo, relatorioId, localId } = await twoDevices(page, browser, seed);
   try {
+    // Ana holds the tree open, then goes offline: she never pulls Eduardo's answers before her removal.
+    await openTree(ana, relatorioId);
     await ana.context.setOffline(true);
     await answerSiteItems(eduardo, relatorioId, localId);
     await syncNow(eduardo.page);
-    await removeLocal(ana, relatorioId, localId);
+    await removeLocal(ana, localId);
     await ana.context.setOffline(false);
     await syncNow(ana.page);
     await syncNow(eduardo.page);
@@ -236,7 +251,7 @@ test('@p0 30.4-E2E-001b work first: Eduardo\'s answers pushed before Ana\'s unse
     // "Deixar removido" from Eduardo's Decisões row.
     await syncBadge(eduardo.page).click();
     await decisionRows(eduardo.page).getByRole('button', { name: 'Deixar removido', exact: true }).click();
-    await expect(toast(eduardo.page)).toContainText(`${STANDARD_SUBSOLO_NAME} continua removido.`);
+    await expect(toast(eduardo.page)).toContainText(`${LOCAL} continua removido.`);
     await expect(decisionRows(eduardo.page)).toHaveCount(0);
     await syncNow(eduardo.page);
     await syncNow(ana.page);
@@ -321,7 +336,9 @@ test('@p0 30.4-E2E-001c a role without relatorio.fill sees the notice with both 
       await expect(banner.getByRole('button', { name, exact: true })).toHaveAttribute('aria-disabled', 'true');
     }
     await expect(banner.locator('.btn-reason')).toHaveText(readOnlyReasonText('relatorio.fill'));
-    await banner.getByRole('button', { name: 'Restaurar local', exact: true }).click();
+    // A press of the disabled action (it stays focusable, `aria-disabled`) writes nothing.
+    await banner.getByRole('button', { name: 'Restaurar local', exact: true }).focus();
+    await reader.keyboard.press('Enter');
     await reader.screenshot({ path: test.info().outputPath('notice-consulta-1280.png') });
     // Nothing was written: the mark stands on the server.
     expect(((await serverRow(seed.companies[1].companyId, 'location', localId)) as unknown as Cabine).removal_conflict).toBeDefined();
