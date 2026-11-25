@@ -370,7 +370,10 @@ describe('E18-A2 infra/bin/deploy --dry-run, the usage-events check', () => {
     const start = Number(sessions![1]);
     expect(start).toBeGreaterThanOrEqual(before);
     expect(start).toBeLessThanOrEqual(after);
-    expect(text).toMatch(new RegExp(`^DRY-RUN: aws_retry \\S+ logs filter-log-events --log-group-name /fasor/production/api --start-time ${start} --filter-pattern "ux_event_sink_failed" --query length\\(events\\) --output json {2}-> 0$`, 'm'));
+    // Fix batch e30h, item 4: the api's lines from the instant the new task was healthy (e30h-UNIT-004), never before the start.
+    const sinks = /^DRY-RUN: aws_retry \S+ logs filter-log-events --log-group-name \/fasor\/production\/api --start-time (\d{13}) --filter-pattern "ux_event_sink_failed" --query length\(events\) --output json {2}-> 0$/m.exec(text);
+    expect(sinks, text).not.toBeNull();
+    expect(Number(sinks![1])).toBeGreaterThanOrEqual(start);
     const iso = new Date(start).toISOString().replace(/\.\d{3}Z$/, 'Z');
     expect(text).toContain(`telemetry: 1 session_start with app_version ${HEAD} since ${iso}; 0 ux_event_sink_failed`);
     expect(text).not.toMatch(/warning/);
@@ -399,6 +402,28 @@ describe('E18-A2 infra/bin/deploy --dry-run, the usage-events check', () => {
     expect(out).toContain('deploy: to roll back: infra/bin/deploy --skip-build --skip-smoke --tag fedcba9876543210fedcba9876543210fedcba98');
     expect(out).not.toMatch(/production smoke passed/);
     expect(out).not.toMatch(/to resume/);
+  });
+
+  /*
+   * Fix batch e30h, item 4: the old api task drains after the roll and may still log a throttled put; only the new
+   * task's lines count. ux_event_sink_failed is read from the instant the services were stable and healthy (the old
+   * task stopped), not from the deploy's start; session_start still from the start. A dry run's healthy instant is
+   * DEPLOY_DRY_RUN_HEALTHY_AT (epoch seconds), so the two start times differ.
+   */
+  it('e30h-UNIT-004: counts ux_event_sink_failed only since the new api task was healthy, and still fails on them', () => {
+    const healthyAt = Math.floor(Date.now() / 1000) + 600;
+    const iso = new Date(healthyAt * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const green = run(['--dry-run'], { DEPLOY_DRY_RUN_HEALTHY_AT: String(healthyAt) });
+    expect(green.status, green.out).toBe(0);
+    const text = unquote(section(green.out, STEP));
+    const sessions = /logs filter-log-events --log-group-name \/fasor\/production\/ux-events --start-time (\d{13}) /.exec(text);
+    expect(sessions, text).not.toBeNull();
+    expect(Number(sessions![1])).toBeLessThan(healthyAt * 1000);
+    expect(text).toMatch(new RegExp(`logs filter-log-events --log-group-name /fasor/production/api --start-time ${healthyAt * 1000} --filter-pattern "ux_event_sink_failed"`));
+    expect(text).toContain(`0 ux_event_sink_failed since ${iso} (the new api task healthy)`);
+    const red = run(['--dry-run'], { DEPLOY_DRY_RUN_HEALTHY_AT: String(healthyAt), DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES: '2' });
+    expect(red.status, red.out).toBe(1);
+    expect(section(red.out, STEP)).toContain(`deploy: 2 ux_event_sink_failed in /fasor/production/api since ${iso} (the new api task healthy): the api could not write usage events`);
   });
 
   // Fix batch e30h, item 3: the hint names the log groups the check read, not the smoke-seed task's.
