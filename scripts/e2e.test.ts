@@ -190,15 +190,22 @@ describe('scripts/e2e.ts summary', () => {
       suites: [
         {
           title: 'a.spec.ts',
+          // Playwright 1.63's JSON report lists one spec entry per run of the test (each with its projects' tests),
+          // with no repeat index (seen on the batch's `--repeat-each 6` run of home.spec.ts).
           specs: [
             {
               title: 'one',
               file: 'a.spec.ts',
-              // Playwright's JSON report lists one entry per run of the test, per project, with no repeat index.
               tests: [
                 { projectName: 'desktop-chrome', status: 'expected' as const },
-                { projectName: 'desktop-chrome', status: 'unexpected' as const },
                 { projectName: 'durability-desktop-chrome', status: 'expected' as const },
+              ],
+            },
+            { title: 'one', file: 'a.spec.ts', tests: [{ projectName: 'desktop-chrome', status: 'unexpected' as const }] },
+            {
+              title: 'one',
+              file: 'a.spec.ts',
+              tests: [
                 { projectName: 'desktop-chrome', status: 'expected' as const },
                 { projectName: 'durability-desktop-chrome', status: 'expected' as const },
               ],
