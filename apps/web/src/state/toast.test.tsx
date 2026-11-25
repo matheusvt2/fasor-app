@@ -354,6 +354,47 @@ function StatusButtons() {
   );
 }
 
+describe('Story 30.5 (11.11-E2E-001): a reading arrival never takes the slot from a toast on screen', () => {
+  it('"2 fotos adicionadas" showing, a caption arrives: the plain toast keeps its 6 s, then the arrival shows with its "Ver"', async () => {
+    const timers = fakeTimers();
+    render(<QueueHarness timers={timers} />);
+    await userEvent.click(screen.getByText('primeiro'));
+    await userEvent.click(screen.getByText('leitura'));
+    expect(screen.getAllByTestId('toast')).toHaveLength(1);
+    expect(shownText()).toBe('Primeiro');
+    expect(timers.pending()).toBe(1);
+    act(() => timers.run());
+    expect(shownText()).toContain('1 leitura pronta para confirmar');
+    expect(screen.getByRole('button', { name: 'Ver' })).toBeInTheDocument();
+  });
+
+  it('an undo toast showing, a reading arrives: the undo stays on screen, and the arrival shows once it is gone', async () => {
+    undone.mockReset();
+    const timers = fakeTimers();
+    render(<QueueHarness timers={timers} />);
+    await userEvent.click(screen.getByText('remover'));
+    await userEvent.click(screen.getByText('leitura'));
+    expect(shownText()).toContain('Seção removida deste relatório');
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    expect(undone).toHaveBeenCalledTimes(1);
+    expect(shownText()).toContain('1 leitura pronta para confirmar');
+  });
+
+  it('a newer arrival still replaces the arrival on screen, its action the newer one', async () => {
+    opened.mockReset();
+    openedNewer.mockReset();
+    const timers = fakeTimers();
+    render(<QueueHarness timers={timers} />);
+    await userEvent.click(screen.getByText('leitura'));
+    await userEvent.click(screen.getByText('leitura nova'));
+    expect(screen.getAllByTestId('toast')).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
+    expect(openedNewer).toHaveBeenCalledTimes(1);
+    expect(opened).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+});
+
 describe('status flow 2026-10-10 (M3): a status toast never drops another toast', () => {
   function renderStatus() {
     const timers = fakeTimers();

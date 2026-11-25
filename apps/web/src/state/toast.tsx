@@ -27,6 +27,12 @@ import type { Timers } from '../input/field-commit.ts';
  * another toast is asked for while it is showing, it goes back to the head of the queue and
  * shows again, for its full time, afterwards. An undo toast is never lost to it.
  *
+ * Story 30.5 (2026-11-25, 11.11-E2E-001): an arrival waits behind any toast on screen but another
+ * arrival or a status toast, not only behind a job outcome. A caption arriving on the 5 s reading
+ * poll replaced "2 fotos adicionadas — legenda aplicada" within milliseconds of its press, so the
+ * answer to the user's own press disappeared unread. The plain toast now keeps its 6 s (an undo
+ * toast, until it is gone), then the arrival shows with its "Ver".
+ *
  * Review fixes 2026-10-08 (H-7, DE-6): the queue and its timers are unchanged (an action toast
  * still never expires on a timer). What changed is where a toast may sit: while one is up, the
  * toast itself (`components/toast.tsx`) reserves its own height plus the `--sp-3` gap at the
@@ -43,7 +49,8 @@ export interface ShowToastOptions {
   outcome?: boolean;
   /**
    * Arrived on its own, not as the answer to a press (a reading ready to confirm, a recovered
-   * draft): even with an action it waits behind a job outcome. Without this, a toast with an
+   * draft): even with an action it waits behind a job outcome, and (Story 30.5) behind any toast
+   * on screen but another arrival or a status toast. Without this, a toast with an
    * action is the user's own and interrupts the outcome, which shows again after it.
    */
   arrival?: boolean;
@@ -171,6 +178,15 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
         // The status toast is not dropped unread: it shows again after the one taking the slot.
         queue.current = [on, ...queue.current.filter((queued) => queued.text !== on.text && queued.text !== text)];
         slot.display(entry);
+        return;
+      }
+      if (options.arrival === true && on !== null && on.options.arrival !== true && on.options.status !== true) {
+        // Story 30.5 (11.11-E2E-001): an arrival never takes the slot from a toast on screen (the
+        // answer to the user's own press, a plain one included, or a job outcome): it waits, once
+        // per text, the newer ask replacing the queued one in place.
+        const at = queue.current.findIndex((queued) => queued.text === text);
+        if (at < 0) queue.current.push(entry);
+        else queue.current[at] = entry;
         return;
       }
       if (on?.options.outcome === true && own) {
