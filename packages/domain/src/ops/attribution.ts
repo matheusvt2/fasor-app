@@ -60,6 +60,7 @@ export const ATTRIBUTED_FIELDS: readonly AttributedField[] = [
   { pointer: 'op.actor_id', actor: 'op' },
   { pointer: 'op.client_ts', instant: 'bounded' },
   { pointer: 'op.meta.seen_modified_at', instant: 'exempt', reason: 'the block last_modified_at the device held, compared for equality by the fold, never printed nor ordered on' },
+  { pointer: 'op.meta.seen_removed_at', instant: 'exempt', reason: 'the local removed_at the device held on site work (fix batch e30h), compared for equality by the fold, never printed nor ordered on' },
   { pointer: 'op.meta.restore.removed_by', actor: 'history', history: 'same_path_actor', reason: 'the undo of a removal resolution puts back who removed the block' },
   { pointer: 'op.meta.restore.removal_conflict.removed_by', actor: 'history', history: 'same_path_actor', reason: 'the undo of a removal resolution puts back who removed the block' },
   { pointer: 'op.meta.restore.removal_conflict.removed_at', instant: 'bounded' },

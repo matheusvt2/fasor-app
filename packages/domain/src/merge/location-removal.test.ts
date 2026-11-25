@@ -107,8 +107,9 @@ function world() {
   const f = opFactory();
   const createRelatorio = f.op({ kind: 'create', path: `relatorio/${TEST_RELATORIO}`, value: relatorio(), device_id: 'office' });
   const createLocal = f.op({ kind: 'create', path: `location/${LOCAL}`, value: local(), device_id: 'office' });
-  /** Bruno, on his tablet, answers `n` site items (result C). */
-  const brunoAnswers = (n: number): Op[] => KEYS.slice(0, n).map((key) => f.op({ path: locationChecklistPath(LOCAL, key, 'result'), value: 'C', actor_id: BRUNO, device_id: B_DEVICE }));
+  /** Bruno, on his tablet, answers `n` site items (result C), stamped as a contract-61 commit stamps them on a local his row held live. */
+  const brunoAnswers = (n: number): Op[] =>
+    KEYS.slice(0, n).map((key) => f.op({ path: locationChecklistPath(LOCAL, key, 'result'), value: 'C', actor_id: BRUNO, device_id: B_DEVICE, meta: { seen_removed_at: null } }));
   /** Ana, on her tablet, removes the local; `seen` is what her row held of its site work (the commit's stamp). */
   const anaRemoves = (seen: string | null | undefined): Op =>
     f.op({ kind: 'remove', path: `location/${LOCAL}/removed_at`, value: null, actor_id: ANA, device_id: A_DEVICE, ...(seen === undefined ? {} : { meta: { seen_modified_at: seen } }) });
@@ -193,8 +194,9 @@ describe('30.4-UNIT-001 the mark, in both orders of arrival', () => {
 
   it('a site photo and a site point Bruno created on the removed local name it and mark it, in both orders', () => {
     const { f, createRelatorio, createLocal, anaRemoves } = world();
-    const photo = f.op({ kind: 'create', path: `file/${PHOTO}`, value: sitePhoto(), actor_id: BRUNO, device_id: B_DEVICE });
-    const point = f.op({ kind: 'create', path: `point/${POINT}`, value: sitePoint(), actor_id: BRUNO, device_id: B_DEVICE });
+    const live = { seen_removed_at: null };
+    const photo = f.op({ kind: 'create', path: `file/${PHOTO}`, value: sitePhoto(), actor_id: BRUNO, device_id: B_DEVICE, meta: live });
+    const point = f.op({ kind: 'create', path: `point/${POINT}`, value: sitePoint(), actor_id: BRUNO, device_id: B_DEVICE, meta: live });
     expect(targetsOf(photo).map((ref) => ref.key)).toEqual([entityKey('file', PHOTO), locKey]);
     expect(targetsOf(point).map((ref) => ref.key)).toEqual([entityKey('point', POINT), locKey]);
     const removeFirst = anaRemoves(null);
@@ -289,6 +291,108 @@ describe('30.4-UNIT-003 the restore', () => {
     const cleared = fold([createRelatorio, createLocal, remove, ...brunoAnswers(2), left]);
     expect(offered(cleared)).toEqual([]);
     expect(restorableEntries({ blocks: [], equipment: [], locations: [cleared], since: null }).map((entry) => entry.id)).toEqual([LOCAL]);
+  });
+});
+
+/*
+ * Fix batch e30h, item 1: a history older than contract 61. The server keeps the row its old reducer folded (no derived
+ * column at all) and applies every later op to it incrementally; a device rebuilds the row from the whole log with the
+ * current reducer (and a device signed in fresh does the same). Both must reach the same row for any history. The old
+ * reducer's row is the current fold with the four derived columns dropped: before contract 61 the fold wrote the same
+ * answers, photos, points and `removed_at` and none of the derived columns.
+ */
+describe('e30h-UNIT-001 a history older than contract 61 folds to the same row on the server and on every device', () => {
+  const asOldServerRow = (row: Cabine): Cabine => {
+    const old: Cabine = { ...row };
+    delete old.site_modified_by;
+    delete old.site_modified_at;
+    delete old.removed_by;
+    delete old.removal_conflict;
+    return old;
+  };
+  /** The server: the rows the old reducer left for `before`, then every later op applied to them one by one. */
+  const serverFold = (before: readonly Op[], after: readonly Op[]): Cabine => {
+    const folded = before.reduce<EntityState>((s, op) => applyOp(s, op), new Map());
+    const state = new Map(folded);
+    state.set(locKey, asOldServerRow(cabineOf(folded)));
+    return cabineOf(after.reduce<EntityState>((s, op) => applyOp(s, op), state));
+  };
+  /** The same ops written by a bundle before contract 61: no stamp a contract-61 client adds. */
+  const unstamped = (ops: readonly Op[]): Op[] => ops.map((op) => ({ ...op, meta: null }));
+
+  it('answers written before contract 61, then a removal after it stamped from the row the old reducer left: no mark anywhere, the same row', () => {
+    const { createRelatorio, createLocal, brunoAnswers, anaRemoves } = world();
+    const before = [createRelatorio, createLocal, ...unstamped(brunoAnswers(3))];
+    // Ana's device still holds the row the old reducer wrote; her commit stamps what it held.
+    const held = new Map(before.reduce<EntityState>((s, op) => applyOp(s, op), new Map()));
+    held.set(locKey, asOldServerRow(cabineOf(held)));
+    const remove = stampSeen(anaRemoves(undefined), held);
+    expect(remove.meta).toEqual({ seen_modified_at: null });
+    const device = expectSameOnEveryLayer(seqd([...before, remove]));
+    const server = serverFold(before, [remove]);
+    expect(device).toEqual(server);
+    expect(device.removal_conflict).toBeUndefined();
+    expect(holdsLocationRemovalMark(device)).toBe(false);
+  });
+
+  it('an old log where an answer landed after a removal (both before contract 61): no mark anywhere, the same row', () => {
+    const { createRelatorio, createLocal, brunoAnswers, anaRemoves } = world();
+    const before = [createRelatorio, createLocal, anaRemoves(undefined), ...unstamped(brunoAnswers(2))];
+    const device = expectSameOnEveryLayer(seqd(before));
+    expect(device).toEqual(serverFold(before, []));
+    expect(device.removal_conflict).toBeUndefined();
+  });
+
+  it('a removal before contract 61 and an answer after it from a device that had not seen it: the same mark on both, its remover unknown', () => {
+    const { createRelatorio, createLocal, brunoAnswers, anaRemoves } = world();
+    const before = [createRelatorio, createLocal, anaRemoves(undefined)];
+    const after = brunoAnswers(2);
+    const device = expectSameOnEveryLayer(seqd([...before, ...after]));
+    expect(device).toEqual(serverFold(before, after));
+    expect(device.removal_conflict).toMatchObject({ removed_by: null, edited_by: BRUNO, edited_at: after.at(-1)!.client_ts });
+  });
+
+  it('old answers, then answers after contract 61, then a removal that saw neither: the same mark on both, naming the newer work', () => {
+    const { createRelatorio, createLocal, brunoAnswers, anaRemoves } = world();
+    const before = [createRelatorio, createLocal, ...unstamped(brunoAnswers(2))];
+    const after = [...brunoAnswers(1), anaRemoves(null)];
+    const device = expectSameOnEveryLayer(seqd([...before, ...after]));
+    expect(device).toEqual(serverFold(before, after));
+    expect(device.removal_conflict).toMatchObject({ removed_by: ANA, edited_by: BRUNO, edited_at: after[0]!.client_ts });
+  });
+
+  it('the commit stamps site work with the local\'s removed_at as the row held it; only stamped work is attributed, and work that saw the removal marks nothing', () => {
+    const { f, createRelatorio, createLocal, anaRemoves } = world();
+    const answer = f.op({ path: locationChecklistPath(LOCAL, KEYS[0]!, 'result'), value: 'C', actor_id: BRUNO, device_id: B_DEVICE });
+    const photo = f.op({ kind: 'create', path: `file/${PHOTO}`, value: sitePhoto(), actor_id: BRUNO, device_id: B_DEVICE });
+    const point = f.op({ kind: 'create', path: `point/${POINT}`, value: sitePoint(), actor_id: BRUNO, device_id: B_DEVICE });
+    const liveRow = new Map([[locKey, local()]]);
+    expect(stampSeen(answer, liveRow).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null, seen_removed_at: null });
+    expect(stampSeen(photo, liveRow).meta).toEqual({ seen_removed_at: null });
+    expect(stampSeen(point, liveRow).meta).toEqual({ seen_removed_at: null });
+    // A photo of a sheet is not site work: no stamp.
+    expect(stampSeen(f.op({ kind: 'create', path: `file/${PHOTO}`, value: { ...sitePhoto(), block_id: LOCAL }, device_id: B_DEVICE }), liveRow).meta).toBeNull();
+    // Unstamped work is not attributed.
+    expect(fold([createRelatorio, createLocal, answer]).site_modified_at).toBeUndefined();
+    // Work by a device that held the local removed is attributed and marks nothing.
+    const remove = anaRemoves(null);
+    const removedRow = new Map([[locKey, fold([createRelatorio, createLocal, remove])]]);
+    const seenRemoval = stampSeen(answer, removedRow);
+    expect(seenRemoval.meta?.seen_removed_at).toBe(remove.client_ts);
+    const row = expectSameOnEveryLayer(seqd([createRelatorio, createLocal, remove, seenRemoval]));
+    expect(row.site_modified_by).toBe(BRUNO);
+    expect(row.removal_conflict).toBeUndefined();
+  });
+
+  it('a site photo and a site point created before contract 61, then a removal stamped null: no mark anywhere, the same row', () => {
+    const { f, createRelatorio, createLocal, anaRemoves } = world();
+    const photo = f.op({ kind: 'create', path: `file/${PHOTO}`, value: sitePhoto(), actor_id: BRUNO, device_id: B_DEVICE });
+    const point = f.op({ kind: 'create', path: `point/${POINT}`, value: sitePoint(), actor_id: BRUNO, device_id: B_DEVICE });
+    const before = [createRelatorio, createLocal, photo, point];
+    const remove = anaRemoves(null);
+    const device = expectSameOnEveryLayer(seqd([...before, remove]));
+    expect(device).toEqual(serverFold(before, [remove]));
+    expect(device.removal_conflict).toBeUndefined();
   });
 });
 

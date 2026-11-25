@@ -281,8 +281,9 @@ async function markedInEmpresaB(page: Page, seed: WorkerSeed): Promise<{ relator
   const localId = localOf(built.drafts);
   const scope = { relatorioId: built.relatorioId };
   // One office batch: the removal, then answers from a device that never saw it (the fold marks the local).
-  const removal: OpDraft = { ...officeDraft(b, scope, `location/${localId}/removed_at`, null), kind: 'remove' };
-  const writes = KEYS.slice(0, N).map((key) => officeDraft(b, scope, locationChecklistPath(localId, key, 'result'), 'C'));
+  // Fix batch e30h: both carry the stamps a contract-61 commit writes (the removal saw no site work; the answers held the local live).
+  const removal: OpDraft = { ...officeDraft(b, scope, `location/${localId}/removed_at`, null), kind: 'remove', meta: { seen_modified_at: null } };
+  const writes = KEYS.slice(0, N).map((key) => ({ ...officeDraft(b, scope, locationChecklistPath(localId, key, 'result'), 'C'), meta: { seen_removed_at: null } }));
   await pushDrafts(page, deviceDatabaseName(b.userId), [...built.drafts, removal, ...writes]);
   const server = (await serverRow(b.companyId, 'location', localId)) as unknown as Cabine;
   expect(server.removal_conflict).toMatchObject({ removed_by: b.userId, edited_by: b.userId });

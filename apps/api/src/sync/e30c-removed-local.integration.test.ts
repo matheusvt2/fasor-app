@@ -13,10 +13,12 @@ import {
   type LocationRow,
   type Op,
 } from '@app/domain';
+import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
 import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
 import { loadConfig } from '../config.ts';
+import { entities } from '../db/schema.ts';
 import { seedUser, TEST_SEED } from '../db/seed.ts';
 import { dropCompany } from '../db/test-cleanup.ts';
 import { newId } from '../ids.ts';
@@ -61,9 +63,14 @@ afterAll(async () => {
   await h.cleanup();
 });
 
-/** Bruno, on tablet B, answers the first `n` site items of the local (C). */
-const answers = (relatorioId: string, locationId: string, n: number): Op[] =>
-  KEYS.slice(0, n).map((key) => h.clientOp(people.bruno, { kind: 'put', path: locationChecklistPath(locationId, key, 'result'), relatorio_id: relatorioId, value: 'C', device_id: B_DEVICE }));
+/**
+ * Bruno, on tablet B, answers the first `n` site items of the local (C), stamped as a contract-61 commit stamps them on a
+ * local his row held live (`seen_removed_at`, fix batch e30h); `old` sends them as a bundle before contract 61 did (no stamp).
+ */
+const answers = (relatorioId: string, locationId: string, n: number, old = false): Op[] =>
+  KEYS.slice(0, n).map((key) =>
+    h.clientOp(people.bruno, { kind: 'put', path: locationChecklistPath(locationId, key, 'result'), relatorio_id: relatorioId, value: 'C', device_id: B_DEVICE, meta: old ? null : { seen_removed_at: null } }),
+  );
 
 /** Ana, on tablet A, removes the local, stamped with what her row held of its site work (`seen`). */
 const removal = (relatorioId: string, locationId: string, seen: string | null): Op =>
@@ -136,6 +143,29 @@ describe('30.4-API-001 a local removed against site work, through the sync route
     expect((await h.push(people.bruno, seenAnswers)).rejected).toEqual([]);
     expect((await h.push(people.ana, [removal(other.relatorioId, other.locationId, seenAnswers[0]!.client_ts)])).rejected).toEqual([]);
     expect((await serverLocal(other.locationId)).removal_conflict).toBeUndefined();
+  });
+
+  it('e30h-API-001 answers written before contract 61 on a row the old reducer folded, then a removal after it: the server and both devices hold the same row and no mark', async () => {
+    const { relatorioId, locationId } = await h.seedRelatorio(people.ana);
+    const old = answers(relatorioId, locationId, 3, true);
+    expect((await h.push(people.bruno, old)).rejected).toEqual([]);
+    // The row as the reducer before contract 61 left it on the server: none of the derived columns.
+    const folded = await serverLocal(locationId);
+    const oldRow: Record<string, unknown> = { ...folded };
+    for (const column of ['site_modified_by', 'site_modified_at', 'removed_by', 'removal_conflict']) delete oldRow[column];
+    await h.db
+      .update(entities)
+      .set({ row: oldRow as never })
+      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'location'), eq(entities.id, locationId)));
+    // Ana's device held that same row, so her commit stamps that it saw no site work.
+    const remove = removal(relatorioId, locationId, null);
+    expect((await h.push(people.ana, [remove])).rejected).toEqual([]);
+
+    const server = await serverLocal(locationId);
+    expect(server.removed_at).toBe(remove.client_ts);
+    expect(server.removal_conflict).toBeUndefined();
+    expect(Object.keys(server.checklist ?? {})).toHaveLength(3);
+    for (const person of ['ana', 'bruno'] as const) expect(await deviceLocal(person, relatorioId, locationId)).toEqual(server);
   });
 
   it('a version-60 client (the contract before) is refused the relatório\'s stream with 426 contract_outdated; a current one reads it; its push is still accepted', async () => {

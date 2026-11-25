@@ -361,10 +361,18 @@ type CabineRow = Extract<LocationRow, { kind: 'cabine' }>;
  * as a block's edit writes its AD-18 columns. One from a device that lands on a removed local is
  * kept (as before) and marks the local with a removal conflict: that device wrote site work on a
  * local another one removed without having seen the removal. Server ops never mark.
+ *
+ * Fix batch e30h: only work stamped by a contract-61 client (`meta.seen_removed_at`, the local's
+ * `removed_at` as that device held it) is attributed, and it marks only a removal it did not see.
+ * Unstamped work (an older bundle, a server op) leaves the derived columns as they are: the server
+ * keeps the rows the reducer before contract 61 folded, a device re-folds the whole log, and both
+ * must reach the same row for a history written before contract 61.
  */
 function siteAttributed(location: CabineRow, op: Op): CabineRow {
+  const seen = op.meta?.seen_removed_at;
+  if (seen === undefined) return location;
   const next: CabineRow = { ...location, site_modified_by: op.actor_id, site_modified_at: op.client_ts };
-  if (location.removed_at === null || op.device_id === SERVER_DEVICE_ID) return next;
+  if (location.removed_at === null || op.device_id === SERVER_DEVICE_ID || seen === location.removed_at) return next;
   return {
     ...next,
     removal_conflict: { removed_by: location.removed_by ?? null, removed_at: location.removed_at, edited_by: op.actor_id, edited_at: op.client_ts },
@@ -391,6 +399,10 @@ function withoutLocationDerived(location: LocationRow): LocationRow {
  * the restore ("Restaurar local"), a put of the removal's own time on the removed local ("Deixar
  * removido"), a server write, an op without the stamp. A row with no `site_modified_at` (no site
  * work since contract 61) is never marked by a removal: its older work was never attributed.
+ *
+ * Fix batch e30h: only a removal stamped by a contract-61 client (`meta.seen_modified_at`) records
+ * its actor; an unstamped one (an older bundle, a server write) writes `removed_at` alone, as the
+ * reducer before contract 61 did, so a history written before it folds to the same row everywhere.
  */
 function writeLocationRemovedAt(location: CabineRow, op: Op, value: string | null): CabineRow {
   const rest: CabineRow = { ...location };
@@ -398,8 +410,8 @@ function writeLocationRemovedAt(location: CabineRow, op: Op, value: string | nul
   delete rest.removal_conflict;
   if (value === null) return { ...rest, removed_at: null };
   const server = op.device_id === SERVER_DEVICE_ID;
-  const removed: CabineRow = server ? { ...rest, removed_at: value } : { ...rest, removed_at: value, removed_by: op.actor_id };
   const seen = op.meta?.seen_modified_at;
+  const removed: CabineRow = server || seen === undefined ? { ...rest, removed_at: value } : { ...rest, removed_at: value, removed_by: op.actor_id };
   const site = location.site_modified_at ?? null;
   const unseenWork = seen !== undefined && site !== null && (seen ?? null) !== site;
   if (location.removed_at !== null || server || !unseenWork) return removed;
@@ -1228,7 +1240,8 @@ export function applyOp(state: EntityState, op: Op): EntityState {
     const siteId = carriedSiteLocationId(op, path);
     const site = siteId === null ? undefined : (state.get(entityKey('location', siteId)) as LocationRow | undefined);
     if (site !== undefined && site.kind === 'cabine' && site.relatorio_id === (created as { relatorio_id?: unknown }).relatorio_id) {
-      next.set(entityKey('location', site.id), entityRowSchemas.location.parse(siteAttributed(site, op)));
+      const attributedSite = siteAttributed(site, op);
+      if (attributedSite !== site) next.set(entityKey('location', site.id), entityRowSchemas.location.parse(attributedSite));
     }
     if (path.family === 'equipment_type_version') {
       // The one fold that writes a row beside its target: the type's latest version and its draft.

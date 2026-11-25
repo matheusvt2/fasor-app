@@ -990,7 +990,7 @@ describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)
 
     // Ana answers C again on the marked cell: the stamp names the mark she saw, and the put clears it.
     const pick = stampSeen(ana(siteResult, 'C', e.op_id), marked);
-    expect(pick.meta).toEqual({ standing_op_id: e.op_id, seen_conflict_op_id: a.op_id });
+    expect(pick.meta).toEqual({ standing_op_id: e.op_id, seen_conflict_op_id: a.op_id, seen_removed_at: null });
     expect(cellOf(foldLocal([create, a, e, pick]))).toEqual({ value: 'C', source_suggestion_id: null, op_id: pick.op_id });
     expect(clearedMarks(marked, pick)).toEqual({ conflict: displaced, shown_op_id: e.op_id });
     // A put that did not see the mark clears nothing, and neither does a put on another item.
