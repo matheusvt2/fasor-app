@@ -34,6 +34,24 @@ reading written in the story, open to him; the PR lists them.
 | A put of null ("Restaurar local", the restore list) | any | live, `removed_by` and the mark dropped |
 | A put of the removal's own time on the removed local ("Deixar removido") | any | stays removed at the same time, the mark dropped |
 
+*(2026-11-25, fix batch e30h, item 1: the rule above is amended; contract stays 61, no deploy of 61 had happened.)* The server
+keeps the rows the reducer before contract 61 folded and a device re-folds the whole log, so the rows above disagreed for an
+old history (a false "Local removido com respostas" on devices only). The derived columns are now written only from ops that
+carry a contract-61 stamp:
+
+| Input | Order | Result on the local (cabine) row |
+| --- | --- | --- |
+| ~~Site answer, site photo create or site point create from a device~~ The same carrying `meta.seen_removed_at` (the local's `removed_at` as the device held it; the commit's `stampSeen` writes it) | the local live | `site_modified_by`, `site_modified_at` = the op's actor and time |
+| The same, stamped | the local removed, the stamp differs from its `removed_at` (the removal not seen) | as above, plus `removal_conflict` |
+| The same, stamped | the local removed, the stamp equals its `removed_at` (the removal seen) | attributed, no mark |
+| Site work without the stamp (a bundle before 61, ~~the server device~~ a server op, a fixture) | any | not attributed, never marked (as before 61) |
+| `location/{id}/removed_at` remove without `meta.seen_modified_at` (a bundle before 61) or from the server | any | removed, ~~`removed_by`~~ no `removed_by`, no mark (as before 61) |
+| "Deixar removido" (a put of the removal's own time on the removed local) | any | ~~`removed_by` the confirmer~~ (item 5) keeps the original `removed_by`; the mark dropped |
+
+Consequence, open to Matheus: answers written before the deploy carry no stamp, so a local answered before the deploy and
+removed after it by a device that had not seen those answers raises no notice (the answers are kept, as always, and stay
+recoverable through "Restaurar ficha removida" under the usual rules). Only work written on contract 61 or later is ever told.
+
 ## Code map
 
 - Kernel: `schemas/entities.ts` (the cabine's four derived columns; the mark schema moved above the location schema),

@@ -721,6 +721,14 @@
  * The restore ("Restaurar local") and a put of the removal's own time ("Deixar removido") clear the mark. The kernel
  * lists the mark as a `location_removal` decision (the Sumário Banner, Sync status "Decisões", the Toast on the
  * writer's device), and the restore list offers the local past the emission cut while it stands. MIN follows to 61.
+ *
+ * 61 amended (2026-11-25, fix batch e30h, before any deploy of 61, so the number stays): the server keeps the rows the
+ * reducer before 61 folded and a device re-folds the whole log, so the derived columns are written only from ops that
+ * carry a contract-61 stamp. A device stamps site work (a site checklist put, a site photo's or point's create) with
+ * `meta.seen_removed_at` (the local's `removed_at` as it held it); only such work is attributed, and it marks only a
+ * removal it did not see. A removal records `removed_by` only when stamped (`meta.seen_modified_at`), and "Deixar
+ * removido" keeps the original remover. Unstamped ops (an older bundle, a server op) fold as before 61: a history
+ * written before it reaches the same row on the server and on every device, with no mark.
  */
 export const CONTRACT_VERSION = 61;
 
