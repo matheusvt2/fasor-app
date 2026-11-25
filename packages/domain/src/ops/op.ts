@@ -79,6 +79,14 @@ export const opMetaSchema = z.looseObject({
   standing_op_id: uuidV7Schema.nullable().optional(),
   seen_conflict_op_id: uuidV7Schema.nullable().optional(),
   seen_modified_at: isoTimestampSchema.nullable().optional(),
+  /**
+   * Fix batch e30h (Story 30.4, contract 61): on site work (a `location/{id}/checklist/...` put, a
+   * site photo's `file/{id}` create, a site point's `point/{id}` create), the local's `removed_at`
+   * as the device held it (null when live). Only work carrying it is attributed to the local and may
+   * mark it removed (`siteAttributed`): an op without it (an older bundle, a server op, a fixture)
+   * folds as before contract 61, so a history written before it folds to the same row everywhere.
+   */
+  seen_removed_at: isoTimestampSchema.nullable().optional(),
   restore: restoreMarksSchema.optional(),
   /**
    * Contract 16 (PR #121 review, 2026-10-09): on a `sheet/{id}/conclusion/text` put, the text

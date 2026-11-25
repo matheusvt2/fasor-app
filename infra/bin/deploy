@@ -345,6 +345,17 @@ else
     sleep 5
   done
 fi
+# Fix batch e30h (item 4): the instant every service is stable and healthy. `ecs wait services-stable`
+# returns once each service runs one deployment, so the old api task has drained and stopped: the
+# usage-events check counts ux_event_sink_failed from here, the new task's lines only.
+# DEPLOY_DRY_RUN_HEALTHY_AT: a dry run's stand-in for that instant (epoch seconds).
+if [ "$dry_run" = 1 ] && [ -n "${DEPLOY_DRY_RUN_HEALTHY_AT:-}" ]; then
+  healthy_s="$DEPLOY_DRY_RUN_HEALTHY_AT"
+else
+  healthy_s="$(date -u '+%s')"
+fi
+healthy_ms=$((healthy_s * 1000))
+healthy_iso="$(date -u -d "@$healthy_s" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -r "$healthy_s" '+%Y-%m-%dT%H:%M:%SZ')"
 
 # Only a healthy roll becomes the tag a later plain `terraform apply` keeps (ssm.tf). The tag
 # it replaces is read first: the smoke's rollback hint names it.
@@ -377,14 +388,14 @@ fi
 # e-mail), and a warning, never a failure, in this release: the deferred-work row of batch
 # e18fb makes it a failure after its first green production run. The group names are read
 # here, after the roll, so the first deploy carrying their outputs has them.
-# telemetry_count <placeholder> <log group> <filter pattern>: the number of events of the group
-# since the deploy started that match the pattern, or a non-zero return when it cannot be read.
+# telemetry_count <placeholder> <log group> <filter pattern> <start ms>: the number of events of the
+# group since that instant that match the pattern, or a non-zero return when it cannot be read.
 # JSON output: with `--output text` the CLI applies the query per page of the paginated call
 # and prints one number per page.
 telemetry_count() {
-  local placeholder="$1" group="$2" pattern="$3" count
+  local placeholder="$1" group="$2" pattern="$3" start_ms="$4" count
   count="$(capture "$placeholder" aws_retry "${aws[@]}" logs filter-log-events --log-group-name "$group" \
-    --start-time "$deploy_start_ms" --filter-pattern "$pattern" --query 'length(events)' --output json)" || return 1
+    --start-time "$start_ms" --filter-pattern "$pattern" --query 'length(events)' --output json)" || return 1
   [[ "$count" =~ ^[0-9]+$ ]] || return 1
   printf '%s' "$count"
 }
@@ -392,6 +403,8 @@ telemetry_count() {
 # check was green on the production deploys of Epics 21 to 23 (the ledger row's condition): 0 session_start with
 # the tag, any ux_event_sink_failed, or a read error of either group returns non-zero; the cleanup still runs and
 # the rollback hint is printed (docs/observability.md).
+# Fix batch e30h (item 3): the logs the check read, for the failure summary (empty when the outputs could not be read).
+telemetry_logs=""
 check_usage_events() {
   local ux_group api_group sessions="" failures="" attempt failed=0
   local session_pattern="{ (\$.name = \"session_start\") && (\$.app_version = \"$tag\") }"
@@ -401,16 +414,19 @@ check_usage_events() {
     echo "deploy: could not read the outputs ux_events_log_group and api_log_group; the usage events were not checked" >&2
     return 1
   fi
+  telemetry_logs="group $ux_group (session_start) and group $api_group (ux_event_sink_failed)"
   # A CloudWatch line appears seconds after the put: poll up to about 2 minutes while the count
   # reads 0. A read error stops the poll (the retry already outlasted a lost endpoint); a dry
   # run asks once.
   for attempt in $(seq 1 12); do
-    sessions="$(telemetry_count "${DEPLOY_DRY_RUN_TELEMETRY_SESSIONS:-1}" "$ux_group" "$session_pattern")" || { sessions=""; break; }
+    sessions="$(telemetry_count "${DEPLOY_DRY_RUN_TELEMETRY_SESSIONS:-1}" "$ux_group" "$session_pattern" "$deploy_start_ms")" || { sessions=""; break; }
     if [ "$dry_run" = 1 ] || { [ -n "$sessions" ] && [ "$sessions" -ge 1 ]; }; then break; fi
     [ "$attempt" = 12 ] || sleep 10
   done
-  failures="$(telemetry_count "${DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES:-0}" "$api_group" '"ux_event_sink_failed"')" || failures=""
-  echo "telemetry: ${sessions:-unknown} session_start with app_version $tag since $deploy_start_iso; ${failures:-unknown} ux_event_sink_failed"
+  # Fix batch e30h (item 4): the new api task's lines only (from the instant the services were stable and
+  # healthy), so a throttled put of the old task while it drained never turns a healthy deploy red.
+  failures="$(telemetry_count "${DEPLOY_DRY_RUN_TELEMETRY_SINK_FAILURES:-0}" "$api_group" '"ux_event_sink_failed"' "$healthy_ms")" || failures=""
+  echo "telemetry: ${sessions:-unknown} session_start with app_version $tag since $deploy_start_iso; ${failures:-unknown} ux_event_sink_failed since $healthy_iso (the new api task healthy)"
   if [ -z "$sessions" ]; then
     echo "deploy: could not read the session_start events of $ux_group" >&2; failed=1
   elif [ "$sessions" = 0 ]; then
@@ -419,7 +435,7 @@ check_usage_events() {
   if [ -z "$failures" ]; then
     echo "deploy: could not read the ux_event_sink_failed lines of $api_group" >&2; failed=1
   elif [ "$failures" != 0 ]; then
-    echo "deploy: $failures ux_event_sink_failed in $api_group since $deploy_start_iso: the api could not write usage events" >&2; failed=1
+    echo "deploy: $failures ux_event_sink_failed in $api_group since $healthy_iso (the new api task healthy): the api could not write usage events" >&2; failed=1
   fi
   [ "$failed" = 0 ]
 }
@@ -515,6 +531,9 @@ if [ -n "$smoke_failed" ] || [ "$cleanup_failed" = 1 ]; then
         echo "deploy: the suite stopped in: $(tail -n 1 "$smoke_dir/progress.txt")" >&2
       fi
       echo "deploy: report: $smoke_dir (report.json, progress.txt, screenshots under artifacts/)" >&2
+    elif [ "$smoke_failed" = "$smoke_telemetry" ]; then
+      # Fix batch e30h (item 3): the check read the usage-event logs, not the smoke-seed task's.
+      echo "deploy: the logs it read: ${telemetry_logs:-none (the outputs ux_events_log_group and api_log_group could not be read)}" >&2
     else
       echo "deploy: its log: group $smoke_log_group" >&2
     fi

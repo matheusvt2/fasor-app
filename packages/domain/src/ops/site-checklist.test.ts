@@ -164,7 +164,8 @@ describe('matrix "Item answered": a site put writes a cell on the cabine row', (
     const obs = f.op({ path: observation, value: 'Autonomia abaixo de 2 h' });
     const nc = f.op({ path: result, value: 'NC', prev_op_id: null });
     const c = f.op({ path: otherResult, value: 'C' });
-    const na = f.op({ path: otherResult, value: 'NA', prev_op_id: c.op_id });
+    // Fix batch e30h: the last answer carries the stamp a contract-61 commit adds (`seen_removed_at`), so it is attributed.
+    const na = f.op({ path: otherResult, value: 'NA', prev_op_id: c.op_id, meta: { seen_removed_at: null } });
     const row = cabineOf(foldOps(v4State(), [obs, nc, c, na]));
     expect(row.checklist).toEqual({ [ITEM]: { result: plain(nc), observation: plain(obs) }, [OTHER_ITEM]: { result: plain(na) } });
     // The observation came first, yet the stored entry reads result, then observation (the row schema's order).
@@ -492,14 +493,14 @@ describe('stampSeen on a site put: what the device saw, as on a sheet put', () =
     const { createLocal, eduardo, ana } = world();
     const x = ana(result, 'C');
     const held = state([locKey, fold([createLocal, x])], [relKey, relatorio('v4')]);
-    expect(stampSeen(ana(result, 'NC', x.op_id), held).meta).toEqual({ standing_op_id: x.op_id, seen_conflict_op_id: null });
-    expect(stampSeen(ana(otherResult, 'NC'), held).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null });
-    expect(stampSeen(ana(observation, 'x'), held).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null });
-    expect(stampSeen(ana(result, 'NC', x.op_id, { standing_op_id: null }), held).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null });
+    expect(stampSeen(ana(result, 'NC', x.op_id), held).meta).toEqual({ standing_op_id: x.op_id, seen_conflict_op_id: null, seen_removed_at: null });
+    expect(stampSeen(ana(otherResult, 'NC'), held).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null, seen_removed_at: null });
+    expect(stampSeen(ana(observation, 'x'), held).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null, seen_removed_at: null });
+    expect(stampSeen(ana(result, 'NC', x.op_id, { standing_op_id: null }), held).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null, seen_removed_at: null });
     // A cell holding a contradiction: the conflict the device saw is stamped too.
     const na = eduardo(result, 'NA');
     const marked = state([locKey, fold([createLocal, x, na])]);
-    expect(stampSeen(ana(result, 'C', na.op_id), marked).meta).toEqual({ standing_op_id: na.op_id, seen_conflict_op_id: x.op_id });
+    expect(stampSeen(ana(result, 'C', na.op_id), marked).meta).toEqual({ standing_op_id: na.op_id, seen_conflict_op_id: x.op_id, seen_removed_at: null });
     // A location that is not held stamps an empty slot, and another location family is returned as it is.
     expect(stampSeen(ana(result, 'C'), state()).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null });
     const funcao = ana(`location/${LOCAL}/funcao`, 'primaria');
@@ -513,7 +514,7 @@ describe('stampSeen on a site put: what the device saw, as on a sheet put', () =
     // Ana's device still holds her own C: its second put chains on it and is stamped with it.
     const anaRow = materializeEntity({ entity: 'location', id: LOCAL }, seqd([createLocal]), [aResult]) as Cabine;
     const again = stampSeen(ana(result, 'C', aResult.op_id), state([locKey, anaRow]));
-    expect(again.meta).toEqual({ standing_op_id: aResult.op_id, seen_conflict_op_id: null });
+    expect(again.meta).toEqual({ standing_op_id: aResult.op_id, seen_conflict_op_id: null, seen_removed_at: null });
     const row = fold([createLocal, eResult, aResult, again]);
     expect(standing(row.checklist![ITEM]!.result)).toEqual({ value: 'NC', op_id: eResult.op_id });
     expect(row.checklist![ITEM]!.result!.merge).toEqual({ head_op_id: again.op_id, device_id: A_DEVICE, kept: true, rule: 'nc_over_c' });

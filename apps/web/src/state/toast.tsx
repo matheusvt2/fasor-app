@@ -33,6 +33,13 @@ import type { Timers } from '../input/field-commit.ts';
  * answer to the user's own press disappeared unread. The plain toast now keeps its 6 s (an undo
  * toast, until it is gone), then the arrival shows with its "Ver".
  *
+ * Fix batch e30h (item 2, Story 30.4): a notice (`notice`, the removed-local Toast) is an arrival
+ * that must be read. It waits behind any toast on screen, another arrival included (so neither it
+ * nor "N leituras prontas — Ver" is replaced unread), no arrival takes the slot from it, and a toast
+ * that does (the answer to the user's own press, a job outcome) sends it back to the head of the
+ * queue, as a status toast. `onShow` runs each time a toast is put on screen, so a caller can record
+ * that it was seen then, not when it was asked for.
+ *
  * Review fixes 2026-10-08 (H-7, DE-6): the queue and its timers are unchanged (an action toast
  * still never expires on a timer). What changed is where a toast may sit: while one is up, the
  * toast itself (`components/toast.tsx`) reserves its own height plus the `--sp-3` gap at the
@@ -65,6 +72,14 @@ export interface ShowToastOptions {
    * answers the user's own press.
    */
   passive?: boolean;
+  /**
+   * Fix batch e30h: an arrival that must be read (the removed-local notice). It waits behind any
+   * toast on screen, another arrival included; no arrival replaces it; a toast that takes the slot
+   * from it sends it back to the head of the queue. Set with `arrival`.
+   */
+  notice?: boolean;
+  /** Fix batch e30h: called each time this toast is put on screen (never while it waits in the queue). */
+  onShow?: () => void;
 }
 
 export interface ToastState {
@@ -137,6 +152,7 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
       const id = ++nextId.current;
       current.current = { id, entry };
       setToast({ id, text: entry.text, action: entry.options.action, onDismiss: entry.options.onDismiss, ...(entry.options.passive === true ? { passive: true } : {}) });
+      entry.options.onShow?.();
       // A toast with an action is a thing to act on; only a plain one (or an outcome) expires by itself.
       if (entry.options.action === undefined) {
         handle.current = timers.setTimeout(() => {
@@ -180,13 +196,28 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
         slot.display(entry);
         return;
       }
-      if (options.arrival === true && on !== null && on.options.arrival !== true && on.options.status !== true) {
-        // Story 30.5 (11.11-E2E-001): an arrival never takes the slot from a toast on screen (the
-        // answer to the user's own press, a plain one included, or a job outcome): it waits, once
-        // per text, the newer ask replacing the queued one in place.
+      /** Waits, once per text, the newer ask replacing the queued one in place. */
+      const wait = (): void => {
         const at = queue.current.findIndex((queued) => queued.text === text);
         if (at < 0) queue.current.push(entry);
         else queue.current[at] = entry;
+      };
+      if (on?.options.notice === true && on.text !== text) {
+        // Fix batch e30h: no arrival takes the slot from a notice; anything else (the answer to the
+        // user's own press, a job outcome) does, and the notice shows again after it.
+        if (options.arrival === true) {
+          wait();
+          return;
+        }
+        queue.current = [on, ...queue.current.filter((queued) => queued.text !== on.text && queued.text !== text)];
+        slot.display(entry);
+        return;
+      }
+      if (options.arrival === true && on !== null && (on.options.arrival !== true || (options.notice === true && on.text !== text)) && on.options.status !== true) {
+        // Story 30.5 (11.11-E2E-001): an arrival never takes the slot from a toast on screen (the
+        // answer to the user's own press, a plain one included, or a job outcome): it waits.
+        // Fix batch e30h: a notice waits behind another arrival too ("N leituras prontas — Ver").
+        wait();
         return;
       }
       if (on?.options.outcome === true && own) {

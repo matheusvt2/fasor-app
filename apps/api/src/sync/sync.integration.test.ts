@@ -1520,7 +1520,8 @@ describe('Story 14.3 (contract 18): Verificações do local through POST /api/sy
   const put = (relatorioId: string, path: string, value: unknown, extra: Partial<OpInput> = {}, ids: Ids = idsA): Op =>
     op(ids, { ...scoped(relatorioId), kind: 'put', path, value: value as Op['value'], ...extra });
   const sitePut = (relatorioId: string, locationId: string, itemKey: string, field: 'result' | 'observation', value: unknown, extra: Partial<OpInput> = {}, ids: Ids = idsA): Op =>
-    put(relatorioId, locationChecklistPath(locationId, itemKey, field), value, { meta: SAW_EMPTY, ...extra }, ids);
+    // Fix batch e30h: a contract-61 commit also stamps what it held of the local's removal (`seen_removed_at`, live: null).
+    put(relatorioId, locationChecklistPath(locationId, itemKey, field), value, { meta: { ...SAW_EMPTY, seen_removed_at: null }, ...extra }, ids);
   const rowOf = async (entity: string, id: string) =>
     (await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, entity), eq(entities.id, id))))[0]?.row;
 
