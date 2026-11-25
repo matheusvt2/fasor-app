@@ -377,6 +377,13 @@ development_status:
   29-1-a-signed-in-user-changes-the-password: done  # 2026-11-24: merged in batch e29a (PR #372); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18) | was in-progress: added 2026-11-23
   29-2-closing-a-dialog-or-going-back-returns-to-the-screen-before: done  # 2026-11-24: merged in batch e29a (PR #372), review fixes #374 and #377 (Voltar, Sumario view); deployed 2026-11-24 as de79700b (smoke 8/8, tag v0.14.0, contract 59, seed v18)
   epic-29-retrospective: done
+  epic-30: backlog  # added 2026-11-24 (John): the open-work audit of 2026-11-24; epics.md Epic 30, epic-30-context.md
+  30-1-app-fixes-each-proven-red-first: backlog  # wave 1, batch e30a, port base 30; no seed, no contract
+  30-2-infra-and-tooling-fixes: backlog  # wave 1, batch e30a after 30.1; Terraform applied at the next deploy
+  30-3-seed-v19-opens-the-v18-layout-is-locked-and-three-printed-texts-follow-bruno: backlog  # wave 1, batch e30b, port base 31; contract 60
+  30-4-a-notice-when-a-local-this-device-answered-was-removed-elsewhere: backlog  # wave 2, batch e30c; Q-8; contract main's plus one at its merge
+  30-5-the-unstable-tests-each-cause-found-and-fixed: backlog  # wave 2, batch e30d, machine idle; E28-A6
+  epic-30-retrospective: optional
 
   # Deferred or dropped stories (not tracked as keys). No script status means "deferred" or "dropped", so these two are
   # comments, not keys: with a backlog key, sprint_plan.py status recommends them as the next story. The deferred stories

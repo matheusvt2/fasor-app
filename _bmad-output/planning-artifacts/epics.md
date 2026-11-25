@@ -13091,6 +13091,356 @@ So that I do not lose my place and start again from the beginning.
 
 *(2026-11-24, outcome: built in batch e29a, PR #372, with the review fixes of #374 and the hands-on pass fix of #377; deployed 2026-11-24 as `de79700b` (tag `v0.14.0`, smoke 8 of 8, contract 59, seed v18 frozen). The retrospective has not been run.)*
 
+## Epic 30: The open-work audit of 2026-11-24: fixes, seed v19, a notice for a removed local, and the unstable tests
+
+Source: `_bmad-output/implementation-artifacts/open-work-audit-2026-11-24.md` (sections 1, 2, 3B, 3H, 4c and 6), the ledger rows it names in `deferred-work.md` (cited by their audit ids, `L<n>` and the row's own id) and the code lines below. Every file and line was read on main `29072a91` (2026-11-24): contract 59, seed v18 frozen, production `de79700b` (tag `v0.14.0`); main's product code equals the deployed code (no diff under `apps/`, `packages/` or `infra/` between `de79700b` and `29072a91`). No client and no site is named. Where the audit and the code disagree, the code wins and the story says so.
+
+**Matheus's decisions (2026-11-24), answering the eight top points of the audit (section 1):**
+1. **Point 3, the first fix batch:** "faça as correcoes revisitando o codigo, testando a falha, corrigindo e testando o sucesso". Every fix of this epic starts from a test that fails on main, then the fix, then the same test green on the branch. An item that does not reproduce is recorded with its evidence and closed, never fixed blind.
+2. **Point 5, Q-8:** "tem que ser uma notificacao". Story 30.4.
+3. **Point 6, the unstable tests:** "procure". Story 30.5.
+4. **Point 7, seed v19:** "ok". Story 30.3.
+5. **"faça em paraledo o que der".** Wave 1 runs two batches side by side (e30a and e30b); wave 2 runs what the load rules allow (below).
+
+Points 1 (the password rotation, E11-A4), 2 (the message to Bruno), 4 (the real-device session) and 8 (section 7 of the audit) are handled outside this epic.
+
+**Not in this epic, and why:**
+- **Fix-now 9 of the audit (the Home card date of a relatório not on the device, L4282).** `fromSummary` (`packages/domain/src/home/cards.ts:164-173`) sets the service dates to null because `relatorioSummarySchema` (`packages/domain/src/contract/sync.ts:70-78`) carries no dates; the fix needs a contract number (an added summary field took one before: `progress`, contract 11). Story 30.1 has no contract change, so it is left for a later batch; Story 30.1's batch writes the dated line in the row.
+- **Fix-now 17 (an escalated plate reading keeps a composed "Dd0 (diagram)").** Not checked beyond its lines and tied to the next paid evaluation (E28-A4); Matheus did not schedule it.
+- **14.3-O2 (a site C/NC against NA conflict in the Conflict view).** The audit pairs it with Q-8, but Matheus answered Q-8 only. It stays a decision.
+- **The smaller fixes of the audit's section 2, every other decision of section 3, the Bruno questions of section 4 and the device session of section 5.**
+
+**Stories, waves and batches:**
+
+| Story | Title | Sources | Applies to | Lane | Wave · batch | Contract | Dev model · Effort |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 30.1 | App fixes, each proven red first | audit § 2 items 1, 2, 3, 5, 10 to 15, 18 | every seed | web, kernel | 1 · e30a | no | opus · high |
+| 30.2 | Infra and tooling fixes | audit § 2 items 6, 7, 8, 16; § 6 `.vite-temp` | n/a | infra, api, tooling | 1 · e30a | no | sonnet · high |
+| 30.3 | Seed v19 opens, the v18 layout is locked, and three printed texts follow Bruno | audit § 2 item 4; § 3H; § 4c; L4011-G7 | v19 | kernel, print | 1 · e30b | main's plus one (60) | fable · high |
+| 30.4 | A notice when a local this device answered was removed elsewhere | audit § 3B Q-8 | every seed | kernel (fold), api, web | 2 · e30c | main's plus one at its merge (61 if e30b took 60) | opus · high |
+| 30.5 | The unstable tests: each cause found and fixed | audit § 6, first row (E28-A6, merging E23-A4 and E24-A4) | n/a | tests, then product where the cause is | 2 · e30d | none expected | opus · high |
+
+**Rules every story keeps:**
+- **Red first (decision 1).** Each item's acceptance criterion names the test that fails on main and passes on the branch, and the PR pastes both runs (the red one on the branch's first commit, before the fix, or on main). A screen item also has a screen check with the Playwright MCP at 390, 768 and 1280 px, as `dev@local.dev`, its screenshots under `_bmad-output/test-artifacts/manual/`.
+- **No retry, no longer timeout, no skip as a fix.** A test is fixed where its cause is.
+- **Seed v19 only in Story 30.3.** Stories 30.1, 30.2, 30.4 and 30.5 change no seed and print nothing new. Seeds v1 to v18 compute, show and print as before; the v5, v11 to v18 goldens, the `-epic25` goldens and the Porto Seguro goldens stay byte-equal. A batch that turns one red stops and asks the coordinator.
+- **Old data is not rewritten.** A stored op, answer, reading or run row keeps its value.
+- **Ownership (AD-1 to AD-3, AD-13).** `packages/domain` computes every status, count, text, order and verdict, once; `apps/web` renders from IndexedDB and writes ops only; `apps/api` applies ops and renders documents; `applyOp` is the only reducer.
+- **Permissions (Epic 26, AD-29).** No story adds a route. A control the role lacks is shown disabled with one line of reason ("Seu papel não permite …").
+- **Strings (AGENTS.md "Where a new user-facing string goes").** Derived text in `packages/domain`; static surface copy in `apps/web/src/copy/pt-br.ts`; chrome in `apps/web/src/copy/ui.ts`. Every pt-BR sentence a story authors is marked `// authored (Story 30.x, listed for Bruno)` and listed in the PR.
+- **A mock departed from is amended** in the same PR, with the dated strike-through amendment to `DESIGN.md` or `EXPERIENCE.md`.
+- **The ledger.** Each fixed item's row in `deferred-work.md` gets a dated `state:` line naming the PR; an item that does not reproduce gets its evidence and is closed.
+- **Not guessed.** A choice the story must still make is written as "Coordinator's reading, open to Matheus".
+
+**Waves and gates** (detail in `implementation-artifacts/epic-30-context.md`):
+- **Wave 1, side by side, from main `29072a91` or later:** e30a (Stories 30.1 then 30.2) on port base 30; e30b (Story 30.3) on port base 31. They share no file but `deferred-work.md` (different rows) and `docs/kbs/log.md` (append only).
+- **Wave 2, after wave 1 is merged:** e30c (Story 30.4) on port base 30. e30d (Story 30.5) on port base 31, started when e30c's batch gate has finished and no other stack is up, because it measures under a load it makes itself; it merges main (with e30c) before its PR.
+- **Contract numbers are not reserved.** A batch that needs one takes main's number plus one when it merges main before its PR (the rule of 2026-11-11). Main is at 59.
+- **Gates (AGENTS.md, decisions of 2026-11-12).** Each batch runs `lint`, `static`, `test:unit`, `test:api` and the Playwright specs it wrote or touched, under the host lock, before its PR, and pastes the summary; when it changes the op fold, the commit path or a live query on the ficha, its touched durability specs also run on the matrix projects. No review loop inside a batch. One full gate per wave on the integrated main (`podman compose restart api web`, then `pnpm test:e2e:full` and the matrix), one review per wave, one fix batch if needed.
+- **Deploy only on Matheus's word.** Seed v19 freezes at the first deploy that ships it.
+
+**Definition of Done of the epic:**
+- Every story merged with its batch gate pasted in its PR; each wave's full gate green on the integrated main and its review accepted.
+- The red and green runs of every fixed item in its PR.
+- `deferred-work.md` rows closed or dated; `source-deltas.md` rows for Stories 30.3 and 30.4 marked built.
+- `docs/kbs/` updated where a story says, and `log.md`.
+
+### Story 30.1: App fixes, each proven red first
+
+**Dev model:** opus · **Effort:** high · web and kernel, every seed; no seed change, no contract change; batch e30a, port base 30
+
+As a technician filling a relatório on a slow tablet,
+I want the app to keep what I type, say why an issue was refused and show where I am,
+So that a generate, a setup field or a long TAG never leaves me with a wrong state or a lost key.
+
+**Today (verified 2026-11-24 on main `29072a91`):**
+- **A. A generate answered `running` writes no status op (L1696).** `apps/web/src/surfaces/export/use-generate.ts:281-292`: on `queued` or `running` the awaiting row is written, but `emitStatusRef.current('queued')` runs only on `queued`. A retry after a lost answer is answered `running`, so the relatório stays "Em campo" with a revision on record and "Marcar como enviado" is not offered.
+- **B. A key typed while the earlier commit echoes back is overwritten (L3626).** `apps/web/src/surfaces/relatorio/setup/setup-fields.ts:23-31` (`useTextField`) resyncs the local text whenever the stored value differs from the last one it saw, so the echo of a 500 ms idle commit overwrites a key typed after it. The audit says the date field beside it already has the guard; on main `useDateField` (`:44-50`) has the same resync shape. The exclusions list (`etapa2-escopo.tsx`) resyncs the same way.
+- **C. A 409 `pre_issue_blocked` shows a generic failure (L4150).** `use-generate.ts:312-314` handles only `not_caught_up` and rethrows the rest. The server answers `pre_issue_blocked` with the blocking row kinds (`apps/api/src/http/generate.ts:280`; `preIssueBlockedDetailsSchema`, `packages/domain/src/contract/generate.ts:68-70`). No web code reads it.
+- **D. Client `meta` keys have no byte or count cap (R-12 (E20)).** `opMetaSchema` is a `z.looseObject` (`packages/domain/src/ops/op.ts:76`); `opDepthIssue` (`ops/value-limits.ts:366`) bounds `meta` by depth only, while `value` is also held to `VALUE_MAX_BYTES` (`:326`) and `VALUE_MAX_ITEMS` (`:329`).
+- **E. A long TAG pushes the phone Sumário sideways (L1635).** `apps/web/src/surfaces/relatorio/relatorio.css:411-422`: under 768 px the TAG is `nowrap` and the row `min-width: min-content`, with no wrap or ellipsis past the row's width. Read in the CSS, not run (about 25 characters or more).
+- **F. The site card's spoken name drops its counter and is composed in `apps/web` (E15-R1).** `relatorio-tree-rail.tsx:72` and `relatorio-tree-sumario.tsx:123` build the `aria-label` with `copy.local.entryLabel(… · ncBadge, node.name)` and leave out `site.railCounter` ("N de 19"), which the card shows.
+- **G. The palette drawer's target is not announced when it opens (E15-R2).** `apps/web/src/surfaces/templates/block-palette.tsx:311-317`: `DialogShell` has `aria-labelledby` only; the target paragraph (`:104`, `id={reasonId}`) is `aria-live` and announced only when it changes.
+- **H. "Abrindo câmera…" is missing on "Ler visor" and "Fotografar equipamento" (L1335).** `CameraOpeningStatus` is rendered only in `surfaces/ficha/photo-openers.tsx` (`:47`, `:90`, `:163`), not by the sheet's and the environment's "Ler visor" (`surfaces/ficha/read-display.tsx:639-645`, `:775-780`) nor by "Fotografar equipamento" (`surfaces/relatorio/panel-capture.tsx:182`). A second tap is already ignored (`camera-stream.ts:134`): feedback only.
+- **I. "Ler visor" with every cell read still opens the system picker (e17-R1).** `surfaces/ficha/camera-session.tsx:162`: the no-target guard runs only when `cameraApp` is on, so on the picker path (no camera API, or permission denied) the picker opens for a photo with no target.
+- **J. A re-issue after edited service dates is not re-ordered (L3755; its test L3881).** `packages/domain/src/print/last-results.ts:200`: `order = 0` when the top entry is this relatório, so a re-issue whose service dates moved is never compared again with its prior, and "last results" can name the wrong visit as the latest.
+- **K. TAG suggestions are still offered after their locals were removed (L4333, E28-A7).** Cause not found by reading: `suggestTag` skips removed rows (`packages/domain/src/relatorio/tag.ts:179`) and a local's removal tombstones the equipment it frees (`relatorio/removal.ts`). Seen in the hands-on pass of 2026-11-23 (`test-artifacts/manual/hands-on-pass-2026-11-23.md`, N3).
+
+*(Definition of Ready, met 2026-11-24 by decision 1. Each reading below is the coordinator's, open to Matheus.)*
+- **A.** On `running` the status op is emitted as on `queued`. The test also proves a second answer for the same press emits no second transition.
+- **B.** A stored change resyncs a field only when it is not this field's own echo and no keystroke of it is waiting to commit; a real write from elsewhere while the field is idle still resyncs. The same guard goes to `useDateField` and the exclusions list if their test shows the same loss.
+- **C.** The Gerar dialog's failed state names the blocking rows with the kernel's texts (the pre-issue row texts and `issueBlockedReason`, as the dialog's own pending rows do) and offers the existing "Ver no sumário". A missing kernel text is authored there, never in `apps/web`.
+- **D.** `meta` is held to the caps `value` has (`VALUE_MAX_BYTES`, `VALUE_MAX_ITEMS`) by the same kernel check the push route asks before any parse, and such an op is refused alone as `op_value_invalid`. A test proves every `meta` the app writes today stays far under the caps.
+- **E.** At 390 px a TAG that fits keeps the F-07 rule (no word breaks inside itself); a TAG wider than the row breaks inside itself, so nothing scrolls sideways and the whole TAG stays visible. No ellipsis (nothing hidden).
+- **F.** The kernel composes the site card's spoken name with its counter and NC badge, in the order the card shows them; both tree presentations read it. `copy.local.entryLabel` stays for the other cards.
+- **G.** The drawer is described by its target paragraph (`aria-describedby`), so opening it says where the block will go.
+- **H.** Both controls render `CameraOpeningStatus` as `photo-openers.tsx` does, with the same busy state.
+- **I.** The guard runs on the picker path too: the same hint or no-target toast, and no picker.
+- **J.** A re-issue is ordered against its prior by its edited service dates, under Story 24.15's rule (an older visit never becomes the top; a newer one by date takes it).
+- **K.** Reproduce first, by the pass's N3 steps and with removed locals that hold numbered equipment. If it reproduces: the red test, the cause named, the fix. If it does not: the steps, the build and the result go in the row L4333 with a dated line, and the row is closed.
+
+**Acceptance Criteria:**
+
+**Given** a press of "Gerar relatório" whose first answer was lost
+**When** the retry is answered `running`
+**Then** the relatório moves as on `queued` and "Marcar como enviado" is offered after the job (unit "30.1-UNIT-A" in the generate hook's tests, red on main)
+
+**Given** a setup text field that committed after 500 ms idle
+**When** a key is typed before that commit's echo lands
+**Then** the key stays in the field and is committed (unit "30.1-UNIT-B" with the echo held back, red on main; e2e "30.1-E2E-B" in a touched setup spec)
+
+**Given** a server that refuses an issue with `409 pre_issue_blocked`
+**When** the Gerar dialog shows the failure
+**Then** it names each blocking row and offers "Ver no sumário" (unit "30.1-UNIT-C"; e2e "30.1-E2E-C" with the refusal routed, red on main; screen check at 390 and 1280 px)
+
+**Given** a pushed op whose `meta` is over the byte or the count cap
+**When** the push route reads it
+**Then** that op alone is refused `op_value_invalid` and the rest of the push applies (kernel "30.1-UNIT-D"; api integration "30.1-API-D", red on main)
+
+**Given** a phone Sumário with a TAG of 40 characters
+**When** it renders at 390 px
+**Then** the page has no horizontal scroll and the whole TAG is visible (e2e "30.1-E2E-E" measuring `scrollWidth`, red on main; screen check at 390 px)
+
+**Given** the site checklist card of a local, in the Sumário and in the rail
+**When** a screen reader reaches it
+**Then** its name carries the counter "N de 19" and the NC badge, from the kernel (kernel "30.1-UNIT-F"; component test "30.1-UNIT-F2" on both presentations, red on main)
+
+**Given** the palette drawer of the Template composer on phone
+**When** it opens
+**Then** the dialog is described by its target line (component test "30.1-UNIT-G", red on main)
+
+**Given** "Ler visor" (sheet and environment) or "Fotografar equipamento"
+**When** it is pressed and the camera has not answered yet
+**Then** the control reads "Abrindo câmera…" and is busy (component tests "30.1-UNIT-H1" to "H3", red on main; screen check)
+
+**Given** a "Ler visor" burst with every cell read, on the picker path
+**When** it is pressed
+**Then** the hint or no-target toast shows and no picker opens (component test "30.1-UNIT-I", red on main)
+
+**Given** an issued relatório whose service dates are edited and re-issued
+**When** its last results are written
+**Then** they are ordered by the edited dates against the prior visit (kernel "30.1-UNIT-J" in `print/last-results.test.ts`, red on main; it covers the gap of L3881)
+
+**Given** the hands-on pass's N3 steps
+**When** a TAG is suggested after locals were removed
+**Then** either the red test "30.1-UNIT-K" (or "30.1-E2E-K") passes after the fix, or the row L4333 is closed with the evidence that it does not reproduce
+
+**Definition of Done, in addition:**
+- The red and green runs of every item in the PR; the screen checks' screenshots under `_bmad-output/test-artifacts/manual/`.
+- The touched specs (`grep -rln` over `e2e/` for the Gerar dialog, the setup fields, the Sumário tree, the palette, "Ler visor" and the panel capture) in the batch gate.
+- `deferred-work.md`: dated lines on L1696, L3626, L4150, R-12 (E20), L1635, E15-R1, E15-R2, L1335, e17-R1, L3755, L3881, L4333, and the "left for a later batch" line on L4282.
+- `docs/kbs/code/web-app.md` and `log.md`.
+
+### Story 30.2: Infra and tooling fixes
+
+**Dev model:** sonnet · **Effort:** high · Terraform validation (a plan, applied at the next deploy), api usage recording, the deploy script, the tools container's user and the gate preflight; batch e30a after Story 30.1, port base 30
+
+As Matheus paying for Bedrock under a USD 100 ceiling and running the gates,
+I want a typo in a model id refused before it ships, every billed call counted, a broken telemetry release to fail its deploy and no root-owned file to stop a gate,
+So that production does not crash-loop on a typo, the cost line is true and the gates stop failing for the same reason.
+
+**Batch:** in e30a, after Story 30.1, not a batch of its own. Wave 1 already has two stacks (e30a and e30b), and the load rules allow at most two up at a time; the token rule of 2026-11-12 asks for one batch per wave unless the work collides; and 30.2 touches none of 30.1's files (`infra/`, `apps/api/src/jobs/reading/`, `infra/bin/deploy`, `scripts/`, `docker-compose.yml`, the playbook). Its tools-user item is proven on the batch's own gate.
+
+**Today (verified 2026-11-24 on main `29072a91`):**
+- **A. Bedrock model ids are not validated (L1296).** `infra/production/variables.tf:52-61`: `bedrock_model_id` checks only `length > 0`; `bedrock_panel_model_id` (`:63-67`), `bedrock_prose_model_id` (`:69-73`) and `bedrock_escalation_model_id` (`:75-79`) have no check. A typo makes the api crash-loop in production.
+- **B. Usage of failed and escalated calls is not recorded (L1284, L1290, L1310).** `apps/api/src/jobs/reading/job.ts:185` records `llm_usage` only from a finished structuring result; `kinds/plate.ts:127-130`: a failed escalation keeps the first call's usage only; `:131-141`: an escalated run records the kept call's model with the summed usage of two calls of two models.
+- **C. The deploy's usage-events check is still a warning (L2743).** `infra/bin/deploy:410-421` (`check_usage_events`) prints warnings and returns 0, and `:482-484` adds `|| echo …`. The row's condition ("should fail the deploy once it has been green on a production run") is met: the delivery records show it green on production deploys (`epic-21-context.md:105`, `epic-22-context.md:231`, `epic-23-context.md:445` and `:451`: `session_start` events with the new `app_version`, 0 `ux_event_sink_failed`). The audit dates the condition 2026-11-03; the first green run in the records is the Epic 21 deploy of 2026-11-06.
+- **D. The tools container runs as root (tools-root, E26-A8).** `epic-batch-orchestrator.md:152` runs it `--user root`; root-owned `node_modules/.vite-temp` folders under `apps/api` and `packages/domain` stopped gates (`epic-26-retro-2026-11-24.md` P-4). `scripts/preflight.ts` fails only on a restarting container; it does not look for root-owned files.
+
+*(Definition of Ready, met 2026-11-24. Readings are the coordinator's, open to Matheus.)*
+- **A.** Each id is validated by the shape of a Bedrock model or inference-profile id (an optional `global.` or region prefix, a provider, a dot, a model name); the prose and escalation ids also accept empty, as their descriptions say. Today's defaults and the production tfvars pass. Terraform only (the rule of 2026-09-29): `infra/bin/tf validate` and a plan in the batch with no change for today's values; it is applied at the next deploy, on Matheus's AWS login.
+- **B.** Every call Bedrock bills is recorded on its run row: the first and the escalation call each with its model, prompt version and usage, also when the escalation or the run fails, when the provider's error carries the usage (a throttle or a denial bills nothing). The run's total stays the sum. api and database only; if a run row travels to the device, the batch stops and reports (a contract change is out of this story).
+- **C.** `check_usage_events` fails the smoke like the other checks (the cleanup still runs, the rollback hint is printed): 0 `session_start` with the tag, any `ux_event_sink_failed`, or a read error of either log group. `scripts/deploy.test.ts`'s warning cases become failure cases; `docs/observability.md` says so.
+- **D.** First find why the playbook needs root (the engine socket the preflight reads, or the owner of the bind mount on the podman VM). Then the playbook and every command it gives run the tools container as `node` (a dated strike-through in `epic-batch-orchestrator.md`), and `scripts/preflight.ts` names any root-owned entry in the four `node_modules` volumes (`.vite-temp` under `apps/web`, `apps/api` and `packages/domain` first) before a stage runs and fails fast naming it. If `node` cannot run the gate on this host, that half stops, the preflight check still lands, and the reason is written in the playbook.
+
+**Acceptance Criteria:**
+
+**Given** a tfvars with a mistyped model id (a missing dot, a space)
+**When** `infra/bin/tf validate` or a plan runs
+**Then** it is refused naming the variable, and today's values pass (`scripts/infra-tf.test.ts` "30.2-UNIT-A", red on main)
+
+**Given** a plate reading whose escalation call fails after billing, and one whose escalation is kept
+**When** the run row is written
+**Then** it holds each call's model and usage, and the total is their sum (api tests "30.2-API-B1", "30.2-API-B2", red on main)
+
+**Given** a deploy whose production smoke finds 0 `session_start` with the tag, or a `ux_event_sink_failed`
+**When** the telemetry step runs
+**Then** the deploy ends red with the rollback hint, after the cleanup (`scripts/deploy.test.ts` "30.2-UNIT-C", red on main)
+
+**Given** a root-owned `.vite-temp` planted under `apps/api/node_modules` or `packages/domain/node_modules`
+**When** a gate starts
+**Then** the preflight fails at once naming the path (`scripts/preflight.test.ts` "30.2-UNIT-D", red on main); and the batch's own gate ran as `node` (or the PR records why it could not)
+
+**Definition of Done, in addition:**
+- The red and green runs in the PR; the `tf validate` and plan output (the plan with Matheus's login, or marked as run at the deploy).
+- `deferred-work.md`: dated lines on L1296, L1284, L1290, L1310, L2743, tools-root; `sprint-status.yaml` E26-A8 done when its done-when holds.
+- `docs/kbs/architecture/infra-aws.md`, `docs/kbs/workflow/merge-gate.md` and `log.md`.
+
+### Story 30.3: Seed v19 opens, the v18 layout is locked, and three printed texts follow Bruno
+
+**Dev model:** fable · **Effort:** high · kernel and print: `seed/v19.ts` equal to v18, `SEED_VERSION` v19, `V18_HASH` frozen as shipped, the v18 layout-lock goldens taken from the deployed commit, then three fenced deltas with their rule flags; contract 60 (main's plus one); batch e30b, port base 31
+
+As Bruno signing a relatório after the next deploy,
+I want the criteria written as he writes them and the Malha's sentences true to its sheet,
+So that the document says "≥ 5 GΩ" and never claims a checklist the Malha does not have, while every relatório already issued prints the same.
+
+**Today (verified 2026-11-24 on main `29072a91`):**
+- **Seeds.** `SEED_VERSION = 'v18'` (`packages/domain/src/seed/definitions.ts:70`). `V18_HASH` (`seed/seed.test.ts:2808`) was re-pinned by every Epic 28 batch; its comment says that after the deploy a change is a new version. v18 shipped at `de79700b`. There is no v18 layout-lock golden: `apps/api/src/jobs/generate/golden/` holds `layout-lock-v5`, `-v11` to `-v17`, the `-v14` to `-v17` `-epic25` twins and `porto-seguro-skeleton.json`.
+- **Contract.** `CONTRACT_VERSION = 59`, `MIN_CONTRACT_VERSION = 59` (`contract/version.ts:703`, `:1125`). Story 28.2 took 58 because a version-57 bundle ships no seed v18 (`version.ts:1113`): a new seed needs a number, so v19 takes 60.
+- **The criteria's form (L3106, L3160 (N10), L3944).** `formatCriterionValue` (`seed/criteria.ts:137-152`) prints a criterion with no text of its own as `${operator}${value}` (`>=0,5 MΩ`, `±0,5 %`); only `nominal_pct` follows Bruno (`:145-147`). The seeds use `>=` 13 times, `<=` 4, `>` 3, `<` 1 and `±` 1 (grep of `seed/*.ts`). A criterion that carries its own text (the NETA rows, v13 and later) prints it as it is. The function feeds the sheet's criterion, section 9's criterion per row (Story 25.20), the type editor and the Critérios tab.
+- **Bruno's rule, answered 2026-11-11** (item 9 of `docs/context/epic-24/respostas-bruno-2026-11-11.md`, gitignored): the tolerance is written "220 V ± 5 %", with a space, and the operator as "≥".
+- **The Malha conclusion (L4011-G8).** `relatorio/conclusion.ts:972-975`: a sheet with readings and no checked items ends ", sem itens verificados registrados". The Malha de aterramento has `checklist: null` (`seed/v13.ts:704-711`), so its conclusion always says it. The mirror case of a type with nothing to measure (the Inspeção de QGBT) was fixed in e22g (`nothingToMeasure`, `:977`).
+- **The Malha helper (L4011-G7).** `relatorio/measurement-evaluation.ts:1012-1013` (`maxFieldDefaultText`): "Sem VALOR DE PROJETO na placa, vale ≤ 5 Ω." Since v14 the Malha's first block reads "Dados da malha" (`seed/schema.ts:910`, `nameplate_title`), so "na placa" names a block the sheet does not show (`behaviour-pass-e24-2026-11-11.md` G7). The helper is pushed into the test's notes (`:1485`), and section 9 prints a test's notes as paragraphs (`print/section-9.ts:1308-1314`); the batch confirms whether this note reaches print.
+
+*(Definition of Ready, met 2026-11-24 by decision 4, "ok". Readings are the coordinator's, open to Matheus.)*
+- **Open v19** as Story 28.2 opened v18: `seed/v19.ts` is a clone of v18 with the version only; each delta below adds one fenced section (`// --- Story 30.3 (x): … ---`) and its strip helper (`withoutE30b<x>`), so the stripped v19 stays v18. The server's boot step moves every template to v19, so every relatório created after the deploy is born on v19.
+- **Freeze `V18_HASH`** as shipped at `de79700b`, with the commit in the comment, and take the `layout-lock-v18` goldens (and the `-epic25` twin, as for v14 to v17) from the deployed code. Main's product code equals it, so they are taken on the batch's base; the PR says so.
+- **Contract 60,** `MIN_CONTRACT_VERSION` follows, so a device on the old bundle updates once. The paragraph in `contract/version.ts`.
+- **(a) The criteria's form, flag `criterion_symbols`.** On v19 `>=` prints "≥", `<=` prints "≤", and one space stands between the operator and the value and after "±" ("≥ 5 GΩ", "≤ 0,5 Ω", "± 0,5 %"). Reading: the space also after ">" and "<" ("> 400 MΩ"), as Bruno's own "> 2 TΩ" of Story 28.7 prints. The text follows the relatório's seed on screen and in print alike (one kernel text). The Critérios tab and the type editor, which belong to no relatório, use the form of `SEED_VERSION`. A criterion with its own text is unchanged.
+- **(b) The conclusion of a type with no checklist, flag `conclusion_no_checklist_clause`.** On v19 a type whose definition has `checklist: null` concludes "{verbo} {leituras}" with no clause about checked items, as e22g did for a type with nothing to measure.
+- **(c) The Malha helper, flag `helper_names_plate_block`.** On v19 the helper names the block the field is in when the type renames its plate block: "Sem VALOR DE PROJETO em Dados da malha, vale ≤ 5 Ω." (authored (Story 30.3, listed for Bruno)). A type without `nameplate_title` keeps "na placa".
+- **No frame.** The three deltas are text in places already drawn; the PR shows each before and after.
+- The flag names are the batch's to choose; one flag per delta, read by `seedRule`, never a version comparison.
+
+**Acceptance Criteria:**
+
+**Given** the server booted on this batch
+**When** a new relatório is created from the standard template
+**Then** it is born on v19, and without the three deltas it concludes and prints exactly as a v18 relatório with the same data
+
+**Given** a relatório on v18 or older
+**When** it is opened, concluded and printed
+**Then** nothing changes, and the v5, v11 to v18 goldens, the `-epic25` goldens and the Porto Seguro goldens are byte-equal
+
+**Given** a v19 sheet with a seeded criterion `>=` 5 GΩ and a tolerance of 0,5 %
+**When** the sheet and section 9 show them
+**Then** they read "≥ 5 GΩ" and "± 0,5 %"; the same sheet on v18 reads as today
+
+**Given** a v19 Malha de aterramento sheet with readings
+**When** it is concluded and printed
+**Then** its conclusion has no ", sem itens verificados registrados", and with VALOR DE PROJETO empty its helper reads "Sem VALOR DE PROJETO em Dados da malha, vale ≤ 5 Ω."
+
+**Given** a device on contract 59
+**When** it syncs
+**Then** it is answered 426 and shows "Atualizar"
+
+**Definition of Done, in addition:**
+- `seed.test.ts` "30.3-UNIT-001": the stripped v19 equals v18; "30.3-UNIT-002": `V18_HASH` frozen with its commit; one red-first kernel test per delta ("30.3-UNIT-A", "-B", "-C"), red on the opened v19 before its fence.
+- "30.3-INT-001": the v18 layout-lock goldens against the deployed code.
+- "30.3-API-001": a contract-59 client refused with 426.
+- `e2e/seed-v19.spec.ts` "30.3-E2E-001" (`@p0`): a new relatório on v19 concludes and prints with the three deltas; the touched specs (`grep -rln` over `e2e/` for "sem itens verificados", the criterion texts and "na placa").
+- `deferred-work.md`: dated lines on L3106, L3160, L3944, L4011-G7, L4011-G8. `source-deltas.md` row marked built.
+- `docs/kbs/architecture/kernel-and-seed.md` (seed v19, contract 60) and `log.md`.
+
+### Story 30.4: A notice when a local this device answered was removed elsewhere
+
+**Dev model:** opus · **Effort:** high · kernel fold (a removal mark on the location, as the block has), api push and pull, web notice from the existing Toast, Banner and Sync status patterns; every seed; contract main's plus one at its merge; batch e30c, port base 30
+
+As a technician who answered a local's Verificações offline,
+I want to be told when another device removed that local, and to be able to bring my answers back,
+So that field work never vanishes without a word.
+
+**Today (verified 2026-11-24 on main `29072a91`):**
+- **Q-8** (`deferred-work.md`, "Deferred from: Epic 14 QA fix batch (2026-10-14)"): device B answers the 19 items and adds a point offline; device A removes the local and syncs first; on B's next pull the answers are hidden with the local, the Verificações route says "não encontradas", no merge entry or decision is raised, and after the next emission the local's entry is cut from "Restaurar ficha removida", so nothing brings the answers back. Site answers, site photos and site points have no such entry. The audit calls it the only open data-loss path it found (section 1, point 5).
+- A site answer is a cell `location/{id}/checklist/{item_key}/{field}` (`packages/domain/src/ops/path.ts:188-194`).
+- The edit-on-removed mark exists for blocks only: `block.removal_conflict` (`schemas/entities.ts:680`), raised as a `BlockRemovalDecision` (`merge/conflicts.ts:90-99`, `:414-417`), undone through `merge/restore.ts`; its contract history is in `contract/version.ts` (the `removal_conflict` paragraphs).
+- `restorableEntries` (`relatorio/sumario.ts:657`) cuts a removed local's entry at the last emission (`since`).
+- `EXPERIENCE.md` (Offline & Sync, the conflict model; State Patterns, "Sync conflict — structure") surfaces two structure cases only: deletion against edit of a block ("Removido por X, alterado por Y — Manter / Remover") and a duplicate TAG. The mocks draw the first as a Conflict Banner in Sync status's "Decisões" (`prototype/screens/85-sync.html`, "Remoção contra edição"; `key-sync-status.html:151`).
+
+*(Definition of Ready, met 2026-11-24 by decision 2, "tem que ser uma notificacao". Every line below is the coordinator's reading, open to Matheus.)*
+- **What is detected, in the fold.** When site work (an answer, a site photo or a site point on the local) written by a device that had not seen the local's removal meets that removal, in either order of arrival, `applyOp` marks the location with a removal mark as it marks a block: who removed it and when, who wrote the work and when, and how many answers, photos and points. Nothing is deleted: the work stays in the store under the removed local, as today. The location row gains the mark, so the batch takes one contract number (main's plus one at its merge); a device on the old bundle is answered 426.
+- **Who is told, and where.** Three existing patterns, no new look:
+  1. **Toast, once, on the device that wrote the work,** at the sync cycle that brings the mark, whatever screen is open: "⟨Local⟩ foi removido por ⟨nome⟩. Suas ⟨N⟩ respostas não foram mantidas." with the action "Ver", which opens the relatório's Sumário. It is a persistent Toast (EXPERIENCE.md's undo Toast: it stays until dismissed or the next navigation).
+  2. **Banner, Conflict variant, on the relatório's Sumário,** in the one Banner slot at conflict priority, `role="alert"`, on every device, until resolved: "**Local removido com respostas** — ⟨Local⟩: removido por ⟨nome⟩ em ⟨dd/mm hh:mm⟩. ⟨N⟩ respostas de ⟨você · nome⟩ nas Verificações do local não foram mantidas." with the actions "Restaurar local" and "Deixar removido".
+  3. **Sync status, "Decisões",** the same Banner beside "Remoção contra edição", and the Sync badge in its conflict state.
+  When the remover or the time is unknown (a removal by the server CLI), the text leaves them out: "⟨Local⟩ foi removido em outro aparelho." The count names answers; photos and points are added to the sentence only when present ("⟨N⟩ respostas e ⟨n⟩ fotos"). Every sentence is `// authored (Story 30.4, listed for Bruno)`; the kernel composes it.
+- **What happens to the answers.** "Restaurar local" runs the existing restore of that local (Story 14.2's restore plan), which brings back the local, its sheets and its site work on every device, and clears the mark. "Deixar removido" clears the mark with an op, so every device's notice goes; the local stays removed and its work stays recoverable through "Restaurar ficha removida" under the usual rules. While the mark stands, the local's restore entry is offered past the emission cut. Both actions need `relatorio.fill`; a role without it sees the notice with both actions disabled and one line of reason (Epic 26).
+- **Mocks.** No new frame: the notice uses the Conflict Banner, the Toast with an action and the Decisões list already drawn. The PR adds one instance of the Banner to `85-sync.html` and to the Sumário frame (`40-relatorio-overview.html`) with a dated `MOCK-GUIDE.md` note, and the dated amendments to `EXPERIENCE.md` (the conflict model and "Sync conflict — structure" gain the third case). Matheus approves the copy in the PR.
+
+**Acceptance Criteria:**
+
+**Given** device B answered N items of a local's Verificações offline and device A removed that local and synced first
+**When** B syncs
+**Then** B shows the Toast once, the Sumário Banner and the Decisões row, each naming the local, A's user, the time and N, and B's answers are still in its store
+
+**Given** the same two devices, B's push first and A's removal after it
+**When** both have synced
+**Then** both show the Banner and the Decisões row, and nothing is deleted
+
+**Given** the notice, for a role with `relatorio.fill`
+**When** "Restaurar local" is pressed
+**Then** the local, its sheets and B's answers are back on both devices and the notice is gone on both
+
+**Given** the notice
+**When** "Deixar removido" is pressed
+**Then** the notice is gone on every device, the local stays removed, and its entry stays in "Restaurar ficha removida" under the usual rules
+
+**Given** the mark stands and the relatório is issued
+**When** the Sumário's restore list is opened
+**Then** the local's entry is still offered
+
+**Given** a role without `relatorio.fill`
+**When** the notice shows
+**Then** both actions are disabled with their reason
+
+**Given** a device on the contract before this batch's
+**When** it syncs
+**Then** it is answered 426 and shows "Atualizar"
+
+**Definition of Done, in addition:**
+- Kernel tests, red on main: the mark in both orders of arrival, its count, the restore and the clear op ("30.4-UNIT-001" to "-004"); api integration "30.4-API-001" (push and pull in both orders; 426 for the old contract).
+- `e2e/removed-local-notice.spec.ts` "30.4-E2E-001" (`@p0`): two browser contexts as two devices, both orders, the Toast, the Banner, the Decisões row, both actions, a read-only role; screen check at 390, 768 and 1280 px and the Banner over a dialog.
+- It changes the op fold and what the pull reports, so the touched durability specs (`durability.spec.ts`, the merge and conflict specs) also run on the matrix projects (Android Chrome emulation and WebKit) in the batch gate.
+- `deferred-work.md` Q-8 closed with the PR; the `source-deltas.md` row marked built; the `EXPERIENCE.md` amendments; `contract/version.ts` paragraph.
+- `docs/kbs/architecture/sync.md`, `docs/kbs/architecture/ops-and-local-first.md` and `log.md`.
+
+### Story 30.5: The unstable tests: each cause found and fixed
+
+**Dev model:** opus · **Effort:** high · tests first, then the product where the cause is; no retries, no longer timeouts; batch e30d, port base 31, started when no other stack is up
+
+As whoever runs a gate,
+I want each test that fails once under load and passes alone to have its cause found and removed,
+So that a gate's red means a defect and no gate pays for a rerun.
+
+**Today (audit section 6, first row; E28-A6, which merges E23-A4 and E24-A4):** each test below failed once under load and passed alone. In brackets, the records that name it.
+1. `12.1-E2E-012` (L4323, Epic 28 retro finding 5, E28-A6, a comment in `e2e/ficha.spec.ts`).
+2. `1.6-E2E-001` on Home (L4323, finding 5, E28-A6), the same lost "Novo relatório" press as L3646 and `R8LAY-E2E-008` (L3014).
+3. `R8LAY-E2E-008` (L3014), with item 2.
+4. `11.11-E2E-001` (L4313, a wave gate, E28-A6).
+5. `6.2-E2E-001` (L4318, the final gate on an idle machine, E28-A6).
+6. `R8CAP-E2E-010` (L3994, L4070, E24-A4; not seen since e24z).
+7. `25.2-E2E-002` (two records).
+8. The api test `e24y-paired-tables` (two records).
+9. `24.10-E2E-005` (L4095, `spec-e25x-wave1-web-fixes.md:186`).
+10. `e20f-DUR-001` (L4095, L4091).
+11. `14.5-E2E-001` (L4009, E24-A4; not seen since).
+12. `21.1-E2E-002` (one record).
+13. The relatório-tree unit tests' timeouts (`apps/web/src/surfaces/relatorio/relatorio-tree*.test.tsx`; E16-A10, E17-A8, E23-A4, E24-A4, `epic-25-context.md:227`).
+14. The template-composer unit tests' timeouts (`apps/web/src/surfaces/templates/template-composer*.test.tsx`; same records).
+15. The two `durability.spec.ts` tests that tap "Sincronizar agora" by hand: `1.8-E2E-006` (`:441`) and `6.2-E2E-003` (`:692`) (L2918).
+16. The api process exiting when Postgres restarts (L4008, E24-A4).
+
+*(Definition of Ready, met 2026-11-24 by decision 3, "procure".)*
+- **Reproduce under load** on the batch's stack with nothing else up: the wave gate's load (the parallel group on `PARALLEL_WORKERS`, the `queue` lane on its two workers) and `--repeat-each`, under the host lock. Record the failing state of each failure (trace, `timings-{group}.json`, the console and the api log).
+- **Name the cause:** a race in the product or in the test. A product race found this way is a bug fix with its own red test, in this batch.
+- **Fix it there.** No retry, no longer timeout, no `test.fixme`, no move to the `solo` lane unless the test times a tap against a render (the lane's own rule).
+- **Count right.** `test-results/e2e-report/summary.json` undercounts under `--repeat-each` (`scripts/e2e.ts:266`, L1430); the batch counts from each test's outcome, and fixes that count if it needs it.
+
+**Acceptance Criteria:**
+
+**Given** each of the sixteen items above
+**When** the batch is done
+**Then** either it passes 20 times in a row under the same load (the run's per-test outcomes in the PR), or it is recorded with "cause not found" and what was tried
+
+**Given** a product race found this way
+**When** it is fixed
+**Then** its own test fails on main and passes on the branch
+
+**Definition of Done, in addition:**
+- One table in the PR and in `epic-30-context.md`: test id, cause, where it was fixed, the 20-run result.
+- `deferred-work.md` rows L4323, L4313, L4318, L3994, L4070, L4095, L4091, L4009, L3014, L3646, L2918, L4008, L1430 dated; `sprint-status.yaml` E28-A6 done when every item is fixed or recorded.
+- `docs/kbs/workflow/e2e-testing.md` and `log.md`.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
