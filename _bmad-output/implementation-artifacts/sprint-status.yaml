@@ -382,7 +382,7 @@ development_status:
   30-2-infra-and-tooling-fixes: done  # 2026-11-24: batch e30a PR, A-D red first; the Terraform validation is applied at the next deploy (not planned against the real stack, no AWS session) | was backlog: wave 1, batch e30a after 30.1
   30-3-seed-v19-opens-the-v18-layout-is-locked-and-three-printed-texts-follow-bruno: done  # 2026-11-24: batch e30b, PR #386 (not merged yet when written); contract 60, seed v19, v18 layout lock from de79700b
   30-4-a-notice-when-a-local-this-device-answered-was-removed-elsewhere: done  # 2026-11-25: batch e30c, PR #389 (not merged yet when written); Q-8 closed; contract 61; no review loop in the batch (one review per wave)
-  30-5-the-unstable-tests-each-cause-found-and-fixed: backlog  # wave 2, batch e30d, machine idle; E28-A6
+  30-5-the-unstable-tests-each-cause-found-and-fixed: done  # 2026-11-25: batch e30d, PR #PRNUM (not merged yet when written); 16 items closed: 6 fixed (three causes in the product, one in a test), 9 recorded as not reproduced or cause not found (14.5 found in part, not fixed), 1 counted (21.1, fixed by e30f) | was backlog: wave 2, batch e30d, machine idle; E28-A6
   epic-30-retrospective: optional
 
   # Deferred or dropped stories (not tracked as keys). No script status means "deferred" or "dropped", so these two are
@@ -779,7 +779,7 @@ action_items:
       why 11.11-E2E-001, 6.2-E2E-001, 25.2-E2E-002, 12.1-E2E-012, home 1.6-E2E-001
       and e24y-paired-tables fail under load and pass alone; no retries."
     owner: "coordinator (batch)"
-    status: open
+    status: done  # 2026-11-25, Story 30.5 (batch e30d, PR #PRNUM): every item fixed or recorded; the table is in epic-30-context.md, "Story 30.5"
     ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
   - id: "epic-28-retro-item-199-e28-a7-low-fix-the-tag-suggestions-offer"
     epic: 28

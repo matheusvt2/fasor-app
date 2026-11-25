@@ -3145,7 +3145,7 @@ A row moves here when it closes (its state struck through and the closed state a
 ## Epic 24 integrated gate (2026-11-11)
 
 - **Process, not code.** Batches e24s and e24y changed behaviour that three specs outside their touched lists asserted (`seed-v7`, `review-concluir-text`, `sheet-knows-12-3-12-4`); the integrated gate caught them (fix batch e24z). From Epic 25 on a batch greps `e2e/` and the web tests for what it changes before its gate. | 2026-11-24 audit: closed (resolved: the practice is adopted, epic-28-context.md 'Gates' requires touched specs found by `grep -rln` over `e2e/`; the playbook line itself is part of E24-A3, kept open in sprint-status.yaml item 182)
-- **`e2e/cta.spec.ts` 14.5-E2E-001 is sensitive to the load of the document queue.** In gate run 3 on `ee0859cc` its download did not start within 30 s (`e2e/support/download.ts:13`) in the queue lane; alone it passed 3 of 3, and it passed in run 2. ~~Open: whether the 30 s wait should follow the document job's own bound.~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Not seen since; kept in the flaky list for causes)
+- **`e2e/cta.spec.ts` 14.5-E2E-001 is sensitive to the load of the document queue.** In gate run 3 on `ee0859cc` its download did not start within 30 s (`e2e/support/download.ts:13`) in the queue lane; alone it passed 3 of 3, and it passed in run 2. ~~Open: whether the 30 s wait should follow the document job's own bound.~~ closed (2026-11-24, Matheus "ok" to open-work-audit-2026-11-24.md section 7: kept as built: Not seen since; kept in the flaky list for causes) *(2026-11-25, Story 30.5, batch e30d, PR #PRNUM: red 1 of 20 in the queue lane at the gate's load, the same 30 s download wait; the red run made no request for the DOCX. A diagnosed run of 10 (all green) saw the "DOCX — abrir no Word" row move 48 px up 40 to 270 ms after the "Revisão 1 pronta" toast in 6 of 10, as the Export dialog lays out again: a press that meets the move lands beside the button. The arriving element was not pinned down; not fixed, the test left as it is.)*
 
 ## Deferred from: Epic 25 batch e25b (2026-11-11)
 
@@ -3326,3 +3326,58 @@ A row moves here when it closes (its state struck through and the closed state a
   evidence: the pass report; screenshots under `test-results/pass-e28/` of the main checkout (untracked).
   class: bug
   state: ~~open (owner: a later fix batch; low)~~ closed, does not reproduce (2026-11-24, Story 30.1 K, PR of batch e30a: 30.1-E2E-K on the unfixed build (main 9d174967 web code, the standard template with today's PREFIX-NN TAGs, one relatório in its obra, the company stream pulled): DJ-01 held, the palette offered a later number; the local holding DJ-01 removed: its equipment tombstoned and the palette suggested DJ-01, green with no code change. By design a removal frees an equipment only when the device holds every relatório of the obra and the company stream (`equipmentFreedByRemoval`); otherwise the numbers stay held, which may be what the pass saw. N3's steps were not recorded in detail)
+
+## Deferred from: MVP hands-on review fix batch (2026-10-06), split into three PRs
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-2026-10-08-gate-integrity.md`
+  summary: `scripts/e2e.ts` `summarize` keys results by title, so under `--repeat-each` the summary counts each title once with its last outcome (a run with 2 failed repeats printed "14 passed" while Playwright exited 1). The exit code stays right; only `summary.json` and the printed counts undercount.
+  evidence: `scripts/e2e.ts` `collect()` (`into.results[...] = test.status`); the batch's `--repeat-each=5` run of `journey-forward.spec.ts` (PR #116 body). Predates the batch.
+  class: bug
+  state: ~~open (owner: the next carry-over batch)~~ closed (2026-11-25, Story 30.5, batch e30d, PR #PRNUM: `collect()` numbers each run of a title after the first, "[repeat N]", across the whole report (Playwright 1.63 writes one spec entry per run); `scripts/e2e.test.ts` red on main, green on the branch)
+
+## Deferred from: Epic 20 batch e20e (2026-11-04)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-test-speed-2.md`
+  summary: Two tests in `e2e/durability.spec.ts` still tap "Sincronizar agora" by hand (go to `/sync`, wait for the button to lose `aria-disabled`, click, then poll a store). E5-A1 calls that readiness signal racy, and `e2e/support/sync.ts` `syncNow` waits on the cycle's end instead. They are the one at about line 426 (`tab`) and the one at about line 674.
+  evidence: T2 review; 1.8-E2E-002 in the same file moved to `syncNow` in T2. Neither is a wait on the 60 s tick, so the C-4 guard does not read them.
+  class: note
+  state: ~~open (owner: the next batch touching `durability.spec.ts`)~~ closed, does not reproduce (2026-11-25, Story 30.5, batch e30d, PR #PRNUM: 1.8-E2E-006 and 6.2-E2E-003 green 20 of 20 each as they are on `durability-desktop-chrome`; "Sincronizar agora" runs `runFreshCycle`, so a tap on a button read ready too early is not lost; the tests are left as they are)
+
+## Deferred from: Epic 24 fix batch e24f (2026-11-10)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8CAP-E2E-010)
+  summary: FABRICAÇÃO's combobox list was re-mounted between the "Criar ⟨nome⟩" option's resolution and the press, twice in three runs at load 6 to 10 (Playwright: "element was detached from the DOM"), while the sheet re-rendered under the sync engine's retries of a held upload. The test now retries the press. Whether a tap on a slow tablet is lost the same way is not known; not fixed (outside the batch's behaviour scope).
+  evidence: `.scratch-e24f/e2e-repeat-2.log`, `e2e-repeat-3.log` (worktree, not tracked); `apps/web/src/components/registry-picker-field.tsx`.
+  class: risk
+  state: ~~open (owner: the next batch touching the registry picker)~~ closed, does not reproduce (2026-11-25, Story 30.5, batch e30d, PR #PRNUM: 20 of 20 at the gate's load with the retry removed; under a load beyond any gate, the CPU slowed fourfold at load 10 to 16, the "Criar" press ran past its own 5 s timeout instead, which is not the recorded detach; cause not found, the test and its retry left as they are)
+- source_spec: `_bmad-output/implementation-artifacts/spec-e24f-retro-fixes.md` (E23-A4, R8LAY-E2E-008)
+  summary: "Novo relatório" pressed on a Home that already shows its status board can be lost while the launch still re-renders (the dialog never opened in the load reds). The test now repeats the press until the dialog opens, so this lost press, which a user would meet too, no longer fails any test. The cause is not found; nothing in the product changed.
+  evidence: `e2e/review-layout-interaction-2026-10-08.spec.ts` R8LAY-E2E-008; `apps/web/src/surfaces/home/home-surface.tsx` (the "Novo relatório" button).
+  class: flake
+  state: ~~open (owner: the next batch touching the Home launch)~~ closed (2026-11-25, Story 30.5, batch e30d, PR #PRNUM: cause found and fixed in the product: Home drew "Novo relatório" before the Status board and the shortcut row arrived above it, so a press aimed at it landed on a shortcut card or was cancelled (a finger held 120 ms: 6 of 8 lost); `home-surface.tsx` now draws its controls in one commit once both reads are in (`settled`); the repeated press removed from R8LAY-E2E-008, 20 of 20 in the solo lane)
+
+## Deferred from: Epic 25 batch e25a (2026-11-11)
+
+- source_spec: `spec-e25a-saving-and-sync.md` (story gate on `2a862662`)
+  summary: two reds in the gate, both green alone. (1) `journeys-12-3-12-4.spec.ts` 24.10-E2E-005 (solo lane): the tap on "Nº série" right after "Criar" on FABRICAÇÃO found the page still inert (`pointer-events: none` while React Aria draws the list closed) after the 2 s settle of `humanTap`, so its centre hit `div.nameplate-grid`; green 3 of 3 alone. Since this batch a commit asks for a cycle 2 s later, which adds a push, a pull and a render in that settle window, so the batch adds load at that moment without a defect of its own. (2) `device-clock.durability.spec.ts` e20f-DUR-001 on `durability-webkit`: the press on Home's "Novo relatório" opened no dialog while the launch cycle's pull was drawing the relatório list (the snapshot shows it drawn); no code of this batch runs between the load and that press (no commit, no visibility change); green 3 of 3 alone on each of the three durability projects (36 of 36 for the spec).
+  evidence: `.scratch-e25a/gate/` and `.scratch-e25a/reruns/` logs of the batch (load 3.7 at the gate's start, 7.1 at its end; 2.8 to 5.4 for the reruns).
+  class: test-gap
+  state: ~~open (owner: the wave 1 integrated gate; if either goes red again, harden it: wait for the list to be gone after "Criar" in the journey helpers, and wait for Home's list before "Novo relatório" in `createProjectFromHome`)~~ closed (2026-11-25, Story 30.5, batch e30d, PR #PRNUM: (2) e20f-DUR-001 fixed with R8LAY-E2E-008 (Home's `settled`), 20 of 20 on `durability-desktop-chrome` and on `durability-webkit`; (1) 24.10-E2E-005 red 1 of 20 in the solo lane, the same tap blocked by an `aria-hidden` page: the list "Sugestões Tensão de placa" was open again or still 2 s after the "13,8 kV" pick; why it was open was not found, the test left as it is)
+
+## Deferred from: Epics 28 and 29, the wave gates and the hands-on pass (2026-11-23 and 2026-11-24)
+
+- source_spec: wave gate of Epics 28 and 29 on `d1180f5c` (2026-11-23)
+  summary: `sheet-photos.spec.ts` 11.11-E2E-001 failed once under `test:e2e:full`, a toast race; green alone, 39 of 39 with 3 repeats. Another stack had come up during the gate, so the load is a suspect, not proven.
+  evidence: `e2e/sheet-photos.spec.ts`; the wave gate log of 2026-11-23.
+  class: test-gap
+  state: ~~open (owner: the next e2e speed or flake pass; no code defect shown)~~ closed (2026-11-25, Story 30.5, batch e30d, PR #PRNUM: cause found and fixed in the product: the caption arrival replaced the import's toast (`state/toast.tsx`); an arrival now waits behind any toast on screen but another arrival or a status toast; red 1 of 10 before, 20 of 20 after)
+- source_spec: final gate of Epics 28 and 29 on `de79700b` (2026-11-24, machine idle)
+  summary: `photos.spec.ts` 6.2-E2E-001 failed once under `test:e2e:full` (the retried photo's upload pill stayed); green alone three times in a row. This wave did not touch photo upload.
+  evidence: `e2e/photos.spec.ts`; the final gate log of 2026-11-24.
+  class: test-gap
+  state: ~~open (owner: the next e2e flake pass; watch whether it comes back on an idle machine)~~ closed, does not reproduce (2026-11-25, Story 30.5, batch e30d, PR #PRNUM: 0 of 30 at the gate's load; a diagnostic saw the NC drafts of the static hunt's lead arrive during the press and the press still land, held by the sheet's press hold; cause not found, the test left as it is)
+- source_spec: fix batch e28w (#377) gate, 2026-11-24
+  summary: `ficha` 12.1-E2E-012 and `home` 1.6-E2E-001 were red under load in the e28w batch gate and green alone.
+  evidence: `e2e/ficha.spec.ts` (12.1-E2E-012 already went red once in three on an earlier batch, see its comment); `e2e/home.spec.ts`; the e28w batch gate output.
+  class: test-gap
+  state: ~~open (owner: the next e2e flake pass)~~ closed (2026-11-25, Story 30.5, batch e30d, PR #PRNUM: 12.1-E2E-012 cause found and fixed in the product, the stepper's land took the focus the test had given the bulk bar three frames after the tap (`use-ficha-steps.ts`), 20 of 20; 1.6-E2E-001 red 1 of 20 at the gate's load, a Sumário pull stalled 27.6 s on "Baixando o relatório…" while passing runs take 2.4 to 4.9 s in all, the unroute lead refuted; cause not found, the test left as it is)
