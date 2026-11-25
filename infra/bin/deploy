@@ -462,7 +462,9 @@ if [ -z "$smoke_failed" ]; then
   # The operator's checkout already holds the tools image and its node_modules volumes from a
   # gate run (infra/PUBLISHING.md); --no-deps keeps the local stack down.
   suite=("$CTR" compose --profile tools run --rm --no-deps)
-  [ "$CTR" = podman ] && suite+=(--user root)
+  # Story 30.2 D (tools-root): ~~--user root~~ as node, like the gate (docker-compose.yml adds the engine socket's
+  # group to tools), so the suite never leaves root-owned files in the checkout's node_modules volumes.
+  [ "$CTR" = podman ] && suite+=(--user node)
   suite+=(-e SMOKE_BASE_URL -e SMOKE_EMAIL -e SMOKE_PASSWORD tools pnpm smoke:production)
   suite_exit=0
   suite_ran=1

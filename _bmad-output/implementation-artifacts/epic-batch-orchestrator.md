@@ -149,7 +149,13 @@ overrides (they win over the workflow text):
 - (2026-10-08, load rules) At most two batch stacks are up at a time. No Playwright run outside the host lock, not
   even one targeted spec. The coordinator stops the main checkout's stack (`podman compose stop`) while batches run.
 - (2026-10-08, this macOS host) `docker` is not on PATH: use `podman compose`, and run the tools container with
-  `--user root`. `flock` is absent: use `lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'`, started with `nohup`
+  ~~`--user root`~~ `--user node` *(2026-11-24, Story 30.2 D, tools-root E26-A8: root was needed only because the
+  engine socket the preflight reads is `root:root 0660` on the podman VM; the workspace bind mount is uid 1000
+  inside the container. `docker-compose.yml` now adds the socket's group to `tools` (`group_add`,
+  `ENGINE_SOCKET_GID`, default 0), so `node` reads it, and root runs no longer leave root-owned files in the
+  `node_modules` volumes. Every command here is `podman compose --profile tools run --rm --user node tools ...`;
+  `scripts/preflight.ts` fails at once naming any root-owned entry of the four volumes (`.vite-temp` first). Batch
+  e30a's own gate ran as `node`.)*. `flock` is absent: use `lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'`, started with `nohup`
   so no tool time limit kills the wait, and poll the tagged log. ~~Run the gate stage by stage from one tagged
   `test-results/gate-<tag>/run.sh` that writes `summary.txt` lines `name exitcode` (PRs #103-#107 are the
   precedent).~~ *(2026-10-08: the 11.4 GB VM runs the plain `pnpm verify` without OOM (two runs); a batch runs

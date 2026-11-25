@@ -1,7 +1,7 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { decide, decodeLogFrames, DEFAULT_INTERVAL_MS, firstLine, intervalFrom, loopMessage, needsSecondSample, preflight, serviceLog, type ContainerSample, type Engine } from './preflight.ts';
 
@@ -94,6 +94,43 @@ describe('scripts/preflight.ts log frames', () => {
   it('firstLine skips blank lines and trims; null when nothing is printed', () => {
     expect(firstLine('\n\n   \n  Error: boom  \nnext')).toBe('Error: boom');
     expect(firstLine('  \n')).toBeNull();
+  });
+});
+
+describe('30.2-UNIT-D (tools-root, E26-A8): a root-owned entry in a node_modules volume stops the gate at once', () => {
+  /** A workspace with the four volumes and a `.vite-temp` planted under `planted`; `rootOwned` are the paths uid 0 owns. */
+  function workspace(planted: string[], rootOwned: (relative: string) => boolean) {
+    const dir = mkdtempSync(join(tmpdir(), 'preflight-root-'));
+    for (const volume of ['node_modules/.pnpm/a@1', 'apps/web/node_modules/vite', 'apps/api/node_modules/hono', 'packages/domain/node_modules/zod']) mkdirSync(join(dir, volume), { recursive: true });
+    for (const where of planted) {
+      mkdirSync(join(dir, where, '.vite-temp'), { recursive: true });
+      writeFileSync(join(dir, where, '.vite-temp', 'vite.config.ts.timestamp-1.mjs'), '');
+    }
+    const ownerOf = (path: string) => (!existsSync(path) ? null : rootOwned(relative(dir, path)) ? 0 : 1000);
+    return { dir, ownerOf };
+  }
+  const run = async (dir: string, ownerOf: (path: string) => number | null) => {
+    const lines: string[] = [];
+    const engine: Engine = { sample: async () => healthy, lastLog: async () => null };
+    const code = await preflight({ env: { COMPOSE_PROJECT_NAME: 'fasor-e30a' }, engine, workspace: dir, ownerOf, log: (line) => lines.push(line) });
+    return { code, lines };
+  };
+
+  for (const where of ['apps/api/node_modules', 'packages/domain/node_modules']) {
+    it(`a root-owned .vite-temp under ${where}: exit 1 with one line naming the path, before the engine is read`, async () => {
+      const { dir, ownerOf } = workspace([where], (path) => path.includes('.vite-temp'));
+      const { code, lines } = await run(dir, ownerOf);
+      expect(code).toBe(1);
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toMatch(new RegExp(`^preflight: root-owned in a node_modules volume: ${where.replace(/\//g, '\\/')}/\\.vite-temp `));
+    });
+  }
+
+  it('a root-owned entry at the top of a volume (a root pnpm install) is named too; nothing root-owned passes silently', async () => {
+    const top = workspace([], (path) => path === 'node_modules/.pnpm/a@1');
+    expect(await run(top.dir, top.ownerOf)).toMatchObject({ code: 1, lines: [expect.stringMatching(/^preflight: root-owned in a node_modules volume: node_modules\/\.pnpm\/a@1; /)] });
+    const clean = workspace(['apps/web/node_modules'], () => false);
+    expect(await run(clean.dir, clean.ownerOf)).toEqual({ code: 0, lines: [] });
   });
 });
 
