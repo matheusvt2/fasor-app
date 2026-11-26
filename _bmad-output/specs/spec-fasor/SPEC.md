@@ -188,7 +188,7 @@ On 2026-10-03 the loop closes: a relatório composed from the seeded Template, f
 - Location is a tree node with depth not enforced in code; the UI renders two levels and a block may attach to any node (AD-6, PRD Q13).
 - The printed sheet attribution is concluded-by with its time, falling back to last-modified-by (AD-18); adopted 2026-09-21.
 - "Salvar como template" carries locations, each cabine's Agrupar por tipo flag and each block's sub-block and subtype overrides; TAGs are regenerated, not carried (post-slice).
-- Dictation is online-only in the MVP: no field platform offers offline pt-BR recognition as of 2026-09-21 (Apple announced it for iPadOS 27; Chrome on Android is server-based). The control is hidden offline.
+- ~~Dictation is online-only in the MVP: no field platform offers offline pt-BR recognition as of 2026-09-21 (Apple announced it for iPadOS 27; Chrome on Android is server-based). The control is hidden offline.~~ *(2026-11-26, Matheus: audio is recorded on the device with or without signal and transcribed by the backend when there is signal; Epic 31, `source-deltas.md`.)*
 - Offline Login keeps "Entrar" disabled with the reason "Entrar precisa de conexão".
 - The relatório status transition table is the AD-22 table, adopted for the MVP on 2026-09-21 absent meeting evidence; Matheus may amend it.
 - In a cabine with Agrupar por tipo on, para-raios and cabos print inside the Seccionadoras group in tree order (AD-6). The reference job never hits this: its para-raios and cabos sit only in cabines the seed leaves ungrouped.
@@ -196,7 +196,7 @@ On 2026-10-03 the loop closes: a relatório composed from the seeded Template, f
 - Photo order uses EXIF capture time when present and the device clock otherwise, sorted by capture time, device and local sequence.
 - The initial NC chip phrases per item are authored from domain knowledge at seed time and reviewed by Bruno before the first real job.
 - Keeping a photo with people out of the caption reading (on-device face detection or a manual mark at capture) is architecture's call; the reading job never receives such a photo for captioning.
-- Dictation into captions, observations and measurement tables is product scope; all of it is post-slice, caption dictation first once an engine exists.
+- ~~Dictation into captions, observations and measurement tables is product scope; all of it is post-slice, caption dictation first once an engine exists.~~ *(2026-11-26, Matheus: voice input on every prose field and on measurement tables is Epic 31.)*
 - "Igual à ⟨TAG⟩?" offers a copy from blocks of the same type and manufacturer in this relatório (AD-25).
 - Roles are illustrative: the office assembler and the field engineer are the same people, and either may do either job.
 - Releng is a working title; domain, INPI and store availability were never checked.
