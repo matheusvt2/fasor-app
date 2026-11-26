@@ -25,6 +25,10 @@
 .frame-phone [data-route="/sync"] .sync-row .sr-state { align-items: flex-start; white-space: normal; }
 .frame-phone [data-route="/sync"] .sync-row .sr-state .progress-track { width: 160px; }
 .frame-phone [data-route="/sync"] .sync-headline .sh-counts { font-size: var(--t-meta-size); }
+/* 2026-11-26, Epic 31, Story 31.6: the Áudios section. A failed transcription's state word takes sync-error, as a rejected photo's pill does */
+[data-route="/sync"] .sync-row .sr-state[data-tone="error"] { color: var(--sync-error); white-space: normal; text-align: right; }
+[data-route="/sync"] .sync-row .sr-state[data-tone="error"] .btn-text { margin-right: calc(-1 * var(--sp-3)); }
+[data-route="/sync"] .section-head .audio-pending { font-weight: var(--t-label-weight); }
 </style>
 <section class="screen slice-screen" data-route="/sync" data-title="Sincronização" data-shell="app" data-rail="false" data-sync="conflict" data-sync-label="Conflito" data-slice="out" data-slice-note=" · FR-60">
   <div class="content">
@@ -53,7 +57,20 @@
       <span class="sync-badge is-compact" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>3 fichas e 19 fotos aguardando envio</span></span>
       <span class="sync-badge is-compact" data-state="error"><span class="pill"><span class="dot" aria-hidden="true"></span>1 erro</span></span>
       <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>3 leituras prontas · 2 na fila</span></span>
+      <!-- 2026-11-26, Epic 31, Story 31.6: the audios that still wait, in the kernel's sentence -->
+      <span class="sync-badge is-compact" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>3 áudios aguardando transcrição</span></span>
     </div>
+
+    <!-- ---------------- Áudios (2026-11-26, Epic 31, Story 31.6; AD-30): to upload, transcribing, failed; each row opens its field ---------------- -->
+    <section class="section" aria-labelledby="sync-h-aud">
+      <div class="section-head"><h2 id="sync-h-aud">Áudios</h2><span class="audio-pending"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg>3 áudios aguardando transcrição</span></div>
+      <p class="section-note">1 para enviar · 1 transcrevendo · 1 não foi possível transcrever</p>
+      <ul class="sync-list">
+        <li class="sync-row" data-go="#/ficha/SEC-C05"><span class="sr-body"><span class="sr-primary">SEC-C05 — observação do item 8</span><span class="sr-secondary">Gravado por Bruno · 07/09 14:30 · 0:09</span></span><span class="sr-state" data-tone="pending">Aguardando envio</span></li>
+        <li class="sync-row" data-go="#/relatorio/porto-seguro/fotos"><span class="sr-body"><span class="sr-primary">Foto 15 — legenda</span><span class="sr-secondary">Gravado por Bruno · 07/09 10:16 · 0:05</span></span><span class="sr-state" data-tone="pending">Transcrevendo</span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">DJ-C13 — observações da ficha</span><span class="sr-secondary">Gravado por Bruno · 07/09 14:12 · 0:22 · três tentativas</span></span><span class="sr-state" data-tone="error">Não foi possível transcrever<button class="btn btn-text" data-toast="Áudio enviado de novo para transcrição">Tentar de novo</button></span></li>
+      </ul>
+    </section>
 
     <!-- ---------------- Leituras prontas (State Patterns › Reading arrived) ---------------- -->
     <section class="section" aria-labelledby="sync-h-leit">

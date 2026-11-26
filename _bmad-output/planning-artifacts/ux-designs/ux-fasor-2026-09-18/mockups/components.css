@@ -244,6 +244,132 @@
 .dictation-btn[aria-pressed="true"] + .listening-word, .dictation:has(.dictation-btn[aria-pressed="true"]) .listening-word { display: inline; }
 @keyframes dictation-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
 @media (prefers-reduced-motion: reduce) { .dictation-btn[aria-pressed="true"]::after { animation: none; } }
+/* 2026-11-26, Epic 31 (AD-30): the Dictation button above is superseded by the Audio button below. Its rules stay, unchanged, for the
+   screens not yet redrawn (50-relatorio-setup, 61-verificacoes-local, 62-ficha-consulta, 72-pontos, the key-*.html mocks) and for the
+   app until Story 31.3 replaces its `.dictation-btn`; no new screen uses them. */
+
+/* ---------- Audio button and the audio states of a field (2026-11-26, Epic 31, AD-30) ----------
+   One gesture: tap, speak, tap. The audio is kept on the device, uploaded and transcribed in the backend; the field only shows where it is.
+   Same 48px round control and tokens as the Dictation button ({components.dictation-button}); no new color: amber (fora-do-limite)
+   for a live warning or a poor recording, sync-pending for what holds a ficha, sync-error for a failed transcription, ink-secondary
+   for status. The word on screen is "Áudio", never "Ditado".
+   Markup (one field):
+   <div class="audio-tools">
+     <span class="audio-rec" [data-phase="countdown"]>
+       <button class="audio-btn" aria-pressed="false" aria-label="Gravar áudio: observação do item 8">
+         <svg class="ico ico-mic"><use href="#i-mic"/></svg><svg class="ico ico-stop"><use href="#i-stop"/></svg></button>
+       <span class="audio-live" aria-hidden="true"><span class="audio-rec-word">Gravando</span><span class="audio-time">0:12</span>
+         <span class="audio-meter" data-level="0..5" [data-tone="warn"]><i></i><i></i><i></i><i></i><i></i></span></span>
+     </span>
+     <span class="ai-write">…the AI control, below…</span>
+   </div>
+   <p class="audio-warning" role="status"><svg class="ico"><use href="#i-alert"/></svg>Fale mais perto do aparelho</p>
+   <p class="audio-status" data-step="saved|sending|transcribing|empty|moved"><svg class="ico"><use href="#i-mic"/></svg>Transcrevendo</p>
+   <div class="audio-mark" [data-quality="poor"] [data-state="edited|dismissed"]>
+     <span class="audio-tag"><svg class="ico"><use href="#i-mic"/></svg>Áudio</span>
+     <button class="audio-play" aria-label="Ouvir o áudio"><svg class="ico"><use href="#i-play"/></svg><span class="audio-dur">0:14</span></button>
+     <button class="btn btn-text audio-heard-toggle" aria-expanded="false" aria-controls="…">Ver texto como falado</button>
+     <p class="audio-note"><svg class="ico"><use href="#i-alert"/></svg>Áudio com ruído, confira o texto</p>
+     <p class="audio-heard" id="…" hidden><span class="audio-heard-label">Texto como falado</span>…</p>
+   </div>
+   <div class="audio-failed" role="group" aria-label="Áudio não transcrito">
+     <span class="audio-failed-word"><svg class="ico"><use href="#i-alert"/></svg>Não foi possível transcrever</span>
+     <button class="audio-play">…</button><button class="btn btn-text">Tentar de novo</button><button class="btn btn-text">Dispensar</button>
+     <span class="btn-reason">Precisa de conexão</span></div>
+   A spoken reading in a Measurement table is a Suggestion field whose source slot holds `.audio-src` (play) in place of `.crop-thumb`,
+   with `.audio-sug-actions` ("Descartar") under it. A ficha, the Export dialog and Sync status name what still waits with `.audio-pending`. */
+.audio-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.audio-rec { display: inline-flex; align-items: center; gap: var(--sp-2); flex: none; min-width: 0; }
+.audio-btn {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: var(--dictation-button-size); height: var(--dictation-button-size);
+  border: var(--dictation-button-border); border-radius: var(--dictation-button-radius);
+  color: var(--dictation-button-foreground); background: var(--surface-raised);
+}
+.audio-btn .ico { width: 24px; height: 24px; }
+.audio-btn .ico-stop { display: none; }
+/* Recording: the button is pressed (solid primary, the stop glyph says the next tap ends it) and a ring breathes around it */
+.audio-btn[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.audio-btn[aria-pressed="true"] .ico-mic { display: none; }
+.audio-btn[aria-pressed="true"] .ico-stop { display: block; }
+.audio-btn[aria-pressed="true"]::after { content: ""; position: absolute; inset: -6px; border: 2px solid var(--primary); border-radius: 50%; animation: audio-ring 1.6s ease-out infinite; }
+.audio-btn[aria-disabled="true"] { opacity: .4; }
+.audio-live { display: none; align-items: center; gap: var(--sp-2); font: var(--dictation-button-listening-typography); color: var(--primary); white-space: nowrap; }
+.audio-rec:has(.audio-btn[aria-pressed="true"]) .audio-live { display: inline-flex; }
+.audio-time { font-variant-numeric: tabular-nums; }
+/* Level meter: five bars, data-level lights 0 to 5 of them; data-tone="warn" turns the lit bars amber while a warning holds */
+.audio-meter { display: inline-flex; align-items: flex-end; gap: 2px; height: 20px; }
+.audio-meter i { display: block; width: 4px; border-radius: 2px; background: var(--border-hairline); }
+.audio-meter i:nth-child(1) { height: 6px; } .audio-meter i:nth-child(2) { height: 10px; } .audio-meter i:nth-child(3) { height: 14px; }
+.audio-meter i:nth-child(4) { height: 17px; } .audio-meter i:nth-child(5) { height: 20px; }
+.audio-meter[data-level="1"] i:nth-child(-n+1), .audio-meter[data-level="2"] i:nth-child(-n+2), .audio-meter[data-level="3"] i:nth-child(-n+3),
+.audio-meter[data-level="4"] i:nth-child(-n+4), .audio-meter[data-level="5"] i { background: currentColor; }
+.audio-meter[data-tone="warn"] { color: var(--fora-do-limite); }
+/* Countdown (from 2:50): the word and the time turn amber; the recording ends itself at 3:00 */
+.audio-rec[data-phase="countdown"] .audio-live { color: var(--fora-do-limite); }
+@keyframes audio-ring { 0% { opacity: .9; transform: scale(.92); } 100% { opacity: 0; transform: scale(1.18); } }
+@keyframes audio-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+/* The live warning: one line under the field while recording, said once by the live region */
+.audio-warning { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
+.audio-warning .ico, .audio-note .ico, .audio-failed-word .ico { width: 20px; height: 20px; }
+/* The field's status line, in the kernel's words: saved (offline), sending, transcribing; also "empty" (nothing heard) and "moved" (not a reading) */
+.audio-status { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.audio-status .ico { width: 20px; height: 20px; }
+.audio-status[data-step="sending"] .ico, .audio-status[data-step="transcribing"] .ico { animation: audio-breathe 1.6s ease-in-out infinite; }
+.audio-status[data-step="empty"] { color: var(--fora-do-limite); font-weight: 600; }
+/* The mark on a field whose text came from an audio: the tag, play, "Ver texto como falado"; variants edited, poor, dismissed */
+.audio-mark { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+.audio-tag { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: 24px; padding: 0 var(--sp-2) 0 6px; border-radius: var(--r-full); background: var(--surface-sunken); color: var(--ink-secondary); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: 24px; white-space: nowrap; }
+.audio-tag .ico { width: 16px; height: 16px; }
+.audio-mark[data-state="dismissed"] .audio-tag { background: transparent; border: 1.5px dashed var(--border-strong); }
+.audio-play { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); min-height: var(--touch-min); min-width: var(--touch-min); padding: 0 var(--sp-3); border-radius: var(--r-btn); color: var(--primary); font-size: var(--t-body-size); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.audio-play .ico { width: 20px; height: 20px; fill: currentColor; }
+.audio-play[aria-disabled="true"] { opacity: .4; }
+.audio-note { flex-basis: 100%; display: flex; align-items: center; gap: var(--sp-2); margin: 0; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
+.audio-heard { flex-basis: 100%; margin: 0; padding: var(--sp-2) var(--sp-3); border-left: 3px solid var(--border-hairline); background: var(--surface-sunken); border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-primary); }
+.audio-heard .audio-heard-label { display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+.audio-mark .btn-reason { flex-basis: 100%; }
+/* Failed after three attempts: the line holds the ficha until retried or dismissed */
+.audio-failed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); padding: var(--sp-1) var(--sp-3); border-left: 4px solid var(--sync-error); background: var(--surface-sunken); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.audio-failed-word { display: inline-flex; align-items: center; gap: var(--sp-2); flex: 1 1 220px; font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); color: var(--sync-error); }
+.audio-failed .btn-reason { flex-basis: 100%; padding-bottom: var(--sp-1); }
+/* A spoken reading under review (Suggestion field in a Measurement table cell): play in the source slot, "Descartar" under the cell */
+.audio-src { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin: 2px var(--sp-1) 2px 2px; align-self: center; border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface-raised); color: var(--primary); }
+.audio-src .ico { width: 20px; height: 20px; fill: currentColor; }
+.audio-src::before { content: ""; position: absolute; inset: -4px; }   /* hit area: 48px */
+.suggestion-field[data-state="confirmed"] .audio-src { order: 9; width: 24px; height: 24px; margin: 0 0 0 var(--sp-2); border-color: var(--border-hairline); color: var(--ink-secondary); }
+.suggestion-field[data-state="confirmed"] .audio-src .ico { width: 14px; height: 14px; }
+.suggestion-field[data-state="confirmed"] ~ .audio-sug-actions { display: none; }
+.audio-sug-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-2); margin-left: calc(-1 * var(--sp-3)); }
+/* What still waits for a transcription: a ficha's pending line, an Export row, a Sync status count */
+.audio-pending { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); font-size: var(--t-label-size); font-weight: 600; line-height: var(--t-label-lh); color: var(--sync-pending); }
+.audio-pending .ico { width: 20px; height: 20px; }
+.audio-pending .btn-text { font-weight: 600; }
+@media (prefers-reduced-motion: reduce) {
+  .audio-btn[aria-pressed="true"]::after { animation: none; opacity: .6; }
+  .audio-status[data-step="sending"] .ico, .audio-status[data-step="transcribing"] .ico { animation: none; }
+}
+
+/* ---------- AI control "Melhorar o texto com IA" (2026-11-26, Epic 31, Story 31.9) ----------
+   On every prose field that holds text; absent on an empty field. Needs signal: offline it stays, disabled, with its reason.
+   Markup: <span class="ai-write">
+             <button class="ai-btn" [aria-busy="true"] [aria-disabled="true" aria-describedby="…"]><svg class="ico"><use href="#i-sparkles"/></svg>
+               <span class="ai-word">Melhorar o texto com IA</span><span class="ai-busy-word">Escrevendo</span></button>
+             <span class="btn-reason" id="…">Precisa de conexão</span></span>
+           after: <p class="ai-done" role="status"><svg class="ico"><use href="#i-sparkles"/></svg>Texto melhorado por IA<button class="btn btn-text">Desfazer</button></p>
+           failed: <p class="ai-error" role="status">Não foi possível melhorar o texto</p> */
+.ai-write { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-2); min-width: 0; }
+.ai-btn { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--touch-min); padding: 0 var(--sp-3); border-radius: var(--r-btn); color: var(--primary); font-size: var(--t-body-size); font-weight: 600; white-space: nowrap; }
+.ai-btn .ico { width: 24px; height: 24px; }
+.ai-btn .ai-busy-word { display: none; }
+.ai-btn[aria-busy="true"] .ai-word { display: none; }
+.ai-btn[aria-busy="true"] .ai-busy-word { display: inline; }
+.ai-btn[aria-busy="true"] .ico { animation: audio-breathe 1.6s ease-in-out infinite; }
+.ai-btn[aria-disabled="true"] { opacity: .4; }
+.ai-done { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-2); margin: 0; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.ai-done .ico { width: 16px; height: 16px; color: var(--primary); }
+.ai-error { margin: 0; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+@media (prefers-reduced-motion: reduce) { .ai-btn[aria-busy="true"] .ico { animation: none; } }
 
 /* ---------- Section stepper (48px row at the top of the sheet's Sticky action bar): v0.9 names on one row, a progress rule under each ---------- */
 .section-stepper { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; min-height: var(--section-stepper-height); background: var(--section-stepper-background); margin: calc(-1 * var(--sp-3)) calc(-1 * var(--sp-4)) 0; border-bottom: 1px solid var(--border-hairline); }
@@ -907,6 +1033,7 @@
 .suggestion-field.is-generated[data-state="confirmed"] .confirm-action { display: none; }
 .generated-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
 .generated-actions .dictation { margin-left: auto; }
+.generated-actions .audio-rec { margin-left: auto; }   /* 2026-11-26, Epic 31: the Audio button takes the Dictation button's place; the AI control (.ai-write) follows it */
 .criteria-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); font: var(--criteria-line-typography); color: var(--criteria-line-foreground); font-variant-numeric: tabular-nums; }
 .criteria-line .cl-label { font-weight: 600; }
 .criteria-line .cl-nc { color: var(--nao-conforme); font-weight: 600; }

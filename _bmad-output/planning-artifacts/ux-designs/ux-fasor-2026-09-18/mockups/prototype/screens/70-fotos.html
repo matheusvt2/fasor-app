@@ -284,7 +284,9 @@
           <div class="photo-row">
             <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 14, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">14</span><span class="photo-stamp" aria-hidden="true">09:52<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
             <div class="photo-text">
-              <p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado no para-raio de entrada do Cubículo Enel</p>
+              <!-- 2026-11-26, Epic 31, Story 31.4: the automatic caption was replaced by the text of an audio, marked "Áudio" -->
+              <p class="photo-caption">Detalhe do ensaio de resistência de isolação no para-raio de entrada do Cubículo Enel, fase B com isolador trincado</p>
+              <div class="audio-mark"><span class="audio-tag"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg>Áudio</span><button class="audio-play" aria-label="Ouvir o áudio da foto 14, 0:06" data-toast="Tocando o áudio (0:06)"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg><span class="audio-dur">0:06</span></button><button class="btn btn-text audio-heard-toggle" aria-expanded="false" aria-controls="fotos-14-heard" data-open="#fotos-14-heard">Ver texto como falado</button><p class="audio-heard" id="fotos-14-heard" hidden><span class="audio-heard-label">Texto como falado</span>ensaio de isolação no para-raio da entrada fase B com o isolador trincado</p></div>
               <p class="photo-meta">Nº provisório 14 · 09:52 · Bruno · Enviada</p>
             </div>
           </div>
@@ -293,6 +295,8 @@
             <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 15, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">15</span><span class="photo-stamp" aria-hidden="true">10:15<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
             <div class="photo-text">
               <p class="photo-caption">Detalhe do ensaio de resistência de contato realizado na seccionadora SEC-ENT do Cubículo Enel</p>
+              <!-- 2026-11-26, Epic 31, Story 31.4: an audio on this caption is on its way; the automatic caption stays until the text arrives -->
+              <p class="audio-status" data-step="transcribing"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg>Transcrevendo</p>
               <p class="photo-meta">Nº provisório 15 · 10:15 · Bruno · Enviada</p>
             </div>
           </div>
@@ -416,9 +420,11 @@
         <p class="field-label">Legenda das 3 fotos</p>
         <div class="field suggestion-field"><div class="row-wrap">
           <div class="input" id="fotos-equip-cap" role="textbox" contenteditable="true" aria-label="Legenda das 3 fotos"></div>
-          <span class="dictation"><button class="dictation-btn" aria-pressed="false" aria-label="Ditar a legenda" data-listen="#fotos-equip-cap|Detalhe da limpeza e reaperto realizados nos cubículos de média tensão do 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button><span class="listening-word">Ouvindo…</span></span>
+          <span class="audio-rec"><button class="audio-btn" aria-pressed="false" aria-label="Gravar áudio: legenda das 3 fotos"><svg class="ico ico-mic" aria-hidden="true"><use href="#i-mic"/></svg><svg class="ico ico-stop" aria-hidden="true"><use href="#i-stop"/></svg></button><span class="audio-live" aria-hidden="true"><span class="audio-rec-word">Gravando</span><span class="audio-time">0:04</span><span class="audio-meter" data-level="3"><i></i><i></i><i></i><i></i><i></i></span></span></span>
         </div></div>
-        <p class="capture-reason">Digite ou fale para trocar. Fica igual para as 3 fotos; dá para mudar uma a uma depois em Legendar.</p>
+        <!-- 2026-11-26, Epic 31 (Stories 31.3, 31.4; AD-30): the Dictation button became the Audio button. The photos go in with this
+             caption; the audio goes up with them and its text replaces the caption of each photo while the caption is still this one. Until this date the line read "Digite ou fale para trocar." -->
+        <p class="capture-reason">Digite para trocar, ou grave um áudio: o texto dele substitui esta legenda quando chegar. Fica igual para as 3 fotos; dá para mudar uma a uma depois em Legendar.</p>
         <button class="btn btn-primary btn-block" data-close data-open="#fotos-new" data-toast="3 fotos adicionadas — legenda aplicada">Adicionar 3 fotos</button>
       </div>
       <button class="btn btn-text btn-block capture-cancel" data-close>Cancelar</button>
