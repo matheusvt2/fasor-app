@@ -93,6 +93,7 @@ export {
   measurementTableVerifyCount,
   type MismatchPart,
   displayMismatchText,
+  audioMismatchText,
   MISMATCH_LINE_SEP,
   type DisplayBurstStop,
   displayBurstStops,

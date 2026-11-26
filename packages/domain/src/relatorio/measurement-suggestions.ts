@@ -169,6 +169,14 @@ export function displayMismatchText(cellValue: unknown, s: Pick<SuggestionRow, '
   return { text: parts.map((part) => part.text).join(''), parts, lines: [visor, typed] };
 }
 
+/**
+ * Story 31.5 (`62-audio-estados.html` (g) "Célula já preenchida"): a spoken reading beside a different typed
+ * value, "Sugerido: 147 GΩ"; the line's play and "Substituir" follow it.
+ */
+export function audioMismatchText(s: Pick<SuggestionRow, 'value'>): string {
+  return `Sugerido: ${numberText(s.value)}`;
+}
+
 // --- the burst ---------------------------------------------------------------------------
 
 /** One row a "Ler visor" burst shoots: the first capture cell of a Measurement row. */

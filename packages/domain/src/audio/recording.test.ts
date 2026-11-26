@@ -171,7 +171,7 @@ describe('31.4-UNIT-002 sameAudioTarget and audioForTarget', () => {
     const shown = audioForTarget(files, item);
     expect(shown.pending?.id).toBe('04');
     expect(shown.done?.id).toBe('03');
-    expect(audioForTarget([], item)).toEqual({ pending: null, done: null });
+    expect(audioForTarget([], item)).toEqual({ pending: null, done: null, failed: null, dismissed: null, moved: null });
   });
 });
 

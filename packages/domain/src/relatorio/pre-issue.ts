@@ -1,3 +1,5 @@
+import { audioPlaceText, heldAudios } from '../audio/hold.ts';
+import { failedAudiosText, pendingAudiosText } from '../audio/status.ts';
 import { calibrationCheck, calibrationValidUntil } from '../checks/calibration.ts';
 import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
@@ -103,7 +105,10 @@ export type PreIssueKind =
   | 'temperature_unusual'
   | 'art_trt_not_numeric'
   // Story 27.10 (F24): a section text emptied in the editor, pending and never blocking.
-  | 'section_text_empty';
+  | 'section_text_empty'
+  // Story 31.6 (AD-30): audios still on their way, and audios that failed three times; both blocking.
+  | 'audios_pending'
+  | 'audios_failed';
 
 export interface PreIssueRow {
   /** Stable key of the rule and its subject, for React lists and tests; never shown. */
@@ -118,6 +123,15 @@ export interface PreIssueRow {
    * "Abrir ficha" leads to each; absent on every other row.
    */
   sheets?: readonly PreIssueSheet[];
+  /** Story 31.6: the audios an `audios_pending` or `audios_failed` row names, each with its place; absent on every other row. */
+  audios?: readonly PreIssueAudio[];
+}
+
+/** Story 31.6: an audio a pre-issue row names: its id, its place ("SEC-01 · Observações da ficha") and its ficha, or null outside one. */
+export interface PreIssueAudio {
+  audioId: string;
+  place: string;
+  blockId: string | null;
 }
 
 /** Story 25.7: a sheet a pre-issue row names: its block and the name the row prints (the TAG, else the type). */
@@ -548,6 +562,22 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
       sheets: staleSheets,
     });
   }
+  // Story 31.6 (AD-30, decision 6): an audio still on its way, or failed three times (the coordinator's reading,
+  // open to Matheus), anywhere in the relatório blocks the issue, here and on the server; each row names its audios
+  // with their places. A dismissed or transcribed audio holds nothing; a relatório with no audio raises neither row.
+  const held = heldAudios(snapshot.files);
+  const heldRow = (kind: 'audios_pending' | 'audios_failed', audios: typeof held, text: string): PreIssueRow => ({
+    id: kind,
+    row: 'section_9',
+    severity: 'blocking',
+    text,
+    kind,
+    audios: audios.map((audio) => ({ audioId: audio.id, place: audioPlaceText(snapshot, audio.target), blockId: audio.blockId })),
+  });
+  const onTheirWay = held.filter((audio) => audio.status !== 'failed');
+  if (onTheirWay.length > 0) rows.push(heldRow('audios_pending', onTheirWay, pendingAudiosText(onTheirWay.length)));
+  const failedHeld = held.filter((audio) => audio.status === 'failed');
+  if (failedHeld.length > 0) rows.push(heldRow('audios_failed', failedHeld, failedAudiosText(failedHeld.length)));
   // Seed v18, batch e28a (Story 28.4; coordinator's reading on the frames, open to Matheus): a sheet not tested for
   // "Equipamento da concessionária" whose justification still holds the empty slot of the utility's name blocks the
   // issue, here and on the server, and names the sheets; the document never prints the gap.
@@ -724,6 +754,12 @@ function serverBlockedFallback(kind: string): PreIssueRow {
     case 'utility_name_missing':
       // authored (Story 30.1, listed for Bruno): an empty utility name the server found and this device cannot name.
       return { id: 'server:utility_name_missing', row: 'section_9', severity: 'blocking', text: 'Nome da concessionária em branco', kind, sheets: [] };
+    case 'audios_pending':
+      // authored (Story 31.6, listed for Bruno): audios on their way the server found and this device does not hold.
+      return { id: 'server:audios_pending', row: 'section_9', severity: 'blocking', text: 'Áudio aguardando transcrição', kind, audios: [] };
+    case 'audios_failed':
+      // authored (Story 31.6, listed for Bruno): failed audios the server found and this device does not hold.
+      return { id: 'server:audios_failed', row: 'section_9', severity: 'blocking', text: 'Áudio não transcrito', kind, audios: [] };
     default:
       // authored (Story 30.1, listed for Bruno): a blocking row of a kind this app does not know (a newer server).
       return { id: `server:${kind}`, row: 'capa', severity: 'blocking', text: 'Uma pendência impede emitir esta revisão', kind: kind as PreIssueKind };
@@ -867,7 +903,8 @@ export function issueBlockedReason(blocking: readonly PreIssueRow[], number: num
   const parecer = blocking.some((row) => row.kind === 'parecer_missing');
   // Story 30.1 C: a stale row the server named and this device cannot name (`serverBlockedRows`) still asks for its text.
   const staleUnnamed = names.length === 0 && blocking.some((row) => row.kind === 'conclusion_stale');
-  if (names.length === 0 && !utility && !staleUnnamed) return parecerMissingReason(number, parecerLine);
+  const audioAsks = audioBlockedAsks(blocking);
+  if (names.length === 0 && !utility && !staleUnnamed && audioAsks.length === 0) return parecerMissingReason(number, parecerLine);
   const where = parecerLine === null ? '' : ` (linha ${parecerLine} do sumário)`;
   // authored (fix batch e28w, S1, listed for Bruno): the utility's name the sheets lack, "o nome da concessionária de CE-01".
   const utilityAsk = utility ? `o nome da concessionária${utilityNames.length === 0 ? '' : ` de ${listPtBr(utilityNames)}`}` : null;
@@ -880,9 +917,28 @@ export function issueBlockedReason(blocking: readonly PreIssueRow[], number: num
   // authored (Story 30.1, listed for Bruno): the stale text the server found, unnamed ("atualize o texto da conclusão").
   else if (staleUnnamed) asks.push('atualize o texto da conclusão');
   if (fills.length > 0 && !parecer) asks.push(`preencha ${listPtBr(fills)}`);
+  // Story 31.6: the audios last, what waits on the server or on a tap of "Tentar de novo" or "Dispensar".
+  asks.push(...audioAsks);
   const ask = listPtBr(asks);
   // authored: Story 25.7, the sentence opens with its first verb.
   return `${ask.charAt(0).toLocaleUpperCase('pt-BR')}${ask.slice(1)} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
+}
+
+/**
+ * Story 31.6: the asks of the audio rows in the blocked reason: "aguarde a transcrição de 2 áudios",
+ * "aguarde a transcrição do áudio", "transcreva de novo ou dispense o áudio não transcrito", "… os 2 áudios
+ * não transcritos"; the counts are the rows' (a server row this device cannot name counts as one).
+ */
+function audioBlockedAsks(blocking: readonly PreIssueRow[]): string[] {
+  const count = (kind: PreIssueKind) => blocking.filter((row) => row.kind === kind).reduce((sum, row) => sum + Math.max(1, row.audios?.length ?? 0), 0);
+  const pending = count('audios_pending');
+  const failed = count('audios_failed');
+  const asks: string[] = [];
+  // authored (Story 31.6, listed for Bruno): the reason's ask while audios wait for their text.
+  if (pending > 0) asks.push(pending === 1 ? 'aguarde a transcrição do áudio' : `aguarde a transcrição de ${pending} áudios`);
+  // authored (Story 31.6, listed for Bruno): the reason's ask while audios failed three times.
+  if (failed > 0) asks.push(failed === 1 ? 'tente de novo ou dispense o áudio não transcrito' : `tente de novo ou dispense os ${failed} áudios não transcritos`);
+  return asks;
 }
 
 /**

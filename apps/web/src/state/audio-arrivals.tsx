@@ -1,4 +1,4 @@
-import { audioFileRowSchema, audioTargetPath, audiosTranscritosText, type AudioFileRow, type AudioTarget } from '@app/domain';
+import { audioFileRowSchema, audioTargetPath, audiosTranscritosText, audioWrittenTarget, type AudioFileRow, type AudioTarget } from '@app/domain';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ui } from '../copy/ui.ts';
@@ -106,7 +106,8 @@ export function AudioArrivals() {
   const open = useCallback(
     (row: AudioFileRow) => {
       if (row.relatorio_id === null) return;
-      void navigate(audioTargetRoute(row.relatorio_id, row.audio_target));
+      // Story 31.5: a table's speech that was no reading opens the OBSERVAÇÕES it went to.
+      void navigate(audioTargetRoute(row.relatorio_id, audioWrittenTarget(row)));
       focusAudioField(row.id);
     },
     [navigate],
@@ -118,7 +119,8 @@ export function AudioArrivals() {
     const step = audioArrivalStep(memory.current?.db === db ? memory.current.state : null, observed.rows, { running, synced });
     memory.current = { db, state: step.state };
     // A table's spoken reading is suggested on its cell (Story 31.5), never written into a field: it is not this toast's.
-    const arrived = step.arrived.filter((row) => audioTargetPath(row.audio_target) !== null);
+    // Its speech that was no reading went to OBSERVAÇÕES (`audioWrittenTarget`) and is.
+    const arrived = step.arrived.filter((row) => audioTargetPath(audioWrittenTarget(row)) !== null);
     if (arrived.length === 0) return;
     const first = arrived[0]!;
     showToast(audiosTranscritosText(arrived.length), { action: { label: ui.audio.open, onPress: () => open(first) }, arrival: true });

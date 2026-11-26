@@ -7,7 +7,7 @@ import { ToastProvider } from '../../state/toast.tsx';
 import { trackInputRefused } from '../../telemetry/hooks.ts';
 import { makeSyncState } from '../../test/sync-state.ts';
 import type { FichaApi } from './ficha-api.ts';
-import { DictatedMeasurementField, MeasurementField } from './measurement-field.tsx';
+import { MeasurementField } from './measurement-field.tsx';
 import { SuggestionFill, type NameplateSuggestionsModel } from './nameplate-suggestions.tsx';
 import { EnvSuggestionFill, type EnvDisplayModel } from './read-display.tsx';
 
@@ -124,28 +124,6 @@ describe('the measurement grid cell (Story 18.4)', () => {
     render(wrap(<MeasurementField api={api} cell={{ ...faseA(), positiveOnlyText: POSITIVE }} label="Fase A" presentation="table" missing={false} onRun={() => false} />));
     await userEvent.type(screen.getByRole('textbox', { name: 'Fase A' }), '0');
     await userEvent.click(screen.getByRole('button', { name: 'fora' }));
-    expect(calls()).toEqual([['ficha.measurement', 'not_positive']]);
-  });
-});
-
-describe('the dictated measurement cell (Story 18.4)', () => {
-  it('a typed value refused on blur is one report', async () => {
-    render(wrap(<DictatedMeasurementField api={api} cell={faseA()} label="Fase A, Valores" reading={{ raw: '147', unit: 'GΩ' }} onDone={vi.fn()} onRun={() => true} />));
-    const input = screen.getByRole('textbox', { name: 'Fase A, Valores' });
-    expect(input).toHaveAttribute('data-telemetry', 'ficha.measurement');
-    await userEvent.clear(input);
-    await userEvent.type(input, 'quinze');
-    await userEvent.click(screen.getByRole('button', { name: 'fora' }));
-    expect(calls()).toEqual([['ficha.measurement', 'not_a_number']]);
-  });
-
-  it('a heard reading at or below zero on a positive-only cell, confirmed, is one not_positive', async () => {
-    render(
-      wrap(
-        <DictatedMeasurementField api={api} cell={{ ...faseA(), positiveOnlyText: POSITIVE }} label="Fase A, Valores" reading={{ raw: '0', unit: 'GΩ' }} onDone={vi.fn()} onRun={() => true} />,
-      ),
-    );
-    await userEvent.click(screen.getByRole('button', { name: /confirmar/i }));
     expect(calls()).toEqual([['ficha.measurement', 'not_positive']]);
   });
 });

@@ -220,11 +220,22 @@ export const ui = {
     // Verbatim from EXPERIENCE.md › Text from audio: the arrival's live line and its toast's action.
     arrived: (field: string) => `Texto do áudio chegou: ${field}`,
     open: 'Ver',
-  },
-  // Story 9.4, kept for the Measurement table's spoken reading until Story 31.5 (batch e31c) redraws it.
-  tableReading: {
-    // authored: a table utterance the kernel could not read (spec 9.4 open question Q3).
-    unparsed: 'Leitura não reconhecida. Digite o valor na tabela.',
+    // Verbatim from the mock (e): the failed state after three attempts, its group name and its two actions.
+    failedWord: 'Não foi possível transcrever',
+    failedGroup: 'Áudio não transcrito',
+    retry: 'Tentar de novo',
+    dismiss: 'Dispensar',
+    retryNeedsConnection: 'Tentar de novo precisa de conexão',
+    // authored (Story 31.6, listed for Bruno): the server refused "Tentar de novo" (said by the live region).
+    retryFailed: 'Não foi possível tentar de novo agora. Toque de novo em instantes.',
+    // Verbatim from the mock (d) "Dispensado": the mark's tag, also what the live region says after "Dispensar".
+    dismissedTag: 'Áudio dispensado',
+    dismissed: 'Áudio dispensado',
+    // Verbatim from the mock (g): play on a spoken reading's Suggestion field.
+    playReading: (duration: string) => `Ouvir o áudio da leitura, ${duration}`,
+    // Verbatim from the mock (g): the spoken reading's "Descartar" and the filled cell's "Substituir".
+    discard: 'Descartar',
+    replace: 'Substituir',
   },
   dateField: {
     // authored: Story 13.4 INP-3, the chip under an empty service date that fills today.

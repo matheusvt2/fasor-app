@@ -6,6 +6,7 @@ import {
   audioForTarget,
   audioHeardNothing,
   audioMarkOf,
+  audioMovedStatus,
   audioQualityOf,
   isAudioCountdown,
   permissionForPath,
@@ -22,7 +23,7 @@ import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, 
 import { useLocation } from 'react-router';
 import { now } from '../clock.ts';
 import { ui } from '../copy/ui.ts';
-import { audioRowsOf, commitAudioCapture, type AudioCaptureInput } from '../db/audio-commit.ts';
+import { audioRowsOf, commitAudioCapture, commitAudioDismiss, type AudioCaptureInput } from '../db/audio-commit.ts';
 import { ensureLocalBlob, readLocalBlob } from '../db/file-store.ts';
 import { useLiveQuery } from '../db/live.ts';
 import type { AppDatabase } from '../db/schema.ts';
@@ -114,6 +115,10 @@ interface AudioContextValue {
   announce: (text: string) => void;
   play: (row: AudioFileRow) => void;
   playing: string | null;
+  /** Story 31.6: "Tentar de novo" of a failed audio; rejects when the server refused it. */
+  retranscribe: (row: AudioFileRow) => Promise<void>;
+  /** Story 31.6: "Dispensar" of a failed audio (the device's one status write). */
+  dismiss: (row: AudioFileRow) => Promise<void>;
 }
 
 const AudioContext = createContext<AudioContextValue | null>(null);
@@ -135,7 +140,13 @@ export interface AudioRecorderCoreProps {
   /** Plays a row's bytes: hands back a stop function, or null when it cannot. */
   player?: (row: AudioFileRow, onEnded: () => void) => Promise<(() => void) | null>;
   wakeLock?: () => Promise<{ release: () => Promise<void> } | null>;
+  /** Story 31.6: sends "Tentar de novo" (the server's retranscribe route); absent, the tap does nothing. */
+  retranscribe?: (row: AudioFileRow) => Promise<void>;
+  /** Story 31.6: commits "Dispensar"; absent, the tap does nothing. */
+  dismiss?: (row: AudioFileRow) => Promise<void>;
 }
+
+const NO_ACTION = () => Promise.resolve();
 
 interface Current {
   key: string;
@@ -160,7 +171,19 @@ async function browserWakeLock(): Promise<{ release: () => Promise<void> } | nul
 }
 
 /** The provider with every dependency named: the app's `AudioRecorderProvider` and the unit tests both use it. */
-export function AudioRecorderCore({ children, deps, online, relatorioId, author, commit, audio = NO_AUDIO_ROWS, player, wakeLock = browserWakeLock }: AudioRecorderCoreProps) {
+export function AudioRecorderCore({
+  children,
+  deps,
+  online,
+  relatorioId,
+  author,
+  commit,
+  audio = NO_AUDIO_ROWS,
+  player,
+  wakeLock = browserWakeLock,
+  retranscribe = NO_ACTION,
+  dismiss = NO_ACTION,
+}: AudioRecorderCoreProps) {
   const store = useMemo(createStore, []);
   const current = useRef<Current | null>(null);
   const [message, setMessage] = useState<{ text: string; n: number }>({ text: '', n: 0 });
@@ -319,8 +342,8 @@ export function AudioRecorderCore({ children, deps, online, relatorioId, author,
   useEffect(() => () => stopPlaying.current?.(), []);
 
   const value = useMemo<AudioContextValue>(
-    () => ({ store, canRecord: deps !== null, online, relatorioId, audio, toggle, discard, announce, play, playing }),
-    [store, deps, online, relatorioId, audio, toggle, discard, announce, play, playing],
+    () => ({ store, canRecord: deps !== null, online, relatorioId, audio, toggle, discard, announce, play, playing, retranscribe, dismiss }),
+    [store, deps, online, relatorioId, audio, toggle, discard, announce, play, playing, retranscribe, dismiss],
   );
   return (
     <AudioContext value={value}>
@@ -351,7 +374,7 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
   const user = session.user;
   const { pathname } = useLocation();
   const relatorioId = relatorioIdOfPath(pathname);
-  const { fetchFile } = useSyncActions();
+  const { fetchFile, retranscribeAudio } = useSyncActions();
   const resolved = useMemo(() => {
     if (deps !== undefined) return deps;
     recorderDeps ??= browserRecorderDeps();
@@ -394,8 +417,32 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
     },
     [db, fetchFile],
   );
+  const retranscribe = useCallback(
+    async (row: AudioFileRow) => {
+      if (retranscribeAudio === undefined) throw new Error('no sync client');
+      await retranscribeAudio(row.id);
+    },
+    [retranscribeAudio],
+  );
+  const dismiss = useCallback(
+    async (row: AudioFileRow) => {
+      if (db === null || user === null) return;
+      await commitAudioDismiss(db, { id: user.id, companyId: user.companyId }, row, { newId, now });
+    },
+    [db, user],
+  );
   return (
-    <AudioRecorderCore deps={resolved} online={session.online} relatorioId={relatorioId} author={author} commit={commit} audio={audio} player={player}>
+    <AudioRecorderCore
+      deps={resolved}
+      online={session.online}
+      relatorioId={relatorioId}
+      author={author}
+      commit={commit}
+      audio={audio}
+      player={player}
+      retranscribe={retranscribe}
+      dismiss={dismiss}
+    >
       {children}
     </AudioRecorderCore>
   );
@@ -485,11 +532,32 @@ export function useAudioButton(target: AudioTarget | null, options: { label: str
   };
 }
 
+/** Story 31.6: an audio of the field that failed or was dismissed, with play and the text as heard. */
+export interface HeldAudioState {
+  row: AudioFileRow;
+  duration: string;
+  playing: boolean;
+  /** The reason play cannot run (offline with no local copy), or null. */
+  playDisabledReason: string | null;
+  play: () => void;
+}
+
 export interface FieldAudioState {
-  /** The status line of the newest audio on its way, or "Não ouvi nada" after an empty recording; null with none. */
+  /**
+   * The status line of the newest audio on its way, "Não ouvi nada" after an empty recording, or
+   * (Story 31.5, a measurement table) speech that was no reading; null with none.
+   */
   status: { step: AudioFieldStep | 'empty'; text: string } | null;
   /** The newest transcribed audio of the field, with its mark; null with none. */
   done: { row: AudioFileRow; mark: AudioMark; duration: string } | null;
+  /** Story 31.6: the newest failed audio of the field ("Não foi possível transcrever"), or null. */
+  failed: HeldAudioState | null;
+  /** Story 31.6: the newest dismissed audio, shown while no newer text came from an audio; else null. */
+  dismissed: HeldAudioState | null;
+  /** Story 31.6: whether "Tentar de novo" can run (signal). */
+  online: boolean;
+  retranscribe: (row: AudioFileRow) => Promise<void>;
+  dismiss: (row: AudioFileRow) => Promise<void>;
   transcriptHeard: string | null;
   /** Play of the done audio: whether it plays now, and the reason it cannot (offline with no local copy). */
   playing: boolean;
@@ -499,7 +567,46 @@ export interface FieldAudioState {
   announce: (text: string) => void;
 }
 
-const INERT: FieldAudioState = { status: null, done: null, transcriptHeard: null, playing: false, playDisabledReason: null, play: () => undefined, announce: () => undefined };
+const INERT: FieldAudioState = {
+  status: null,
+  done: null,
+  failed: null,
+  dismissed: null,
+  online: false,
+  retranscribe: NO_ACTION,
+  dismiss: NO_ACTION,
+  transcriptHeard: null,
+  playing: false,
+  playDisabledReason: null,
+  play: () => undefined,
+  announce: () => undefined,
+};
+
+/** The play reason of a row: offline with no local copy it needs a connection. */
+function playReason(context: AudioContextValue, row: AudioFileRow): string | null {
+  return !context.online && !context.audio.local.has(row.id) ? ui.audio.needsConnection : null;
+}
+
+function heldState(context: AudioContextValue, row: AudioFileRow | null): HeldAudioState | null {
+  if (row === null) return null;
+  const reason = playReason(context, row);
+  return {
+    row,
+    duration: audioElapsedText(row.quality.duration_ms),
+    playing: context.playing === row.id,
+    playDisabledReason: reason,
+    play: () => {
+      if (reason === null) context.play(row);
+    },
+  };
+}
+
+/** Story 31.5: play of one audio by its id (a spoken reading's Suggestion); null when the device does not hold the row. */
+export function useAudioPlay(audioId: string | null): HeldAudioState | null {
+  const context = use(AudioContext);
+  if (context === null || audioId === null) return null;
+  return heldState(context, context.audio.rows.find((row) => row.id === audioId) ?? null);
+}
 
 /** What one field shows of its audios: the status line, the mark of the newest transcribed one, play. */
 export function useFieldAudio(target: AudioTarget | null, currentText: string | null | undefined): FieldAudioState {
@@ -507,17 +614,25 @@ export function useFieldAudio(target: AudioTarget | null, currentText: string | 
   const key = target === null ? '' : audioTargetKey(target);
   const notice = useNotice(context, key);
   if (context === null || target === null) return INERT;
-  const { pending, done } = audioForTarget(context.audio.rows, target);
+  const { pending, done, failed, dismissed, moved } = audioForTarget(context.audio.rows, target);
   const status =
     notice === 'empty'
       ? { step: 'empty' as const, text: audioEmptyText() }
-      : pending === null
-        ? null
-        : audioFieldStatus(pending, { online: context.online, uploaded: pending.uploaded_at !== null });
-  const playDisabledReason = done !== null && !context.online && !context.audio.local.has(done.id) ? ui.audio.needsConnection : null;
+      : pending !== null
+        ? audioFieldStatus(pending, { online: context.online, uploaded: pending.uploaded_at !== null })
+        : moved !== null
+          ? audioMovedStatus()
+          : null;
+  const playDisabledReason = done === null ? null : playReason(context, done);
   return {
     status,
     done: done === null ? null : { row: done, mark: audioMarkOf(done, currentText), duration: audioElapsedText(done.quality.duration_ms) },
+    failed: heldState(context, failed),
+    // A dismissed audio stays reachable from its field until a newer audio's text lands there.
+    dismissed: dismissed !== null && (done === null || dismissed.id > done.id) ? heldState(context, dismissed) : null,
+    online: context.online,
+    retranscribe: context.retranscribe,
+    dismiss: context.dismiss,
     transcriptHeard: done?.transcript_heard ?? null,
     playing: done !== null && context.playing === done.id,
     playDisabledReason,
