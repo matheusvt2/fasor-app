@@ -26,6 +26,8 @@ import { fileWithdrawn, findFileRow, type FileRowLookup } from '../db/repositori
 import { newId } from '../ids.ts';
 import type { ReadingKind, ReadingPayload } from '../jobs/reading/payload.ts';
 import { sendReading, type SendReadingOutcome } from '../jobs/reading/send.ts';
+import type { TranscriptionPayload } from '../jobs/transcription/payload.ts';
+import { startTranscription } from '../jobs/transcription/status.ts';
 import { logError } from '../log.ts';
 import { getObject, headObject, putObject } from '../storage/s3.ts';
 import { hasVariants, imagePixelCount, renderVariants } from '../storage/variants.ts';
@@ -111,6 +113,11 @@ export interface FileRoutesDeps {
   aiFeatures?: boolean;
   /** Story 20.12: the company's daily reading ceiling (`jobs/reading/send.ts`). */
   readingDailyQuota?: number;
+  /**
+   * Story 31.2: sends an audio's transcription job on its first upload. Absent when the app runs
+   * without a queue: the upload still succeeds and the audio stays `queued`.
+   */
+  enqueueTranscription?: (payload: TranscriptionPayload) => Promise<void>;
 }
 
 /** Story 20.12: the answer of an image that declares more pixels than `MAX_IMAGE_PIXELS`. */
@@ -324,6 +331,22 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     let reading: SendReadingOutcome | null = null;
     if (current !== undefined && current.kind === 'photo' && current.reading_kind !== null && current.reading_status === 'queued') {
       reading = await queueReading(session.companyId, lookup, current.reading_kind);
+    }
+
+    // Story 31.2 (AD-30): the upload of an audio the device queued starts its transcription, once:
+    // the job is sent and the audio goes `transcribing` (a retried PUT finds it moved and sends
+    // nothing). Nothing is started while AI_FEATURES is off; never fatal to the upload.
+    if (current !== undefined && current.kind === 'audio' && current.audio_status === 'queued') {
+      try {
+        await startTranscription(
+          { db, now: deps.now, newId, ...(deps.enqueueTranscription === undefined ? {} : { enqueue: deps.enqueueTranscription }), ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }) },
+          session.companyId,
+          { id, relatorioId: lookup.relatorioId },
+          ['queued'],
+        );
+      } catch (error) {
+        logError('transcription not started', { company_id: session.companyId, file_id: id, error: String(error) });
+      }
     }
 
     const answer: FilePutResponse = { id, uploaded_at: uploadedAt, variants, ...(reading === 'quota_exceeded' ? { reading } : {}) };

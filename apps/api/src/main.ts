@@ -18,12 +18,18 @@ import { probeLibreOffice } from './jobs/generate/libreoffice.ts';
 import { registerGenerateWorker } from './jobs/generate/worker.ts';
 import { createReadingProviders } from './jobs/reading/providers/index.ts';
 import { registerReadingWorker } from './jobs/reading/worker.ts';
+import { createSpeechProvider, createWritingProvider } from './jobs/transcription/providers/index.ts';
+import { registerTranscriptionWorker } from './jobs/transcription/worker.ts';
 import { startQueue } from './jobs/queue.ts';
 import { log, logError } from './log.ts';
 import { createS3, prepareStorage, probeStorage } from './storage/s3.ts';
 import { telemetrySinkOf } from './telemetry/sink.ts';
 
 const config = loadConfigOrExit();
+
+// Story 31.2: the speech step is chosen at boot; `STT_PROVIDER=transcribe` fails here with its
+// reason until Story 31.8 delivers the Amazon Transcribe adapter.
+const speech = createSpeechProvider(config);
 
 const { sql, db } = createDb(config.DATABASE_URL);
 const s3 = createS3(config);
@@ -101,6 +107,11 @@ if (config.WORKER === '1') {
   // LLM_PROVIDER switch (`fake` by default); AI_FEATURES=off refuses every run permanently.
   await registerAuditWorker(boss, { db, now, newId, provider: createAuditProvider(config, { bedrock }) });
   log('audit worker registered', { llm_provider: config.LLM_PROVIDER, ai_features: config.AI_FEATURES });
+  // Story 31.2 (AD-30): the transcription worker, the speech step by STT_PROVIDER and the writing
+  // step by LLM_PROVIDER (both `fake` by default); nothing runs while AI_FEATURES is off.
+  const writing = createWritingProvider(config, { bedrock });
+  await registerTranscriptionWorker(boss, { db, s3, bucket: config.S3_BUCKET, now, newId, speech, writing: writing.provider, writingName: writing.name, aiFeatures: config.AI_FEATURES === 'on' });
+  log('transcription worker registered', { stt_provider: config.STT_PROVIDER, llm_provider: config.LLM_PROVIDER, ai_features: config.AI_FEATURES });
 }
 
 const trustedOrigins = parseTrustedOrigins(config.TRUSTED_ORIGINS);

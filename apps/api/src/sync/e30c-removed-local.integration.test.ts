@@ -242,8 +242,9 @@ describe('30.4-API-001 a local removed against site work, through the sync route
   });
 
   it('a version-60 client (the contract before) is refused the relatório\'s stream with 426 contract_outdated; a current one reads it; its push is still accepted', async () => {
-    expect(CONTRACT_VERSION).toBe(61);
-    expect(MIN_CONTRACT_VERSION).toBe(61);
+    // Batch e31a (Story 31.1, 2026-11-26): the number moved on to 62; 60 stays refused.
+    expect(CONTRACT_VERSION).toBe(62);
+    expect(MIN_CONTRACT_VERSION).toBe(62);
     const { relatorioId, locationId } = await h.seedRelatorio(people.ana);
     const old = await h.authed(people.bruno, `/api/sync/relatorios/${relatorioId}?since=0`, { headers: { [CONTRACT_VERSION_HEADER]: '60' } });
     expect(old.status).toBe(426);

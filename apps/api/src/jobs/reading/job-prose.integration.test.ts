@@ -16,6 +16,8 @@ import {
   type Op,
   type OpDraft,
   type SuggestionRow,
+  photoSourceOf,
+  suggestionPhotoId,
 } from '@app/domain';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import sharp from 'sharp';
@@ -193,7 +195,7 @@ const status = async (photoId: string) => (await row<{ reading_status: string }>
 
 async function suggestionsOf(photoId: string): Promise<SuggestionRow[]> {
   const found = await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyId), eq(entities.entity, 'suggestion')));
-  return found.map((r) => suggestionRowSchema.parse(r.row)).filter((s) => s.source.photo_id === photoId);
+  return found.map((r) => suggestionRowSchema.parse(r.row)).filter((s) => suggestionPhotoId(s) === photoId);
 }
 
 async function runs(photoId: string) {
@@ -237,7 +239,7 @@ describe('9.3-INT the caption reading kind', () => {
     });
     const [attempt] = await runs(id);
     expect(attempt).toMatchObject({ outcome: 'ok', reading_kind: 'caption', ocr_provider: 'fake', ocr_result: null, model: 'fake', prompt_version: 'fake-1', llm_usage: { input_tokens: 0, output_tokens: 0, usd: 0 } });
-    expect(suggestion!.source.reading_run_id).toBe(attempt!.id);
+    expect(photoSourceOf(suggestion!)!.reading_run_id).toBe(attempt!.id);
     // The job never writes the caption itself.
     expect((await row<{ caption: string | null }>('file', id))!.caption).toBeNull();
     expect(await callsFor(id)).toBe(1);

@@ -706,8 +706,25 @@ const fileBase = {
   removed_at: nullableIso,
 };
 
+/**
+ * Story 31.1 (AD-30, contract 62): the fields only an `audio` file carries. Every other kind
+ * declares them never set, so a photo or a brand file that names one is refused (absent keys
+ * parse to the same bytes as before).
+ */
+const noAudioField = () => z.null().refine(() => false, { message: 'an audio field on a file that is no audio' }).optional();
+const NO_AUDIO_FIELDS = {
+  audio_target: noAudioField(),
+  audio_status: noAudioField(),
+  quality: noAudioField(),
+  transcript_heard: noAudioField(),
+  transcript_written: noAudioField(),
+  transcription_run_id: noAudioField(),
+  not_a_reading: noAudioField(),
+};
+
 export const photoFileRowSchema = z.object({
   ...fileBase,
+  ...NO_AUDIO_FIELDS,
   kind: z.literal('photo'),
   captured_at: isoTimestampSchema,
   tz_offset: z.number().int(),
@@ -762,10 +779,81 @@ export const otherFileKindSchema = z.enum([
   'pdf',
 ]);
 
-export const otherFileRowSchema = z.object({ ...fileBase, kind: otherFileKindSchema });
+export const otherFileRowSchema = z.object({ ...fileBase, ...NO_AUDIO_FIELDS, kind: otherFileKindSchema });
 
-/** AD-7 union, minimal for this story. */
-export const fileRowSchema = z.discriminatedUnion('kind', [photoFileRowSchema, otherFileRowSchema]);
+// --- Story 31.1 (AD-30, contract 62): an audio recorded on a field ------------------------------
+
+/** The transcription states of an audio: the device writes `queued` at create and may write `dismissed`; every other is `system:transcription`'s. */
+export const AUDIO_STATUSES = ['queued', 'transcribing', 'done', 'failed', 'dismissed'] as const;
+export const audioStatusSchema = z.enum(AUDIO_STATUSES);
+export type AudioStatus = z.infer<typeof audioStatusSchema>;
+
+/** Why a recording is judged poor (`audioQualityVerdict`, `audio/quality.ts`), in this fixed order. */
+export const AUDIO_QUALITY_REASONS = ['low_level', 'clipping', 'noisy', 'too_short', 'no_speech'] as const;
+export type AudioQualityReason = (typeof AUDIO_QUALITY_REASONS)[number];
+
+/**
+ * The measures the device takes over the recording's samples, with the kernel's verdict on them,
+ * set once at create and never recomputed on the server: `level` the RMS of the voice (0 to 1 of
+ * full scale), `clipped_share` the share of clipped samples (0 to 1), `noise_ratio` the noise floor
+ * against the voice (RMS over RMS), `duration_ms` and `speech_ms` the length and the time with speech.
+ */
+export const audioQualitySchema = z.strictObject({
+  level: z.number().min(0).max(1),
+  clipped_share: z.number().min(0).max(1),
+  noise_ratio: z.number().min(0),
+  duration_ms: z.number().int().nonnegative(),
+  speech_ms: z.number().int().nonnegative(),
+  verdict: z.enum(['good', 'poor']),
+  reasons: z.array(z.enum(AUDIO_QUALITY_REASONS)),
+});
+export type AudioQuality = z.infer<typeof audioQualitySchema>;
+
+const audioSeedKey = z.string().regex(/^[a-z0-9_]+$/);
+
+/**
+ * The one field an audio fills, a closed union addressed as the ops address the field today: a
+ * checklist item's observation (`sheet/{b}/checklist/{item}/observation`), a sheet field (OBSERVAÇÕES,
+ * the conclusion text, the Não ensaiado note), a measurement test's text value (its reason,
+ * `sheet/{b}/test/{t}/value/{v}`), a photo's caption, a point's text or action, a setup text (the
+ * additional information, the next intervention's justification, the parecer summary), a section
+ * block's text, or a seeded measurement table (`table_key` the `EvaluatedTable.key`), whose spoken
+ * reading is suggested, never written.
+ */
+export const audioTargetSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('item'), block_id: uuidV7Schema, item_key: audioSeedKey }),
+  z.strictObject({ type: z.literal('sheet_field'), block_id: uuidV7Schema, field: z.enum(['observations', 'conclusion_text', 'not_tested_text']) }),
+  z.strictObject({ type: z.literal('test_value'), block_id: uuidV7Schema, test_key: audioSeedKey, value_key: audioSeedKey }),
+  z.strictObject({ type: z.literal('photo_caption'), file_id: uuidV7Schema }),
+  z.strictObject({ type: z.literal('point'), point_id: uuidV7Schema, field: z.enum(['text', 'action']) }),
+  z.strictObject({ type: z.literal('setup'), field: z.enum(['additional_info', 'next_intervention_justification', 'parecer_text']) }),
+  z.strictObject({ type: z.literal('section'), block_id: uuidV7Schema }),
+  z.strictObject({ type: z.literal('table'), block_id: uuidV7Schema, test_key: audioSeedKey, table_key: z.string().min(1) }),
+]);
+export type AudioTarget = z.infer<typeof audioTargetSchema>;
+
+/**
+ * An audio recorded on one field (AD-30). Relatório scope, like a photo. `audio_target` and
+ * `quality` are set once at create (no op path writes them); `transcript_heard`,
+ * `transcript_written`, `transcription_run_id` and `not_a_reading` (a table's speech that was no
+ * reading, written to OBSERVAÇÕES instead) are written only by `system:transcription`. Strict: no
+ * photo or reading field rides on it.
+ */
+export const audioFileRowSchema = z.strictObject({
+  ...fileBase,
+  kind: z.literal('audio'),
+  audio_target: audioTargetSchema,
+  audio_status: audioStatusSchema,
+  quality: audioQualitySchema,
+  transcript_heard: nullableString,
+  transcript_written: nullableString,
+  transcription_run_id: nullableId,
+  not_a_reading: z.boolean().optional(),
+});
+export type AudioFileRow = z.infer<typeof audioFileRowSchema>;
+
+/** AD-7 union; Story 31.1 adds the audio. */
+export const fileRowSchema = z.discriminatedUnion('kind', [photoFileRowSchema, audioFileRowSchema, otherFileRowSchema]);
 
 /** Story 6.6: the action-plan priorities (NR-10 10.7.11), a data-model field with no UI in the MVP. */
 export const pointPrioritySchema = z.enum(['P0', 'P1', 'P2', 'P3', 'P4']);
@@ -822,6 +910,36 @@ export const suggestionHintSchema = z.object({
 });
 export type SuggestionHint = z.infer<typeof suggestionHintSchema>;
 
+/** AD-12: what a photo reading's suggestion was read from, its box and the OCR tokens it cites. */
+export const suggestionPhotoSourceSchema = z.object({
+  photo_id: uuidV7Schema,
+  bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+  ocr_token_ids: z.array(z.string()),
+  reading_run_id: uuidV7Schema,
+});
+export type SuggestionPhotoSource = z.infer<typeof suggestionPhotoSourceSchema>;
+
+/** Story 31.1 (AD-30, contract 62): a reading spoken into a measurement table names its audio, with no box and no tokens. */
+export const suggestionAudioSourceSchema = z.strictObject({ audio_id: uuidV7Schema });
+export type SuggestionAudioSource = z.infer<typeof suggestionAudioSourceSchema>;
+
+export type SuggestionSource = SuggestionPhotoSource | SuggestionAudioSource;
+
+/** True for a suggestion read from a photo (its box and tokens), false for one spoken into an audio. */
+export function isPhotoSuggestionSource(source: SuggestionSource): source is SuggestionPhotoSource {
+  return 'photo_id' in source;
+}
+
+/** The photo a suggestion was read from, or null for one spoken into an audio. */
+export function suggestionPhotoId(row: { source: SuggestionSource }): string | null {
+  return isPhotoSuggestionSource(row.source) ? row.source.photo_id : null;
+}
+
+/** The photo source of a suggestion (its photo, box and tokens), or null for one spoken into an audio. */
+export function photoSourceOf(row: { source: SuggestionSource }): SuggestionPhotoSource | null {
+  return isPhotoSuggestionSource(row.source) ? row.source : null;
+}
+
 export const suggestionRowSchema = z.object({
   id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
@@ -829,12 +947,7 @@ export const suggestionRowSchema = z.object({
   value: fieldValueSchema,
   trust: z.enum(['suggested', 'verify']),
   mode: z.enum(['fill', 'replace']),
-  source: z.object({
-    photo_id: uuidV7Schema,
-    bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
-    ocr_token_ids: z.array(z.string()),
-    reading_run_id: uuidV7Schema,
-  }),
+  source: z.union([suggestionPhotoSourceSchema, suggestionAudioSourceSchema]),
   status: z.enum(['pending', 'confirmed', 'discarded']),
   prompt_version: z.string(),
   /** Contract 5: null (or absent on a row written before it) when the reading adds nothing. */

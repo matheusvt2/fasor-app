@@ -1042,6 +1042,10 @@ function writeRow(row: EntityRow, op: Op, path: OpPath, ctx: () => DefinitionCon
     }
     case 'file/field': {
       const file = row as FileRow;
+      // Story 31.1 (contract 62): an audio takes its status and its tombstone, nothing a photo takes;
+      // a photo or a brand file never takes an audio status (the put is a no-op, never a refusal).
+      if (file.kind === 'audio') return path.field === 'audio_status' || path.field === 'removed_at' ? ({ ...file, [path.field]: value } as FileRow) : row;
+      if (path.field === 'audio_status') return row;
       if (file.kind !== 'photo' && path.field !== 'removed_at') return row;
       // Story 9.2 (contract 7): a new reading kind on a photo queues its reading, here, on the
       // device and on the server alike (the `template/field` version-bump precedent); the

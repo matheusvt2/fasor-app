@@ -55,7 +55,7 @@ import {
 } from '@app/domain';
 import { useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { CropThumb } from '../../components/crop-thumb.tsx';
+import { SuggestionCropThumb } from '../../components/crop-thumb.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -460,7 +460,7 @@ export function ReadingCell({
   const stored = storedTestCell(model.block, cell.address);
   const source = stored !== null && showsConfirmedGlyph(stored, model.relatorioStatus) ? model.sourceOf(stored.source_suggestion_id!) : null;
   const crop =
-    source === null ? undefined : <CropThumb source="display" photoId={source.source.photo_id} bbox={source.source.bbox} label={label} onPress={() => model.openCrop(source)} />;
+    source === null ? undefined : <SuggestionCropThumb source="display" suggestion={source} label={label} onPress={() => model.openCrop(source)} />;
   const mismatch =
     entry !== undefined && entry.view === 'replace' && stored !== null ? (
       <MismatchLine value={stored.value} suggestion={entry.suggestion} onVisor={() => model.confirm(entry.suggestion, label)} onTyped={() => model.keepTyped(entry.suggestion)} />
@@ -546,7 +546,7 @@ function SuggestedCell({
     <div className="ficha-cell" data-cell={key} data-suggestion-id={suggestion.id}>
       <div className="field suggestion-field" data-state={verify ? 'verify' : 'suggested'}>
         <div className="measurement-field">
-          <CropThumb source="display" photoId={suggestion.source.photo_id} bbox={suggestion.source.bbox} label={label} onPress={() => model.openCrop(suggestion)} />
+          <SuggestionCropThumb source="display" suggestion={suggestion} label={label} onPress={() => model.openCrop(suggestion)} />
           <input
             data-telemetry="ficha.reading"
             className="mf-value"
@@ -892,7 +892,7 @@ export function EnvSuggestionFill({ model, field, suggestion }: { model: EnvDisp
         announcement={suggestionAnnouncement(suggestion.trust, suggestionValueText(NUMBER, suggestion.value))}
         valueClassName="measurement-field"
         bare
-        crop={<CropThumb source="display" photoId={suggestion.source.photo_id} bbox={suggestion.source.bbox} label={label} onPress={() => model.openCrop(suggestion)} />}
+        crop={<SuggestionCropThumb source="display" suggestion={suggestion} label={label} onPress={() => model.openCrop(suggestion)} />}
         onConfirm={() => commit(true)}
         after={
           invalid ? (

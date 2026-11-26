@@ -12,6 +12,7 @@ import {
   type NewId,
   type OcrReadResult,
   type StructuringResult,
+  suggestionPhotoId,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { and, eq, sql } from 'drizzle-orm';
@@ -89,7 +90,7 @@ export async function pendingOfPhoto(db: Db | Tx, companyId: CompanyId, relatori
   const ids: string[] = [];
   for (const record of records) {
     const parsed = suggestionRowSchema.safeParse(record.row);
-    if (parsed.success && parsed.data.status === 'pending' && parsed.data.source.photo_id === photoId) ids.push(parsed.data.id);
+    if (parsed.success && parsed.data.status === 'pending' && suggestionPhotoId(parsed.data) === photoId) ids.push(parsed.data.id);
   }
   return ids.sort();
 }

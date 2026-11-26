@@ -21,6 +21,8 @@ import {
   type Op,
   type OpDraft,
   type SuggestionRow,
+  photoSourceOf,
+  suggestionPhotoId,
 } from '@app/domain';
 import { DEFINITION_1 } from '@app/domain/fixtures/company-types';
 import { AccessDeniedException as BedrockAccessDeniedException, ThrottlingException as BedrockThrottlingException } from '@aws-sdk/client-bedrock-runtime';
@@ -322,7 +324,7 @@ describe('8.4-INT reading job attempts', () => {
       const id = await photo(relatorioId, block, bytes, 'image/jpeg');
       await send(id);
       await waitFor(`the ${type} fallback reading`, async () => (await status(id)) === 'done');
-      const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+      const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
       expect(mine).toHaveLength(values.length);
       expect(mine.every((s) => s.status === 'pending')).toBe(true);
       expect(mine.map((s) => s.target_path).sort()).toEqual(values.map((v) => `sheet/${block.id}/nameplate/${v.key}`).sort());
@@ -345,7 +347,7 @@ describe('8.4-INT reading job attempts', () => {
     const id = await photo(relatorioId, block, bytes, 'image/jpeg');
     await send(id);
     await waitFor('the fallback reading', async () => (await status(id)) === 'done');
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(11);
     expect(mine.every((s) => s.status === 'pending')).toBe(true);
     expect(mine.find((s) => s.target_path.endsWith('/data_fabricacao'))!.value).toBe('2024-08');
@@ -365,7 +367,7 @@ describe('8.4-INT reading job attempts', () => {
     const id = await photo(relatorioId, block, bytes, 'image/jpeg');
     await send(id);
     await waitFor('the fallback reading', async () => (await status(id)) === 'done');
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(10);
     expect(mine.every((s) => s.status === 'pending')).toBe(true);
     expect(mine.filter((s) => /\/nameplate\/(tap_atual|tap_atual_kv|taps)$/.test(s.target_path))).toEqual([]);
@@ -383,11 +385,11 @@ describe('8.4-INT reading job attempts', () => {
       const id = await photo(relatorioId, block, bytes, 'image/png');
       await send(id);
       await waitFor(`the reading of ${file}`, async () => (await status(id)) === 'done');
-      return (await suggestions(relatorioId)).find((s) => s.source.photo_id === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`)!;
+      return (await suggestions(relatorioId)).find((s) => suggestionPhotoId(s) === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`)!;
     };
     const printed = await read('plate-transformador-dyn1.png');
     expect(printed).toMatchObject({ value: 'Dyn1', trust: 'suggested', status: 'pending' });
-    expect(printed.source.ocr_token_ids).toHaveLength(1);
+    expect(photoSourceOf(printed)!.ocr_token_ids).toHaveLength(1);
     expect(plateSuggestionNoteText(printed)).toBeNull();
     // e21f: the drawn plate's answer gives no group value, only the diagram's facts, which the provider composes.
     const drawnFixture = JSON.parse(readFileSync(join(DEFAULT_FIXTURES_DIR, `${sha256(new Uint8Array(readFileSync(join(IMAGES, 'plate-transformador-yyn0.png'))))}.json`), 'utf8')) as {
@@ -397,8 +399,8 @@ describe('8.4-INT reading job attempts', () => {
     expect(drawnFixture.structuring.vector_diagram).toMatchObject({ hv_shape: 'star', hv_neutral: false, lv_shape: 'star', lv_neutral: true, x1_hours: 0 });
     const drawn = await read('plate-transformador-yyn0.png');
     expect(drawn).toMatchObject({ value: 'Yyn0', trust: 'verify', status: 'pending' });
-    expect(drawn.source.ocr_token_ids).toEqual([]);
-    expect(drawn.source.bbox).toEqual([0, 0, 1, 1]);
+    expect(photoSourceOf(drawn)!.ocr_token_ids).toEqual([]);
+    expect(photoSourceOf(drawn)!.bbox).toEqual([0, 0, 1, 1]);
     expect(plateSuggestionNoteText(drawn)).toBe('Lido do diagrama — confira');
   }, 60_000);
 
@@ -412,7 +414,7 @@ describe('8.4-INT reading job attempts', () => {
       const id = await photo(relatorioId, block, bytes, 'image/png');
       await send(id);
       await waitFor(`the reading of ${file}`, async () => (await status(id)) === 'done');
-      const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+      const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
       return (key: string) => mine.find((s) => s.target_path === `sheet/${block.id}/nameplate/${key}`);
     };
     const oil = await read('plate-transformador-oleo.png', 'transformador_forca');
@@ -420,8 +422,8 @@ describe('8.4-INT reading job attempts', () => {
     expect(oil('tipo_do_oleo')).toMatchObject({ value: 'B', status: 'pending' });
     const insulation = oil('tipo_de_isolacao')!;
     expect(insulation).toMatchObject({ value: 'ÓLEO MINERAL', trust: 'verify', status: 'pending' });
-    expect(insulation.source.ocr_token_ids).toEqual(oil('tipo_do_oleo')!.source.ocr_token_ids);
-    expect(insulation.source.ocr_token_ids).toHaveLength(4);
+    expect(photoSourceOf(insulation)!.ocr_token_ids).toEqual(photoSourceOf(oil('tipo_do_oleo')!)!.ocr_token_ids);
+    expect(photoSourceOf(insulation)!.ocr_token_ids).toHaveLength(4);
     const tc = await read('plate-tc-classe.png', 'tc');
     expect(tc('exatidao')).toMatchObject({ value: '0,6', status: 'pending' });
   }, 90_000);
@@ -437,7 +439,7 @@ describe('8.4-INT reading job attempts', () => {
       const id = await photo(relatorioId, block, bytes, 'image/png');
       await send(id);
       await waitFor(`the reading of ${file}`, async () => (await status(id)) === 'done');
-      const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+      const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
       return (key: string) => mine.find((s) => s.target_path === `sheet/${block.id}/nameplate/${key}`);
     };
     const number = (raw: string, unit: string) => ({ raw, unit, state: 'measured' });
@@ -482,7 +484,7 @@ describe('8.4-INT reading job attempts', () => {
       const id = await photo(relatorioId, block, bytes, 'image/png');
       await send(id);
       await waitFor(`the reading of ${file}`, async () => (await status(id)) === 'done');
-      const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+      const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
       return (key: string) => mine.find((s) => s.target_path === `sheet/${block.id}/nameplate/${key}`);
     };
     const typeB = await read('plate-transformador-tipo-b-v13.png');
@@ -492,8 +494,8 @@ describe('8.4-INT reading job attempts', () => {
     for (const [key, value] of [['natureza_liquido', 'MINERAL'], ['tipo_de_isolacao', 'ÓLEO ISOLANTE']] as const) {
       const composed = typeB(key)!;
       expect(composed, key).toMatchObject({ value, trust: 'verify', status: 'pending' });
-      expect(composed.source.ocr_token_ids, key).toEqual(typeB('tipo_anp')!.source.ocr_token_ids);
-      expect(composed.source.ocr_token_ids, key).toHaveLength(4);
+      expect(photoSourceOf(composed)!.ocr_token_ids, key).toEqual(photoSourceOf(typeB('tipo_anp')!)!.ocr_token_ids);
+      expect(photoSourceOf(composed)!.ocr_token_ids, key).toHaveLength(4);
     }
     const silicone = await read('plate-transformador-silicone-v13.png');
     expect(silicone('natureza_liquido')).toMatchObject({ value: 'SILICONE', status: 'pending' });
@@ -544,7 +546,7 @@ describe('8.4-INT permanent guards: one run row, failed, no suggestion', () => {
     expect(rows[0]!.error).toContain('PermanentReadingError');
     expect(rows[0]!.error).toContain(reason);
     expect(await status(id)).toBe('failed');
-    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+    expect((await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id)).toEqual([]);
   }
 
   it('the print variant is missing', async () => {
@@ -595,8 +597,8 @@ describe('8.4-INT EXIF orientation', () => {
     const id = await photo(relatorioId, block, jpeg, 'image/jpeg');
     await runReadingJob(deps, { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: true });
     expect(await status(id)).toBe('done');
-    const [suggestion] = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
-    expect(suggestion!.source.bbox).toEqual([0.1, 0.1, 0.6, 0.2]);
+    const [suggestion] = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
+    expect(photoSourceOf(suggestion!)!.bbox).toEqual([0.1, 0.1, 0.6, 0.2]);
     expect((await runs(id))[0]).toMatchObject({ outcome: 'ok' });
   }, 60_000);
 });
@@ -657,7 +659,7 @@ describe('8.5-INT registry verdicts on a Chave seccionadora', () => {
     await waitFor('both readings', async () => (await status(knownPhoto)) === 'done' && (await status(unknownPhoto)) === 'done');
 
     const all = await suggestions(relatorioId);
-    const of = (photoId: string, key: string) => all.find((s) => s.source.photo_id === photoId && s.target_path.endsWith(`/${key}`))!;
+    const of = (photoId: string, key: string) => all.find((s) => suggestionPhotoId(s) === photoId && s.target_path.endsWith(`/${key}`))!;
     expect(of(knownPhoto, 'fabricacao')).toMatchObject({ value: maker, trust: 'suggested', hint: null, mode: 'fill' });
     expect(of(knownPhoto, 'tensao_de_placa')).toMatchObject({ value: '15', trust: 'suggested', hint: null });
     expect(of(knownPhoto, 'tensao_de_placa').source).toMatchObject({ bbox: [0.5, 0.4, 0.7, 0.55], ocr_token_ids: ['t3', 't4'] });
@@ -670,7 +672,7 @@ describe('8.5-INT registry verdicts on a Chave seccionadora', () => {
 
     const [run] = await runs(knownPhoto);
     expect(run).toMatchObject({ outcome: 'ok', attempt: 1, ocr_provider: 'fake', model: 'fake', prompt_version: 'fake-1', llm_usage: { input_tokens: 0, output_tokens: 0, usd: 0 } });
-    expect(of(knownPhoto, 'fabricacao').source.reading_run_id).toBe(run!.id);
+    expect(photoSourceOf(of(knownPhoto, 'fabricacao'))!.reading_run_id).toBe(run!.id);
     expect((run!.ocr_result as { tokens: { bbox: number[] }[] }).tokens[1]!.bbox).toEqual([0.5, 0.05, 0.8, 0.2]);
   }, 60_000);
 
@@ -694,7 +696,7 @@ describe('8.5-INT registry verdicts on a Chave seccionadora', () => {
     for (const old of first) expect(after.find((s) => s.id === old.id)!.status).toBe('discarded');
     const fresh = after.filter((s) => s.status === 'pending');
     expect(fresh).toHaveLength(2);
-    expect(fresh.every((s) => s.source.reading_run_id === second!.id)).toBe(true);
+    expect(fresh.every((s) => photoSourceOf(s)!.reading_run_id === second!.id)).toBe(true);
     expect(await status(id)).toBe('done');
   }, 60_000);
 });
@@ -770,14 +772,14 @@ describe('11.7-INT the textract provider through an injected client (nothing rea
     expect(run).toMatchObject({ attempt: 1, outcome: 'ok', ocr_provider: 'textract', model: 'fake' });
     const stored = (run!.ocr_result as { tokens: { text: string; bbox: number[] }[] }).tokens;
     expect(stored.map((token) => token.text)).toEqual(expected.map((token) => token.text));
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(11);
     const identificacao = mine.find((s) => s.target_path.endsWith('/identificacao'))!;
     expect(identificacao).toMatchObject({ value: 'TR-01', status: 'pending' });
-    expect(identificacao.source.ocr_token_ids).toEqual(['t4']);
+    expect(photoSourceOf(identificacao)!.ocr_token_ids).toEqual(['t4']);
     const [x0, y0, x1, y1] = expected[4]!.bbox;
     const normalized = [x0 / size.width, y0 / size.height, x1 / size.width, y1 / size.height];
-    identificacao.source.bbox!.forEach((value, corner) => expect(value).toBeCloseTo(normalized[corner]!, 3));
+    photoSourceOf(identificacao)!.bbox!.forEach((value, corner) => expect(value).toBeCloseTo(normalized[corner]!, 3));
     stored[4]!.bbox.forEach((value, corner) => expect(value).toBeCloseTo(normalized[corner]!, 3));
   }, 60_000);
 
@@ -982,7 +984,7 @@ describe('9.2-INT the panel reading', () => {
     const id = await panelPhoto(relatorioId, { location_id: coluna });
     await runPanel(id);
     expect(await status(id)).toBe('done');
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({
       target_path: `file/${id}/block_id`,
@@ -1058,7 +1060,7 @@ describe('9.2-INT the panel reading', () => {
     const rows = await runs(id);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ outcome: 'error', error: 'superseded', reading_kind: 'panel' });
-    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+    expect((await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id)).toEqual([]);
   }, 60_000);
 
   /** Runs the panel job with a structuring step that re-targets the photo to `block`'s plate mid-run, then answers or throws `fail`. */
@@ -1091,7 +1093,7 @@ describe('9.2-INT the panel reading', () => {
     const rows = await runs(id);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ outcome: 'error', error: 'superseded', reading_kind: 'panel' });
-    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+    expect((await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id)).toEqual([]);
   }
 
   it('re-targeted while the panel job runs: the check inside the batch ends it superseded, no status and no suggestion', async () => {
@@ -1150,7 +1152,7 @@ describe('9.2-INT the panel reading', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.error).toContain('target location takes no block');
     expect(await status(id)).toBe('failed');
-    expect((await suggestions(own.relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+    expect((await suggestions(own.relatorioId)).filter((s) => suggestionPhotoId(s) === id)).toEqual([]);
   }, 60_000);
 });
 
@@ -1224,7 +1226,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect((await sharp(client.images[0]!).metadata()).width).toBe(1200);
     // Story 21.2: the transformer plate's LIGAÇÃO SECUNDÁRIA is asked for as its vector group.
     expect(client.prompts[0]).toContain(vectorGroupPrompt('ligacao_secundaria'));
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(11);
     expect(mine.every((s) => s.status === 'pending' && s.prompt_version === 'bedrock-structuring-10')).toBe(true);
     expect(mine.find((s) => s.target_path.endsWith('/identificacao'))).toMatchObject({ value: 'TR-01', trust: 'suggested', source: { ocr_token_ids: ['t4'] } });
@@ -1256,10 +1258,10 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(await status(id)).toBe('done');
     expect(client.models).toEqual([HAIKU]);
     expect(client.prompts[0]).toContain(vectorGroupPrompt('ligacao_secundaria'));
-    const group = (await suggestions(relatorioId)).find((s) => s.source.photo_id === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`)!;
+    const group = (await suggestions(relatorioId)).find((s) => suggestionPhotoId(s) === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`)!;
     expect(group).toMatchObject({ value: 'Yyn0', trust: 'verify', status: 'pending', prompt_version: 'bedrock-structuring-10' });
-    expect(group.source.ocr_token_ids).toEqual([]);
-    expect(group.source.bbox).toEqual([0, 0, 1, 1]);
+    expect(photoSourceOf(group)!.ocr_token_ids).toEqual([]);
+    expect(photoSourceOf(group)!.bbox).toEqual([0, 0, 1, 1]);
     expect(plateSuggestionNoteText(group)).toBe('Lido do diagrama — confira');
     expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: HAIKU, prompt_version: 'bedrock-structuring-10' });
   }, 60_000);
@@ -1278,10 +1280,10 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     const id = await photo(relatorioId, block, bytes, 'image/png');
     await read(bedrockDeps(converse({ [HAIKU]: answer }), ''), id);
     expect(await status(id)).toBe('done');
-    const group = (await suggestions(relatorioId)).find((s) => s.source.photo_id === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`);
+    const group = (await suggestions(relatorioId)).find((s) => suggestionPhotoId(s) === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`);
     expect(group).toMatchObject({ value: 'Dy1', trust: 'verify', status: 'pending' });
-    expect(group!.source.ocr_token_ids).toEqual([]);
-    expect(group!.source.bbox).toEqual([0, 0, 1, 1]);
+    expect(photoSourceOf(group!)!.ocr_token_ids).toEqual([]);
+    expect(photoSourceOf(group!)!.bbox).toEqual([0, 0, 1, 1]);
     expect(plateSuggestionNoteText(group!)).toBe('Lido do diagrama — confira');
   }, 60_000);
 
@@ -1299,9 +1301,9 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     const id = await photo(relatorioId, block, bytes, 'image/png');
     await read(bedrockDeps(converse({ [HAIKU]: answer }), ''), id);
     expect(await status(id)).toBe('done');
-    const group = (await suggestions(relatorioId)).find((s) => s.source.photo_id === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`);
+    const group = (await suggestions(relatorioId)).find((s) => suggestionPhotoId(s) === id && s.target_path === `sheet/${block.id}/nameplate/ligacao_secundaria`);
     expect(group).toMatchObject({ value: 'Dyn1', trust: 'suggested', status: 'pending' });
-    expect(group!.source.ocr_token_ids).toEqual(own.ocr_token_ids);
+    expect(photoSourceOf(group!)!.ocr_token_ids).toEqual(own.ocr_token_ids);
     expect(plateSuggestionNoteText(group!)).toBeNull();
   }, 60_000);
 
@@ -1315,7 +1317,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(client.models).toEqual([HAIKU, NOVA_PRO]);
     // Story 21.2: the escalation call asks for the vector group too.
     for (const prompt of client.prompts) expect(prompt).toContain(vectorGroupPrompt('ligacao_secundaria'));
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(11);
     expect(mine.filter((s) => s.trust === 'verify')).toHaveLength(1);
     const [run] = await runs(id);
@@ -1335,7 +1337,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     const client = converse({ [HAIKU]: poorAnswer, [NOVA_PRO]: fewer });
     await read(bedrockDeps(client), id);
     expect(client.models).toEqual([HAIKU, NOVA_PRO]);
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine.map((s) => s.trust).sort()).toEqual(['suggested', 'verify', 'verify']);
     expect((await runs(id))[0]).toMatchObject({ model: HAIKU, llm_usage: { input_tokens: 4100, output_tokens: 800 } });
   }, 60_000);
@@ -1350,7 +1352,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     await read(bedrockDeps(client), id);
     expect(await status(id)).toBe('done');
     expect(client.models).toEqual([HAIKU]);
-    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+    expect((await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id)).toEqual([]);
     expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: HAIKU, llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
   }, 60_000);
 
@@ -1362,7 +1364,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     await read(bedrockDeps(client), id);
     expect(await status(id)).toBe('done');
     expect(client.models).toEqual([HAIKU, NOVA_PRO]);
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(11);
     expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: NOVA_PRO, llm_usage: { input_tokens: 4100, output_tokens: 800, usd: Math.round((usd(HAIKU) + usd(NOVA_PRO)) * 1e6) / 1e6 } });
   }, 60_000);
@@ -1375,7 +1377,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     const client = converse({ [HAIKU]: { values: [] }, [NOVA_PRO]: verifyOnly });
     await read(bedrockDeps(client), id);
     expect(client.models).toEqual([HAIKU, NOVA_PRO]);
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine.map((s) => s.trust)).toEqual(['verify', 'verify']);
     expect((await runs(id))[0]).toMatchObject({ model: NOVA_PRO });
   }, 60_000);
@@ -1464,7 +1466,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
       };
       await read(bedrockDeps(client), id);
       expect(await status(id)).toBe('done');
-      const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+      const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
       expect(mine.map((s) => s.trust).sort()).toEqual(['suggested', 'verify', 'verify']);
       const rows = await runs(id);
       expect(rows).toHaveLength(1);
@@ -1482,7 +1484,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(await status(id)).toBe('done');
     // Panel fronts read on their own model (Qwen3 VL by default), never on Haiku, and never escalate.
     expect(client.models).toEqual([QWEN]);
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ target_path: `file/${id}/block_id`, prompt_version: 'bedrock-structuring-10' });
     expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: QWEN, prompt_version: 'bedrock-structuring-10', llm_usage: { input_tokens: 1700, output_tokens: 120, usd: usd(QWEN) } });
@@ -1501,7 +1503,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(client.models).toEqual([QWEN]);
     // Story 21.2: a panel reading never asks for a vector group.
     expect(client.prompts[0]).not.toContain('vector group');
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ trust: 'verify' });
     expect((await runs(id))[0]).toMatchObject({ model: QWEN });
@@ -1524,7 +1526,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     // API-V2 (review 2026-10-08): a denied call is recorded as a refusal, a PermanentReadingError subclass (one attempt above).
     expect(rows[0]!.error).toContain('ProviderRefusedError');
     expect(rows[0]!.error).toContain('AccessDeniedException');
-    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+    expect((await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id)).toEqual([]);
   }, 60_000);
 });
 
@@ -1572,7 +1574,7 @@ describe('14.6-INT a plate reading on a block of a company type', () => {
     const id = await photo(relatorioId, block, bytes, 'image/png');
     await runReadingJob(deps, { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: false });
     expect(await status(id)).toBe('done');
-    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    const mine = (await suggestions(relatorioId)).filter((s) => suggestionPhotoId(s) === id);
     expect(mine.map((s) => s.target_path)).toEqual([`sheet/${block.id}/nameplate/modelo`]);
     expect(DEFINITION_1.nameplate.map((field) => field.key)).toContain('modelo');
   }, 60_000);

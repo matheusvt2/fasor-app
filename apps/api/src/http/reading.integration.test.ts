@@ -23,6 +23,8 @@ import {
   type Op,
   type OpDraft,
   type SuggestionRow,
+  photoSourceOf,
+  suggestionPhotoId,
 } from '@app/domain';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -389,7 +391,7 @@ describe('8.4-INT the plate read end to end over the compose api', () => {
       expect(discard?.value, old.target_path).toBe('discarded');
       expect(discard?.actor_id).toBe('system:reading');
     }
-    const fresh = createdSuggestions(all).filter((row) => row.source.reading_run_id === runs[1]!.id);
+    const fresh = createdSuggestions(all).filter((row) => photoSourceOf(row)!.reading_run_id === runs[1]!.id);
     expect(fresh).toHaveLength(11);
     expect(await jobsFor(photoId)).toBe(2);
   }, 90_000);
@@ -506,7 +508,7 @@ describe('9.1-INT a display read end to end over the compose api', () => {
     expect(res.status, await res.clone().text()).toBe(200);
     const all = await waitForStatuses(relatorioId, id, 2);
     expect(statusOps(all, id).map((op) => op.value)).toEqual(['running', 'done']);
-    const rows = createdSuggestions(all).filter((row) => row.source.photo_id === id);
+    const rows = createdSuggestions(all).filter((row) => suggestionPhotoId(row) === id);
     expect(rows.map((row) => [row.target_path, row.value, row.trust, row.mode])).toEqual([
       [sheetTestCellPath(transformer.id, 'isolacao', 0, 1), { raw: '1.45', unit: 'G\u03a9', state: 'measured' }, 'suggested', 'fill'],
     ]);

@@ -1,0 +1,7 @@
+{
+  "$comment": "Story 31.2: what the fake writing step (LLM_PROVIDER=fake) writes. The first entry whose heard is the text as heard (and whose level, when given, is the call's) answers its text, or fails with its error (transient is retried, permanent falls back to the text as heard); with no entry the heard text is tidied with a closing full stop. Synthetic texts, no client material.",
+  "entries": [
+    { "heard": "equipamento verificado sem anomalias aparentes", "level": "polish", "text": "Equipamento verificado, sem anomalias aparentes." },
+    { "heard": "equipamento verificado sem anomalias aparentes", "level": "report", "text": "O equipamento foi verificado e não apresentou anomalias aparentes." }
+  ]
+}

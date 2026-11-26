@@ -20,6 +20,7 @@ import {
   oilNaChipText,
   oilRuleOf,
   PLATE_CAPTION,
+  photoSourceOf,
   plateCropRegion,
   platePhotoOf,
   plateReadingTarget,
@@ -323,10 +324,13 @@ export function NameplateSection({
   const focusedBox = (() => {
     if (plate === null || region === null || focusedKey === null) return null;
     const entry = suggestions.entries.get(focusedKey);
-    if (entry !== undefined && entry.suggestion.source.photo_id === plate.id) return entry.suggestion.source.bbox;
+    // Story 31.1: only a suggestion read from a photo has a region (one spoken into an audio has none).
+    const pending = entry === undefined ? null : photoSourceOf(entry.suggestion);
+    if (pending !== null && pending.photo_id === plate.id) return pending.bbox;
     const sourceId = block.sheet.nameplate[focusedKey]?.source_suggestion_id ?? null;
     const source = sourceId === null ? null : suggestions.sourceOf(sourceId);
-    return source !== null && source.source.photo_id === plate.id ? source.source.bbox : null;
+    const confirmed = source === null ? null : photoSourceOf(source);
+    return confirmed !== null && confirmed.photo_id === plate.id ? confirmed.bbox : null;
   })();
 
   const trackFocus = (event: FocusEvent<HTMLDivElement>) => {

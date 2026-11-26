@@ -729,8 +729,17 @@
  * removal it did not see. A removal records `removed_by` only when stamped (`meta.seen_modified_at`), and "Deixar
  * removido" keeps the original remover. Unstamped ops (an older bundle, a server op) fold as before 61: a history
  * written before it reaches the same row on the server and on every device, with no mark.
+ *
+ * 62 (2026-11-26, batch e31a, Stories 31.1 and 31.2, AD-30): the `file` union gains the `audio` kind (an audio
+ * recorded on one field: `audio_target`, `audio_status`, `quality`, and the server's `transcript_heard`,
+ * `transcript_written`, `transcription_run_id` and `not_a_reading`); every other kind refuses those fields. The
+ * client put family `file/{id}/audio_status` is new (a device writes only `dismissed`; the push route refuses any
+ * other value from a client), and so are the server-only puts `file/{id}/{transcript_heard|transcript_written|
+ * transcription_run_id|not_a_reading}`. A Suggestion's `source` is a photo's (as before) or `{audio_id}` (a reading
+ * spoken into a measurement table, no box, no tokens), written by `system:transcription`. An audio's create needs
+ * the key of the field it targets. The route `POST /api/audios/{id}/retranscribe` is new. MIN follows to 62.
  */
-export const CONTRACT_VERSION = 61;
+export const CONTRACT_VERSION = 62;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -1164,7 +1173,13 @@ export const CONTRACT_VERSION = 61;
  * removal. Its pull answers `426 contract_outdated` and it updates; its pushes are still accepted (an unstamped
  * removal folds as before: no mark).
  */
-export const MIN_CONTRACT_VERSION = 61;
+/*
+ * 62 (2026-11-26, batch e31a, Story 31.1): a version-61 (or older) bundle cannot parse an `audio` file row nor an
+ * audio-sourced Suggestion (its `file` union and its Suggestion source know neither), so a pulled page carrying one
+ * fails to fold and the relatório stops syncing; its path enum also lacks `file/{id}/audio_status`. Its pull answers
+ * `426 contract_outdated` and it updates; its pushes are still accepted (a 61 op folds as before).
+ */
+export const MIN_CONTRACT_VERSION = 62;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

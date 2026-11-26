@@ -52,6 +52,13 @@ describe('config', () => {
     expect(() => loadConfig({ ...valid, TEXTRACT_REGION: '' })).toThrow(/TEXTRACT_REGION/);
   });
 
+  it('Story 31.2: STT_PROVIDER defaults to fake and reads fake or transcribe only', () => {
+    expect(loadConfig(valid).STT_PROVIDER).toBe('fake');
+    expect(loadConfig({ ...valid, STT_PROVIDER: '' }).STT_PROVIDER).toBe('fake');
+    expect(loadConfig({ ...valid, STT_PROVIDER: 'transcribe' }).STT_PROVIDER).toBe('transcribe');
+    expect(() => loadConfig({ ...valid, STT_PROVIDER: 'whisper' })).toThrow(/STT_PROVIDER/);
+  });
+
   it('reads LLM_PROVIDER fake or bedrock only (Story 11.6: no anthropic provider)', () => {
     expect(loadConfig({ ...valid, LLM_PROVIDER: 'bedrock' }).LLM_PROVIDER).toBe('bedrock');
     expect(() => loadConfig({ ...valid, LLM_PROVIDER: 'anthropic' })).toThrow(/LLM_PROVIDER/);

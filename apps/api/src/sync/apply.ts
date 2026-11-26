@@ -1,6 +1,8 @@
 import {
   applyOp,
   attributionIssue,
+  audioQualityMatches,
+  audioQualitySchema,
   definitionTypeIdsOf,
   clientReadingKindPutAllowed,
   entityKey,
@@ -144,8 +146,23 @@ function clientReadingFieldsAreValid(value: unknown): boolean {
  */
 function clientReadingPutIsValid(field: string, value: unknown): boolean {
   if (field === 'reading_kind') return value === 'plate' || value === 'caption' || value === null;
+  // Story 31.1 (AD-30, contract 62): a device dismisses an audio; every other status is `system:transcription`'s.
+  if (field === 'audio_status') return value === 'dismissed';
   if (field === 'reading_target') return value === null || (typeof value === 'object' && !Array.isArray(value));
   return true;
+}
+
+/**
+ * Story 31.1 (AD-30, contract 62): a device's audio create is born `queued`, in a relatório, with
+ * the quality the kernel gives its measures (`audioQualityMatches`); its transcripts, run and
+ * `not_a_reading` are the server's (`serverFileFieldsAreEmpty`).
+ */
+function clientAudioCreateIsValid(op: Op): boolean {
+  const row = op.value as Record<string, unknown> | null;
+  if (row === null || typeof row !== 'object' || row.kind !== 'audio') return true;
+  if (row.audio_status !== 'queued' || op.relatorio_id == null) return false;
+  const quality = audioQualitySchema.safeParse(row.quality);
+  return quality.success && audioQualityMatches(quality.data);
 }
 
 /** E9-Q2: a client `reading_kind` put the photo's stored state does not allow (`op_invalid`, a permanent refusal). */
@@ -239,7 +256,10 @@ function validateOp(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Valida
     if (path.family === 'file' && !clientReadingFieldsAreValid(op.value)) {
       return { ok: false, code: 'op_invalid' };
     }
-    if (path.family === 'file/field' && (op.kind !== 'put' ? path.field === 'reading_kind' || path.field === 'reading_target' : !clientReadingPutIsValid(path.field, op.value))) {
+    if (path.family === 'file' && !clientAudioCreateIsValid(op)) {
+      return { ok: false, code: 'op_invalid' };
+    }
+    if (path.family === 'file/field' && (op.kind !== 'put' ? path.field === 'reading_kind' || path.field === 'reading_target' || path.field === 'audio_status' : !clientReadingPutIsValid(path.field, op.value))) {
       return { ok: false, code: 'op_invalid' };
     }
     // Story 20.9: the value's size and type (every string capped, a free-text cell is text, the altitude in range).

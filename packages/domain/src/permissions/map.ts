@@ -1,6 +1,7 @@
+import { audioPermissionPath } from '../audio/target.ts';
 import type { Op } from '../ops/op.ts';
 import { parsePath, safeParsePath, type OpPath, type PathFamily } from '../ops/path.ts';
-import type { RegistryKind, RelatorioStatus } from '../schemas/entities.ts';
+import { audioTargetSchema, type RegistryKind, type RelatorioStatus } from '../schemas/entities.ts';
 import { countsAsEdit, type EditCandidate } from '../status/edited-since.ts';
 import { can, type RoleLike } from './can.ts';
 import type { PermissionKey } from './keys.ts';
@@ -82,6 +83,20 @@ const setupNeed = (path: OpPath): PermissionNeed =>
 const statusNeed = (_path: OpPath, op: PermissionOp, context: PermissionContext): PermissionNeed =>
   op.kind === 'put' && (op.value === 'emitido' || context.relatorioStatus === 'emitido') ? 'relatorio.issue' : 'relatorio.fill';
 
+/**
+ * Story 31.1 (AD-30, AD-29 "the mic follows the field's own write permission"): an audio's create
+ * needs the key of the field it targets (`audioPermissionPath`), so a role that cannot write the
+ * field cannot record into it; every other file create, and a create whose target does not parse
+ * (the row schema refuses it), needs `relatorio.fill`.
+ */
+const fileCreateNeed = (_path: OpPath, op: PermissionOp): PermissionNeed => {
+  const value = op.value as { kind?: unknown; audio_target?: unknown } | null;
+  if (op.kind !== 'create' || value === null || typeof value !== 'object' || value.kind !== 'audio') return 'relatorio.fill';
+  const target = audioTargetSchema.safeParse(value.audio_target);
+  if (!target.success) return 'relatorio.fill';
+  return permissionForPath(audioPermissionPath(target.data), { kind: 'put', value: null });
+};
+
 const registryCreateNeed = (path: OpPath): PermissionNeed =>
   path.family === 'registry' && FICHA_REGISTRY_KINDS.includes(path.kind) ? 'relatorio.fill' : 'registry.edit';
 
@@ -116,7 +131,7 @@ const FAMILY_NEEDS = {
   'sheet/observations': 'relatorio.fill',
   equipment: 'relatorio.fill',
   'equipment/field': 'relatorio.fill',
-  file: 'relatorio.fill',
+  file: fileCreateNeed,
   'file/field': 'relatorio.fill',
   point: 'relatorio.fill',
   'point/field': 'relatorio.fill',

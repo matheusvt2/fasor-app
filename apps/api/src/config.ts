@@ -62,6 +62,12 @@ export const configSchema = z
     LLM_PROVIDER: z.enum(['fake', 'bedrock']).default('fake'),
     OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
     /**
+     * Story 31.2 (AD-30): the speech step of the transcription job. `fake` (the default) replays
+     * fixtures; `transcribe` is Amazon Transcribe, whose adapter arrives with Story 31.8: until then
+     * selecting it fails at boot (`createSpeechProvider`).
+     */
+    STT_PROVIDER: z.preprocess(unsetWhenEmpty, z.enum(['fake', 'transcribe']).default('fake')),
+    /**
      * Story 11.8 follow-up: `off` refuses every reading whose pipeline needs the LLM step
      * (`readingNeedsAi`: plate, panel, caption, nc_obs) and tells the web to hide their entry
      * points; `display` (OCR only) stays. Production runs `off` until the Bedrock quota (Story 11.6).

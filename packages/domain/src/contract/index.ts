@@ -15,6 +15,8 @@ export * from './examples.ts';
 export * from './ocr.ts';
 export * from './reading.ts';
 export * from './prose.ts';
+// Stories 31.1 and 31.2 (AD-30): the speech and writing providers and the retranscribe route.
+export * from './transcription.ts';
 export * from './audit.ts';
 export * from './telemetry.ts';
 export * from './telemetry-device.ts';

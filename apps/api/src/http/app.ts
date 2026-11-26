@@ -16,6 +16,8 @@ import type { GeneratePayload } from '../jobs/generate/job.ts';
 import { enqueueGenerate } from '../jobs/generate/worker.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { enqueueReading } from '../jobs/reading/worker.ts';
+import type { TranscriptionPayload } from '../jobs/transcription/payload.ts';
+import { enqueueTranscription } from '../jobs/transcription/worker.ts';
 import { createFakeEmailProvider } from '../email/fake.ts';
 import type { EmailProvider } from '../email/types.ts';
 import { log, logError } from '../log.ts';
@@ -24,6 +26,7 @@ import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
 import { createAdminRolesRoutes } from './admin-roles.ts';
 import { createAdminUsersRoutes } from './admin-users.ts';
+import { createAudioRoutes } from './audios.ts';
 import { createAuditRoutes } from './audit.ts';
 import { createFileRoutes } from './files.ts';
 import { createGenerateRoutes } from './generate.ts';
@@ -122,6 +125,8 @@ export interface AppOptions {
    * neither, file receipt leaves a plate photo `queued` and the reread route answers 500.
    */
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
+  /** Story 31.2: test override of the send to the `transcription` queue; wins over `boss`. With neither, an audio stays `queued` at receipt and the retranscribe route answers 500. */
+  enqueueTranscription?: (payload: TranscriptionPayload) => Promise<void>;
   /** Story 13.8: test override of the send to the `audit` queue; wins over `boss`. With neither, the audit route answers 500 after failing its run. */
   enqueueAudit?: (payload: AuditPayload) => Promise<void>;
   /** Story 11.8 follow-up: `config.AI_FEATURES === 'on'`; absent reads as on (every existing test). */
@@ -385,6 +390,9 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       readingDailyQuota: quotas.readings,
     }),
   );
+  // Story 31.2: file receipt of an audio and the retranscribe route send its transcription.
+  const sendTranscription =
+    options.enqueueTranscription ?? (boss === undefined ? undefined : (payload: TranscriptionPayload) => enqueueTranscription(boss, payload));
   // AD-7: mounted after the sync routes so it sits behind the same `/api/*` session
   // middleware; every handler resolves its company from the session (AD-10).
   app.route(
@@ -392,8 +400,19 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
     createFileRoutes(options.db, options.s3, options.bucket, {
       now: options.now ?? clock,
       ...(sendReading === undefined ? {} : { enqueueReading: sendReading }),
+      ...(sendTranscription === undefined ? {} : { enqueueTranscription: sendTranscription }),
       aiFeatures,
       readingDailyQuota: quotas.readings,
+    }),
+  );
+  // Story 31.2: "Tentar de novo" of a failed audio, behind the same session middleware.
+  app.route(
+    '/',
+    createAudioRoutes(options.db, {
+      now: options.now ?? clock,
+      newId: options.newId ?? mintId,
+      ...(sendTranscription === undefined ? {} : { enqueueTranscription: sendTranscription }),
+      aiFeatures,
     }),
   );
   // Story 8.4: the reread route, behind the same session middleware.

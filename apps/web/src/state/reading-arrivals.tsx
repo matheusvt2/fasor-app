@@ -10,6 +10,7 @@ import {
   panelSuggestionOf,
   pendingSuggestions,
   photoFileRowSchema,
+  suggestionPhotoId,
   suggestionRowSchema,
   suggestionRowsOf,
   type ArrivalScreen,
@@ -98,7 +99,8 @@ export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest
   const state = await relatorioState(db, relatorioId);
   if (state === null) return `/relatorio/${relatorioId}`;
   if (newest !== undefined) {
-    const photo = photoFileRowSchema.safeParse(state.get(`file:${newest.source.photo_id}`));
+    // Story 31.1: a suggestion spoken into an audio names no photo (no row then parses).
+    const photo = photoFileRowSchema.safeParse(state.get(`file:${suggestionPhotoId(newest) ?? ''}`));
     if (photo.success && panelSuggestionOf([newest], photo.data.id) !== null) {
       const target = photo.data.reading_target as { location_id?: unknown } | null;
       const locationId = target !== null && typeof target === 'object' && typeof target.location_id === 'string' ? target.location_id : null;

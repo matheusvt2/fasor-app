@@ -47,6 +47,8 @@ export const FILE_KIND_MIME = {
   cover_background: ['image/jpeg', 'image/png'],
   cover_photo: ['image/jpeg', 'image/png'],
   photo: ['image/jpeg'],
+  // Story 31.1 (AD-30): a recording, `MediaRecorder`'s WebM/Opus or MP4/AAC, its row naming the container type alone.
+  audio: ['audio/webm', 'audio/mp4'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type UploadFileKind = keyof typeof FILE_KIND_MIME;
@@ -79,6 +81,8 @@ const MIME_REFUSAL: Record<UploadFileKind, string> = {
   cover_background: 'Formato não aceito. Envie JPG ou PNG.',
   cover_photo: 'Formato não aceito. Envie JPG ou PNG.',
   photo: 'Formato não aceito. Envie JPG.',
+  // authored (Story 31.1, listed for Bruno)
+  audio: 'Formato de áudio não aceito.',
 };
 
 const TOO_LARGE_TEXT = 'Arquivo acima de 25 MB. Escolha um menor.';
@@ -105,7 +109,7 @@ export type FileVariant = 'original' | 'thumb' | 'print';
  * `company/{cid}/{kind}/{id}`; a derived variant extends it by suffix
  * (`company/{cid}/{kind}/{id}/thumb`), so no key is ever overwritten. A photo lives under
  * its relatório (Story 6.2): `company/{cid}/relatorio/{rid}/photo/{id}` whenever the row
- * names one.
+ * names one. Story 31.1: an audio too, `company/{cid}/relatorio/{rid}/audio/{id}`.
  */
 export function objectKey(
   companyId: string,
@@ -115,8 +119,8 @@ export function objectKey(
   relatorioId: string | null = null,
 ): string {
   const base =
-    kind === 'photo' && relatorioId !== null
-      ? `company/${companyId}/relatorio/${relatorioId}/photo/${id}`
+    (kind === 'photo' || kind === 'audio') && relatorioId !== null
+      ? `company/${companyId}/relatorio/${relatorioId}/${kind}/${id}`
       : `company/${companyId}/${kind}/${id}`;
   return variant === 'original' ? base : `${base}/${variant}`;
 }
