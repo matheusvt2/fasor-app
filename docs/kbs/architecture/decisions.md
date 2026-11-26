@@ -39,3 +39,4 @@ sources: [_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-0
 | 27 | Containers, AWS, Terraform | [infra](/architecture/infra-aws.md) |
 | 28 | Usage events outside the op log (device queue, `POST /api/telemetry`, CloudWatch group) | [ops](/architecture/ops-and-local-first.md), [infra](/architecture/infra-aws.md) |
 | 29 | Roles and permissions: the keys, the seeded roles and the one verdict in the kernel; roles as server-only company ops (2026-11-21, Epic 26) | [roles-and-permissions](/architecture/roles-and-permissions.md) |
+| 30 | Voice input: audio as a file, the transcription job, prose written and readings suggested, the guard, the AI control (2026-11-26, Epic 31, planned) | [suggestions](/architecture/suggestions-and-reading.md), [files](/architecture/files-and-photos.md) |
