@@ -54,6 +54,18 @@
 [data-route="/relatorio/porto-seguro/legenda"] .caption-field:not([data-state="suggested"]) > .suggested-pill { display: none; }
 [data-route="/relatorio/porto-seguro/legenda"] .caption-field .dictated-note { display: none; }
 [data-route="/relatorio/porto-seguro/legenda"] .caption-field[data-state="suggested"] .dictated-note { display: inline; }
+/* 2026-11-26, Epic 31: the three rules above served the dictated suggestion, which is gone (no pill, no note in the markup any more).
+   The audio's states, by the "Simular" radiogroup (prototype chrome): saved, transcribing, arrived (the caption replaced, marked "Áudio"). */
+[data-route="/relatorio/porto-seguro/legenda"] .e31-cap .e31-cap-aud, [data-route="/relatorio/porto-seguro/legenda"] .e31-cap .e31-cap-saved,
+[data-route="/relatorio/porto-seguro/legenda"] .e31-cap .e31-cap-tr, [data-route="/relatorio/porto-seguro/legenda"] .e31-cap .e31-cap-mark { display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .e31-cap:has([data-sim="saved"][aria-checked="true"]) .e31-cap-saved,
+[data-route="/relatorio/porto-seguro/legenda"] .e31-cap:has([data-sim="tr"][aria-checked="true"]) .e31-cap-tr,
+[data-route="/relatorio/porto-seguro/legenda"] .e31-cap:has([data-sim="arrived"][aria-checked="true"]) .e31-cap-mark { display: flex; }
+[data-route="/relatorio/porto-seguro/legenda"] .e31-cap:has([data-sim="arrived"][aria-checked="true"]) .e31-cap-aud { display: inline; }
+[data-route="/relatorio/porto-seguro/legenda"] .e31-cap:has([data-sim="arrived"][aria-checked="true"]) .e31-cap-gen { display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .e31-sim { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: 1px dashed var(--border-hairline); }
+[data-route="/relatorio/porto-seguro/legenda"] .e31-sim-label { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro/legenda"] .e31-sim .chip[aria-checked="true"] { background: var(--focus-fill); border-color: var(--primary); color: var(--primary); }
 </style>
 <section class="screen" data-route="/relatorio/porto-seguro/legenda" data-title="Legendar foto" data-shell="app" data-rail="false" data-sync="error" data-sync-label="Erro">
   <div class="content">
@@ -145,19 +157,25 @@
       </div>
 
       <!-- Generated caption: three spans, one per field; "Editar texto" swaps to free text with the Dictation button -->
-      <div class="field suggestion-field caption-field" id="legenda-cap-field">
+      <!-- 2026-11-26, Epic 31 (Stories 31.3, 31.4, 31.9; AD-30): the Dictation button became the Audio button and shows in both modes.
+           An audio replaces the caption while it is still the generated one and is added after an edited one; the text arrives marked
+           "Áudio" with play and the text as heard, never as a suggestion to confirm. "Simular" (prototype chrome) shows the states. -->
+      <div class="field caption-field e31-cap" id="legenda-cap-field">
         <span class="field-label">Legenda gerada</span>
-        <p class="caption-preview" role="status" id="legenda-preview">Detalhe <span id="legenda-prev-atv">do bloqueio e etiquetagem (LOTO) realizado</span> <span id="legenda-prev-eq">no cubículo de entrada</span> <span id="legenda-prev-loc">do Cubículo Enel</span></p>
+        <p class="caption-preview" role="status" id="legenda-preview"><span class="e31-cap-gen">Detalhe <span id="legenda-prev-atv">do bloqueio e etiquetagem (LOTO) realizado</span> <span id="legenda-prev-eq">no cubículo de entrada</span> <span id="legenda-prev-loc">do Cubículo Enel</span></span><span class="e31-cap-aud">Detalhe do bloqueio e etiquetagem nas travas do cubículo de entrada do Cubículo Enel, feito com a equipe da concessionária</span></p>
         <div class="observation-field caption-edit" role="textbox" aria-multiline="true" aria-label="Texto da legenda" id="legenda-edit" contenteditable="true">Detalhe do bloqueio e etiquetagem (LOTO) realizado no cubículo de entrada do Cubículo Enel</div>
-        <span class="suggested-pill">Sugerido</span>
+        <p class="audio-status e31-cap-saved" data-step="saved"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg>Áudio guardado, aguardando sinal</p>
+        <p class="audio-status e31-cap-tr" data-step="transcribing"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg>Transcrevendo</p>
+        <div class="audio-mark e31-cap-mark"><span class="audio-tag"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg>Áudio</span><button class="audio-play" aria-label="Ouvir o áudio, 0:07" data-toast="Tocando o áudio (0:07)"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg><span class="audio-dur">0:07</span></button><button class="btn btn-text audio-heard-toggle" aria-expanded="false" aria-controls="legenda-heard" data-open="#legenda-heard">Ver texto como falado</button><p class="audio-heard" id="legenda-heard" hidden><span class="audio-heard-label">Texto como falado</span>bloqueio e etiquetagem nas travas do cubículo de entrada do cubículo Enel feito com a equipe da concessionária</p></div>
         <div class="caption-actions">
           <button class="btn btn-text" style="margin-left: calc(-1 * var(--sp-3))" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar texto</button>
-          <span class="dictation caption-dictation">
-            <button class="dictation-btn" aria-pressed="false" aria-label="Ditar a legenda" data-listen="#legenda-edit|Detalhe do bloqueio e etiquetagem realizado nas travas do cubículo de entrada do Cubículo Enel, com a equipe da concessionária"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button>
-            <span class="listening-word">Ouvindo…</span>
-          </span>
-          <span class="btn-reason">Ao editar, a legenda deixa de ser regenerada<span class="dictated-note"> · o ditado entrou como sugestão — Salvar confirma</span></span>
+          <div class="audio-tools">
+            <span class="audio-rec"><button class="audio-btn" aria-pressed="false" aria-label="Gravar áudio: legenda da foto 4"><svg class="ico ico-mic" aria-hidden="true"><use href="#i-mic"/></svg><svg class="ico ico-stop" aria-hidden="true"><use href="#i-stop"/></svg></button><span class="audio-live" aria-hidden="true"><span class="audio-rec-word">Gravando</span><span class="audio-time">0:04</span><span class="audio-meter" data-level="3"><i></i><i></i><i></i><i></i><i></i></span></span></span>
+            <span class="ai-write"><button class="ai-btn" data-toast="Escrevendo… a legenda é reescrita como texto de relatório"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg><span class="ai-word">Melhorar o texto com IA</span><span class="ai-busy-word">Escrevendo</span></button></span>
+          </div>
+          <span class="btn-reason">Ao editar, a legenda deixa de ser regenerada</span>
         </div>
+        <div class="e31-sim" role="radiogroup" aria-label="Simular o áudio da legenda"><span class="e31-sim-label">Simular:</span><button class="chip" role="radio" aria-checked="true" data-sim="none">Sem áudio</button><button class="chip" role="radio" aria-checked="false" data-sim="saved">Sem sinal</button><button class="chip" role="radio" aria-checked="false" data-sim="tr">Transcrevendo</button><button class="chip" role="radio" aria-checked="false" data-sim="arrived">Chegou</button></div>
       </div>
     </section>
 

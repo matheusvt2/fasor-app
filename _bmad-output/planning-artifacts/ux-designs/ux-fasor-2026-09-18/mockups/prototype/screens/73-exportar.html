@@ -84,6 +84,9 @@
             <!-- Story 25.1 Part B (2026-11-11), for Story 25.7: a concluded sheet whose stored text is stale is now a blocking row on every seed,
                  with its own place (section 9) and its way out (the sheet, where "Substituir" or an edit of the text clears it). -->
             <li class="is-blocking" id="exportar-pc-stale"><span class="pc-text"><span class="pc-block" id="exportar-pc-stale-t">Texto de conclusão desatualizado: SEC-C05</span> — seção 9 <span class="pc-meta">(os valores da ficha mudaram depois do texto; Substituir ou editar o texto na ficha)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/SEC-C05">Abrir ficha</button><button class="btn btn-text pc-sim" data-toggle-class="is-done" data-toggle-target="#exportar-pc-stale" data-set-text="#exportar-pc-stale-t|Texto de conclusão atualizado: SEC-C05" data-toast="Texto substituído — a linha sai da lista">Simular substituído</button></span></li>
+            <!-- 2026-11-26, Epic 31, Story 31.6 (AD-30): an audio queued, transcribing or failed anywhere in the relatório blocks emission. The kernel's
+                 sentence, then each audio with its place and a way to it; "Pré-visualizar" (RASCUNHO) stays allowed. -->
+            <li class="is-blocking" id="exportar-pc-audio"><span class="pc-text"><span class="pc-block" id="exportar-pc-audio-t">2 áudios aguardando transcrição</span> — seções 7 e 9 <span class="pc-meta">(SEC-C05 · observação do item 8, transcrevendo; foto 15 · legenda, transcrevendo)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/SEC-C05" aria-label="Abrir SEC-C05, observação do item 8">SEC-C05</button><button class="btn btn-text" data-go="#/relatorio/porto-seguro/fotos" aria-label="Abrir a foto 15">Foto 15</button><button class="btn btn-text pc-sim" data-toggle-class="is-done" data-toggle-target="#exportar-pc-audio" data-set-text="#exportar-pc-audio-t|Áudios transcritos" data-toast="Os 2 textos chegaram — a linha sai da lista">Simular transcritos</button></span></li>
             <!-- Story 25.1 Part B (2026-11-11), for Stories 25.12 and 25.13: the named rows, none blocking; the rest stays a count -->
             <li><span class="pc-text">Prazo já vencido: ponto 3 <span class="pc-meta">— seção 8 · o prazo foi 10/09/2026</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/relatorio/porto-seguro/pontos">Pontos</button></span></li>
             <li><span class="pc-text">7E: sem data de calibração <span class="pc-meta">— seção 11 · sem ela a validade não é calculada</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/cadastros">Cadastros</button></span></li>
@@ -139,7 +142,8 @@
         <div class="generate-row" id="exportar-gen-blocked">
           <button class="btn btn-secondary" data-toast="Gerando rascunho… abre em uma nova aba, com RASCUNHO em cada página e sem número de revisão"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Pré-visualizar</button>
           <button class="btn btn-primary" aria-disabled="true" aria-describedby="exportar-gen-blocked-reason">Gerar relatório</button>
-          <span class="btn-reason" id="exportar-gen-blocked-reason">Preencha o parecer (linha 10 do sumário) e atualize o texto da conclusão de SEC-C05 para emitir a revisão 3. O rascunho pode ser visto antes.</span>
+          <!-- 2026-11-26, Epic 31, Story 31.6: the reason names the audios too; until this date it read "Preencha o parecer (linha 10 do sumário) e atualize o texto da conclusão de SEC-C05 para emitir a revisão 3. O rascunho pode ser visto antes." -->
+          <span class="btn-reason" id="exportar-gen-blocked-reason">Preencha o parecer (linha 10 do sumário), atualize o texto da conclusão de SEC-C05 e espere os 2 áudios aguardando transcrição para emitir a revisão 3. O rascunho pode ser visto antes.</span>
         </div>
 
         <!-- idle -->
