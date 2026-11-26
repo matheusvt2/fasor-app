@@ -13746,6 +13746,8 @@ So that I never record a whole observation into noise.
 
 **Definition of Done:** web tests "31.3-WEB-…" (the recorder behind a seam, the measures on fixed sample buffers, the warnings, the limit); E2E "31.3-E2E-001" (`@p0`, record offline through the test seam, the file and its op are stored and the status line shows) and "-002" (microphone refused); the measures run in an audio worklet or analyser without blocking typing; checked at 390, 768 and 1280 px; `docs/kbs/code/web-app.md`.
 
+*(Outcome, 2026-11-26, batch e31b: built with 31.4. The kernel owns the limits, live warnings and status steps (`audio/recording.ts`); the seam is a `getUserMedia` override with a Web Audio stream (`e2e/support/audio.ts`). Narrowings, open to Matheus: no button on the measurement table until Story 31.5 (e31c); the batch caption and an unsaved point or photo show the button disabled; a local's checklist rows have no mic (no audio target names them); the button hides when AI features are off; usage events skipped (need new contract values).)*
+
 ### Story 31.4: The text lands in the field, marked "Áudio"
 
 **Dev model:** sonnet · **Effort:** high · web: the status line, the arrival, the mark, play and the text as heard on the six prose fields already wired; the Conta line; batch e31c
@@ -13787,6 +13789,8 @@ So that I trust it without checking each step.
 **Then** no "Ditado", "Ditar" or "Ouvindo…" remains, no "Usar" stands between a transcript and a prose field, and the Conta screen carries the line about stored voice
 
 **Definition of Done:** web tests "31.4-WEB-…"; E2E "31.4-E2E-001" (`@p0`, record offline, go online, the text arrives marked on an NC observation), "-002" (caption replaced), "-003" (typed text kept); axe clean; the announcements said by a live region; strings listed for Bruno.
+
+*(Outcome, 2026-11-26, batch e31b: built. `failed` and `dismissed` audios draw nothing (Story 31.6); open risk: online, the batch caption's "Adicionar N fotos" can overwrite the first photo's audio caption if the transcript lands first.)*
 
 ### Story 31.5: A spoken reading waits for review
 
