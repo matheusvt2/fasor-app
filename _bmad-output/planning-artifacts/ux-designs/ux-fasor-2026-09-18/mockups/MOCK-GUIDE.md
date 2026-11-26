@@ -41,7 +41,7 @@ Inside a relatório: tablet landscape and desktop show `.rail` (320px, `relatori
 
 ## Smart-input components (DESIGN.md v0.5.0 — every block is in `components.css`; tokens in `tokens.css` as `--<component>-<key>`)
 - **Camera capture button** `.camera-capture-btn` (56px primary square: `.ico` camera + `.cam-word` "Foto"; burst count via `data-count="3"`); tile variant `.camera-capture-tile` ("Fotografar placa", ≥ 96px dashed) inside `.camera-group` with the copy Chips above and `.btn-text` "Digitar" under; `.camera-denied` for the permission reason. In the sheet's Sticky action bar add `has-camera` to `.bar-buttons` and put the button first.
-- **Dictation button** `.dictation > .dictation-btn[aria-pressed] + .listening-word` ("Ouvindo…"); listening = `aria-pressed="true"` (focus-fill + pulsing dot, reduced-motion safe). Hidden, not disabled, when unavailable.
+- ~~**Dictation button** `.dictation > .dictation-btn[aria-pressed] + .listening-word` ("Ouvindo…"); listening = `aria-pressed="true"` (focus-fill + pulsing dot, reduced-motion safe). Hidden, not disabled, when unavailable.~~ *(2026-11-26, Epic 31, AD-30: superseded by the **Audio button** `.audio-rec > .audio-btn[aria-pressed] + .audio-live` ("Gravando" + time + `.audio-meter`), with the field's audio states and the AI control; see § 2026-11-26 at the end. The `.dictation*` rules stay in `components.css` for the screens not yet redrawn; no new frame uses them.)*
 - **Section stepper** `.section-stepper > button.step[data-missing="2"][aria-current="step"]` with `.step-name > .long/.short` ("Verificações"/"Verif.") and `.step-count > .n`; `data-missing="0"` draws ✓. First child of the sheet's `.sticky-action-bar`.
 - **Bulk action bar** `.bulk-action-bar > .bulk-action > .btn-text` (+ `.btn-reason` when disabled) at the head of the checklist; `.is-compact` inside the Sticky action bar's `.bar-buttons`.
 - **Read display button** `.read-display-btn` (camera glyph + "Ler visor", `data-count` in burst) in `.mt-title-row > .mt-actions` with the Dictation button, above each `.measurement-table` / phone `.measurement-cards`; a cell waiting offline gets `td.cell-queued > .queued-banner` ("Foto guardada — leitura quando houver sinal", `i-image` glyph).
@@ -105,7 +105,7 @@ No protótipo navegável, o botão **Recorte do MVP** na barra de controles liga
 | Grupo | FR | Onde |
 | --- | --- | --- |
 | "Ler visor" em toda tabela de medição | FR-36 | `60-ficha.html` (7) |
-| Botão de ditado | FR-40 | `60-ficha` (43), `50-relatorio-setup` (2), `72-pontos`, `key-equipment-sheet`, `key-relatorio-setup`. **Exceção desde 2026-09-21: o ditado da legenda entra no MVP** (compositor de legenda em `71-legenda` e o passo "De qual equipamento?" em `70-fotos`), por isso não leva marca ali. |
+| Botão de ditado | FR-40 | ~~`60-ficha` (43),~~ `50-relatorio-setup` (2), `72-pontos`, `key-equipment-sheet`, `key-relatorio-setup`. **Exceção desde 2026-09-21: o ditado da legenda entra no MVP** (compositor de legenda em `71-legenda` e o passo "De qual equipamento?" em `70-fotos`), por isso não leva marca ali. *(2026-11-26, Epic 31: o FR-40 reescrito entra agora. Em `60-ficha` os 43 botões viraram o botão de áudio e perderam a marca; nas tabelas, a marca de `.mt-actions` diz só " · FR-36". As outras telas da lista ainda desenham o botão antigo, com a marca, até serem redesenhadas.)* |
 | Legendas por visão e confirmação em lote | FR-39 | `70-fotos` (galeria); desde a v0.8 a lista de pré-emissão virou uma linha que aponta para o sumário |
 | "Fotografar equipamento" na paleta de campo | FR-38 | `40-relatorio-overview` |
 | Merge por sub-bloco e conflito | FR-58, FR-59 | `86-sync-conflito` (tela inteira) + rota no mapa |
@@ -497,5 +497,50 @@ Source: `epics.md` § Epic 30, Story 30.4 (Q-8 of the open-work audit; Matheus, 
 | The Sumário Banner | `#/relatorio/porto-seguro`, "Simular: local removido com respostas" (`#slot-removed-local` in `shell-head.html`) | The same sentence in the one Banner slot, Conflict variant, `role="alert"`, and the Toast the writer's device shows once, "2º Subsolo foi removido por Eduardo. Suas 19 respostas não foram mantidas." with "Ver" | 30.4 |
 
 Not drawn: the role without `relatorio.fill` (both actions disabled with the one `.btn-reason` line of Epic 26), the remover unknown ("2º Subsolo foi removido em outro aparelho."), and photos or points named beside the answers ("1 resposta e 1 foto"). Labels authored here, listed for Bruno: "Local removido com respostas", "removido por ⟨nome⟩ em ⟨dd/mm hh:mm⟩", "⟨N⟩ respostas de ⟨você · nome⟩ nas Verificações do local não foram mantidas.", "⟨Local⟩ foi removido por ⟨nome⟩. Suas ⟨N⟩ respostas não foram mantidas.", "⟨Local⟩ foi removido em outro aparelho.", "Restaurar local", "Deixar removido", "⟨Local⟩ continua removido. Dá para recuperar em "Restaurar ficha removida".". The section note of Decisões still says "dois casos de estrutura"; it is left as written (an open reading for Matheus). `prototype/index.html` was rebuilt with `build.py`.
+
+**Approval:** pending, Matheus in the PR.
+
+
+## 2026-11-26 — The Epic 31 frames: voice input (batch e31u)
+
+Version line: **v0.10 of the mocks, 2026-11-26** (Epic 31, AD-30): the Audio button, the field's audio states and the AI control in `components.css`; `62-audio-estados.html` new; `60-ficha`, `70-fotos`, `71-legenda`, `73-exportar`, `85-sync` amended.
+
+Source: `epics.md` § Epic 31 (the seventeen decisions, the two writing levels, Stories 31.3 to 31.9), `epic-31-context.md`, the spine's AD-30. Amendments of the same date: `EXPERIENCE.md` (IA › Sync status; Smart Input › Measurement readings, NC observation, Generated conclusion text, Photos; Component Patterns › Dictation button (now Audio button), Observation field, Suggestion field, Generated text field, Measurement table, Export dialog, and a new row AI control; State Patterns, eight new rows; Accessibility Floor) and `DESIGN.md` › Components (Dictation button, now Audio button; a new row AI control). **No new token and no new color**: the Audio button reuses `{components.dictation-button}`; the states use `primary`, `fora-do-limite` (live warning, poor recording, countdown, nothing heard), `sync-pending` (what holds a ficha), `sync-error` (a failed transcription) and `ink-secondary` (status). Sample texts are invented. Check each frame with the prototype bar at Celular 390, Tablet retrato 768 and Desktop 1280, Claro and Escuro.
+
+**Class names.** MOCK-GUIDE has no rule for renaming a `components.css` class, and the app renders `.dictation-btn` and `.listening-word` today (`apps/web/src/speech/dictation.tsx`), so the `.dictation*` rules stay as they were and every new rule is a new class. The batch that first renders them (e31b) copies `components.css` unchanged into `apps/web/src/styles` and drops its use of the old classes; the old rules can go when no screen draws them.
+
+| Piece | Classes (`components.css`) | Built by |
+| --- | --- | --- |
+| Audio button, idle and recording | `.audio-tools` › `.audio-rec[data-phase="countdown"]` › `button.audio-btn[aria-pressed]` (`.ico-mic`, `.ico-stop`) + `.audio-live` › `.audio-rec-word`, `.audio-time`, `.audio-meter[data-level="0..5"][data-tone="warn"]` › five `i` | 31.3 |
+| Live warning | `p.audio-warning[role=status]` with `#i-alert` | 31.3 |
+| Field status line | `p.audio-status[data-step="saved\|sending\|transcribing\|empty\|moved"]` | 31.3, 31.4, 31.5 |
+| "Áudio" mark | `.audio-mark[data-state="edited\|dismissed"][data-quality="poor"]` › `.audio-tag`, `button.audio-play` (› `.audio-dur`), `.btn-text.audio-heard-toggle`, `p.audio-note`, `p.audio-heard` (› `.audio-heard-label`) | 31.4, 31.6 |
+| Failed transcription | `.audio-failed` › `.audio-failed-word`, `.audio-play`, two `.btn-text`, `.btn-reason` | 31.6 |
+| Spoken reading under review | `.suggestion-field[data-state="suggested"]` › `.measurement-field` › `button.audio-src` in the crop's slot; `.audio-sug-actions` › `.btn-text` "Descartar" | 31.5 |
+| What holds a ficha | `.audio-pending` | 31.6 |
+| AI control | `.ai-write` › `button.ai-btn[aria-busy][aria-disabled]` › `.ai-word`, `.ai-busy-word`; `.btn-reason`; after: `p.ai-done` with "Desfazer"; failed: `p.ai-error` | 31.9 |
+
+The sprite (`shell-head.html`) gains `i-stop`, `i-play` and `i-alert`; `i-mic` and `i-sparkles` were there. The app's sprite needs the same three.
+
+| Frame | Route (element) | What it shows | Built by |
+| --- | --- | --- | --- |
+| Every state, light and dark side by side | `#/audio/estados` (`prototype/screens/62-audio-estados.html`, new) | (a) the Audio button idle, recording, the countdown, the microphone refused; (b) the three live warnings; (c) the status lines and "Não ouvi nada, grave de novo"; (d) the mark as it arrives with the text as heard open, edited, poor, play disabled offline, dismissed, and the Toast "2 áudios transcritos" with "Ver"; (e) failed, with and without signal; (f) the AI control ready, "Escrevendo", disabled with "Precisa de conexão", "Texto melhorado por IA" with "Desfazer", and the failure line; (g) the reading under review, a differing reading beside a typed one, speech that was not a reading, a ficha's pending line. Each panel sets `data-theme` itself, so both themes show in one frame | 31.3 to 31.6, 31.9 |
+| NC observation, every state | `#/ficha/SEC-C05` (and `SEC-ENT`) › Verificações gerais › item 8 | The field with "Simular:" chips (prototype chrome): Vazia, Gravando, Aviso ao vivo, Sem sinal, Enviando, Transcrevendo (typed text kept), Chegou (the transcript added after the typed text), Com ruído, Editado, Melhorado por IA, Falhou | 31.3, 31.4, 31.6, 31.9 |
+| Every mic of the ficha | `#/ficha/:tag`, every sheet | The 43 Dictation buttons are Audio buttons; their names read "Gravar áudio: observação do item N", "Gravar áudio: observações da ficha", "Gravar áudio: texto da conclusão", "Gravar áudio: leituras de ⟨tabela⟩" | 31.3, 31.7 |
+| A spoken reading | `#/ficha/SEC-C05` › Resistência ôhmica de contato › T1-T2 (table and phone card) | The pending Suggestion "145 µΩ" with play in the crop's slot, "Confirmar" and "Descartar" | 31.5 |
+| Speech that was not a reading | `#/ficha/SEC-C05` › Ensaio de isolação › Contato aberto | "Não reconheci uma leitura. O texto foi para Observações." under the table's title | 31.5 |
+| The ficha held | `#/ficha/SEC-C05`, the sheet header | "1 áudio aguardando transcrição" with the place "Observação do item 8", which opens the field | 31.6 |
+| The conclusion text | `#/ficha/SEC-C05` › Conclusão › "Texto da conclusão" | The Audio button and the AI control in the Generated text field's actions; the AI control opens the user's edited text with the rewritten paragraph | 31.7, 31.9 |
+| Caption with audio | `#/relatorio/porto-seguro/legenda` | The Audio button in both modes, the AI control, and "Simular:" Sem áudio, Sem sinal, Transcrevendo, Chegou (the generated caption replaced, marked "Áudio") | 31.4, 31.9 |
+| Gallery | `#/relatorio/porto-seguro/fotos` | Photo 14's caption replaced by an audio, with its mark; photo 15 "Transcrevendo" under its automatic caption; the batch caption of "De qual equipamento?" with the Audio button and its new line | 31.4 |
+| Export blocked | `#/relatorio/porto-seguro/exportar` | The blocking row "2 áudios aguardando transcrição — seções 7 e 9" with each audio's place and a way to it; the reason under "Gerar relatório" names it; "Pré-visualizar" stays | 31.6 |
+| Sync status | `#/sync` | The badge "3 áudios aguardando transcrição" and the section "Áudios": one to upload, one transcribing, one failed with "Tentar de novo" | 31.6 |
+
+Other changes made with them:
+
+- No "Ditar", "Ditado" or "Ouvindo…" is left in the five screens touched. Two mock strings that said "dite" now read "Toque num chip, grave um áudio ou digite" and "Texto sugerido descartado — escreva o seu ou grave um áudio". The caption composer lost its dictated-suggestion note ("o ditado entrou como sugestão — Salvar confirma") and its "Sugerido" pill: a text from audio is never a suggestion, except a measurement reading.
+- Page CSS only, visibility and layout: `.e31-obs`, `.e31-sim`, `.e31-sim-label`, `[data-e31]`, `.e31-cell`, `.e31-pending` (`60-ficha`); `.e31-cap*` (`71-legenda`); `.sr-state[data-tone="error"]` (`85-sync`, a candidate for `components.css`: the Sync status row had no error tone); the gallery's `.aud-*` (`62-audio-estados`).
+- Not drawn: the mic on the remaining fields of Story 31.7 (the "Não ensaiado" reason and note, the section texts, the setup texts and the parecer summary): `45-secao`, `50-relatorio-setup`, `72-pontos` and the `key-*.html` mocks still draw the old Dictation button and are superseded on it by this section; Story 31.7 draws its fields from the frames above. The Conta line about stored voice (Story 31.4, the coordinator's sentence "Os áudios gravados ficam guardados com o relatório.") is a `.settings-row` in words only. A playing state of `.audio-play` is not drawn (the app may swap the glyph to `i-stop` while it plays).
+- `prototype/index.html` was rebuilt with `build.py` (no warnings). No browser pass was made in this batch (documents only, no server); the markup was checked for balance. The first app batch that renders a frame checks it at 390, 768 and 1280 px.
 
 **Approval:** pending, Matheus in the PR.
