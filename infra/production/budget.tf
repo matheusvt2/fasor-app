@@ -9,9 +9,10 @@ resource "aws_iam_policy" "deny_ai" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Sid      = "DenyPaidAiOverBudget"
-      Effect   = "Deny"
-      Action   = ["bedrock:InvokeModel*", "bedrock:Converse*", "textract:*"]
+      Sid    = "DenyPaidAiOverBudget"
+      Effect = "Deny"
+      # Story 31.8: starting a Transcribe job is the paid call; the policy keeps its name (the runbook cites it).
+      Action   = ["bedrock:InvokeModel*", "bedrock:Converse*", "textract:*", "transcribe:StartTranscriptionJob"]
       Resource = "*"
     }]
   })

@@ -27,8 +27,7 @@ import { telemetrySinkOf } from './telemetry/sink.ts';
 
 const config = loadConfigOrExit();
 
-// Story 31.2: the speech step is chosen at boot; `STT_PROVIDER=transcribe` fails here with its
-// reason until Story 31.8 delivers the Amazon Transcribe adapter.
+// Story 31.2: the speech step is chosen at boot (`fake` by default; `transcribe` is Story 31.8).
 const speech = createSpeechProvider(config);
 
 const { sql, db } = createDb(config.DATABASE_URL);

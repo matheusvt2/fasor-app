@@ -63,10 +63,13 @@ export const configSchema = z
     OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
     /**
      * Story 31.2 (AD-30): the speech step of the transcription job. `fake` (the default) replays
-     * fixtures; `transcribe` is Amazon Transcribe, whose adapter arrives with Story 31.8: until then
-     * selecting it fails at boot (`createSpeechProvider`).
+     * fixtures; `transcribe` is Amazon Transcribe batch (Story 31.8, `speech-transcribe.ts`).
      */
     STT_PROVIDER: z.preprocess(unsetWhenEmpty, z.enum(['fake', 'transcribe']).default('fake')),
+    /** Story 31.8: the region of the `transcribe` provider; it must be the files bucket's region (Transcribe reads the object from there). */
+    TRANSCRIBE_REGION: z.preprocess(unsetWhenEmpty, z.string().min(1).default('us-east-1')),
+    /** Story 31.8: the custom vocabulary's name (Terraform, `infra/production/transcribe.tf`); unset sends none. */
+    TRANSCRIBE_VOCABULARY_NAME: z.preprocess(unsetWhenEmpty, z.string().min(1).optional()),
     /**
      * Story 11.8 follow-up: `off` refuses every reading whose pipeline needs the LLM step
      * (`readingNeedsAi`: plate, panel, caption, nc_obs) and tells the web to hide their entry

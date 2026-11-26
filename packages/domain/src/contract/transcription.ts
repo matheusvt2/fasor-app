@@ -51,7 +51,7 @@ export interface SpeechResult {
   usd: number;
 }
 
-/** The speech step: `fake` (the default) replays fixtures; `transcribe` arrives with Story 31.8. */
+/** The speech step: `fake` (the default) replays fixtures; `transcribe` is Amazon Transcribe (Story 31.8). */
 export interface SpeechProvider {
   name: string;
   transcribe(input: SpeechInput): Promise<SpeechResult>;

@@ -48,7 +48,7 @@ import { createSyncRoutes } from '../../sync/routes.ts';
 import { toSnapshot } from '../../sync/snapshot.ts';
 import { runTranscriptionJob, type TranscriptionJobDeps } from './job.ts';
 import type { TranscriptionPayload } from './payload.ts';
-import { createSpeechProvider, SpeechProviderUnavailableError } from './providers/index.ts';
+import { createSpeechProvider } from './providers/index.ts';
 import { DEFAULT_SPEECH_FIXTURE, fakeSpeechProvider, type SpeechFixture } from './providers/speech-fake.ts';
 import { DEFAULT_WRITING_FIXTURE, fakeWritingProvider, type WritingFixture } from './providers/writing-fake.ts';
 import { TRANSCRIPTION_ACTOR } from './status.ts';
@@ -600,10 +600,9 @@ describe('31.2-API-007 a device writes only dismissed; a dismissed audio is neve
 });
 
 describe('31.2-API-008 STT_PROVIDER', () => {
-  it('fake is the default; transcribe is accepted by the configuration and refused at boot until Story 31.8', () => {
+  it('fake is the default; transcribe builds the Amazon Transcribe adapter (Story 31.8) without calling AWS', () => {
     expect(loadConfig({ ...process.env, STT_PROVIDER: '' }).STT_PROVIDER).toBe('fake');
     expect(createSpeechProvider({ STT_PROVIDER: 'fake' }).name).toBe('fake');
-    expect(() => createSpeechProvider({ STT_PROVIDER: 'transcribe' })).toThrow(SpeechProviderUnavailableError);
-    expect(() => createSpeechProvider({ STT_PROVIDER: 'transcribe' })).toThrow(/Story 31\.8/);
+    expect(createSpeechProvider({ STT_PROVIDER: 'transcribe', S3_BUCKET: 'a-bucket' }).name).toBe('transcribe');
   });
 });
