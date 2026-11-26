@@ -77,9 +77,9 @@ Reading order when sources disagree (per SPEC.md): `source-deltas.md` wins; then
 - FR-37: A camera-derived value is accepted as a Suggestion only when its digits are covered by cited OCR tokens (`digits(value) === digits(concat(cited tokens))`, checked server-side, AD-11/AD-12); otherwise it is flagged Verificar. (Ships with FR-33.)
 - FR-38: A field user can photograph an equipment panel and receive type, column and TAG as one confirmation ("Criar SEC-C09-2 · Chave seccionadora · Coluna 9?") that creates the block; a wrong type is corrected on a chip row; the same photo becomes the nameplate source; offline the block is created from the type list and the photo still becomes its plate. (Post-slice.)
 - FR-39: A photo from a sheet gets a plain editable context caption (equipment and location from the sheet, activity from the section on screen; "Detalhe d⟨o/a⟩ ⟨atividade⟩ realizad⟨o/a⟩(s) n⟨o/a⟩ ⟨equipamento⟩ d⟨o/a⟩ ⟨local⟩" with gender/number from registry metadata, kernel `contextCaption`); a photo without context gets an LLM vision caption on sync as a Suggestion (post-slice), batch-confirmable from the gallery header and listed at pre-issue; an uncaptionable photo stays "Sem legenda", never guessed; a photo with people is never sent for vision captioning.
-- FR-40: A user can dictate into a caption (first), an observation or a Measurement table using the device speech engine; a table utterance is parsed to row, value and unit; the result is always a Suggestion; the control is hidden, not disabled, where no engine exists; dictation is online-only. (Post-slice; slice ships no engine.)
-- FR-41: Every assisted value obeys one contract (AD-12): a Suggestion is an entity with `status pending|confirmed|discarded`, `trust suggested|verify`, `mode fill|replace`, source photo, bbox and OCR token ids; nothing unconfirmed is written, counted by progress or printed; typing into a suggested field discards that field's suggestion only; a filled field is never overwritten (a differing suggestion shows "Sugerido: … — Substituir"; an equal one auto-confirms with `meta.auto`); confirmed cells keep `source_suggestion_id` and their crop shrinks to a 24 px glyph reachable until export; suggestions are announced to screen readers with value and confirm action; no verdict is ever auto-decided; known-shape fields show their best guess flagged Verificar, free prose is never guessed; vision proposing NC rows is out.
-- FR-42: A photo taken for an assist while offline is kept and queued (`reading_kind`, `reading_target`, `reading_status` on the photo row); the cell or tile shows "Foto guardada — leitura quando houver sinal" and stays typeable; reading photos upload before other photos; the reading runs at first connectivity while the tab is open and a toast "N leituras prontas para confirmar — Ver" opens the first sheet with pending suggestions; a sheet opened later shows the info banner "Sugestões prontas"; a failed reading shows "Não foi possível ler — Tentar novamente / Preencher manualmente" with the photo kept; the sync status counts readings queued and suggestions awaiting confirmation; sized for about 94 plates, 1,100 display shots and 82 captions per job.
+- FR-40: ~~A user can dictate into a caption (first), an observation or a Measurement table using the device speech engine; a table utterance is parsed to row, value and unit; the result is always a Suggestion; the control is hidden, not disabled, where no engine exists; dictation is online-only. (Post-slice; slice ships no engine.)~~ *(2026-11-26, Matheus, Epic 31: a user records an audio on a prose field or a Measurement table with one gesture, with or without signal; the backend transcribes it and a model writes the text; prose is written into the field marked "Áudio", a table reading is a Suggestion to confirm; the browser speech engine is removed. FR-76 to FR-79.)*
+- FR-41: Every assisted value obeys one contract (AD-12): a Suggestion is an entity with `status pending|confirmed|discarded`, `trust suggested|verify`, `mode fill|replace`, source photo, bbox and OCR token ids; nothing unconfirmed is written, counted by progress or printed; typing into a suggested field discards that field's suggestion only; a filled field is never overwritten (a differing suggestion shows "Sugerido: … — Substituir"; an equal one auto-confirms with `meta.auto`); confirmed cells keep `source_suggestion_id` and their crop shrinks to a 24 px glyph reachable until export; suggestions are announced to screen readers with value and confirm action; no verdict is ever auto-decided; known-shape fields show their best guess flagged Verificar, free prose is never guessed; vision proposing NC rows is out. *(2026-11-26, Matheus, Epic 31: one exception. A prose text transcribed from the user's own audio is written into its field without a confirmation, marked "Áudio" with the audio and the text as heard kept; a spoken reading keeps this contract.)*
+- FR-42: A photo taken for an assist while offline is kept and queued (`reading_kind`, `reading_target`, `reading_status` on the photo row); the cell or tile shows "Foto guardada — leitura quando houver sinal" and stays typeable; reading photos upload before other photos; the reading runs at first connectivity while the tab is open and a toast "N leituras prontas para confirmar — Ver" opens the first sheet with pending suggestions; a sheet opened later shows the info banner "Sugestões prontas"; a failed reading shows "Não foi possível ler — Tentar novamente / Preencher manualmente" with the photo kept; the sync status counts readings queued and suggestions awaiting confirmation; sized for about 94 plates, 1,100 display shots and 82 captions per job. *(2026-11-26, Matheus, Epic 31: the same queue holds an audio recorded on a field, online or offline: "Áudio guardado, aguardando sinal"; audios upload with the reading photos.)*
 - FR-75: When a checklist row is NC and carries a photo, vision drafts one sentence as a Suggestion on that row's observation ("Usar" inserts; typing keeps the engineer's text); arrives via the reading queue; last in the assist queue. (Post-slice.)
 
 **5.6 Photos**
@@ -142,7 +142,7 @@ Reading order when sources disagree (per SPEC.md): `source-deltas.md` wins; then
 - NFR-9 **Platform.** Responsive web application only, tablet-first, phone-capable, desktop for office work; runs on Android Chrome, iPadOS Safari and desktop Chrome or Edge; no native build, no store, no home-screen install prompt, no manifest install; a service worker precaches the app shell only.
 - NFR-10 **Safety and professional responsibility.** The app calculates, compares, highlights and suggests; it never sets a verdict; Reprovado and Não apto are never suggested; exactly one blocking pre-issue row; an expired calibration warns and never stops work; counter-metrics bend design (never remove a confirmation to save a tap, never reduce what is captured, suggestion acceptance rate is not a target).
 - NFR-11 **Privacy (POC).** Photographs go to the reading provider with no consent gate; a photo with people is never sent for vision captioning and still prints; coordinates print; storage and data model never preclude purging originals, crops, suggestions and readings per photo or per relatório; the AWS account carries the AI services opt-out policy; the LGPD basis is written when the product leaves the POC.
-- NFR-12 **AI cost and control.** All AI runs in the backend through one pg-boss queue; the LLM never emits coordinates; readings are logged with tokens and USD; the backend never uses a personal Claude subscription; `LLM_PROVIDER` and `OCR_PROVIDER` default to `fake` fixture providers locally; conclusion text, parecer summary and context captions are computed on the device, never by a model.
+- NFR-12 **AI cost and control.** All AI runs in the backend through one pg-boss queue; the LLM never emits coordinates; readings are logged with tokens and USD; the backend never uses a personal Claude subscription; `LLM_PROVIDER` and `OCR_PROVIDER` default to `fake` fixture providers locally; ~~conclusion text, parecer summary and context captions are computed on the device, never by a model.~~ *(2026-11-26, Matheus, Epic 31: they are computed on the device as the starting point; a model rewrites one only when the user asks, by recording an audio into the field or tapping the AI control, and never decides a result.)*
 - NFR-13 **Multi-tenancy in the data model.** Every table carries `company_id`; every repository function takes it as a required argument; one test seeds two companies and asserts no cross-read; row-level security deferred until the second company; report type is a seed key with `cabine_primaria` as the only value.
 - NFR-14 **Regulatory accuracy.** No criterion is encoded without operator, type and a declared source (edition nullable); no periodicity is ever encoded as annual; the NR-10 text is keyed by `effective_from`; forbidden marketing claims: required by insurers; NBR 14039 requires annual maintenance; NR-10 10.15.4 d covers insulation testing.
 - NFR-15 **Product naming.** The user-visible product name comes from one config constant (PRODUTO) *(2026-11-03, Matheus: its value is Conforme, Story 20.1; the constant keeps its identifier)*; the codename `fasor` and the design partner's brand never appear in a user-visible string, document or file name; the Fasor Engenharia brand appears only inside the generated document; no emoji anywhere in UI, documents or mocks.
@@ -215,7 +215,7 @@ Reading order when sources disagree (per SPEC.md): `source-deltas.md` wins; then
 - UX-DR15: Text button (label-only, 12 px padding, ≥ 48 px hit area; never the only path to a destructive action).
 - UX-DR16: Sticky action bar (Section stepper row above a button row; Camera capture button left, primary "Próxima ficha"/"Concluir ficha"/"Próxima coluna", secondary bulk action while the checklist is in view; sits above the keyboard; unsticks below 480 px viewport height; docks to the content column on desktop).
 - UX-DR17: Camera capture button (56 px primary square, `capture` attribute, burst count badge until "Concluir fotos"; "Adicionar fotos" as a secondary outline button beside it; drop-target outline "Solte para adicionar" on a computer; tile variant "Fotografar placa"/"Fotografar equipamento" ≥ 96 px dashed with copy chips above and "Digitar" beneath; permission-denied reason and OS path beneath).
-- UX-DR18: Dictation button (48 px round outline mic; "Ouvindo…" word while listening; hidden, not disabled, when no engine; post-slice engine).
+- UX-DR18: ~~Dictation button (48 px round outline mic; "Ouvindo…" word while listening; hidden, not disabled, when no engine; post-slice engine).~~ *(2026-11-26, Epic 31: Audio button, 48 px round outline mic, shown with or without signal; "Gravando" with the elapsed time and a level meter while recording; absent only where the browser cannot record.)*
 - UX-DR19: Combobox (56 px; type to filter; "Criar “⟨texto⟩”" as the last option creating a registry entry inline offline; on field surfaces reached from a chip row's "Outro…", full-screen on phone; arrows and Enter).
 - UX-DR20: Toggle (52×32 track; state word beside it; `role="switch"`; row label toggles; "Sempre" for locked sub-blocks).
 - UX-DR21: Checkbox (28 px box in a 56 px row; instruments used at setup; unchecking a referenced instrument shows a note and keeps it in section 11).
@@ -2988,6 +2988,8 @@ So that the client never receives a report that disagrees with itself.
 *(2026-10-15, Bruno's answers relayed by Matheus, question 8: the authored pre-emission audit notice and the findings rows go to the 10-minute tablet session Bruno accepted; Matheus schedules it; still pending (E13-A8). The audit's honesty on a long relatório (how many sheets it read) and the 2026-10-15 false positive on a CTA sheet are scheduled in Story 14.10.)*
 
 ### Story 13.9: Dictation on, behind one line of consent
+
+*(2026-11-26, Matheus: superseded by Epic 31, never built. Text kept unchanged below.)*
 
 **Dev model:** opus · **Effort:** medium · consent gate over the existing engine and suggestion flow
 
@@ -13529,10 +13531,425 @@ So that a tablet is read as a tablet even when its window is a phone's width.
 
 *(2026-11-25, batch e30g, branch `e30g-device-kind-telemetry`, PR open, not merged: outcome. Built as the story reads, no contract number (61 stays), no seed, golden or op. Red first: on the tests' own commit `e530d389` the kernel and web tests failed (the module absent, the start without the fields); with `telemetry.ts` put back to main's, 30.6-UNIT-011 and 30.6-API-001 went red; with `context.ts` put back to main's, 18.1-E2E-001 (extended) and 30.6-E2E-001 went red; all green on the branch. Batch gate: lint 0 errors (30 warnings, as before), static clean, `test:api` 1227 passed and 10 skipped, `test:unit` 8037 of 8037, the touched specs (`usage-events.spec.ts`, `usage-events-documents.spec.ts`) 6 of 6; `infra/bin/check` all passed. No row of the audit's section 5 or of `deferred-work.md` was closed: each asks for a specific check, none for general use alone, so each stays open and unannotated; section 5 carries a dated note. Readings open to Matheus, in the PR: the 600 px line, the non-Android touch rule, the platform hint before the user agent, 0 for an unreadable value, a bad value refusing the batch, no contract number, the Conta sentence unchanged, one view over everyone. Not verified: a real device (the e2e emulates a Galaxy Tab S4), the view's query in Logs Insights (applied at the next deploy).)*
 
+## Epic 31: The relatório filled by voice: one tap to speak, the audio kept, the text arrives by itself, and an AI control that rewrites a field (Bruno via Matheus, 2026-11-26)
+
+Source: `_bmad-output/planning-artifacts/sprint-change-proposal-2026-11-26.md` (approved by Matheus on 2026-11-26: "aprovado, os 6 pontos ok, pode seguir"). Read on main `24acd349` (2026-11-26): contract 61, seed v19 frozen, production `b209c0ea` (tag `v0.15.0`). No client and no site is named.
+
+A field user taps the mic on a text field, speaks and moves on. The audio is kept on the device, goes up when there is signal, is transcribed and written by a model in the backend, and the text arrives in the field marked "Áudio". A spoken measurement reading waits for review. An AI control rewrites the text already in a field when the user asks.
+
+**FRs covered:** FR-40 (rewritten below), FR-41 (the prose exception), FR-42 (extended to audio), new FR-76 to FR-79. **Supersedes** Story 13.9 (Backlog) and the engine of Story 9.4; overrides `SPEC.md` "Dictation is online-only", `source-deltas.md` rows on dictation, and NFR-12's "never by a model" for the conclusion text, the parecer summary and the caption, each recorded in `source-deltas.md`.
+
+- FR-76: A user records an audio on a prose field with one gesture (tap, speak, tap), with or without signal; the audio is saved on the device and queued; the field shows its processing status; the transcript, written by a model at the field's level (polish or report writing), is put in the field marked "Áudio" with a play control and the text as heard; nothing is chosen by the user.
+- FR-77: While recording, the device measures the audio by fixed rules (level, clipping, background noise against the voice, length, speech present) and warns live; the measures are stored with the audio; a poor recording leaves "confira o texto" on the field.
+- FR-78: A ficha with an audio not yet transcribed is pending and a relatório holding one cannot be issued; a transcription that failed can be retried or dismissed; audio and measures are never deleted.
+- FR-79: An AI control (sparkles) on every prose field that holds text rewrites it as report prose on the user's tap, with "Desfazer"; without signal it is shown disabled with the reason; a model never decides a result, adds a fact or changes a number, a unit or a TAG.
+
+**Matheus's decisions (2026-11-26):**
+1. One engine, ours: record on the device, upload through the file queue, transcribe in a backend job. The browser's Web Speech engine is removed.
+2. No seams: one gesture, no choice, the same with and without signal. The user is only told the processing status.
+3. Prose is written straight into the field, marked "Áudio" with a play control. No "Usar".
+4. A measurement reading is the exception: shown for review before it counts (the Suggestion contract, AD-12). "Ler visor" by image stays as it is.
+5. The word on screen is "Áudio", never "Ditado".
+6. A pending audio holds the ficha and the emission.
+7. Audio and its quality measures are kept, never deleted, for later analysis.
+8. Audio quality is measured on the device by fixed rules, live, with a warning and a "confira o texto" note.
+9. No field test first: build, use, improve.
+10. Cost accepted (Amazon Transcribe; the price is confirmed in Story 31.8).
+11. A line about stored voice on the Conta screen.
+12. The photo caption stays automatic, from the photo's content; an audio overwrites it.
+13. A model writes every text that comes from audio; the prompt carries the field's context, most of all for a conclusion.
+14. A standard AI control, the sparkles icon (`i-sparkles`, already in the sprite), writes from the audio or from the text in the field.
+15. The composed conclusion text and parecer summary are rewritten by a model only when the user asks, by speaking into the field or tapping the AI control ("sim, somente se o usuario pedir").
+16. The AI control needs signal: without it the control is there, disabled, and says the reason is the connection. Only audio has an offline queue.
+17. The six points of the proposal's section 6: text in a field is added to, never replaced (the automatic caption excepted); speech in a measurement table that is not a reading goes to the ficha's Observações as "Áudio" text and the table says so; after three failed attempts the field offers "Tentar de novo" and "Dispensar", and a dismissed audio stops holding the ficha and stays stored; a recording lasts at most three minutes, with a countdown in the last seconds; on "Texto da conclusão" audio adds to the composed text.
+
+**Not in this epic:** speaking a whole ficha in one recording for a model to spread over its fields; audio on nameplate, header and registry fields; a queue for the AI control without signal.
+
+**The two writing levels** (the kernel names the level of each field; the user never picks):
+
+| Level | Fields | What the model does |
+| --- | --- | --- |
+| Polish | Photo caption, NC item observation, measurement-test reason, "Não ensaiado" reason and note, point text, setup texts | Punctuation, agreement, the trade's words spelled right, filler words removed; same content |
+| Report writing | Ficha Observações, Texto da conclusão, parecer summary, relatório section texts; every tap on the AI control | Rewrites as report prose with the field's context |
+
+**Stories, waves and batches:**
+
+| Story | Title | Lane | Wave · batch | Contract | Dev model · Effort |
+| --- | --- | --- | --- | --- | --- |
+| 31.1 | Audio is a file with a target, a status and its measures | kernel | 1 · e31a | main's plus one (62) | opus · high |
+| 31.2 | The server transcribes an audio, writes the text and fills its field | api, kernel | 1 · e31a | with 31.1 | opus · high |
+| 31.3 | One tap records, measures and keeps the audio | web | 1 · e31b | no | opus · high |
+| 31.4 | The text lands in the field, marked "Áudio" | web | 2 · e31c | no | sonnet · high |
+| 31.5 | A spoken reading waits for review | web, kernel | 2 · e31c | no | opus · medium |
+| 31.6 | A pending audio holds the ficha and the emission | kernel, web, api | 2 · e31c | none expected | opus · medium |
+| 31.7 | The mic on the fields that lack it | web, kernel | 3 · e31d | no | sonnet · medium |
+| 31.8 | Amazon Transcribe in production | infra, api | 3 · e31e | no | opus · medium |
+| 31.9 | The AI control rewrites the text in the field | kernel, api, web | 3 · e31d | main's plus one if it adds an op or a route shape | opus · medium |
+
+**Definition of Ready of the epic (before wave 1 starts):**
+- AD-30 "Voice input" written in the architecture spine (Winston): the audio file and its fields, the transcription job and its provider interface, how prose is written and marked, the reading as a Suggestion, the writing step and its guard, retention.
+- The mock and `EXPERIENCE.md` amendments (Sally): the audio button and its recording state with the level meter and the live warning, the field's status line, the "Áudio" mark with play and "texto como falado", the reading's review, the pending-audio lines, the AI control with "Desfazer" and its disabled state. `DESIGN.md` gains the tokens they need.
+
+**Rules every story keeps:**
+- **Ownership (AD-1 to AD-3, AD-13).** `packages/domain` owns every status word, count, level, guard and pending rule; `apps/web` renders from IndexedDB and writes ops only; `apps/api` applies ops and runs the jobs.
+- **No cloud to build or test.** `STT_PROVIDER` and `LLM_PROVIDER` default to `fake`; the fake providers replay fixtures. Only Story 31.8 touches AWS, through Terraform.
+- **No seed and no print change.** A text from audio prints as any typed text; no mark is printed. Every golden stays byte-equal.
+- **Permissions (AD-29).** The mic and the AI control follow the field's own write permission; no new key. A control the role lacks is disabled with its one line of reason.
+- **Strings.** Derived text (status words, counts) in `packages/domain`; surface copy in `apps/web/src/copy/pt-br.ts`; chrome in `ui.ts`. Every sentence authored is marked `// authored (Story 31.x, listed for Bruno)` and listed in the PR. The strings in these stories are the coordinator's wording, open to Bruno.
+- **Screens from the mocks,** checked at 390, 768 and 1280 px and in a dialog; a mock departed from is amended in the same PR.
+- **Usage events (AD-28)** for record, transcript arrived, play, retry, dismiss, AI control tap and undo, with closed values only: never audio, transcript or text.
+- **Not guessed.** A choice a story must still make is written as "Coordinator's reading, open to Matheus".
+
+**Waves and gates:** wave 1 runs e31a (31.1 then 31.2) and e31b (31.3) side by side; e31b works against the contract of 31.1 and merges main after e31a. Wave 2 is one batch, e31c. Wave 3 runs e31d (31.7 then 31.9) and e31e (31.8) side by side. Gates as decided on 2026-11-12: each batch runs `lint`, `static`, `test:unit`, `test:api` and its touched specs under the host lock; one full gate and one review per wave on the integrated main. Deploy only on Matheus's word; the feature is usable in production only after Story 31.8.
+
+**Definition of Done of the epic:**
+- Every story merged with its batch gate in its PR; each wave's full gate green and its review accepted.
+- `source-deltas.md` rows marked built; AD-30 amended where the build narrowed it; `docs/kbs/` and `log.md` updated.
+- `apps/web/src/speech/webspeech-engine.ts`, `VITE_SPEECH_ENGINE` and every "Ditado"/"Ditar" string gone.
+- The strings listed for Bruno in one file under `docs/context/epic-31/`.
+
+### Story 31.1: Audio is a file with a target, a status and its measures
+
+**Dev model:** opus · **Effort:** high · kernel and contract only: the file kind, its schema, the Suggestion source, the status words, the writing level of each field and the pending rule; contract main's plus one (62); batch e31a
+
+As the builder of everything voice does,
+I want the audio, where it goes and how it is doing to be one record the kernel understands,
+So that the device and the server tell the same story about every recording.
+
+**Definition of Ready:** AD-30 written. Coordinator's reading, open to Matheus: the field names below.
+
+**Acceptance Criteria:**
+
+**Given** the file schema
+**When** a file of kind `audio` is created by a device op
+**Then** it carries `audio_target` (the address of one field: block and item, sheet field, photo caption, point, section or setup field, or a measurement table), `audio_status` (`queued`, `transcribing`, `done`, `failed`, `dismissed`), `quality` (level, clipped share, noise against voice, duration, speech time, and the verdict `good` or `poor`), and later `transcript_heard`, `transcript_written` and the run that produced them; a file of another kind refuses these fields
+
+**Given** a Suggestion
+**When** its source is an audio
+**Then** `source` names the audio file in place of a photo, with no bbox and no OCR tokens, and every existing Suggestion still parses
+
+**Given** a field address
+**When** the kernel is asked its writing level
+**Then** it answers `polish` or `report` by the table of this epic, and `reading` for a measurement table
+
+**Given** a ficha or a relatório
+**When** the kernel counts its audios
+**Then** `pendingAudios` counts those `queued` or `transcribing`, `failedAudios` those `failed`, a `dismissed` or `done` one counts in neither, and the status words and count sentences ("1 áudio aguardando transcrição", plural by the kernel) come from the kernel
+
+**Given** the quality measures of a recording
+**When** the kernel judges them
+**Then** `audioQualityVerdict` answers `poor` with its reasons (`low_level`, `clipping`, `noisy`, `too_short`, `no_speech`) by fixed thresholds kept in one place, and `good` otherwise
+
+**Given** a written text and the text as heard plus the prompt's context
+**When** the kernel runs `writtenTextGuard`
+**Then** it fails when the written text holds a number, a unit or a TAG that neither source holds, or drops one the heard text held
+
+**Definition of Done:** kernel tests "31.1-UNIT-…" for each criterion, red first; the contract test at the new number; an op from a bundle before this story still folds; `docs/kbs/architecture/files-and-photos.md` and `suggestions-and-reading.md`.
+
+### Story 31.2: The server transcribes an audio, writes the text and fills its field
+
+**Dev model:** opus · **Effort:** high · api: the `transcription` job, the speech provider interface with its `fake`, the writing step on the existing prose provider, the guard, the system ops; batch e31a
+
+As a field user,
+I want the server to turn my audio into good text in the right field without me doing anything,
+So that speaking is all it costs me.
+
+**Definition of Ready:** Story 31.1; AD-30. Coordinator's reading, open to Matheus: the prompts are versioned like the reading prompts and live beside them.
+
+**Acceptance Criteria:**
+
+**Given** an audio file is received (WebM/Opus or MP4/AAC)
+**When** the upload completes
+**Then** one pg-boss `transcription` job is queued, singleton per audio, three attempts; the audio goes `transcribing` by a `system:transcription` op; the job is not started while `AI_FEATURES` is off
+
+**Given** `STT_PROVIDER=fake` (the default) and `LLM_PROVIDER=fake`
+**When** the job runs
+**Then** the transcript and the written text come from fixtures, with no cloud call
+
+**Given** a transcript for a `polish` or `report` field
+**When** the writing step runs
+**Then** the prose provider receives the text as heard, the level and the field's context (field, equipment type and TAG; for a checklist observation the item and its answer; for a ficha conclusion the picked result, the NC items and the readings outside their criterion; for the parecer the relatório's counts and restrictions), and returns one text
+
+**Given** the written text
+**When** `writtenTextGuard` fails, or the writing call fails for good
+**Then** the field receives the text as heard, and the run row says so
+
+**Given** a prose target
+**When** the job ends well
+**Then** one batch of system ops sets the audio `done` with both transcripts and writes the field: added after the text already there, replacing only a photo caption that was still the automatic one; the cell names the audio as its source
+
+**Given** a measurement-table target
+**When** the transcript parses as a reading (`parseTableUtterance`)
+**Then** a pending Suggestion is created for the cell, sourced by the audio, and nothing is written to the cell; when it does not parse, the text goes to the ficha's Observações as audio text and the audio records `not_a_reading`
+
+**Given** three failed attempts
+**When** the last one fails
+**Then** the audio is `failed`; `POST /api/audios/{id}/retranscribe` queues it again; a dismiss is a device op
+
+**Given** any run
+**When** it ends
+**Then** a run row stores provider, model, prompt version, audio seconds, tokens, USD and duration
+
+**Definition of Done:** api integration tests "31.2-API-…" (each criterion, both formats, tenant scoping, a role without the field's permission refused); fixtures under `apps/api/src/jobs/transcription/fixtures`; the model never receives another company's data; `GET /api/health` unchanged; `docs/kbs/code/api-app.md`.
+
+### Story 31.3: One tap records, measures and keeps the audio
+
+**Dev model:** opus · **Effort:** high · web: the recorder that replaces the browser engine, the live measures, the local save and the queue; mock first; batch e31b
+
+As a field user with gloves on,
+I want to tap, speak and tap again, and know at once if the recording is poor,
+So that I never record a whole observation into noise.
+
+**Definition of Ready:** the mock of the audio button and its recording state; Story 31.1's schema.
+
+**Acceptance Criteria:**
+
+**Given** a prose field or a measurement table the role may fill
+**When** the surface renders, with or without signal
+**Then** the audio button shows (48 px, mic glyph, its label naming the field, "Gravar áudio …"); it is absent only when the browser cannot record
+
+**Given** the first tap ever
+**When** the browser asks for the microphone and the user refuses
+**Then** the button stays, and a tap explains how to allow the microphone; nothing is recorded
+
+**Given** a tap on the button
+**When** recording starts
+**Then** the button is pressed with "Gravando" and the elapsed time, a level meter moves with the voice, the screen stays awake, any other recording stops first, and a second tap ends it
+
+**Given** a recording in progress
+**When** the level is too low, the signal clips or the noise is close to the voice for longer than the kernel's threshold
+**Then** one line warns live ("Fale mais perto do aparelho", "Muito alto, afaste um pouco", "Muito ruído em volta"), said once by the live region
+
+**Given** two minutes and fifty seconds of recording
+**When** the time runs
+**Then** a countdown shows and the recording ends itself at three minutes
+
+**Given** the recording ends
+**When** it holds speech
+**Then** the audio is saved in IndexedDB with its measures and verdict, the `file` create op with `audio_target` goes to the outbox in the same commit, and the field shows "Áudio guardado, aguardando sinal" offline or "Enviando" online; a recording that is `too_short` or `no_speech` is not saved and the field says "Não ouvi nada, grave de novo"
+
+**Given** the upload queue
+**When** it orders files
+**Then** audios go with the files that wait for a reading, before other photos
+
+**Given** the tab is closed or the app is killed during a recording
+**When** the app opens again
+**Then** no half file is left queued
+
+**Given** the code base
+**When** this story merges
+**Then** `webspeech-engine.ts`, the `fake` speech engine and `VITE_SPEECH_ENGINE` are gone from the source, the compose file and the production Dockerfile
+
+**Definition of Done:** web tests "31.3-WEB-…" (the recorder behind a seam, the measures on fixed sample buffers, the warnings, the limit); E2E "31.3-E2E-001" (`@p0`, record offline through the test seam, the file and its op are stored and the status line shows) and "-002" (microphone refused); the measures run in an audio worklet or analyser without blocking typing; checked at 390, 768 and 1280 px; `docs/kbs/code/web-app.md`.
+
+### Story 31.4: The text lands in the field, marked "Áudio"
+
+**Dev model:** sonnet · **Effort:** high · web: the status line, the arrival, the mark, play and the text as heard on the six prose fields already wired; the Conta line; batch e31c
+
+As a field user,
+I want to see what is happening to my audio and find the text in its place,
+So that I trust it without checking each step.
+
+**Definition of Ready:** Stories 31.1 to 31.3 merged; the mock of the field states. Coordinator's reading, open to Matheus: the Conta sentence, "Os áudios gravados ficam guardados com o relatório."
+
+**Acceptance Criteria:**
+
+**Given** the NC item observation, the ficha Observações, the measurement-test reason, the photo caption (one photo and a batch) and the point text
+**When** an audio targets one of them
+**Then** the field shows one status line from the kernel's words, in order: "Áudio guardado, aguardando sinal", "Enviando", "Transcrevendo"; the field stays typeable throughout
+
+**Given** the transcription's ops arrive by sync
+**When** the field is on screen or opened later
+**Then** the text is in the field with the mark "Áudio", a play control and "Ver texto como falado"; a poor recording adds "Áudio com ruído, confira o texto"; a toast says "N áudios transcritos" once per sync, with "Ver" opening the first
+
+**Given** text typed while the audio was pending
+**When** the transcript arrives
+**Then** it is added after the typed text, which is untouched
+
+**Given** a photo whose caption is still the automatic one
+**When** its audio is transcribed
+**Then** the caption is replaced by the written text
+
+**Given** the user edits a text that came from audio
+**When** he saves
+**Then** the text is his, the mark stays as "Áudio, editado", and the audio and the text as heard stay reachable
+
+**Given** the local copy of an audio was evicted
+**When** the user taps play
+**Then** it plays from the server with signal, and without signal the control is disabled with "Precisa de conexão para ouvir"
+
+**Given** every surface of this story
+**When** it renders
+**Then** no "Ditado", "Ditar" or "Ouvindo…" remains, no "Usar" stands between a transcript and a prose field, and the Conta screen carries the line about stored voice
+
+**Definition of Done:** web tests "31.4-WEB-…"; E2E "31.4-E2E-001" (`@p0`, record offline, go online, the text arrives marked on an NC observation), "-002" (caption replaced), "-003" (typed text kept); axe clean; the announcements said by a live region; strings listed for Bruno.
+
+### Story 31.5: A spoken reading waits for review
+
+**Dev model:** opus · **Effort:** medium · web and kernel: the measurement table's audio button and the Suggestion sourced by an audio; batch e31c
+
+As a field user,
+I want a reading I spoke to show beside its cell for me to confirm,
+So that a wrong digit never enters the relatório by itself.
+
+**Definition of Ready:** Stories 31.1 to 31.3; the mock of the reading's review.
+
+**Acceptance Criteria:**
+
+**Given** a measurement table
+**When** the user records "Fase A, 147 giga"
+**Then** the table shows its status line, and on arrival the cell shows a pending Suggestion with value and unit, "Confirmar" and "Descartar", and a play control; nothing counts, compares or prints until confirmed (AD-12)
+
+**Given** a cell that already holds a value
+**When** a differing spoken reading arrives
+**Then** it shows as "Sugerido: … Substituir", and an equal one confirms itself, as for "Ler visor"
+
+**Given** speech that is not a reading
+**When** it arrives
+**Then** the table says "Não reconheci uma leitura. O texto foi para Observações.", and the text is in the ficha's Observações marked "Áudio"
+
+**Given** the table's "Ler visor" button and typing
+**When** this story merges
+**Then** both work as before, and "Confirmar todos" treats an audio Suggestion as it treats a display one
+
+**Definition of Done:** kernel tests for the parser on written-out numbers a transcriber returns ("cento e quarenta e sete giga"); E2E "31.5-E2E-001" (`@p0`, spoken reading confirmed) and "-002" (not a reading); the durability specs it touches on the matrix projects.
+
+### Story 31.6: A pending audio holds the ficha and the emission
+
+**Dev model:** opus · **Effort:** medium · kernel (sheet state and pre-issue), web (ficha, Sumário, Export dialog, Sync status), api (the pre-issue check); batch e31c
+
+As the engineer who signs the relatório,
+I want nothing issued while a spoken text is still on its way,
+So that the document never goes out with a hole I do not know of.
+
+**Definition of Ready:** Story 31.1's counts. Coordinator's reading, open to Matheus: a `failed` audio also holds the ficha until retried or dismissed.
+
+**Acceptance Criteria:**
+
+**Given** a ficha with an audio `queued`, `transcribing` or `failed`
+**When** the kernel computes its state
+**Then** the ficha cannot be concluded, its pending summary names the audios, and the row links to the field
+
+**Given** a relatório with such an audio anywhere (a ficha, a photo, a point, a section, the setup)
+**When** the user opens the Export dialog or the server checks before issuing
+**Then** emission is blocked with the reason from the kernel ("2 áudios aguardando transcrição"), each listed with its place; a preview with the RASCUNHO watermark is still allowed
+
+**Given** an audio that failed three times
+**When** its field renders
+**Then** it shows "Não foi possível transcrever" with play, "Tentar de novo" (needs signal, disabled without it with the reason) and "Dispensar"; a dismissed audio stops holding the ficha, stays stored, and stays reachable from the field
+
+**Given** the Sync status screen
+**When** audios wait
+**Then** it counts those to upload, those transcribing and those failed, with the kernel's sentences
+
+**Definition of Done:** kernel tests "31.6-UNIT-…", red first; api integration for the blocked issue; E2E "31.6-E2E-001" (`@p0`, a pending audio blocks concluding and issuing, then frees both on arrival) and "-002" (failed, dismissed); the sheets of seeds v1 to v19 without audio compute as before.
+
+### Story 31.7: The mic on the fields that lack it
+
+**Dev model:** sonnet · **Effort:** medium · web and kernel: the audio button and the arrival on the remaining prose fields, each with its level and context; batch e31d
+
+As a field or office user,
+I want to speak wherever I would type a sentence,
+So that voice is the same everywhere.
+
+**Definition of Ready:** wave 2 merged. Coordinator's reading, open to Matheus: the setup fields that get the mic are the capa text, the escopo texts and the additional items; names, TAGs, CNPJ and other short identifiers do not.
+
+**Acceptance Criteria:**
+
+**Given** the "Não ensaiado" reason and note, the relatório section texts, the setup texts above, "Texto da conclusão" and the parecer summary
+**When** each renders for a role that may fill it
+**Then** it has the audio button, the status line, the mark, play and the text as heard, as in Story 31.4
+
+**Given** a section text (rich text)
+**When** a transcript arrives
+**Then** it is added as a new paragraph at the end, and the existing formatting is untouched
+
+**Given** "Texto da conclusão" or the parecer summary holding the composed text
+**When** the user records an audio there
+**Then** the written text is added after the composed text at the report level, with the conclusion's or the parecer's context in the prompt; the field becomes the user's edited text, as "Editar" does today; the picked result is never changed
+
+**Given** the composed text and no audio and no tap on the AI control
+**When** the ficha is filled
+**Then** the text is composed on the device as before, with no model call
+
+**Definition of Done:** web tests per field; E2E "31.7-E2E-001" (`@p0`, audio on the conclusion text adds to the composed text) and "-002" (section text paragraph); goldens byte-equal.
+
+### Story 31.8: Amazon Transcribe in production
+
+**Dev model:** opus · **Effort:** medium · infra (Terraform) and api (the `transcribe` provider); the only story that touches AWS; batch e31e
+
+As Matheus,
+I want the real transcriber on, costed and under the budget alert,
+So that voice works on Bruno's tablet without a surprise on the bill.
+
+**Definition of Ready:** the price read on the AWS pricing page for the region used and written in the story's PR; Bruno's list of trade words (a first list authored from the seed's own vocabulary if his has not come). Coordinator's reading, open to Matheus: batch transcription (not streaming), pt-BR, the job reading the audio from the bucket.
+
+**Acceptance Criteria:**
+
+**Given** `STT_PROVIDER=transcribe`
+**When** the job runs
+**Then** it starts an Amazon Transcribe job on the stored audio in pt-BR with the custom vocabulary, waits for it within the job's own timeout, reads the transcript and per-word confidence, and classifies errors as transient or permanent like the Bedrock adapter; credentials come from the task role only
+
+**Given** `infra/`
+**When** `infra/bin/check` runs
+**Then** the Transcribe permissions (least privilege, this bucket only), the custom vocabulary, the `STT_PROVIDER` setting and the cost row are Terraform; nothing is made in the console
+
+**Given** the cost table of `infra/README.md`
+**When** this story lands
+**Then** it carries Transcribe and the writing calls at a stated monthly volume, and the total stays under USD 100 with the AWS Budget alert unchanged
+
+**Given** the deploy that ships it, on Matheus's word
+**When** the smoke run ends
+**Then** one audio recorded in the smoke company is transcribed and written in production, and its run row shows seconds and USD
+
+**Definition of Done:** unit tests of the adapter against recorded responses; no test calls AWS; `docs/kbs/architecture/infra-aws.md`; the deploy record.
+
+### Story 31.9: The AI control rewrites the text in the field
+
+**Dev model:** opus · **Effort:** medium · kernel (the request and its guard), api (one route on the prose provider), web (the control, "Desfazer", the disabled state); batch e31d
+
+As a user who typed or spoke something rough,
+I want one tap to turn it into report writing,
+So that the relatório reads well without me rewriting it.
+
+**Definition of Ready:** the mock of the AI control; wave 2 merged. Coordinator's reading, open to Matheus: the control shows on every prose field of Stories 31.4 and 31.7 that holds text; its label is "Melhorar o texto com IA".
+
+**Acceptance Criteria:**
+
+**Given** a prose field holding text, with signal and a role that may fill it
+**When** it renders
+**Then** the AI control shows beside it (the `i-sparkles` glyph, 48 px, labelled); on an empty field it is absent
+
+**Given** a tap on the control
+**When** the request runs
+**Then** the server writes the field's text at the report level with the field's context, runs `writtenTextGuard`, and answers the new text; the control shows "Escrevendo" meanwhile and the field stays as it was
+
+**Given** the answer
+**When** it passes the guard
+**Then** the new text replaces the old one by an ordinary op, the field shows "Texto melhorado por IA" with "Desfazer", and "Desfazer" puts the former text back by another op
+
+**Given** the guard fails or the call fails
+**When** the answer comes
+**Then** the field is unchanged and one line says "Não foi possível melhorar o texto"
+
+**Given** no signal
+**When** the field renders
+**Then** the control is there, disabled, with "Precisa de conexão" as its reason; nothing is queued
+
+**Given** "Texto da conclusão" or the parecer summary
+**When** the user taps the control
+**Then** the composed text is rewritten with the conclusion's or the parecer's context and becomes the user's edited text; the result is never changed; without a tap or an audio the text stays composed on the device
+
+**Given** any call
+**When** it ends
+**Then** a run row stores model, prompt version, tokens and USD, and the route is rate-limited per user
+
+**Definition of Done:** kernel, api and web tests; E2E "31.9-E2E-001" (`@p0`, rewrite and undo on an NC observation), "-002" (offline, disabled with its reason), "-003" (the conclusion text); a role without the field's permission gets 403; strings listed for Bruno.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
 
-- *(2026-10-21, Bruno via Matheus, answer 11; closes E13-A9)* Story 13.9: Dictation on, behind one line of consent. Text under Epic 13. Definition of Ready still open: Matheus decides the consent wording and confirms `webspeech` as the shipped default engine.
+- ~~*(2026-10-21, Bruno via Matheus, answer 11; closes E13-A9)* Story 13.9: Dictation on, behind one line of consent. Text under Epic 13. Definition of Ready still open: Matheus decides the consent wording and confirms `webspeech` as the shipped default engine.~~ *(2026-11-26, Matheus: superseded by Epic 31. The browser engine is removed, so its consent question no longer exists; the story leaves this list unbuilt.)*
 
 *(2026-11-04, built as batch e20e with 20.11 to 20.13, PR #240 merged as `76cbdb79`. Narrowings: the telemetry per-user limit is 2000/min (authored); telemetry and body-less requests are exempt from the JSON rule; the per-e-mail sign-in lockout stays as an accepted risk in `deferred-work.md`; Caddy did turn the early 413 into a 502, fixed in the api, and the Caddyfile adds HSTS and drops `Server`. Integrated review of `76cbdb79` (`_bmad-output/test-artifacts/review-e20-integrated-2026-11-04.md`) and fix batch e20f, PR #241 merged as `df65be05`: files of a removed relatório answer 404; a telemetry event dated more than 10 min ahead is bounded.)*

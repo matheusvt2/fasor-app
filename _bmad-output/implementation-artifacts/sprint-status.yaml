@@ -385,6 +385,17 @@ development_status:
   30-5-the-unstable-tests-each-cause-found-and-fixed: done  # 2026-11-25: batch e30d, PR #390 (not merged yet when written); 16 items closed: 6 fixed (three causes in the product, one in a test), 9 recorded as not reproduced or cause not found (14.5 found in part, not fixed), 1 counted (21.1, fixed by e30f) | was backlog: wave 2, batch e30d, machine idle; E28-A6
   30-6-the-session-start-records-what-kind-of-device-it-is: done  # 2026-11-25: merged (PR #391), deployed as b209c0ea; the dashboard view device_kinds applied by that deploy | was review: 2026-11-25: batch e30g, added by Matheus's word ("é o tablet do Bruno, pode registrar o tipo do aparelho"); no contract number; PR open, not merged
   epic-30-retrospective: done
+  epic-31: backlog  # 2026-11-26: planned (sprint-change-proposal-2026-11-26.md, approved by Matheus); waits for AD-30 and the mocks
+  31-1-audio-is-a-file-with-a-target-a-status-and-its-measures: backlog
+  31-2-the-server-transcribes-an-audio-writes-the-text-and-fills-its-field: backlog
+  31-3-one-tap-records-measures-and-keeps-the-audio: backlog
+  31-4-the-text-lands-in-the-field-marked-audio: backlog
+  31-5-a-spoken-reading-waits-for-review: backlog
+  31-6-a-pending-audio-holds-the-ficha-and-the-emission: backlog
+  31-7-the-mic-on-the-fields-that-lack-it: backlog
+  31-8-amazon-transcribe-in-production: backlog
+  31-9-the-ai-control-rewrites-the-text-in-the-field: backlog
+  epic-31-retrospective: optional
 
   # Deferred or dropped stories (not tracked as keys). No script status means "deferred" or "dropped", so these two are
   # comments, not keys: with a backlog key, sprint_plan.py status recommends them as the next story. The deferred stories
