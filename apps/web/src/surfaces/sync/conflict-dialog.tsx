@@ -16,7 +16,7 @@ import {
 } from '@app/domain';
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Button } from '../../components/index.ts';
-import { CropThumb } from '../../components/crop-thumb.tsx';
+import { SuggestionCropThumb } from '../../components/crop-thumb.tsx';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { HeldDecisions } from '../../db/decision-store.ts';
@@ -225,7 +225,7 @@ function PickGroup({
           >
             <span className="radio" aria-hidden="true" />
             {suggestion === undefined ? null : (
-              <CropThumb presentational source="display" photoId={suggestion.source.photo_id} bbox={suggestion.source.bbox} label={cell.label} />
+              <SuggestionCropThumb presentational source="display" suggestion={suggestion} label={cell.label} />
             )}
             <span className="cvo-text">
               <span className="cvo-who">

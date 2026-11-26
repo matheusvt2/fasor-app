@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ocrReadResultSchema, structuringOutputSchema, type StructuringOutput } from '../contract/ocr.ts';
 import type { WordRow } from '../registry/word-row.ts';
-import type { BlockRow, Cell } from '../schemas/entities.ts';
+import { photoSourceOf, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { EMPTY_DEFINITION_CONTEXT, getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { confirmAllCandidates } from '../relatorio/suggestion-group.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
@@ -119,7 +119,7 @@ describe('8.4-UNIT buildReadingSuggestions over the committed plate fixture', ()
       });
       const [x0, y0, x1, y1] = union(cited);
       const expected = [x0 / 1600, y0 / 1100, x1 / 1600, y1 / 1100];
-      row.source.bbox.forEach((v, i) => {
+      photoSourceOf(row)!.bbox.forEach((v, i) => {
         expect(v, `${key} bbox ${i}`).toBeCloseTo(expected[i]!, 3);
         expect(Math.round(v * 10_000) / 10_000).toBe(v);
       });
@@ -177,7 +177,7 @@ describe('8.4-UNIT buildReadingSuggestions drops', () => {
     const { rows } = buildReadingSuggestions(
       input({ output: values([{ key: 'potencia_nominal', value: { raw: '500', unit: 'kVA', state: 'measured' }, ocr_token_ids: ['t23', 't22', 't23'], confidence: 0.9 }]) }),
     );
-    expect(rows[0]!.source.ocr_token_ids).toEqual(['t22', 't23']);
+    expect(photoSourceOf(rows[0]!)!.ocr_token_ids).toEqual(['t22', 't23']);
     expect(rows[0]!.trust).toBe('suggested');
   });
 
@@ -302,8 +302,8 @@ describe('21.2-UNIT the vector group from the plate', () => {
       const row = built.rows[0]!;
       expect(row.value).toBe('Dyn1');
       expect(row.trust).toBe('suggested');
-      expect(row.source.ocr_token_ids).toEqual(ids);
-      expect(row.source.bbox).not.toEqual(FULL_IMAGE_BBOX);
+      expect(photoSourceOf(row)!.ocr_token_ids).toEqual(ids);
+      expect(photoSourceOf(row)!.bbox).not.toEqual(FULL_IMAGE_BBOX);
       expect(plateSuggestionNoteText(row)).toBeNull();
     }
   });
@@ -312,8 +312,8 @@ describe('21.2-UNIT the vector group from the plate', () => {
     const built = read('v11', 'Yyn0', ['t5', 't6']);
     const row = built.rows[0]!;
     expect(row).toMatchObject({ value: 'Yyn0', trust: 'verify', status: 'pending', target_path: `sheet/${BLOCK}/nameplate/ligacao_secundaria` });
-    expect(row.source.ocr_token_ids).toEqual([]);
-    expect(row.source.bbox).toEqual(FULL_IMAGE_BBOX);
+    expect(photoSourceOf(row)!.ocr_token_ids).toEqual([]);
+    expect(photoSourceOf(row)!.bbox).toEqual(FULL_IMAGE_BBOX);
     expect(plateSuggestionNoteText(row)).toBe('Lido do diagrama — confira');
     const sheet = { id: BLOCK, seed_version: 'v11', block_type: 'transformador_forca', sheet: { nameplate: {}, checklist: {}, test: {} } as unknown as BlockRow['sheet'], config: defaultBlockConfig('v11', 'transformador_forca') };
     expect(confirmAllCandidates(sheet as never, [row], [], EMPTY_DEFINITION_CONTEXT)).toEqual([]);
@@ -323,21 +323,21 @@ describe('21.2-UNIT the vector group from the plate', () => {
   it('v11: the cited runs decide: the same group printed is suggested ("(Dyn1)" too); another group printed is verify with its citations and box, no note; no group printed is the diagram read', () => {
     const same = read('v11', 'Dyn1', ['t8']).rows[0]!;
     expect(same).toMatchObject({ value: 'Dyn1', trust: 'suggested' });
-    expect(same.source.ocr_token_ids).toEqual(['t8']);
+    expect(photoSourceOf(same)!.ocr_token_ids).toEqual(['t8']);
     for (const [value, ids] of [
       ['Dyn1', ['t7']],
       ['Yyn0', ['t2']],
     ] as const) {
       const other = read('v11', value, [...ids]).rows[0]!;
       expect(other, `${value} ${ids.join(' ')}`).toMatchObject({ value, trust: 'verify' });
-      expect(other.source.ocr_token_ids).toEqual(ids);
-      expect(other.source.bbox).not.toEqual(FULL_IMAGE_BBOX);
+      expect(photoSourceOf(other)!.ocr_token_ids).toEqual(ids);
+      expect(photoSourceOf(other)!.bbox).not.toEqual(FULL_IMAGE_BBOX);
       expect(plateSuggestionNoteText(other)).toBeNull();
     }
     const none = read('v11', 'Dyn1', ['t5']).rows[0]!;
     expect(none).toMatchObject({ value: 'Dyn1', trust: 'verify' });
-    expect(none.source.ocr_token_ids).toEqual([]);
-    expect(none.source.bbox).toEqual(FULL_IMAGE_BBOX);
+    expect(photoSourceOf(none)!.ocr_token_ids).toEqual([]);
+    expect(photoSourceOf(none)!.bbox).toEqual(FULL_IMAGE_BBOX);
     expect(plateSuggestionNoteText(none)).toBe(DIAGRAM_READ_NOTE);
   });
 
@@ -350,7 +350,7 @@ describe('21.2-UNIT the vector group from the plate', () => {
       expect(read(version, 'DYN1', ['t2']).rows[0]).toMatchObject({ value: 'Dyn1', trust: 'suggested' });
       const unparsed = read(version, 'Y', ['t0']).rows[0]!;
       expect(unparsed).toMatchObject({ value: 'Y', trust: 'suggested' });
-      expect(unparsed.source.ocr_token_ids).toEqual(['t0']);
+      expect(photoSourceOf(unparsed)!.ocr_token_ids).toEqual(['t0']);
       const drawn = read(version, 'Yyn0', ['t5']).rows[0]!;
       expect(drawn).toMatchObject({ value: 'Yyn0', trust: 'verify' });
       expect(plateSuggestionNoteText(drawn)).toBe('Lido do diagrama — confira');
@@ -361,7 +361,7 @@ describe('21.2-UNIT the vector group from the plate', () => {
     for (const type of ['tp', 'tc']) {
       const row = read('v11', 'DYN1', ['t2'], type).rows[0]!;
       expect(row, type).toMatchObject({ value: 'DYN1' });
-      expect(row.source.ocr_token_ids).toEqual(['t2']);
+      expect(photoSourceOf(row)!.ocr_token_ids).toEqual(['t2']);
     }
   });
 
@@ -460,12 +460,12 @@ describe('e21a R-2 vectorGroupReadOf: the kernel classification of one structure
           break;
         case 'printed':
           expect(row, label).toMatchObject({ value: read.code });
-          expect(row!.source.ocr_token_ids, label).toEqual(ids);
+          expect(photoSourceOf(row!)!.ocr_token_ids, label).toEqual(ids);
           expect(plateSuggestionNoteText(row!), label).toBeNull();
           break;
         case 'other_group':
           expect(row, label).toMatchObject({ value: read.code, trust: 'verify' });
-          expect(row!.source.ocr_token_ids, label).toEqual(ids);
+          expect(photoSourceOf(row!)!.ocr_token_ids, label).toEqual(ids);
           break;
         case 'diagram':
           expect(row, label).toMatchObject({ value: read.code, trust: 'verify' });

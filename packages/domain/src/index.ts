@@ -204,3 +204,5 @@ export * from './types/test-base-import.ts';
 export * from './types/test-base-update.ts';
 // Fix batch e24y (P2, P3): last, so the module order of everything above stays as it was.
 export * from './relatorio/tag-rename.ts';
+// Story 31.1 (AD-30): the voice input rules; last, as they read the sheet, the parecer and the captions.
+export * from './audio/index.ts';

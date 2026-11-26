@@ -6,6 +6,7 @@ import {
   check,
   customType,
   date,
+  doublePrecision,
   index,
   integer,
   pgTable,
@@ -142,6 +143,51 @@ export const readingRuns = pgTable(
   (t) => [
     index('reading_runs_company_photo_idx').on(t.company_id, t.photo_id),
     check('reading_runs_outcome_check', sql`${t.outcome} in ('ok', 'error')`),
+  ],
+);
+
+/*
+ * Story 31.2 (AD-30): one row per attempt of a transcription job, successful or failed, so every
+ * speech and writing call is accounted for: the providers and the writing model, the prompt
+ * version, the audio seconds, the tokens and the USD, how long it took, whether the written text
+ * passed the guard (`guard_outcome`) and, when the field received the text as heard instead, why
+ * (`fallback_reason`), and whether a table's speech was no reading (`not_a_reading`). An audio's
+ * `transcription_run_id` names the row of the run that wrote it. Written only by the job; never
+ * synced to a device.
+ */
+export const transcriptionRuns = pgTable(
+  'transcription_runs',
+  {
+    id: uuid('id').primaryKey(),
+    company_id: uuid('company_id').notNull(),
+    audio_id: uuid('audio_id').notNull(),
+    relatorio_id: uuid('relatorio_id'),
+    /** The pg-boss job id. */
+    job_id: text('job_id'),
+    attempt: integer('attempt').notNull(),
+    outcome: text('outcome').notNull(),
+    error: text('error'),
+    /** The writing level of the target (`polish`, `report`, `reading`), once the target was read. */
+    level: text('level'),
+    speech_provider: text('speech_provider').notNull(),
+    speech_model: text('speech_model'),
+    writing_provider: text('writing_provider'),
+    model: text('model'),
+    prompt_version: text('prompt_version'),
+    audio_seconds: doublePrecision('audio_seconds'),
+    input_tokens: integer('input_tokens'),
+    output_tokens: integer('output_tokens'),
+    /** The speech and the writing calls together, at list price. */
+    usd: doublePrecision('usd'),
+    duration_ms: integer('duration_ms').notNull(),
+    guard_outcome: text('guard_outcome'),
+    fallback_reason: text('fallback_reason'),
+    not_a_reading: boolean('not_a_reading').notNull().default(false),
+    created_at: timestamptz('created_at').notNull(),
+  },
+  (t) => [
+    index('transcription_runs_company_audio_idx').on(t.company_id, t.audio_id),
+    check('transcription_runs_outcome_check', sql`${t.outcome} in ('ok', 'error')`),
   ],
 );
 
@@ -291,4 +337,4 @@ export const fakeEmail = pgTable(
 );
 
 // `fakeEmail` stays out: better-auth's adapter reads only its own four models from here.
-export const schema = { ops, entities, syncDevicePush, readingRuns, aiUsageDaily, company, user, session, account, verification };
+export const schema = { ops, entities, syncDevicePush, readingRuns, transcriptionRuns, aiUsageDaily, company, user, session, account, verification };

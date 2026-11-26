@@ -266,7 +266,8 @@ export function nextEditNote(number: number, state?: { status: RelatorioStatus; 
  */
 export function expectedFileIds(snapshot: RelatorioSnapshot): string[] {
   const ids = new Set<string>();
-  for (const file of snapshot.files) if (file.kind !== 'photo') ids.add(file.id);
+  // Story 31.1 (AD-30): an audio never prints, so its upload never blocks "Gerar" (31.6 holds the issue on its status instead).
+  for (const file of snapshot.files) if (file.kind !== 'photo' && file.kind !== 'audio') ids.add(file.id);
   const logo = snapshot.empresa?.logo_file_id ?? null;
   if (logo !== null) ids.add(logo);
   const cover = snapshot.relatorio.setup.cover_photo_file_id;

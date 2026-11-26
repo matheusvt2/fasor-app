@@ -10,6 +10,8 @@ import {
   readingWait,
   panelSuggestionOf,
   panelTypeChips,
+  photoSourceOf,
+  suggestionPhotoId,
   suggestionRowSchema,
   toIso,
   type BlockTypeKey,
@@ -241,7 +243,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, d
     const pending: SuggestionRow[] = [];
     for (const record of records) {
       const parsed = suggestionRowSchema.safeParse(record.row);
-      if (parsed.success && parsed.data.status === 'pending' && parsed.data.source.photo_id === photoId) pending.push(parsed.data);
+      if (parsed.success && parsed.data.status === 'pending' && suggestionPhotoId(parsed.data) === photoId) pending.push(parsed.data);
     }
     return { photo: photo !== null && photo.kind === 'photo' ? (photo as PhotoFileRow) : null, pending };
   }, [db, photoId]);
@@ -350,7 +352,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, d
               label={t.newBlock}
               state={proposal.trust === 'verify' ? 'verify' : 'suggested'}
               onConfirm={confirm}
-              crop={suggestion === null ? undefined : <CropThumb photoId={shot.photoId} bbox={suggestion.row.source.bbox} label={t.newBlock} source="panel" />}
+              crop={suggestion === null ? undefined : <CropThumb photoId={shot.photoId} bbox={photoSourceOf(suggestion.row)?.bbox ?? [0, 0, 1, 1]} label={t.newBlock} source="panel" />}
             >
               <span className="sv-main">{proposal.text}</span>
               <span className="sv-sub">{proposal.locationPath}</span>

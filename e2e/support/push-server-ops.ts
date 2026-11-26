@@ -10,6 +10,7 @@ import {
   type OpInput,
   type RelatorioStatus,
   type RevisionRow,
+  type SuggestionPhotoSource,
   type SuggestionRow,
 } from '@app/domain';
 import { loadConfig } from '../../apps/api/src/config.ts';
@@ -145,7 +146,7 @@ export async function pushSuggestion(
     value: JsonValue;
     trust?: SuggestionRow['trust'];
     photoId?: string;
-    bbox?: SuggestionRow['source']['bbox'];
+    bbox?: SuggestionPhotoSource['bbox'];
     actorId: string;
   },
 ): Promise<string> {

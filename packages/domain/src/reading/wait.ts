@@ -96,5 +96,5 @@ export function readingWait(startedAt: string | null, nowIso: string): ReadingWa
 export function cancelledReadingSuggestions<T extends Pick<SuggestionRow, 'status' | 'source'>>(pending: readonly T[], cancelledPhotoIds: ReadonlySet<string> | readonly string[]): T[] {
   const cancelled = cancelledPhotoIds instanceof Set ? cancelledPhotoIds : new Set(cancelledPhotoIds as readonly string[]);
   if (cancelled.size === 0) return [];
-  return pending.filter((row) => row.status === 'pending' && cancelled.has(row.source.photo_id));
+  return pending.filter((row) => row.status === 'pending' && 'photo_id' in row.source && cancelled.has(row.source.photo_id));
 }

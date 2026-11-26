@@ -82,7 +82,7 @@ export function createProjectOf(op: Op, path: OpPath): string | null {
 export type ReferenceScope = 'relatorio' | 'obra' | 'company';
 
 /** The entities a value may name by id. */
-export type ReferencedEntity = 'location' | 'block' | 'equipment' | 'file' | 'registry' | 'template' | 'suggestion' | 'equipment_type';
+export type ReferencedEntity = 'location' | 'block' | 'equipment' | 'file' | 'registry' | 'template' | 'suggestion' | 'equipment_type' | 'point';
 
 export type ReferenceField =
   /** A row the value names, which must exist and belong to `scope` (a registry row of `kind`). */
@@ -172,6 +172,11 @@ export const REFERENCE_FIELDS: readonly ReferenceField[] = [
   { pointer: 'file.relatorio_id', exempt: ENVELOPE },
   { pointer: 'file.block_id', reference: { entity: 'block', scope: 'relatorio' } },
   { pointer: 'file.location_id', reference: { entity: 'location', scope: 'relatorio' } },
+  // Story 31.1 (contract 62): an audio's target names a row of its own relatório (AD-30, AD-10).
+  { pointer: 'file.audio_target.block_id', reference: { entity: 'block', scope: 'relatorio' } },
+  { pointer: 'file.audio_target.file_id', reference: { entity: 'file', scope: 'relatorio' } },
+  { pointer: 'file.audio_target.point_id', reference: { entity: 'point', scope: 'relatorio' } },
+  { pointer: 'file.transcription_run_id', exempt: 'server-owned (AD-30): the push route refuses a client create that sets it, and a put is file/server' },
   { pointer: 'point.id', exempt: OWN_ID },
   { pointer: 'point.relatorio_id', exempt: ENVELOPE },
   { pointer: 'point.equipment_id', reference: { entity: 'equipment', scope: 'obra' } },
@@ -182,6 +187,7 @@ export const REFERENCE_FIELDS: readonly ReferenceField[] = [
   { pointer: 'suggestion.relatorio_id', exempt: SERVER_ONLY_ID },
   { pointer: 'suggestion.source.photo_id', exempt: SERVER_ONLY_ID },
   { pointer: 'suggestion.source.reading_run_id', exempt: SERVER_ONLY_ID },
+  { pointer: 'suggestion.source.audio_id', exempt: SERVER_ONLY_ID },
   { pointer: 'generation_job.id', exempt: SERVER_ONLY_ID },
   { pointer: 'generation_job.relatorio_id', exempt: SERVER_ONLY_ID },
   { pointer: 'generation_job.result_file_id', exempt: SERVER_ONLY_ID },

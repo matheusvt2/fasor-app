@@ -1,4 +1,4 @@
-import type { PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
+import { isPhotoSuggestionSource, suggestionPhotoId, type PhotoFileRow, type SuggestionRow } from '../schemas/entities.ts';
 import { plural } from '../text/plural.ts';
 
 /*
@@ -51,14 +51,14 @@ export type PlateReadingView = 'queued' | 'running' | 'failed' | 'ready' | 'done
  * sees `done` before the rows.
  */
 export function plateReadingView(photo: Pick<PhotoFileRow, 'id' | 'reading_status'>, rows: readonly Pick<SuggestionRow, 'status' | 'source'>[]): PlateReadingView {
-  if (rows.some((row) => row.status === 'pending' && row.source.photo_id === photo.id)) return 'ready';
+  if (rows.some((row) => row.status === 'pending' && suggestionPhotoId(row) === photo.id)) return 'ready';
   switch (photo.reading_status) {
     case 'queued':
     case 'running':
     case 'failed':
       return photo.reading_status;
     case 'done':
-      return rows.some((row) => row.source.photo_id === photo.id) ? 'done' : 'empty';
+      return rows.some((row) => suggestionPhotoId(row) === photo.id) ? 'done' : 'empty';
     default:
       return 'done';
   }
@@ -79,7 +79,7 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 export function plateCropRegion(pending: readonly Pick<SuggestionRow, 'status' | 'source'>[], photoId: string, margin = PLATE_CROP_MARGIN): NormalizedBox | null {
   let box: [number, number, number, number] | null = null;
   for (const row of pending) {
-    if (row.status !== 'pending' || row.source.photo_id !== photoId) continue;
+    if (row.status !== 'pending' || !isPhotoSuggestionSource(row.source) || row.source.photo_id !== photoId) continue;
     const [x0, y0, x1, y1] = row.source.bbox;
     box = box === null ? [x0, y0, x1, y1] : [Math.min(box[0], x0), Math.min(box[1], y0), Math.max(box[2], x1), Math.max(box[3], y1)];
   }
@@ -159,14 +159,14 @@ export function regionWithin(outer: NormalizedBox, inner: NormalizedBox): { left
 
 /** "da foto 3": the one photo every row was read from, null when none or several. */
 export function singleSourcePhotoId(rows: readonly Pick<SuggestionRow, 'source'>[]): string | null {
-  const ids = new Set(rows.map((row) => row.source.photo_id));
+  const ids = new Set(rows.map((row) => suggestionPhotoId(row)));
   if (ids.size !== 1) return null;
   return [...ids][0]!;
 }
 
 /** How many readings arrived with these new suggestion rows: their distinct reading runs. */
 export function arrivedReadingsCount(newRows: readonly Pick<SuggestionRow, 'source'>[]): number {
-  return new Set(newRows.map((row) => row.source.reading_run_id)).size;
+  return new Set(newRows.map((row) => (isPhotoSuggestionSource(row.source) ? row.source.reading_run_id : `audio:${row.source.audio_id}`))).size;
 }
 
 /** The arrival toast: "3 leituras prontas para confirmar" / "1 leitura pronta para confirmar". */

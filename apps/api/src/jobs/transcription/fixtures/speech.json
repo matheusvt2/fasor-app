@@ -1,0 +1,5 @@
+{
+  "$comment": "Story 31.2: what the fake speech step (STT_PROVIDER=fake) hears. An audio whose sha256 is a key of by_sha256 is heard as that entry's text (or fails with its error: transient is retried, permanent ends the job); any other audio is heard as default. The integration tests copy this file and add the recordings they upload. Synthetic texts, no client material.",
+  "default": "equipamento verificado sem anomalias aparentes",
+  "by_sha256": {}
+}

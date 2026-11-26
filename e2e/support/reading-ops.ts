@@ -1,4 +1,4 @@
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, FILE_SHA256_HEADER, makeOp, SERVER_DEVICE_ID, suggestionPath, type FilePutResponse, type JsonValue, type OpInput, type SuggestionRow } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, FILE_SHA256_HEADER, makeOp, SERVER_DEVICE_ID, suggestionPath, type FilePutResponse, type JsonValue, type OpInput, type SuggestionPhotoSource, type SuggestionRow } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { loadConfig } from '../../apps/api/src/config.ts';
 import { createDb } from '../../apps/api/src/db/client.ts';
@@ -80,7 +80,7 @@ export async function pushReadingStatus(
 export interface PlateField {
   value: JsonValue;
   trust?: SuggestionRow['trust'];
-  bbox: SuggestionRow['source']['bbox'];
+  bbox: SuggestionPhotoSource['bbox'];
   hint?: SuggestionRow['hint'];
   /** `replace` when the target cell was filled before the reading (the job writes it so). */
   mode?: SuggestionRow['mode'];

@@ -275,7 +275,7 @@ function targetLine(shots: readonly { photo: DisplayReadingPhoto; at: number }[]
   const newest = ordered.at(-1);
   if (newest === undefined) return null;
   if (newest.photo.reading_status === 'failed') return { state: 'failed', photoId: newest.photo.id };
-  if (newest.photo.reading_status === 'done' && rows !== undefined && !rows.some((row) => row.source.photo_id === newest.photo.id)) return { state: 'empty', photoId: newest.photo.id };
+  if (newest.photo.reading_status === 'done' && rows !== undefined && !rows.some((row) => 'photo_id' in row.source && row.source.photo_id === newest.photo.id)) return { state: 'empty', photoId: newest.photo.id };
   return null;
 }
 

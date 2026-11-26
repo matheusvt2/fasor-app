@@ -13646,6 +13646,8 @@ So that the device and the server tell the same story about every recording.
 
 **Definition of Done:** kernel tests "31.1-UNIT-…" for each criterion, red first; the contract test at the new number; an op from a bundle before this story still folds; `docs/kbs/architecture/files-and-photos.md` and `suggestions-and-reading.md`.
 
+*(Outcome, 2026-11-26, batch e31a: built, contract 62 and MIN 62. Narrowings, open to Matheus: the target union adds `test_value` (the measurement-test reason) beside the listed shapes, and `setup` names `additional_info`, `next_intervention_justification` and `parecer_text`; the quality thresholds are the coordinator's first values in `AUDIO_QUALITY_THRESHOLDS`; the audio row carries an optional server-written `not_a_reading`; the cell does not carry the audio, the put's `meta.source_audio_id` and the audio row's target do.)*
+
 ### Story 31.2: The server transcribes an audio, writes the text and fills its field
 
 **Dev model:** opus · **Effort:** high · api: the `transcription` job, the speech provider interface with its `fake`, the writing step on the existing prose provider, the guard, the system ops; batch e31a
@@ -13691,6 +13693,8 @@ So that speaking is all it costs me.
 **Then** a run row stores provider, model, prompt version, audio seconds, tokens, USD and duration
 
 **Definition of Done:** api integration tests "31.2-API-…" (each criterion, both formats, tenant scoping, a role without the field's permission refused); fixtures under `apps/api/src/jobs/transcription/fixtures`; the model never receives another company's data; `GET /api/health` unchanged; `docs/kbs/code/api-app.md`.
+
+*(Outcome, 2026-11-26, batch e31a: built. The writing step is a new `WritingProvider` on the Bedrock Converse layer (AD-30), not the image-bound prose provider; three attempts are pg-boss `retryLimit: 2`; a `failed` audio only is queued again (`409 invalid_request` otherwise); the field permission is checked at the push (the audio's create needs the field's key) and again by the job on the creator's role; the not-a-reading text goes through the `report` writing step for OBSERVAÇÕES; no daily quota on transcriptions.)*
 
 ### Story 31.3: One tap records, measures and keeps the audio
 

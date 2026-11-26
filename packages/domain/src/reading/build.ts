@@ -331,5 +331,5 @@ export const DIAGRAM_READ_NOTE = 'Lido do diagrama — confira';
  */
 export function plateSuggestionNoteText(suggestion: Pick<SuggestionRow, 'target_path' | 'source'>): string | null {
   if (!NAMEPLATE_PATH.test(suggestion.target_path)) return null;
-  return suggestion.source.ocr_token_ids.length === 0 ? DIAGRAM_READ_NOTE : null;
+  return 'ocr_token_ids' in suggestion.source && suggestion.source.ocr_token_ids.length === 0 ? DIAGRAM_READ_NOTE : null;
 }

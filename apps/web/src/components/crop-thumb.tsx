@@ -1,4 +1,4 @@
-import { toIso } from '@app/domain';
+import { photoSourceOf, toIso, type SuggestionSource } from '@app/domain';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { now } from '../clock.ts';
 import { ui } from '../copy/ui.ts';
@@ -190,4 +190,13 @@ export function CropThumb({ photoId, bbox, label, onPress, source = 'plate', pre
       )}
     </button>
   );
+}
+
+/**
+ * Story 31.1 (contract 62): the crop of a suggestion's source picture. A suggestion spoken into an
+ * audio has no picture and no box (`source: {audio_id}`), so it draws nothing.
+ */
+export function SuggestionCropThumb({ suggestion, ...props }: Omit<CropThumbProps, 'photoId' | 'bbox'> & { suggestion: { source: SuggestionSource } }) {
+  const source = photoSourceOf(suggestion);
+  return source === null ? null : <CropThumb {...props} photoId={source.photo_id} bbox={source.bbox} />;
 }

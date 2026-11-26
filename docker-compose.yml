@@ -28,6 +28,8 @@ x-app-env: &app-env
   TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:*,http://127.0.0.1:*,http://api:3000,http://web:5173,https://${TABLET_HOST:-localhost},https://${TABLET_HOST:-localhost}:${CADDY_HTTPS_PORT:-443}}
   LLM_PROVIDER: ${LLM_PROVIDER:-fake}
   OCR_PROVIDER: ${OCR_PROVIDER:-fake}
+  # Story 31.2: the speech step of the transcription job (`fake` replays fixtures; `transcribe` arrives with Story 31.8).
+  STT_PROVIDER: ${STT_PROVIDER:-fake}
   # Story 11.6: the `bedrock` LLM provider's region and models (read only with LLM_PROVIDER=bedrock).
   # Unset or empty, config.ts defaults them (Claude Haiku 4.5; panel fronts on Qwen3 VL 235B; prose on the same model as plates). The
   # escalation model is passed only when set, so its default (Amazon Nova Pro) holds; set it

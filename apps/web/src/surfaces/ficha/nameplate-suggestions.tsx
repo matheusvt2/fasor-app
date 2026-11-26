@@ -12,6 +12,7 @@ import {
   nameplateSuggestions,
   numberPhotos,
   parseFieldInput,
+  photoSourceOf,
   refusedFieldInputKind,
   pendingSuggestions,
   photoRemovedText,
@@ -36,7 +37,7 @@ import {
   snapshotDefinitionContext,
 } from '@app/domain';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CropThumb } from '../../components/crop-thumb.tsx';
+import { SuggestionCropThumb } from '../../components/crop-thumb.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -132,7 +133,11 @@ export function useCropViewer({ api, snapshot, onCaptionPhoto }: { api: LocalApi
   const openPhoto = (photoId: string, zoom: NormalizedBox | null = null) => {
     if (tiles.some((tile) => tile.id === photoId)) setViewing({ photoId, zoom });
   };
-  const openCrop = (s: SuggestionCrop) => openPhoto(s.source.photo_id, s.source.bbox);
+  const openCrop = (s: SuggestionCrop) => {
+    // Story 31.1: a suggestion spoken into an audio has no picture to open.
+    const source = photoSourceOf(s);
+    if (source !== null) openPhoto(source.photo_id, source.bbox);
+  };
   const remove = (tile: PhotoTile) => {
     if (db === null || api.author === null) return;
     const author = api.author;
@@ -450,7 +455,7 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
         combobox={COMBOBOX_KINDS.has(field.kind)}
         valueClassName={isNumber ? 'measurement-field' : 'input'}
         bare
-        crop={<CropThumb photoId={suggestion.source.photo_id} bbox={suggestion.source.bbox} label={label} onPress={() => model.openCrop(suggestion)} />}
+        crop={<SuggestionCropThumb suggestion={suggestion} label={label} onPress={() => model.openCrop(suggestion)} />}
         // An edited guess confirms what the engineer sees: the typed value, this suggestion discarded.
         onConfirm={() => {
           pressingConfirm.current = false;
@@ -581,7 +586,7 @@ export function NameplateField({
     >
       {children}
       {source === null ? null : (
-        <CropThumb photoId={source.source.photo_id} bbox={source.source.bbox} label={screenLabel(field.label)} onPress={() => model.openCrop(source)} />
+        <SuggestionCropThumb suggestion={source} label={screenLabel(field.label)} onPress={() => model.openCrop(source)} />
       )}
     </div>
   );

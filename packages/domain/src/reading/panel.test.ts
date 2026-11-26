@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { OcrReadResult, StructuringValue } from '../contract/ocr.ts';
+import { photoSourceOf } from '../schemas/entities.ts';
 import { buildPanelSuggestion, PANEL_FIELDS, panelColumnOf, panelReadingTarget, panelReadingTargetSchema, panelSuggestionValueSchema } from './panel.ts';
 
 const RELATORIO = '019966b0-0009-7000-8000-000000000001';
@@ -65,7 +66,7 @@ describe('9.2-UNIT panel reading', () => {
   it('keeps the column alone when the type is not one of the eight', () => {
     const built = build([value('block_type', 'religador', ['t1']), value('column', 'C09', ['t0'])]);
     expect(built.rows[0]!.value).toEqual({ block_type: null, column: 9, column_text: 'C09' });
-    expect(built.rows[0]!.source.ocr_token_ids).toEqual(['t0']);
+    expect(photoSourceOf(built.rows[0]!)!.ocr_token_ids).toEqual(['t0']);
     expect(built.dropped).toEqual([{ key: 'block_type', reason: 'unknown_type' }]);
   });
 

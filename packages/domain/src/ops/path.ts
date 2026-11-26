@@ -55,9 +55,12 @@ export const EQUIPMENT_FIELDS = ['tag', 'removed_at'] as const;
  * Story 9.3 (contract 8): `people_in_photo`, the "Pessoas na foto" mark.
  * Story 14.3 (contract 18): `location_id`, the local of a site-item photo, beside `block_id`.
  * Story 21.3 (contract 30): `order_key`, a "Geral" photo's place in section 7 (one put per move).
+ * Story 31.1 (contract 62): `audio_status`, an audio's transcription state: a device writes only
+ * `dismissed` (the push route refuses any other value from a client), `system:transcription` the rest.
  */
-export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'reading_kind', 'reading_target', 'people_in_photo', 'location_id', 'order_key'] as const;
-export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] as const;
+export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'reading_kind', 'reading_target', 'people_in_photo', 'location_id', 'order_key', 'audio_status'] as const;
+/** Story 31.1 (contract 62): an audio's transcripts, its run and `not_a_reading`, written only by `system:transcription`. */
+export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status', 'transcript_heard', 'transcript_written', 'transcription_run_id', 'not_a_reading'] as const;
 export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'result', 'started_at'] as const;
 /**
  * Story 13.8 (contract 15): the fields the audit job writes on its `audit_run` row.

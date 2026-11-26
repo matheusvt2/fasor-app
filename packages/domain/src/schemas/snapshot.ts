@@ -5,6 +5,7 @@ import { hiddenLocationIds, pointsOnLiveLocals } from '../relatorio/location-liv
 import { pickEmpresa } from '../registry/empresa.ts';
 import { companyTypeIdOf, typeVersionIdOf, typeVersionNumber, typeVersionOf } from './block-config.ts';
 import {
+  audioFileRowSchema,
   blockRowSchema,
   equipmentRowSchema,
   equipmentTypeVersionRowSchema,
@@ -43,6 +44,8 @@ import {
 
 export const snapshotFileSchema = z.discriminatedUnion('kind', [
   photoFileRowSchema.omit({ company_id: true }),
+  // Story 31.1 (AD-30): the relatório's audios ride along, for the pending counts (`pendingAudios`); no reader prints them.
+  audioFileRowSchema.omit({ company_id: true }),
   otherFileRowSchema.omit({ company_id: true }),
 ]);
 

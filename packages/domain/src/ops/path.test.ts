@@ -348,7 +348,7 @@ describe('Story 14.3 (contract 18): location/{id}/checklist/{item_key}/{result|o
 
   it('`location_id` is a writable field of a photo and of a point, appended to FILE_FIELDS', () => {
     // Story 21.3 (contract 30) appended `order_key` after it.
-    expect(FILE_FIELDS[FILE_FIELDS.length - 2]).toBe('location_id');
+    expect(FILE_FIELDS[FILE_FIELDS.length - 3]).toBe('location_id');
     expect(parsePath(`file/${ID}/location_id`)).toEqual({ family: 'file/field', id: ID, field: 'location_id' });
     expect(parsePath(`point/${ID}/location_id`)).toEqual({ family: 'point/field', id: ID, field: 'location_id' });
     // A location's own `checklist` is never a plain `location/field`: only the cell family writes it.
@@ -356,7 +356,9 @@ describe('Story 14.3 (contract 18): location/{id}/checklist/{item_key}/{result|o
   });
 
   it('Story 21.3 (contract 30): `order_key` is a writable field of a photo, appended last to FILE_FIELDS, and round-trips', () => {
-    expect(FILE_FIELDS[FILE_FIELDS.length - 1]).toBe('order_key');
+    // Story 31.1 (contract 62): `audio_status` is appended after it.
+    expect(FILE_FIELDS[FILE_FIELDS.length - 2]).toBe('order_key');
+    expect(FILE_FIELDS[FILE_FIELDS.length - 1]).toBe('audio_status');
     expect(parsePath(`file/${ID}/order_key`)).toEqual({ family: 'file/field', id: ID, field: 'order_key' });
     expect(builders.fileFieldPath(ID, 'order_key')).toBe(`file/${ID}/order_key`);
     expect(formatPath(parsePath(`file/${ID}/order_key`))).toBe(`file/${ID}/order_key`);

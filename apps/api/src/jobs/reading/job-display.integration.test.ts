@@ -22,6 +22,8 @@ import {
   type Op,
   type OpDraft,
   type SuggestionRow,
+  photoSourceOf,
+  suggestionPhotoId,
 } from '@app/domain';
 import { and, asc, eq } from 'drizzle-orm';
 import sharp from 'sharp';
@@ -161,7 +163,7 @@ const status = async (photoId: string) => (await row<{ reading_status: string }>
 
 async function suggestionsOf(photoId: string): Promise<SuggestionRow[]> {
   const found = await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyId), eq(entities.entity, 'suggestion')));
-  return found.map((r) => suggestionRowSchema.parse(r.row)).filter((s) => s.source.photo_id === photoId);
+  return found.map((r) => suggestionRowSchema.parse(r.row)).filter((s) => suggestionPhotoId(s) === photoId);
 }
 
 async function runs(photoId: string) {
@@ -199,7 +201,7 @@ describe('9.1-INT the display reading kind', () => {
     const [attempt] = await runs(id);
     expect(attempt).toMatchObject({ outcome: 'ok', reading_kind: 'display', ocr_provider: 'fake', model: null, prompt_version: null, llm_usage: null });
     expect((attempt!.ocr_result as { tokens: unknown[] }).tokens).toHaveLength(3);
-    expect(suggestion!.source.reading_run_id).toBe(attempt!.id);
+    expect(photoSourceOf(suggestion!)!.reading_run_id).toBe(attempt!.id);
   }, 60_000);
 
   it('typed first: the suggestion is a replace and the typed cell is never written by the job', async () => {

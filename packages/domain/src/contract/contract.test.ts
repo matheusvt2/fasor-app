@@ -127,9 +127,10 @@ describe('contract constants', () => {
   // e28c (Story 28.9, the setup key `additional_items`, 2026-11-23): 59, after e28a's 58; MIN follows.
   // e30b (Story 30.3, seed v19 opens equal to v18, 2026-11-24): 60, after e28c's 59; MIN follows.
   // e30c (Story 30.4, a local's removal mark against site work, 2026-11-25): 61, after e30b's 60; MIN follows.
-  it('speaks version 61 and refuses version 60 (batch e30c, Story 30.4: a version-60 bundle neither attributes site work nor marks a removed local)', () => {
-    expect(CONTRACT_VERSION).toBe(61);
-    expect(MIN_CONTRACT_VERSION).toBe(61);
+  // e31a (Story 31.1, the audio file kind and the audio-sourced Suggestion, 2026-11-26): 62, after e30c's 61; MIN follows.
+  it('speaks version 62 and refuses version 61 (batch e31a, Story 31.1: a version-61 bundle cannot parse an audio file row nor an audio-sourced Suggestion)', () => {
+    expect(CONTRACT_VERSION).toBe(62);
+    expect(MIN_CONTRACT_VERSION).toBe(62);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
