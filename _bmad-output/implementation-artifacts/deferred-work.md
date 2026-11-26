@@ -1284,3 +1284,11 @@ All rows closed; see deferred-work-archive.md
   evidence: `e2e/journeys-12-3-12-4.spec.ts` `pickWord`; `apps/web/src/components/registry-picker-field.tsx`; `apps/web/src/components/combobox.tsx`; the batch's pfinal run (the page snapshot holds the open list).
   class: bug
   state: open (owner: the next batch touching the registry picker; with the R8CAP-E2E-010 history)
+
+## Deferred from: Stories 31.5 and 31.6, batch e31c (2026-11-26)
+
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.4 outcome line (the open risk e31b named)
+  summary: Online, the batch caption's "Adicionar N fotos" writes the typed caption on every photo of the batch (`assignPhotoBatch`), compared only against the caption the photos were saved with. When the first photo's audio was transcribed before the tap, its caption already holds the audio's text and the put overwrites it; the audio row still names the photo, so the mark reads "Áudio, editado". The fix reads each photo's current caption in the commit and skips a photo whose caption no longer equals the saved one; it lives in `surfaces/photos/photo-ops.ts` and `capture-sheet.tsx`, outside this batch's files.
+  evidence: `apps/web/src/surfaces/photos/photo-ops.ts` `assignPhotoBatch`; `apps/web/src/surfaces/photos/capture-sheet.tsx` (the batch caption's audio on the first photo, Story 31.3).
+  class: bug
+  state: open (owner: batch e31d, Story 31.7, which touches the photo caption surfaces; one e2e: record on the batch caption online, wait for the text, tap "Adicionar N fotos", the first photo keeps the audio's text)
