@@ -3,32 +3,37 @@ import { DEFAULT_BEDROCK_MODEL_ID, type Config } from '../../../config.ts';
 import { BEDROCK_DEFAULT_REGION, bedrockClientSource, type BedrockClientSource, type BedrockLike } from '../../../ai/bedrock.ts';
 import { AiFeaturesOffError } from '../../../ai/errors.ts';
 import { fakeSpeechProvider } from './speech-fake.ts';
+import { transcribeSpeechProvider, type TranscribeLike } from './speech-transcribe.ts';
 import { bedrockWritingProvider } from './writing-bedrock.ts';
 import { fakeWritingProvider } from './writing-fake.ts';
 
 /*
  * Story 31.2 (AD-30): the two providers of the transcription job, chosen by env. `STT_PROVIDER`
- * names the speech step (`fake` by default; `transcribe`, Amazon Transcribe, arrives with Story
- * 31.8 and refuses to boot until then); `LLM_PROVIDER` the writing step (`fake` by default,
+ * names the speech step (`fake` by default; `transcribe` is Amazon Transcribe, Story 31.8); `LLM_PROVIDER` the writing step (`fake` by default,
  * `bedrock` through Converse). `AI_FEATURES=off` refuses every writing call permanently.
  */
-
-/** Story 31.2: `STT_PROVIDER=transcribe` before Story 31.8 delivers its adapter. */
-export class SpeechProviderUnavailableError extends Error {
-  constructor() {
-    super('STT_PROVIDER=transcribe: the Amazon Transcribe adapter arrives with Story 31.8; set STT_PROVIDER=fake until then');
-    this.name = 'SpeechProviderUnavailableError';
-  }
-}
 
 export interface SpeechProviderOptions {
   /** The fake's fixture; defaults to the committed `fixtures/speech.json`. */
   fixturePath?: string;
+  /** An injected Transcribe client and timings (tests). */
+  transcribe?: { client?: TranscribeLike; pollMs?: number; jobTimeoutMs?: number; sleep?: (ms: number) => Promise<void> };
 }
 
-/** The speech provider the env names; `transcribe` throws (boot fails with the reason). */
-export function createSpeechProvider(config: Pick<Config, 'STT_PROVIDER'>, options: SpeechProviderOptions = {}): SpeechProvider {
-  if (config.STT_PROVIDER === 'transcribe') throw new SpeechProviderUnavailableError();
+/** The speech provider the env names (Story 31.8: `transcribe` is Amazon Transcribe batch). */
+export function createSpeechProvider(
+  config: Pick<Config, 'STT_PROVIDER'> & Partial<Pick<Config, 'S3_BUCKET' | 'TRANSCRIBE_REGION' | 'TRANSCRIBE_VOCABULARY_NAME'>>,
+  options: SpeechProviderOptions = {},
+): SpeechProvider {
+  if (config.STT_PROVIDER === 'transcribe') {
+    if (config.S3_BUCKET === undefined) throw new Error('STT_PROVIDER=transcribe needs S3_BUCKET');
+    return transcribeSpeechProvider({
+      bucket: config.S3_BUCKET,
+      ...(config.TRANSCRIBE_REGION === undefined ? {} : { region: config.TRANSCRIBE_REGION }),
+      ...(config.TRANSCRIBE_VOCABULARY_NAME === undefined ? {} : { vocabularyName: config.TRANSCRIBE_VOCABULARY_NAME }),
+      ...options.transcribe,
+    });
+  }
   return fakeSpeechProvider(options.fixturePath);
 }
 

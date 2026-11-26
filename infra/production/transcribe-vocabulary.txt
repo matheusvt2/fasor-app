@@ -1,0 +1,41 @@
+# Story 31.8: the custom vocabulary of Amazon Transcribe (pt-BR), one entry per line. Rules of the
+# service for pt-BR: lowercase letters with accents, hyphens inside a multi-word entry, no spaces.
+# First list authored from the trade words of packages/domain/src/seed (block types, instruments,
+# tests); Bruno's list replaces or extends it. No client, site or person names here.
+megôhmetro
+microhmímetro
+ttr
+termovisor
+termovisão
+para-raios
+para-raio
+seccionadora
+seccionadoras
+disjuntor
+disjuntores
+transformador
+transformadores
+buchas
+bucha
+buchholz
+mufla
+muflas
+terminação
+fusível
+fusíveis
+religador
+aterramento
+isolação
+polarização
+hipot
+comutador
+relação-de-transformação
+resistência-de-contato
+resistência-ôhmica
+rigidez-dielétrica
+índice-de-absorção
+fator-de-potência
+cabine
+ficha
+parecer
+relatório

@@ -13912,6 +13912,8 @@ So that voice works on Bruno's tablet without a surprise on the bill.
 
 **Definition of Done:** unit tests of the adapter against recorded responses; no test calls AWS; `docs/kbs/architecture/infra-aws.md`; the deploy record.
 
+*(2026-11-26, batch e31e: built as far as the code and the Terraform; not applied, no deploy. The `transcribe` adapter (`speech-transcribe.ts`), `transcribe.tf`, `stt_provider` (default `fake`), the cost row (USD 0.006 a minute, confirmed 2026-11-26 from the AWS Price List API, publication 2026-11-21; 600 min = USD 3.60, total 92.74) and the budget deny extension are in. Open for Matheus: apply `stt_provider = "transcribe"`, and the AC of the smoke run (one audio transcribed in the smoke company) waits for his deploy. Bruno's trade-word list replaces the first list authored from the seed.)*
+
 ### Story 31.9: The AI control rewrites the text in the field
 
 **Dev model:** opus · **Effort:** medium · kernel (the request and its guard), api (one route on the prose provider), web (the control, "Desfazer", the disabled state); batch e31d

@@ -38,6 +38,17 @@ variable "ocr_provider" {
   }
 }
 
+variable "stt_provider" {
+  description = "STT_PROVIDER of the api (Story 31.8, AD-30): fake replays fixtures and calls nothing; transcribe is Amazon Transcribe batch, pt-BR, with the trade-words vocabulary. Voice works in production only with transcribe, ai_features = on and llm_provider = bedrock."
+  type        = string
+  default     = "fake"
+
+  validation {
+    condition     = contains(["fake", "transcribe"], var.stt_provider)
+    error_message = "stt_provider must be fake or transcribe."
+  }
+}
+
 variable "llm_provider" {
   description = "LLM_PROVIDER of the api: bedrock (Story 11.6, Bedrock Converse) or fake, unreachable while ai_features is off."
   type        = string

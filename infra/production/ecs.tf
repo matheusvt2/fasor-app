@@ -52,6 +52,11 @@ locals {
       LLM_PROVIDER    = var.llm_provider
       AI_FEATURES     = var.ai_features
       AWS_REGION      = local.region
+      # Story 31.8 (AD-30): the speech step of the transcription job. `fake` until Matheus applies
+      # stt_provider = "transcribe"; the region is the bucket's (Transcribe reads the object from it).
+      STT_PROVIDER               = var.stt_provider
+      TRANSCRIBE_REGION          = local.region
+      TRANSCRIBE_VOCABULARY_NAME = aws_transcribe_vocabulary.trade_words.vocabulary_name
       # Epic 18 (AD-28): usage events go to their own log group (telemetry.tf), never to stdout here.
       TELEMETRY_SINK      = "cloudwatch"
       TELEMETRY_LOG_GROUP = aws_cloudwatch_log_group.ux_events.name
