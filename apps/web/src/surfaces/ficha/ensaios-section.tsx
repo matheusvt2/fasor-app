@@ -18,7 +18,6 @@ import {
   storedRowFilledCols,
   sheetRunEnterKeyHint,
   sheetRunTarget,
-  tableDictationLabel,
   rowVoltageCell,
   rowVoltageSourceText,
   notApplicableReadingValue,
@@ -73,7 +72,6 @@ import { useToast } from '../../state/toast.tsx';
 import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { IndexHelpAction, TestHelpAction } from './test-help-dialog.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
-import { DictationButton } from '../../speech/dictation.tsx';
 import { spriteHref } from '../../styles/sprite.ts';
 
 /*
@@ -87,10 +85,10 @@ import { spriteHref } from '../../styles/sprite.ts';
  * cell of what follows, and "Concluir ficha"/"Próxima ficha" after the last. Everything
  * shown is the kernel's one evaluation (`evaluateSheetReadings`). Story 9.1: each table's
  * title row carries "Ler visor" and, while it holds suggested readings, "Confirmar todos"
- * (`.mt-actions`); each cell shows its display reading (`read-display.tsx`). Story 9.4: the
- * same `.mt-actions` ends with the table's Dictation button; the kernel reads the utterance
- * (`parseTableUtterance`) into a Suggestion on its target cell, never over a filled cell, and
- * speech it cannot read goes to the sheet observation as a suggestion, announced. On a sheet
+ * (`.mt-actions`); each cell shows its display reading (`read-display.tsx`). Story 9.4 drew the
+ * table's Dictation button after them; Story 31.3 (batch e31c's Story 31.5 owns the table's
+ * audio) removed it with the browser speech engine, and the held spoken reading
+ * (`useTableDictation`, `DictatedMeasurementField`) stays unreached until then. On a sheet
  * marked not tested (Story 5.9)
  * every section is `.is-readonly` with the reason line: the cells show their stored
  * readings as read-only text and the Instrument picker its stored instrument, unchangeable.
@@ -516,7 +514,7 @@ function MeasurementTable({
   const t = copy.ficha.ensaios;
   const titleId = useId();
   // Story 9.4: the reading dictated on this table, held until its cell's "Confirmar" (never a row).
-  const { dictated, setDictated, onDictated } = useTableDictation(table, api.announce);
+  const { dictated, setDictated } = useTableDictation(table, api.announce);
   // The cell the dictated reading is drawn on (held only while that cell is empty).
   const dictatedCell = dictated?.address ?? null;
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
@@ -605,7 +603,6 @@ function MeasurementTable({
         {readOnly ? null : (
           <div className="mt-actions">
             {actions(dictatedCell)}
-            <DictationButton label={tableDictationLabel(table)} onStart={() => setDictated(null)} onResult={onDictated} />
           </div>
         )}
       </div>

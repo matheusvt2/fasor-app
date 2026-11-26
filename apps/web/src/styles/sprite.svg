@@ -162,4 +162,8 @@
     <rect x="3" y="5" width="18" height="14" rx="2" />
     <path d="M3 7l9 6 9-6" />
   </symbol>
+  <!-- Story 31.3: the audio button's stop glyph, play on an audio, the live warning (`mockups/prototype/shell-head.html` 59-61). -->
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.2v.3"/></symbol>
 </svg>

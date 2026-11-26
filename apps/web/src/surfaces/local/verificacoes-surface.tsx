@@ -124,6 +124,8 @@ function siteRowTarget(snapshot: RelatorioSnapshot, location: CabineLocation, ro
     observationCap: textCapOf(locationChecklistPath(location.id, row.key, 'observation')),
     // No photo-read draft on a site item (the batch spec's open question O4).
     ncDraft: null,
+    // Story 31.3: no audio target names a local's item yet (AD-30's union); the fields without a mic are batch e31d's.
+    audioTarget: null,
     // Story 22.5: the point replaces the item's derived NC entry (`origin` `nc`, its item); e22f
     // S4: it starts with that entry's text and the item's photos, as "Editar" on the entry does.
     pointSeed: (photoIds) => ({

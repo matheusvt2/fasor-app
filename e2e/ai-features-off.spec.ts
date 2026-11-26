@@ -11,8 +11,9 @@ import { expandLocation } from './support/tree.ts';
 /*
  * Story 11.8 follow-up (AI_FEATURES): a server whose AI features are off. `GET /api/account` is
  * the real answer with `features.ai = false` laid over it (the way other specs stub a server
- * fact). Driven as a person would: the sheet shows no "Fotografar placa", keeps "Ler visor" and
- * "Ditar observações", commits a typed plate value; a photo from an NC row asks for no draft,
+ * fact). Driven as a person would: the sheet shows no "Fotografar placa", keeps "Ler visor", draws no
+ * Audio button (Story 31.3: with AI features off no job would transcribe it, the reading buttons' rule),
+ * commits a typed plate value; a photo from an NC row asks for no draft,
  * while a draft already on the server still shows (settling it calls no LLM); the Sumário's palette has no "Fotografar
  * equipamento"; and after an offline reload the cached flag keeps every entry hidden.
  */
@@ -53,23 +54,23 @@ async function aiFeaturesOff(page: Page): Promise<void> {
   );
 }
 
-/** The sheet with the AI entries hidden and the manual and OCR-only ones present (dictation needs a connection, Story 9.4). */
-async function expectAiEntriesHidden(page: Page, online = true): Promise<void> {
+/** The sheet with the AI entries hidden (the Audio button too, Story 31.3) and the manual and OCR-only ones present. */
+async function expectAiEntriesHidden(page: Page): Promise<void> {
   await expect(plate(page).locator('.nameplate-grid')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('button', { name: 'Fotografar placa' })).toHaveCount(0);
   await expect(plate(page).locator('.camera-capture-tile')).toHaveCount(0);
   await expect(readDisplay(page)).toBeVisible();
-  if (online) await expect(page.getByRole('button', { name: 'Ditar observações' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Gravar áudio: / })).toHaveCount(0);
 }
 
-test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler visor", dictation and typing stay; the flag holds after an offline reload', async ({ page }) => {
+test('@p0 11.8-E2E-001 AI features off: no plate, panel, NC-draft or audio entry; "Ler visor" and typing stay; the flag holds after an offline reload', async ({ page }) => {
   test.setTimeout(240_000);
   await aiFeaturesOff(page);
   await holdPhotoBytes(page);
   const ids = await openChaveSheet(page, account, database);
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('releng.ai-features'))).toBe('off');
 
-  // The sheet: no "Fotografar placa"; "Ler visor" and "Ditar observações" stay.
+  // The sheet: no "Fotografar placa" and no Audio button; "Ler visor" stays.
   await expectAiEntriesHidden(page);
 
   // A typed plate value commits as the op it always was.
@@ -129,6 +130,6 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
     (route) => route.abort('internetdisconnected'),
   );
   await page.goto(`/relatorio/${ids.relatorioId}/ficha/${ids.blockId}`);
-  await expectAiEntriesHidden(page, false);
+  await expectAiEntriesHidden(page);
   await expect(plate(page).locator('[data-field-key="n_serie"] input')).toHaveValue('AI-OFF-1');
 });

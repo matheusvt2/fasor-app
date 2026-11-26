@@ -11,7 +11,7 @@ import { ExtraBannerProvider } from './state/extra-banner.tsx';
 import { PageTitleProvider } from './state/page-title.tsx';
 import { PermissionsProvider, RequirePermission } from './state/permissions.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
-import { SpeechEngineProvider } from './speech/dictation.tsx';
+import { AudioRecorderProvider } from './speech/audio-session.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
 import { ThemeProvider } from './state/theme.tsx';
 import { ToastProvider } from './state/toast.tsx';
@@ -113,10 +113,10 @@ export function RequireSession() {
               <BackTargetProvider>
                 <PageTitleProvider>
                   <ExtraBannerProvider>
-                    {/* Story 9.4: the one speech engine and its single listening session; online-only. */}
-                    <SpeechEngineProvider online={session.online}>
+                    {/* Story 31.3: the one recording app-wide and the open relatório's audio rows; with or without signal. */}
+                    <AudioRecorderProvider>
                       <SessionShell />
-                    </SpeechEngineProvider>
+                    </AudioRecorderProvider>
                   </ExtraBannerProvider>
                 </PageTitleProvider>
               </BackTargetProvider>

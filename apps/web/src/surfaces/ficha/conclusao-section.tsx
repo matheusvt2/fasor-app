@@ -1,5 +1,4 @@
 import {
-  appendObservation,
   composeConclusion,
   conclusionAdjusted,
   conclusionBasisMatches,
@@ -43,8 +42,7 @@ import { DRAFT_SURFACE, useTypedText } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
 import { useSheetReadOnly, useSheetReadOnlyCause, useSheetReadOnlyReason } from './sheet-read-only.tsx';
-import { DictatedSuggestion, DictationButton } from '../../speech/dictation.tsx';
-import { useSheetObservationDictation } from './sheet-observation-dictation.tsx';
+import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
 import { spriteHref } from '../../styles/sprite.ts';
 
 /*
@@ -67,9 +65,9 @@ import { spriteHref } from '../../styles/sprite.ts';
  * empty and NC items carry observations, the field is a Suggestion field holding the
  * kernel's "Item ⟨n⟩: ⟨observação⟩" lines, written by its "Confirmar" or together with the
  * conclusion text's own "Confirmar"; Com restrições then needs no typing. The text confirm
- * "Concluir ficha" folds into its batch (review 2026-10-08 Decision 1) never writes it. Story 9.4: the section head
- * carries "Ditar observações"; a dictated text (or a table utterance the kernel could not
- * read) waits under the field as a Suggestion field and "Usar" appends it (`appendObservation`).
+ * "Concluir ficha" folds into its batch (review 2026-10-08 Decision 1) never writes it. Story 31.3: the section head
+ * carries the Audio button ("Gravar áudio: observações"); the audio's text arrives in the field
+ * through the server's put, with the status line and the mark under the field (Story 31.4).
  */
 
 type Segment<T extends string> = { value: T; attr: string; label: string };
@@ -272,15 +270,8 @@ export function ConclusaoSection({
   // replaces it. `typing` holds from the focus until a blur leaves the field empty.
   const suggestedObservation = useMemo(() => suggestedSheetObservation(block, definition), [block, definition]);
   const [typing, setTyping] = useState(false);
-  const dictation = useSheetObservationDictation();
-  /** "Usar": the dictated text appended after what the field holds, written now. */
-  const applyDictated = () => {
-    const text = dictation.pending;
-    dictation.discard();
-    if (text === null) return;
-    // After what the field shows: the Story 12.4 NC lines while they stand in it, else the text.
-    observation.set(appendObservation(observationSuggested ? suggestedObservation : observation.text, text));
-  };
+  // Story 31.3: the field an audio of the sheet's OBSERVAÇÕES fills.
+  const observationAudio = useMemo(() => ({ type: 'sheet_field' as const, block_id: api.blockId, field: 'observations' as const }), [api.blockId]);
   const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
   // Batch e24a (Story 24.3): what requires the observation (Com restrições; on seed v14 a Reprovado too), which its helper names.
   const requiredBy = observationRequiredBy(block, definition, visit);
@@ -424,7 +415,7 @@ export function ConclusaoSection({
         <section className={roleReadOnly ? 'section is-readonly' : 'section'} aria-labelledby={obsHeading}>
           <div className="section-head">
             <h2 id={obsHeading}>{t.observationTitle}</h2>
-            {roleReadOnly ? null : <DictationButton label={t.dictateObservations} onStart={dictation.discard} onResult={dictation.offer} />}
+            {roleReadOnly ? null : <AudioButton target={observationAudio} label={t.audioField} />}
           </div>
           {/* The textarea keeps its place among the children, so the focus survives the switch between suggested and typed. */}
           <div className={observationSuggested ? 'field suggestion-field' : 'field'} data-state={observationSuggested ? 'suggested' : undefined}>
@@ -450,7 +441,6 @@ export function ConclusaoSection({
               }}
               onChange={(event) => {
                 setTyping(true);
-                dictation.discard();
                 observation.change(event.target.value);
               }}
               onBlur={() => {
@@ -484,7 +474,7 @@ export function ConclusaoSection({
               </span>
             ) : null}
           </div>
-          {dictation.pending === null ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
+          <AudioFieldLines target={observationAudio} text={observation.text} label={t.audioField} />
         </section>
       ) : null}
       {enabled.has('conclusion') ? (

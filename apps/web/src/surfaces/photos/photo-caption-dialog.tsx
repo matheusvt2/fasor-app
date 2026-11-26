@@ -31,7 +31,7 @@ export function PhotoCaptionDialog({
     <CaptionComposer
       isOpen
       onClose={onClose}
-      photo={{ thumb: photo.thumb, number, capturedAt: photo.captured_at }}
+      photo={{ id: photo.id, thumb: photo.thumb, number, capturedAt: photo.captured_at }}
       prefill={contextCaptionParts(photo, snapshot, meta)}
       prefillText={photo.block_id === null ? siteCaption(photo, snapshot, meta) : null}
       stored={photo.caption}

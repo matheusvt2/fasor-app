@@ -1,7 +1,6 @@
 import {
   captionUsarAnnouncement,
   captionChipOptions,
-  dictatedText,
   captionPhotoLabel,
   captionPhotoMetaText,
   captionPartsOf,
@@ -20,9 +19,8 @@ import { DialogShell } from '../../components/dialog-shell.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
-import { ui } from '../../copy/ui.ts';
 import type { CaptionRecents } from '../../db/photo-store.ts';
-import { DictationButton } from '../../speech/dictation.tsx';
+import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
 import './photos.css';
 import { spriteHref } from '../../styles/sprite.ts';
 
@@ -64,6 +62,8 @@ export interface CaptionComposerSources {
 
 /** E6-Q3: the one photo being captioned (`71-legenda.html` `.capture-preview`); a batch has none. */
 export interface CaptionComposerPhoto {
+  /** Story 31.4: the stored photo's id, the target of its caption's audio; absent for a photo not saved yet. */
+  id?: string;
   thumb: Blob | null;
   /** The provisional number, null before it has one. */
   number: number | null;
@@ -161,9 +161,9 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
   const generated = composeCaption(parts);
   const [editing, setEditing] = useState(() => opening === null);
   const [text, setText] = useState(() => openingText ?? composeCaption(start) ?? '');
-  // Story 9.4 (`71-legenda.html` 148-160): a dictated caption lands in the text as a suggestion;
-  // "Salvar legenda" confirms it, typing makes it the engineer's own.
-  const [dictated, setDictated] = useState(false);
+  // Story 31.4 (`71-legenda.html` 160-175): the Audio button of a stored photo's caption, in both modes; the
+  // audio's text arrives on the photo's caption through the server's put (replacing a caption still automatic).
+  const audioTarget = photo?.id === undefined ? null : { type: 'photo_caption' as const, file_id: photo.id };
   const textId = useId();
   const reasonId = useId();
   const area = useRef<HTMLTextAreaElement>(null);
@@ -193,7 +193,6 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
 
   const toggleEditing = (on: boolean) => {
     setEditing(on);
-    setDictated(false);
     if (on) {
       // Free editing starts from the caption the rows compose now.
       setText(generated ?? '');
@@ -239,11 +238,7 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
       )}
       <div className="caption-head">
         {photo === undefined ? null : <PhotoPreview photo={photo} />}
-        <div
-          className={dictated ? 'field suggestion-field caption-field' : 'field caption-field'}
-          data-editing={editing ? '' : undefined}
-          data-state={dictated ? 'suggested' : undefined}
-        >
+        <div className="field caption-field" data-editing={editing ? '' : undefined}>
           {hint === 'generated' ? <span className="field-label">{t.previewLabel}</span> : null}
           {editing ? (
             <>
@@ -257,10 +252,7 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
                 value={text}
                 maxLength={CAPTION_CAP ?? undefined}
                 aria-describedby={reasonId}
-                onChange={(event) => {
-                  setDictated(false);
-                  setText(event.target.value);
-                }}
+                onChange={(event) => setText(event.target.value)}
               />
               <CharCount length={text.length} cap={CAPTION_CAP} />
             </>
@@ -269,7 +261,7 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
               {generated ?? ''}
             </p>
           )}
-          {dictated ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
+          <AudioFieldLines target={audioTarget} text={stored} label={t.audioField} />
           <div className="caption-actions">
             <ToggleButton className="btn btn-text caption-edit-toggle" isSelected={editing} onChange={toggleEditing}>
               <svg className="ico" aria-hidden="true">
@@ -277,21 +269,9 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
               </svg>
               {t.editText}
             </ToggleButton>
-            {editing ? (
-              <DictationButton
-                className="caption-dictation"
-                label={t.dictate}
-                onResult={(heard) => {
-                  const next = capCaption(dictatedText(heard));
-                  if (next === '') return;
-                  setText(next);
-                  setDictated(true);
-                }}
-              />
-            ) : null}
+            <AudioButton target={audioTarget} label={t.audioField} wrap="audio-tools" />
             <span className="btn-reason" id={reasonId}>
               {t.editReason}
-              {dictated ? <span className="dictated-note">{t.dictatedNote}</span> : null}
             </span>
           </div>
           {hint === 'edited' ? <p className="helper caption-edit-note">{t.editingNote}</p> : null}

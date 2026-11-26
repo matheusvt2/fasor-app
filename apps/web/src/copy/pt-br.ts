@@ -1371,8 +1371,10 @@ export const copy = {
     caption: 'Legendar',
     // authored (Story 9.3): the batch's people mark, under its caption field.
     peopleInPhoto: 'Pessoas na foto',
-    // Story 9.4, `70-fotos.html` 419: the batch caption's Dictation button.
-    dictate: 'Ditar a legenda',
+    // Story 31.3, `70-fotos.html` 423: the field the batch caption's Audio button names ("Gravar áudio: legenda").
+    audioField: 'legenda',
+    // authored (Story 31.3, listed for Bruno): the batch caption's Audio button before its photos are saved (coordinator's reading, open to Matheus).
+    audioNeedsPhotos: 'Salve as fotos para gravar a legenda',
   },
   // Story 6.5: the Caption composer (`71-legenda.html`, `key-photos.html` frame 3).
   captionComposer: {
@@ -1389,9 +1391,8 @@ export const copy = {
     previewLabel: 'Legenda gerada',
     editText: 'Editar texto',
     editReason: 'Ao editar, a legenda deixa de ser regenerada',
-    // Story 9.4, `71-legenda.html` 155-160: the Dictation button while "Editar texto" is on, and the note a dictated text adds.
-    dictate: 'Ditar a legenda',
-    dictatedNote: ' · o ditado entrou como sugestão — Salvar confirma',
+    // Story 31.4, `71-legenda.html` 173: the field the composer's Audio button names ("Gravar áudio: legenda").
+    audioField: 'legenda',
     // authored: E6-R2, under the toggle while "Editar texto" is on and the chips do nothing.
     editingNote: 'Texto editado à mão. Desligue Editar texto para montar pelas opções.',
     textLabel: 'Texto da legenda',
@@ -1426,8 +1427,10 @@ export const copy = {
     // `72-pontos.html`, verbatim.
     listLabel: (m: Mention) => (m.prints ? `Pontos de atenção da ${m.ref}` : 'Pontos de atenção'),
     textLabel: 'Texto',
-    // Story 9.4, `72-pontos.html` 196-201: the text's Dictation button.
-    dictateText: 'Ditar o texto',
+    // Story 31.3: the field the point text's Audio button names ("Gravar áudio: texto do ponto").
+    audioField: 'texto do ponto',
+    // authored (Story 31.3, listed for Bruno): the Audio button of a point not saved yet (it has no row for the text to land on).
+    audioNeedsPoint: 'Salve o ponto para gravar o áudio',
     quickTexts: 'Textos rápidos',
     textHelper: 'Referências a fotos entram pela seleção abaixo; o número é definido na exportação.',
     photosLabel: 'Fotos referenciadas',
@@ -1688,8 +1691,8 @@ export const copy = {
       legendText: 'C Conforme · NC Não conforme · NA Não se aplica',
       // `60-ficha.html` NC row: the Observation field and its required reason.
       observationLabel: (n: number) => `Observação do item ${n}`,
-      // Story 9.4, `60-ficha.html` 384: the row observation's Dictation button.
-      dictateObservation: (n: number) => `Ditar observação do item ${n}`,
+      // Story 31.3, `62-audio-estados.html` (a): the field the row observation's Audio button names.
+      audioField: (n: number) => `observação do item ${n}`,
       observationRequired: 'Obrigatória em item não conforme',
       // Story 9.5: `72-pontos.html` `.poa-draft .sv-kicker`, verbatim.
       draftKicker: 'Rascunho pela foto',
@@ -1824,8 +1827,8 @@ export const copy = {
       samplingHelper: 'Só registra a coleta; a análise do óleo é do laboratório.',
       samplingReasonHelper: 'Não coletado não muda a conclusão da ficha.',
       samplingReasonGroup: 'Motivo da não coleta',
-      // authored (e24s, listed for Bruno): the Dictation button of a test's text value.
-      dictateReason: 'Ditar o motivo',
+      // Story 31.3: the field a test's text value's Audio button names ("Gravar áudio: motivo").
+      audioField: 'motivo',
       // ~~authored (Story 23.20, listed for Bruno): the thermography's action that opens the sheet camera with the test's context.
       // thermalPhoto: 'Foto térmica'~~ Story 24.9 (F11): the control's words carry the kernel's count (`thermalPhotoText`).
       // authored (e25s, Story 25.14, listed for Bruno): the helper of an added row's name that another row of the table already has.
@@ -1861,8 +1864,8 @@ export const copy = {
       // authored (e24b, listed for Bruno): Story 24.5, the line under the groups while a half is a preview.
       previewLine: 'Prévia: só vale depois de Confirmar ou de Concluir ficha.',
       observationTitle: 'Observações',
-      // Story 9.4, `60-ficha.html` 745: the section head's Dictation button.
-      dictateObservations: 'Ditar observações',
+      // Story 31.3: the field the section head's Audio button names ("Gravar áudio: observações").
+      audioField: 'observações',
       // `60-ficha.html` "Observações da ficha".
       observationLabel: 'Observações da ficha',
       // EXPERIENCE.md › Observation field.

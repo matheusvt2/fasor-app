@@ -40,6 +40,7 @@ function target(result: TriStateValue | null, observation: string): ChecklistRow
     observationOp: (by, value) => checklistObservationOp(by, REL, BLOCK, ITEM, value),
     observationCap: null,
     ncDraft: null,
+    audioTarget: null,
     pointSeed: () => ({ text: '', equipmentId: EQ, origin: 'nc', itemKey: ITEM }),
     pointMark: () => null,
     pointOwner: { equipmentId: EQ },

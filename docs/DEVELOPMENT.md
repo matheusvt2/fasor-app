@@ -43,7 +43,6 @@ Stop it with `docker compose down`; add `-v` to drop the database, the files and
 | `RATE_LIMIT` | off outside production | `on` to try the sign-in and push limits locally |
 | `TABLET_HOST` | `localhost` | the LAN address a tablet types, for the HTTPS certificate |
 | `LLM_PROVIDER`, `OCR_PROVIDER` | `fake` | keep `fake` locally; no story may need a cloud account |
-| `VITE_SPEECH_ENGINE` | `none` | `webspeech` to try dictation (audio goes to the browser vendor) |
 | `CADDY_HTTP_PORT`, `CADDY_HTTPS_PORT`, `API_PROD_PORT` | 80, 443, 3001 | a second stack on the same machine |
 
 `.env` is git-ignored. Never commit a secret.

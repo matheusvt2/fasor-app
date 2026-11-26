@@ -27,7 +27,7 @@ import { readLastSheet } from '../../db/prefs.ts';
 import { importPhotoFiles, PHOTO_ACCEPT, splitImportable, type ImportResult, type ImportTarget } from '../../files/photo-import.ts';
 import { encodePhoto } from '../../files/photo-encode.ts';
 import { newId } from '../../ids.ts';
-import { DictatedSuggestion, DictationButton, useProseDictation } from '../../speech/dictation.tsx';
+import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
 import { useSession } from '../../state/session.tsx';
 import { requestStorageCheck } from '../../state/storage-reading.ts';
 import { requestSyncCycle } from '../../state/sync.tsx';
@@ -423,7 +423,7 @@ function SheetBody({
       mode.kind === 'sheet' && mode.preselectBlockId !== undefined
         ? { blockId: mode.preselectBlockId, caption: mode.preselectBlockId === from.blockId ? from.caption : null }
         : null;
-    return <EquipmentStep relatorioId={relatorioId} snapshot={mode.snapshot} count={batch.count} titleId={titleId} preselect={preselect} onCancel={cancel} onAdd={add} />;
+    return <EquipmentStep relatorioId={relatorioId} snapshot={mode.snapshot} count={batch.count} photoIds={batch.ids} titleId={titleId} preselect={preselect} onCancel={cancel} onAdd={add} />;
   }
 
   // A pick with no picture before the sheet opened: nothing to draw while it closes.
@@ -494,6 +494,7 @@ export function EquipmentStep({
   relatorioId,
   snapshot,
   count,
+  photoIds = null,
   titleId,
   preselect = null,
   onCancel,
@@ -502,6 +503,8 @@ export function EquipmentStep({
   relatorioId: string;
   snapshot: RelatorioSnapshot;
   count: number;
+  /** Story 31.3: the batch's photos once saved (null while they save): the caption's audio goes on the first one. */
+  photoIds?: readonly string[] | null;
   titleId: string;
   /** Story 11.11: from a sheet, that sheet chosen at once with its context caption ("Adicionar N fotos" ready). */
   preselect?: { blockId: string; caption: string | null } | null;
@@ -525,8 +528,10 @@ export function EquipmentStep({
   // `undefined`: nothing chosen yet; `null`: "Geral".
   const [chosen, setChosen] = useState<string | null | undefined>(preselect?.blockId);
   const [caption, setCaption] = useState(preselect?.caption ?? '');
-  // Story 9.4: a dictated caption waits under the field until "Usar"; it replaces the caption ("fale para trocar").
-  const dictation = useProseDictation();
+  // Story 31.3 (coordinator's reading, open to Matheus): the batch caption's audio is a caption of the batch's
+  // first photo, once the photos are saved; before that the button is disabled with its reason.
+  const firstPhoto = photoIds !== null && photoIds.length > 0 ? photoIds[0]! : null;
+  const audioTarget = firstPhoto === null ? null : { type: 'photo_caption' as const, file_id: firstPhoto };
   const [composing, setComposing] = useState(false);
   const [saving, setSaving] = useState(false);
   // Story 9.3: "Pessoas na foto" for the whole batch (a marked photo is never sent to the vision caption).
@@ -538,7 +543,6 @@ export function EquipmentStep({
   const showGroups = expanded || nearby.length === 0;
 
   const choose = (blockId: string | null) => {
-    dictation.discard();
     setChosen(blockId);
     if (preselect !== null && blockId === preselect.blockId) setCaption(preselect.caption ?? '');
     else setCaption(blockId === null ? '' : (contextCaption({ block_id: blockId, item_key: null }, snapshot, meta) ?? ''));
@@ -595,24 +599,13 @@ export function EquipmentStep({
                 value={caption}
                 maxLength={CAPTION_CAP ?? undefined}
                 aria-describedby={noteId}
-                onChange={(event) => {
-                  dictation.discard();
-                  setCaption(event.target.value);
-                }}
+                onChange={(event) => setCaption(event.target.value)}
               />
-              <DictationButton label={t.dictate} onStart={dictation.discard} onResult={dictation.offer} />
+              <AudioButton target={audioTarget} label={t.audioField} disabledReason={firstPhoto === null ? t.audioNeedsPhotos : null} />
             </div>
             <CharCount length={caption.length} cap={CAPTION_CAP} />
           </div>
-          {dictation.pending === null ? null : (
-            <DictatedSuggestion
-              text={dictation.pending}
-              onUse={() => {
-                setCaption(capCaption(dictation.pending ?? ''));
-                dictation.discard();
-              }}
-            />
-          )}
+          <AudioFieldLines target={audioTarget} text={caption} label={t.audioField} />
           <p className="capture-reason" id={noteId}>
             {batchCaptionNote(n)}
           </p>
@@ -631,10 +624,7 @@ export function EquipmentStep({
             prefill={contextCaptionParts({ block_id: chosen, item_key: null }, snapshot, meta)}
             stored={caption.trim() === '' ? null : caption}
             sources={sources}
-            onSave={(text) => {
-              dictation.discard();
-              setCaption(capCaption(text ?? ''));
-            }}
+            onSave={(text) => setCaption(capCaption(text ?? ''))}
           />
         </div>
       )}
