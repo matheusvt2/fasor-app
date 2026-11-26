@@ -102,10 +102,10 @@ export function AudioWarning({ target }: { target: AudioTarget | null }) {
 
 /** The field's status line (`.audio-status`): saved, sending, transcribing, or nothing heard. */
 export function AudioStatusLine({ target, text }: { target: AudioTarget | null; text: string | null | undefined }) {
-  const { status } = useFieldAudio(target, text);
+  const { status, statusAudioId } = useFieldAudio(target, text);
   if (status === null) return null;
   return (
-    <p className="audio-status" data-step={status.step}>
+    <p className="audio-status" data-step={status.step} data-audio-id={statusAudioId ?? undefined}>
       <Icon id="i-mic" />
       {status.text}
     </p>

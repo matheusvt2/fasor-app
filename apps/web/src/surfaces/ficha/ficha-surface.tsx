@@ -35,6 +35,7 @@ import { ConfiguracaoSection } from './configuracao-section.tsx';
 import { ConclusaoSection } from './conclusao-section.tsx';
 import { EnsaiosSection } from './ensaios-section.tsx';
 import { FichaDialogs } from './ficha-dialogs.tsx';
+import { AudioHoldLine } from './audio-hold-line.tsx';
 import { FichaHeader } from './ficha-header.tsx';
 import { FichaRail, type RailState } from './ficha-rail.tsx';
 import { useFichaIssuedBanner } from './issued-banner.ts';
@@ -210,6 +211,8 @@ function FichaBody({
             onRename={block.equipment_id === null || roleReadOnly ? null : () => setRenaming(true)}
             savedAt={savedAt}
           />
+          {/* Story 31.6: the ficha's audios on their way or failed, which hold its conclude. */}
+          {notTested ? null : <AudioHoldLine snapshot={snapshot} blockId={blockId} goTo={(step, missing) => goTo(step, missing)} />}
           <SheetReadOnlyProvider value={notTested ? 'not_tested' : roleReadOnly ? 'role' : false}>
             {/* Story 27.13 (F19): a refused conclude shows the red reason of an NC row left empty. */}
             <ConcludeAttemptedContext.Provider value={actions.concludeAttempted}>

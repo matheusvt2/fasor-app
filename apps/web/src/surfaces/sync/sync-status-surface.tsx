@@ -4,7 +4,7 @@ import { useInRouterContext, useNavigate } from 'react-router';
 import { Button, LoadingNote, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { requestSyncCycle, useSync } from '../../state/sync.tsx';
-import { DecisionsSection, DownloadingSection, HowItWorks, LastSendSection, ReadingsSection, SendingSection } from './sync-sections.tsx';
+import { AudiosSection, DecisionsSection, DownloadingSection, HowItWorks, LastSendSection, ReadingsSection, SendingSection } from './sync-sections.tsx';
 import { ResolvableDecisions } from './resolvable-decisions.tsx';
 import './sync.css';
 
@@ -161,6 +161,7 @@ export function SyncStatusSurface() {
         </section>
 
         <ReadingsSection sync={sync} rows={sync.readingsQueued ?? NO_ROWS} />
+        <AudiosSection />
         <SendingSection
           sheets={sync.pendingSheets ?? NO_ROWS}
           uploads={sync.uploads ?? NO_UPLOADS}

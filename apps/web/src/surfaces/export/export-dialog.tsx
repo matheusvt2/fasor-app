@@ -546,6 +546,23 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                       </span>
                     )}
                   </li>
+                ) : row.kind === 'audios_pending' || row.kind === 'audios_failed' ? (
+                  // Story 31.6 (`62-audio-estados.html` (g)): the kernel's count, each audio named by its place, the way to the first one's ficha.
+                  <li className="is-blocking" key={row.id} data-audio-row={row.kind}>
+                    <span className="pc-text">
+                      <span className="pc-block">{row.text}</span>
+                      {(row.audios ?? []).map((audio) => (
+                        <span className="pc-meta" key={audio.audioId} data-audio-place="">
+                          {audio.place}
+                        </span>
+                      ))}
+                    </span>
+                    {onOpenSheet === undefined || (row.audios ?? []).find((audio) => audio.blockId !== null) === undefined ? null : (
+                      <span className="pc-actions">
+                        <TextButton onPress={() => onOpenSheet((row.audios ?? []).find((audio) => audio.blockId !== null)!.blockId!)}>{copy.export.openSheet}</TextButton>
+                      </span>
+                    )}
+                  </li>
                 ) : row.kind === 'utility_name_missing' ? (
                   // Fix batch e28w (S1): the kernel's row alone, with the way to its first sheet (as the stale row's "Abrir ficha").
                   <li className="is-blocking" key={row.id}>

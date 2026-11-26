@@ -1,4 +1,6 @@
 import {
+  audioSyncCounts,
+  audioSyncLines,
   avatarInitial,
   decisionsCountText,
   lastSendText,
@@ -16,6 +18,9 @@ import {
   type SyncDecisionRow,
 } from '@app/domain';
 import { useId, type ReactNode } from 'react';
+import { allAudioRows } from '../../db/audio-commit.ts';
+import { useLiveQuery } from '../../db/live.ts';
+import { useOptionalDatabase } from '../../state/session.tsx';
 import { UploadPill } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { SyncState } from '../../state/sync.tsx';
@@ -102,6 +107,35 @@ export function ReadingsSection({ sync, rows }: { sync: SyncState; rows: readonl
             <span className="sr-state" data-tone="pending" />
           </li>
         ) : null}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * Story 31.6 (AD-30; `62-audio-estados.html` (g) note): the device's audios still waiting, of every relatório: to
+ * send, transcribing and failed, with the kernel's sentences; nothing while none waits.
+ */
+export function AudiosSection() {
+  const headingId = useId();
+  const db = useOptionalDatabase();
+  const rows = useLiveQuery(() => (db === null ? Promise.resolve([]) : allAudioRows(db)), [db], []) ?? [];
+  const lines = audioSyncLines(audioSyncCounts(rows));
+  if (lines.length === 0) return null;
+  return (
+    <section className="section" aria-labelledby={headingId} data-testid="sync-audios">
+      <div className="section-head">
+        <h2 id={headingId}>{copy.sync.audiosHeading}</h2>
+      </div>
+      <ul className="sync-list">
+        {lines.map((line) => (
+          <li className="sync-row" key={line.key} data-testid={`sync-audios-${line.key}`}>
+            <span className="sr-body">
+              <span className="sr-primary">{line.text}</span>
+            </span>
+            <span className="sr-state" data-tone="pending" />
+          </li>
+        ))}
       </ul>
     </section>
   );

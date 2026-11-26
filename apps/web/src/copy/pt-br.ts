@@ -310,6 +310,8 @@ export const copy = {
     neverSynced: 'Ainda não sincronizado',
     // `85-sync.html` "Leituras" section heading (Story 8.2); its rows are the kernel's counts.
     readingsHeading: 'Leituras',
+    // authored (Story 31.6, listed for Bruno): the Sync status section of the audios still waiting.
+    audiosHeading: 'Áudios',
     // Story 10.4: the rest of `85-sync.html`, verbatim. Every count, row and state word is
     // the kernel's (`packages/domain/src/sync/status.ts`).
     how: {

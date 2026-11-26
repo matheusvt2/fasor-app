@@ -631,6 +631,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Story 31.6: the session's database, or null with none (outside a `SessionProvider`, as a surface rendered alone in a test). */
+export function useOptionalDatabase(): SessionState['database'] | null {
+  return useContext(SessionContext)?.database ?? null;
+}
+
 export function useSession(): SessionState {
   const value = useContext(SessionContext);
   if (value === null) throw new Error('useSession must be used inside SessionProvider');

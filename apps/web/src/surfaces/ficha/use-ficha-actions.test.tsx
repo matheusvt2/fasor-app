@@ -90,7 +90,7 @@ describe('r8conc tests-3 the conclude composes the text from the fresh rows', ()
   it('the text and its basis follow the rows the edit reads, not the rendered block', async () => {
     const rendered = block([CELLS.length - 1]);
     const fresh = block([]);
-    const snapshot = { relatorio: { id: ID, project_id: PROJECT }, locations: [], blocks: [rendered], equipment: [equipment] } as unknown as RelatorioSnapshot;
+    const snapshot = { relatorio: { id: ID, project_id: PROJECT }, locations: [], blocks: [rendered], equipment: [equipment], files: [] } as unknown as RelatorioSnapshot;
     const progress = sheetProgress({ ...snapshot, blocks: [rendered] }, ID);
     expect(progress.complete).toBe(false);
     expect(sheetProgress({ ...snapshot, blocks: [fresh] }, ID).complete).toBe(true);

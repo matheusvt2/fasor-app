@@ -548,6 +548,8 @@ export interface FieldAudioState {
    * (Story 31.5, a measurement table) speech that was no reading; null with none.
    */
   status: { step: AudioFieldStep | 'empty'; text: string } | null;
+  /** Story 31.6: the audio the status line speaks of (the ficha's hold line focuses its field by it), or null. */
+  statusAudioId: string | null;
   /** The newest transcribed audio of the field, with its mark; null with none. */
   done: { row: AudioFileRow; mark: AudioMark; duration: string } | null;
   /** Story 31.6: the newest failed audio of the field ("Não foi possível transcrever"), or null. */
@@ -569,6 +571,7 @@ export interface FieldAudioState {
 
 const INERT: FieldAudioState = {
   status: null,
+  statusAudioId: null,
   done: null,
   failed: null,
   dismissed: null,
@@ -626,6 +629,7 @@ export function useFieldAudio(target: AudioTarget | null, currentText: string | 
   const playDisabledReason = done === null ? null : playReason(context, done);
   return {
     status,
+    statusAudioId: notice === 'empty' ? null : (pending?.id ?? null),
     done: done === null ? null : { row: done, mark: audioMarkOf(done, currentText), duration: audioElapsedText(done.quality.duration_ms) },
     failed: heldState(context, failed),
     // A dismissed audio stays reachable from its field until a newer audio's text lands there.
