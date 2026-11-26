@@ -22,6 +22,17 @@ describe('6.2-UNIT-001 orderUploads', () => {
     expect(orderUploads(items).map((item) => item.id)).toEqual(['r', 'a', 'b']);
   });
 
+  it('31.3-UNIT-005 sends an audio with the waiting readings, before the other photos, by id inside that rank', () => {
+    const items = [
+      { id: '019966b0-0002', kind: 'photo', captured_at: '2026-09-06T11:10:00.000Z', reading_status: 'none' },
+      { id: '019966b0-0005', kind: 'audio', captured_at: null, reading_status: null },
+      { id: '019966b0-0001', kind: 'certificate' },
+      { id: '019966b0-0004', kind: 'photo', captured_at: '2026-09-06T11:30:00.000Z', reading_status: 'queued' },
+      { id: '019966b0-0003', kind: 'audio', captured_at: null, reading_status: null },
+    ];
+    expect(orderUploads(items).map((item) => item.id)).toEqual(['019966b0-0003', '019966b0-0004', '019966b0-0005', '019966b0-0002', '019966b0-0001']);
+  });
+
   it('never mutates its input', () => {
     const items = [
       { id: 'c', kind: 'certificate' },

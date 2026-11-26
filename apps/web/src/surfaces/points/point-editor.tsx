@@ -40,7 +40,7 @@ import { useDraftAutosave } from '../../state/draft-autosave.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
-import { DictatedSuggestion, DictationButton, useProseDictation } from '../../speech/dictation.tsx';
+import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
 import { PhotoRefTile } from './photo-ref-tile.tsx';
 import {
   actionValue,
@@ -76,9 +76,9 @@ const POINT_OWNER_CAP = textCapOf('point/field', 'owner');
  * stored as `[[foto:<id>]]`, never a number), the "Textos rápidos" chips insert the seed's
  * recurring findings as plain text at the caret, "Fotos referenciadas" lists the cited
  * photos and opens the picker of the relatório's live photos, and "Ação recomendada" is a
- * plain field. No photo draft (FR-75). Story 9.4 adds "Ditar o texto" beside the Texto label: the dictated text
- * waits under the text as a Suggestion field and "Usar" appends it the way a quick text
- * lands, at the end.
+ * plain field. No photo draft (FR-75). Story 31.3 puts the Audio button beside the Texto label ("Gravar áudio:
+ * texto do ponto"): the audio's text arrives on the stored point through the server's put, with the status line
+ * and the mark under the text; a point not saved yet has no row for it, so the button waits disabled with its reason.
  *
  * E6-Q2: every field autosaves like the rest of the app (EXPERIENCE.md › Autosave): a
  * change commits through `useFieldCommit` (blur or 500 ms idle), a new point is created
@@ -326,6 +326,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   // --- Story 11.9: priority and Prazo -------------------------------------------------------
   const nextIntervention = snapshot.relatorio.setup.next_intervention_date;
   const liveRow = snapshot.points.find((row) => row.id === pointId) ?? null;
+  // Story 31.3: the field an audio of the point's text fills; a point not stored yet has none.
+  const audioTarget = liveRow === null ? null : { type: 'point' as const, point_id: pointId, field: 'text' as const };
   // A point not stored yet shows what is pending for it.
   const priority = liveRow !== null ? liveRow.priority : (pending.priority ?? null);
   const deadline = liveRow !== null ? liveRow.deadline : (pending.deadline ?? null);
@@ -502,14 +504,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     },
   };
 
-  // Story 9.4: a dictated text, held until "Usar"; typing into the text discards it.
-  const dictation = useProseDictation();
-  const discardDictation = dictation.discard;
-
   const area = useSectionTextArea({
     initialText,
     onChange: (next) => {
-      discardDictation();
       setText(next);
       values.current.text = next;
       touched.current = true;
@@ -675,14 +672,6 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const ownerId = useId();
 
   const insertQuick = (value: string) => editAtCaret((element, range) => insertPlainText(element, range, quickTextAt(element, range, value)));
-  /** "Usar": the dictated text at the end of the text, spaced as a quick text is. */
-  const applyDictated = () => {
-    const value = dictation.pending;
-    dictation.discard();
-    if (value === null) return;
-    editAtCaret((element) => insertPlainText(element, null, quickTextAt(element, null, value)));
-  };
-
   const pick = (id: string) => {
     editAtCaret((element, range) => insertPhotoChip(element, range, id, labelOf(id)));
     setPicking(false);
@@ -713,7 +702,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           <span className="field-label" id={textLabelId}>
             {t.textLabel}
           </span>
-          <DictationButton label={t.dictateText} onStart={dictation.discard} onResult={dictation.offer} />
+          <AudioButton target={audioTarget} label={t.audioField} disabledReason={liveRow === null ? t.audioNeedsPoint : null} />
         </div>
         {findings.length === 0 ? null : (
           <>
@@ -731,7 +720,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         )}
         <div {...area.areaProps} className="observation-field poa-text-area" aria-labelledby={textLabelId} aria-describedby={helperId} />
         <CharCount length={text.length} cap={POINT_TEXT_CAP} />
-        {dictation.pending === null ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
+        <AudioFieldLines target={audioTarget} text={text} label={t.audioField} />
         <span className="helper" id={helperId}>
           {t.textHelper}
         </span>

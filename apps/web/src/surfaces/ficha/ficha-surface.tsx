@@ -45,7 +45,6 @@ import { AddPhotosButton } from './photo-openers.tsx';
 import { DropHint } from '../photos/capture-sheet.tsx';
 import { SectionStepper } from './section-stepper.tsx';
 import { SheetPhotos } from './sheet-photos-section.tsx';
-import { SheetObservationDictationProvider } from './sheet-observation-dictation.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import { StickyActionBar } from './sticky-action-bar.tsx';
 import { useFichaActions } from './use-ficha-actions.ts';
@@ -212,8 +211,6 @@ function FichaBody({
             savedAt={savedAt}
           />
           <SheetReadOnlyProvider value={notTested ? 'not_tested' : roleReadOnly ? 'role' : false}>
-            {/* Story 9.4: the sheet observation's dictated text, offered by its own mic and by the tables. */}
-            <SheetObservationDictationProvider enabled={enabled.has('observations')}>
             {/* Story 27.13 (F19): a refused conclude shows the red reason of an NC row left empty. */}
             <ConcludeAttemptedContext.Provider value={actions.concludeAttempted}>
             <div className="content">
@@ -286,7 +283,6 @@ function FichaBody({
               <SheetPhotos api={api} snapshot={snapshot} blockId={blockId} onCaptionPhoto={photos.setCaptioning} />
             </div>
             </ConcludeAttemptedContext.Provider>
-            </SheetObservationDictationProvider>
           </SheetReadOnlyProvider>
           <DropHint dragging={dragging} />
           <StickyActionBar

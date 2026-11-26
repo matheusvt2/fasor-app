@@ -445,7 +445,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
             setCaptioning(null);
             if (viewing === null) focusTileSoon(id, heading.current);
           }}
-          photo={{ thumb: captioning.thumb, number: numbers.get(captioning.id) ?? null, capturedAt: captioning.captured_at }}
+          photo={{ id: captioning.id, thumb: captioning.thumb, number: numbers.get(captioning.id) ?? null, capturedAt: captioning.captured_at }}
           prefill={contextCaptionParts(captioning, snapshot, composerMeta)}
           // Story 14.3: a site item's photo opens on the kernel's caption for it when none is stored.
           prefillText={captioning.block_id === null ? siteCaption(captioning, snapshot, composerMeta) : null}

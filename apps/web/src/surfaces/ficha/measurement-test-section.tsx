@@ -7,7 +7,6 @@ import {
   addedRowsAtMaxText,
   addedRowsFromPlateLabel,
   addedRowsPlateReason,
-  appendObservation,
   blockConfigWithSubBlock,
   choiceValue,
   enabledSubBlocksOf,
@@ -27,7 +26,7 @@ import {
   type MeasurementTestEvaluation,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Button, OverflowMenu, SegmentedControl, TextButton, Toggle } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -35,7 +34,7 @@ import { newId } from '../../ids.ts';
 import { wrapsOnPhone } from './configuracao-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { ReadOnlyField, SheetField, useTypedText } from './ficha-fields.tsx';
-import { DictatedSuggestion, DictationButton, useProseDictation } from '../../speech/dictation.tsx';
+import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
 import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
 import { addedRowNameOp, addedRowRemoveOp, conclusionOp, measurementCellOp, measurementChoiceCellOp, testValueOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
@@ -432,9 +431,10 @@ function PerformedChoice({ api, test, readOnly }: { api: FichaApi; test: Measure
 }
 
 /**
- * Batch e24s (Story 24.14): a test value of kind `text`, typed or dictated as an observation is, written as a
+ * Batch e24s (Story 24.14): a test value of kind `text`, typed as an observation is, written as a
  * plain string (`sheet/{b}/test/{t}/value/{key}`, null when emptied), capped by the kernel. Missing while the
- * kernel says so (shown and empty).
+ * kernel says so (shown and empty). Story 31.3: its label row carries the Audio button ("Gravar áudio: motivo");
+ * the audio's text arrives through the server's put, with the status line and the mark under the field.
  */
 function TextTestValue({ api, testKey, value, readOnly }: { api: FichaApi; testKey: string; value: EvaluatedMeasurementValue; readOnly: boolean }) {
   const t = copy.ficha.measurement;
@@ -446,20 +446,15 @@ function TextTestValue({ api, testKey, value, readOnly }: { api: FichaApi; testK
     { entityId: api.blockId, field: `valor-${testKey}-${value.key}`.replace(/_/g, '-') },
     { cap },
   );
-  const dictation = useProseDictation();
+  const audio = useMemo(() => ({ type: 'test_value' as const, block_id: api.blockId, test_key: testKey, value_key: value.key }), [api.blockId, testKey, value.key]);
   if (readOnly) return <ReadOnlyField field={{ kind: 'text', label: value.label }} value={value.state === 'measured' ? value.raw : null} />;
-  const applyDictated = () => {
-    const text = dictation.pending;
-    dictation.discard();
-    if (text !== null) typed.set(appendObservation(typed.text, text));
-  };
   return (
     <div className="field v13-reason" data-value-key={value.key} data-missing-field={value.missing ? '' : undefined}>
       <div className="section-head">
         <label className="field-label" htmlFor={fieldId}>
           {value.label}
         </label>
-        <DictationButton label={t.dictateReason} onStart={dictation.discard} onResult={dictation.offer} />
+        <AudioButton target={audio} label={t.audioField} />
       </div>
       <textarea
         id={fieldId}
@@ -467,13 +462,10 @@ function TextTestValue({ api, testKey, value, readOnly }: { api: FichaApi; testK
         value={typed.text}
         maxLength={cap ?? undefined}
         aria-invalid={value.missing || undefined}
-        onChange={(event) => {
-          dictation.discard();
-          typed.change(event.target.value);
-        }}
+        onChange={(event) => typed.change(event.target.value)}
         onBlur={() => typed.blur()}
       />
-      {dictation.pending === null ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
+      <AudioFieldLines target={audio} text={typed.text} label={t.audioField} />
     </div>
   );
 }

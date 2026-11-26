@@ -51,8 +51,11 @@ export function audioQualityMatches(quality: AudioQuality): boolean {
   return expected.verdict === quality.verdict && expected.reasons.join() === quality.reasons.join();
 }
 
-/** The note a poor recording leaves on its field (FR-77), or null for a good one. */
+/**
+ * The note a poor recording leaves on its field (FR-77), or null for a good one. Story 31.4: the
+ * mock's sentence (`62-audio-estados.html` (d), EXPERIENCE.md › Text from audio) replaces the
+ * authored "Confira o texto" of Story 31.1.
+ */
 export function audioQualityNote(quality: Pick<AudioQuality, 'verdict'>): string | null {
-  // authored (Story 31.1, listed for Bruno)
-  return quality.verdict === 'poor' ? 'Confira o texto' : null;
+  return quality.verdict === 'poor' ? 'Áudio com ruído, confira o texto' : null;
 }

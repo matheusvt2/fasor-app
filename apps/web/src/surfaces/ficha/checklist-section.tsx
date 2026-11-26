@@ -24,6 +24,7 @@ import {
   sheetChecklistPath,
   textCapOf,
   repeatChecklistSource,
+  type AudioTarget,
   type BlockDefinition,
   type BlockRow,
   type ChecklistItem,
@@ -36,7 +37,7 @@ import {
   type SuggestionRow,
   snapshotDefinitionContext,
 } from '@app/domain';
-import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState } from 'react';
 import { CharCount, Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { ConfirmDialog } from '../../components/confirm-dialog.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
@@ -50,7 +51,7 @@ import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
 import { CreatePointAction } from '../points/create-point-action.tsx';
 import type { PointSeed } from '../points/point-editor.tsx';
 import type { Author } from '../relatorio/relatorio-ops.ts';
-import { DictatedSuggestion, DictationButton, useProseDictation, useSpeechAvailable } from '../../speech/dictation.tsx';
+import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
 import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { KEPT_KEY_PREFIX, LEGEND_KEY } from '../../state/user-storage.ts';
 import { spriteHref } from '../../styles/sprite.ts';
@@ -66,10 +67,11 @@ import { spriteHref } from '../../styles/sprite.ts';
  * Observation field. Story 6.1 adds the NC row's "Adicionar foto" (the burst camera, the
  * caption "verificação de ⟨item⟩") and the item's Photo tile rows under the row's buttons;
  * Story 6.6 adds "Criar ponto de atenção" beside it (the point editor in a Form dialog,
- * pre-linked with the sheet's equipment and a token per photo of the item). Story 9.4 adds
- * the row's Dictation button ("Ditar observação do item N"): the dictated text waits under
- * the field as a Suggestion field and "Usar" appends it the way a chip does; hidden, never
- * disabled, with no engine or no signal.
+ * pre-linked with the sheet's equipment and a token per photo of the item). Story 31.3 puts
+ * the row's Audio button ("Gravar áudio: observação do item N") first on the row's buttons:
+ * the recording is kept on the device and its text arrives in the field through the server's
+ * put, with the status line and the mark under the field (Story 31.4); absent when the browser
+ * cannot record, and on a local's row (no audio target there yet).
  *
  * Story 9.5 (FR-75): an NC row whose photo was read shows the one-sentence draft above its
  * Observation field (the Suggestion field's block variant, "Rascunho pela foto", "Usar"):
@@ -325,12 +327,6 @@ function writeKept(key: string, kept: KeptRecord | null): void {
   }
 }
 
-/** The row's Dictation button on its own `.row-wrap` (a row with no photo action); nothing when the button is hidden. */
-function DictationRow({ children }: { children: ReactNode }) {
-  if (!useSpeechAvailable()) return null;
-  return <div className="row-wrap">{children}</div>;
-}
-
 /**
  * Story 14.3: what a Checklist row reads and writes, whatever holds its cells: a sheet's
  * block (`sheetRowTarget`) or a local ("Verificações do local"). Everything a row took from
@@ -351,6 +347,8 @@ export interface ChecklistRowTarget {
   observationCap: number | null;
   /** Story 9.5: the row's photo-read NC draft the kernel holds now, or null (a site item never has one). */
   ncDraft: SuggestionRow | null;
+  /** Story 31.3: the field an audio of the row's observation fills, or null where none can (a local's item). */
+  audioTarget: AudioTarget | null;
   /** What "Criar ponto de atenção" starts with, given the ids of the item's photos. */
   pointSeed: (photoIds: readonly string[]) => PointSeed;
   /** E6-Q11: the row's point mark ("Ponto de atenção 3"), given the ids of the item's photos; null with none. */
@@ -392,6 +390,7 @@ export function sheetRowTarget(
     observationOp: (by, value) => checklistObservationOp(by, block.relatorio_id, block.id, item.key, value),
     observationCap: textCapOf(sheetChecklistPath(block.id, item.key, 'observation')),
     ncDraft: ncDraftFor(block, item.key, pending),
+    audioTarget: { type: 'item', block_id: block.id, item_key: item.key },
     // Story 22.5: the point replaces the row's derived NC entry (`origin` `nc`, its item); e22f
     // S4: it starts with that entry's text and the item's photos, as "Editar" on the entry does.
     pointSeed: (photoIds) => ({
@@ -460,8 +459,6 @@ export function ChecklistRow({
     { entityId: target.entityId, field: `obs-${item.key.replace(/_/g, '-')}` },
     { cap: target.observationCap },
   );
-  // Story 9.4: a dictated observation, held until "Usar"; a keystroke into the field discards it.
-  const dictation = useProseDictation();
   const nc = result === 'NC';
   const empty = typed.text.trim() === '';
   // Story 9.5: the row's NC draft, while nothing is typed; a draft discarded here is not shown again before its echo.
@@ -595,17 +592,6 @@ export function ChecklistRow({
     setQuestion(null);
   });
 
-  /** "Usar": the dictated text appended at the end, as a chip inserts. */
-  const applyDictated = () => {
-    const text = dictation.pending;
-    dictation.discard();
-    if (text === null) return;
-    // Story 9.5: dictated text is typed text: the NC draft goes.
-    discardDraft();
-    const next = insertPhrase(typed.text, text, typed.text.length);
-    typed.set(next.text);
-  };
-
   const insert = (phrase: string) => {
     discardDraft();
     const element = area.current;
@@ -618,7 +604,8 @@ export function ChecklistRow({
     });
   };
 
-  const dictationButton = readOnly ? null : <DictationButton label={t.dictateObservation(number)} onStart={dictation.discard} onResult={dictation.offer} />;
+  // Story 31.3: the row's Audio button, first on its buttons' row; its lines go under the field.
+  const audioButton = readOnly || target.audioTarget === null ? null : <AudioButton target={target.audioTarget} label={t.audioField(number)} />;
 
   const menu: OverflowMenuAction[] = [];
   if (result !== null) menu.push({ id: 'clear', label: t.clear, onAction: () => choose(null) });
@@ -686,7 +673,6 @@ export function ChecklistRow({
               aria-describedby={requiredShown ? reasonId : showKept ? keptLineId : undefined}
               onChange={(event) => {
                 discardDraft();
-                dictation.discard();
                 typed.change(event.target.value);
               }}
               onBlur={() => {
@@ -707,16 +693,16 @@ export function ChecklistRow({
               <TextButton onPress={clearKept}>{t.keptClear}</TextButton>
             </p>
           ) : null}
-          {dictation.pending === null || readOnly ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
+          {target.audioTarget === null ? null : <AudioFieldLines target={target.audioTarget} text={typed.text} label={t.audioField(number)} />}
           {nc && !readOnly && photos !== undefined ? (
             <RowPhotoAction
               relatorioId={api.relatorioId}
               target={() => photos.target(item.key)}
               {...(photos.addPhotos === undefined ? {} : { onAddPhotos: () => photos.addPhotos?.(item.key) })}
-              before={dictationButton}
+              before={audioButton}
             />
-          ) : readOnly ? null : (
-            <DictationRow>{dictationButton}</DictationRow>
+          ) : readOnly || target.audioTarget === null ? null : (
+            <AudioButton target={target.audioTarget} label={t.audioField(number)} wrap="row-wrap" />
           )}
           {nc && (!readOnly || rowPoints !== null) ? (
             <div className="row-wrap">

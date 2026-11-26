@@ -192,20 +192,39 @@ export const ui = {
     // authored: the Position box's name (EXPERIENCE.md › Block card).
     position: (name: string) => `Posição de ${name}`,
   },
-  // Story 9.4: the Dictation button and what it hands over (UX-DR18, `components.css` Dictation button).
-  dictation: {
-    // Verbatim from the mocks' `.listening-word`.
-    listening: 'Ouvindo…',
-    // Story 9.4: a dictated prose result's action.
-    use: 'Usar',
-    // authored: the label of the Suggestion field that holds a dictated text under its field.
-    resultLabel: 'Ditado',
-    // authored: a recognition error (spec I/O matrix "Engine error").
-    failed: 'Não foi possível ouvir. Digite ou tente de novo.',
-    // authored: a table utterance the kernel could not read, sent to the sheet observation.
-    unparsed: 'Leitura não reconhecida. O ditado ficou como sugestão em Observações.',
-    // authored: the same with the sheet's Observações sub-block off (spec open question Q3).
-    unparsedNoObservations: 'Leitura não reconhecida. Digite o valor na tabela.',
+  // Stories 31.3 and 31.4 (AD-30; `components.css` Audio button, `62-audio-estados.html`, EXPERIENCE.md › Recording, Text from audio).
+  audio: {
+    // Verbatim from the mock: the button's name while idle.
+    record: (field: string) => `Gravar áudio: ${field}`,
+    // authored (Story 31.3, listed for Bruno): the button's name while it records (the next tap stops).
+    stop: (field: string) => `Parar a gravação: ${field}`,
+    // Verbatim from the mock's `.audio-rec-word`: while recording, and from 2:50.
+    recording: 'Gravando',
+    countdown: 'Termina em',
+    // Verbatim from EXPERIENCE.md › Recording: what the live region says at the start and at the stop.
+    started: 'Gravando áudio',
+    ended: (time: string) => `Gravação terminada, ${time}`,
+    // authored (Story 31.3, listed for Bruno): a tap on the button with the microphone refused.
+    refused: 'O microfone está bloqueado. Permita o microfone nas configurações do navegador e toque de novo.',
+    // authored (Story 31.3, listed for Bruno): the microphone failed for another reason (busy, gone).
+    failed: 'Não foi possível usar o microfone. Toque de novo.',
+    // authored (Story 31.3, listed for Bruno): the device refused to keep the recording.
+    saveFailed: 'Não foi possível guardar o áudio. Grave de novo.',
+    // Verbatim from the mock (d): play, its pause, the heard text's disclosure and label, play offline without the local copy.
+    play: (duration: string) => `Ouvir o áudio, ${duration}`,
+    // authored (Story 31.4, listed for Bruno): play while it plays.
+    pause: (duration: string) => `Pausar o áudio, ${duration}`,
+    heardToggle: 'Ver texto como falado',
+    heardLabel: 'Texto como falado',
+    needsConnection: 'Precisa de conexão para ouvir',
+    // Verbatim from EXPERIENCE.md › Text from audio: the arrival's live line and its toast's action.
+    arrived: (field: string) => `Texto do áudio chegou: ${field}`,
+    open: 'Ver',
+  },
+  // Story 9.4, kept for the Measurement table's spoken reading until Story 31.5 (batch e31c) redraws it.
+  tableReading: {
+    // authored: a table utterance the kernel could not read (spec 9.4 open question Q3).
+    unparsed: 'Leitura não reconhecida. Digite o valor na tabela.',
   },
   dateField: {
     // authored: Story 13.4 INP-3, the chip under an empty service date that fills today.

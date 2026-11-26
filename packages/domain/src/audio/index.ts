@@ -13,3 +13,4 @@ export * from './guard.ts';
 export * from './context.ts';
 export * from './write.ts';
 export * from './reading.ts';
+export * from './recording.ts';

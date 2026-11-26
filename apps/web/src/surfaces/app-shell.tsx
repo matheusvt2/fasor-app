@@ -18,6 +18,7 @@ import { useExtraBannerValue } from '../state/extra-banner.tsx';
 import { useForwardArrival } from '../state/forward-arrival.ts';
 import { usePageTitleValue } from '../state/page-title.tsx';
 import { ReadingArrivals } from '../state/reading-arrivals.tsx';
+import { AudioArrivals } from '../state/audio-arrivals.tsx';
 import { RemovedLocalNotice } from '../state/removed-local-notice.tsx';
 import { useSession } from '../state/session.tsx';
 import { useCaptureRefused, useStorageReading } from '../state/storage-reading.ts';
@@ -191,6 +192,8 @@ export function AppShell() {
       <ToastOutlet />
       {/* Story 8.2: "3 leituras prontas para confirmar — Ver" when a pull brings readings in. */}
       <ReadingArrivals />
+      {/* Story 31.4: "2 áudios transcritos — Ver" when a sync brings transcripts in. */}
+      <AudioArrivals />
       {/* Story 30.4: "Cubículo Enel foi removido por Ana. Suas 19 respostas não foram mantidas. — Ver", once, on the writer's device. */}
       <RemovedLocalNotice />
     </>

@@ -14,13 +14,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { DictatedMeasurementField, SheetCellExtrasProvider } from './measurement-field.tsx';
-import { SheetObservationDictationProvider, useSheetObservationDictation, useTableDictation } from './sheet-observation-dictation.tsx';
+import { useTableDictation } from './sheet-observation-dictation.tsx';
 
 /*
  * 9.4-UNIT the sheet's dictation writes: a dictated reading's cell writes the heard value on
  * "Confirmar", the typed value when the engineer edits it, nothing when emptied; a table
- * utterance the kernel cannot read goes to the sheet observation, or, with "Observações" off, is
- * only announced.
+ * utterance the kernel cannot read is announced (Story 31.3 removed the sheet observation's
+ * pending text; the table's audio is Story 31.5's).
  */
 
 vi.mock('../../state/drafts.tsx', () => ({ useDraftSource: () => undefined }));
@@ -173,30 +173,14 @@ describe('9.4-UNIT DictatedMeasurementField', () => {
 describe('9.4-UNIT useTableDictation: unparsed table speech', () => {
   const fechado = () => evaluateSheetReadings(block(), SEC).find((t) => t.testKey === 'isolacao')!.tables.find((t) => t.key === 'contato_fechado')!;
 
-  function renderTable(enabled: boolean) {
+  it('Story 31.3: speech a table cannot read is only announced (no sheet observation holds a pending text any more); a reading waits on its cell', () => {
     const announce = vi.fn();
-    const seen: { pending: string | null } = { pending: null };
-    function Probe() {
-      seen.pending = useSheetObservationDictation().pending;
-      return null;
-    }
-    const { result } = renderHook(() => useTableDictation(fechado(), announce), {
-      wrapper: ({ children }) => (
-        <SheetObservationDictationProvider enabled={enabled}>
-          {children}
-          <Probe />
-        </SheetObservationDictationProvider>
-      ),
-    });
-    return { result, announce, seen };
-  }
-
-  it('with "Observações" off, is announced as "type it in the table" and leaves no pending suggestion', () => {
-    const { result, announce, seen } = renderTable(false);
+    const { result } = renderHook(() => useTableDictation(fechado(), announce));
     act(() => result.current.onDictated('está chovendo muito'));
-    expect(announce).toHaveBeenCalledWith(ui.dictation.unparsedNoObservations);
+    expect(announce).toHaveBeenCalledWith(ui.tableReading.unparsed);
     expect(result.current.dictated).toBeNull();
-    expect(seen.pending).toBeNull();
+    act(() => result.current.onDictated('Fase A, 147 giga'));
+    expect(result.current.dictated).toMatchObject({ kind: 'cell', raw: '147', unit: 'GΩ', address: { testKey: 'isolacao', row: 3, col: 0 } });
   });
 
   it('E9-Q9 a dictated reading is dropped once its cell is filled another way, and does not come back when the cell is emptied', () => {
@@ -206,10 +190,7 @@ describe('9.4-UNIT useTableDictation: unparsed table speech', () => {
     filledBlock.sheet = { ...filledBlock.sheet, test: { isolacao: { cells: { '3': { '0': { value: { raw: '150', unit: 'GΩ', state: 'measured' }, source_suggestion_id: null, op_id: 'x' } } } } } } as BlockRow['sheet'];
     const filled = evaluateSheetReadings(filledBlock, SEC).find((t) => t.testKey === 'isolacao')!.tables.find((t) => t.key === 'contato_fechado')!;
     expect(filled.rows[0]!.cells[0]!.state).toBe('measured');
-    const { result, rerender } = renderHook(({ table }) => useTableDictation(table, announce), {
-      initialProps: { table: empty },
-      wrapper: ({ children }) => <SheetObservationDictationProvider enabled>{children}</SheetObservationDictationProvider>,
-    });
+    const { result, rerender } = renderHook(({ table }) => useTableDictation(table, announce), { initialProps: { table: empty } });
     act(() => result.current.onDictated('Fase A, 147 giga'));
     expect(result.current.dictated).toMatchObject({ raw: '147', address: { row: 3, col: 0 } });
     // "Confirmar todos", a pull: the cell is filled.
@@ -218,14 +199,5 @@ describe('9.4-UNIT useTableDictation: unparsed table speech', () => {
     // Emptied later: the old reading stays gone.
     rerender({ table: empty });
     expect(result.current.dictated).toBeNull();
-  });
-
-  it('with "Observações" on, becomes the observation suggestion and is announced', () => {
-    const { result, announce, seen } = renderTable(true);
-    act(() => result.current.onDictated('está chovendo muito'));
-    expect(announce).toHaveBeenCalledWith(ui.dictation.unparsed);
-    expect(seen.pending).toBe('Está chovendo muito');
-    act(() => result.current.onDictated('Fase A, 147 giga'));
-    expect(result.current.dictated).toMatchObject({ kind: 'cell', raw: '147', unit: 'GΩ', address: { testKey: 'isolacao', row: 3, col: 0 } });
   });
 });
