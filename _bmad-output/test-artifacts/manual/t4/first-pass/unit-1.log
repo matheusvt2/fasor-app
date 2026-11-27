@@ -1,0 +1,1760 @@
+>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+ Container fasor-t4-postgres-1 Running 
+ Container fasor-t4-minio-1 Running 
+ Container fasor-t4-api-1 Running 
+ Container fasor-t4-install-1 Starting 
+ Container fasor-t4-install-1 Started 
+ Container fasor-t4-minio-1 Waiting 
+ Container fasor-t4-install-1 Waiting 
+ Container fasor-t4-postgres-1 Waiting 
+ Container fasor-t4-install-1 Exited 
+ Container fasor-t4-minio-1 Healthy 
+ Container fasor-t4-postgres-1 Healthy 
+ Container fasor-t4-minio-1 Waiting 
+ Container fasor-t4-api-1 Waiting 
+ Container fasor-t4-install-1 Waiting 
+ Container fasor-t4-postgres-1 Waiting 
+ Container fasor-t4-install-1 Exited 
+ Container fasor-t4-postgres-1 Healthy 
+ Container fasor-t4-minio-1 Healthy 
+ Container fasor-t4-api-1 Healthy 
+ Container fasor-t4-tools-run-431a6cab6d47 Creating 
+ Container fasor-t4-tools-run-431a6cab6d47 Created 
+$ tsx scripts/preflight.ts && vitest run
+
+ RUN  v5.0.1 /workspace
+
+ ✓  @app/domain  src/seed/seed.test.ts (239 tests) 463ms
+ ✓  @app/domain  src/relatorio/conclusion.test.ts (43 tests) 230ms
+ ✓  @app/domain  src/relatorio/measurement-evaluation.test.ts (50 tests) 270ms
+ ✓  @app/domain  src/relatorio/removal.test.ts (37 tests) 218ms
+ ✓  @app/domain  src/merge/conflicts.test.ts (45 tests) 327ms
+ ✓  @app/domain  src/types/company-types.test.ts (60 tests) 407ms
+ ✓  @app/domain  src/relatorio/three-levels.test.ts (48 tests) 1392ms
+ ✓  @app/domain  src/relatorio/readings.test.ts (61 tests) 933ms
+   ✓ 5.5-UNIT the addressing is the fixture's (4)
+     ✓ every tested block of the Porto Seguro fixture evaluates with nothing missing at its own addresses 423ms
+ ✓  @app/domain  src/relatorio/e23t-transformer-tests.test.ts (43 tests) 861ms
+ ✓  @app/domain  src/print/section-9.test.ts (71 tests) 369ms
+ ✓  @app/domain  src/relatorio/site-checklist.test.ts (40 tests) 107ms
+ ✓  @app/domain  src/relatorio/oil-rule.test.ts (26 tests) 121ms
+ ✓  @app/domain  src/relatorio/e24a-conclusion-rules.test.ts (45 tests) 2907ms
+   ✓ 24.3-UNIT B-2 the v14 conclude of an out reading: Reprovado, any stored restriction cleared, the text, section 9 with both restriction boxes empty (2)
+     ✓ concluded, section 9 prints X on REPROVADO only, and its paragraph 496ms
+   ✓ 24.3-UNIT section 9 prints the four boxes of the layout-lock relatório on v14 and on v13 (4)
+     ✓ the breaker stored Reprovado · Com restrições by its reading out: v14 X on REPROVADO only (the stored restriction ignored on read); v13 X on REPROVADO and COM 371ms
+     ✓ the second arrester, its plate switched off after the conclude: v14 X on REPROVADO only (the technician's Reprovado); v13 as before 708ms
+ ✓  @app/domain  src/relatorio/instantiate.test.ts (43 tests) 275ms
+ ✓  @app/domain  src/relatorio/tree-painel.test.ts (35 tests) 57ms
+ ✓  @app/domain  src/print/last-results.test.ts (38 tests) 268ms
+ ✓  @app/domain  src/relatorio/e24s-seed-v14-sheets.test.ts (35 tests) 746ms
+ ✓  @app/domain  src/home/cards.test.ts (67 tests) 36ms
+ ✓  @app/domain  src/ops/apply.test.ts (46 tests) 69ms
+ ✓  @app/domain  src/print/e24p-previous-visit.test.ts (29 tests) 793ms
+   ✓ 24.15-UNIT the MANUT. ANTERIOR header and the history texts name the visit's date on v14 (previous_visit_date) (3)
+     ✓ v14: every MANUT. ANTERIOR header prints the visit's date on a second line (the issue day of an entry from before the story); v13 the header alone 307ms
+ ✓  @app/domain  src/print/group-for-print.test.ts (36 tests) 337ms
+ ✓  @app/domain  src/ops/site-checklist.test.ts (36 tests) 69ms
+ ✓  @app/domain  src/relatorio/e23e-tc-thermo-ground.test.ts (33 tests) 824ms
+ ✓  @app/domain  src/audit/audit.test.ts (37 tests) 855ms
+   ✓ 14.10-UNIT-001 auditInput sends the filled sheets first and counts the sheets it sent (7)
+     ✓ every sheet line of the full fixture names its sheet as the screen does, beside the printed title when that differs 577ms
+ ✓  @app/domain  src/templates/compose.test.ts (38 tests) 439ms
+ ✓  @app/domain  src/relatorio/criteria-tables.test.ts (45 tests) 94ms
+ ✓  @app/domain  src/relatorio/e25s-added-rows.test.ts (33 tests) 787ms
+ ✓  @app/domain  src/relatorio/seed-v13-e23b.test.ts (26 tests) 160ms
+ ✓  @app/domain  src/audio/audio.test.ts (56 tests) 193ms
+ ✓  @app/domain  src/relatorio/pre-issue-export.test.ts (32 tests) 2595ms
+   ✓ 22.6-UNIT preIssue (e22f S5: "Parecer não preenchido" blocks again while nothing is judged and no verdict was tapped) (2)
+     ✓ a fresh relatório (no concluded sheet, no verdict) blocks on section 10; not with one set, with section 10 removed; a legacy snapshot prints section 10 and blocks 591ms
+ ✓  @app/domain  src/relatorio/sumario.test.ts (33 tests) 1081ms
+ ✓  @app/domain  src/relatorio/e23z-final-fixes.test.ts (19 tests) 283ms
+ ✓  @app/domain  src/ops/measurement-table.test.ts (31 tests) 324ms
+stdout | src/ops/value-limits.test.ts > whole-value caps, set from measurement (e20f) > measure: the caps leave at least 4x the largest open value and the longest array of every fixture and seed op
+e20f measured: 4230 ops; largest open value 27585 B at template/019966c1-0000-7000-8000-0000000000aa value.blocks; longest array 76 at template/019966c1-0000-7000-8000-0000000000aa value.blocks
+
+stdout | src/ops/value-limits.test.ts > whole-value caps, set from measurement (e20f) > QA N1, measure: the deepest value or meta of every fixture and seed op is at least 4x under VALUE_MAX_DEPTH
+e20f measured: deepest value 5 at template/019966c1-0000-7000-8000-0000000000aa value
+
+ ✓  @app/domain  src/status/edited-since.test.ts (76 tests) 58ms
+stdout | src/ops/value-limits.test.ts > the relatório budget (e20f, aggregate) > measure: the Porto Seguro relatório, replayed, holds its live rows in under a third of the budget
+e20f measured: Porto Seguro 207 live rows, 643269 bytes
+
+ ✓  @app/domain  src/ops/value-limits.test.ts (50 tests) 491ms
+ ✓  @app/domain  src/print/measurement-print.test.ts (24 tests) 459ms
+ ✓  @app/domain  src/relatorio/removal-readers.test.ts (23 tests) 290ms
+ ✓  @app/domain  src/relatorio/e24y-pass-fixes.test.ts (19 tests) 217ms
+ ✓  @app/domain  src/points/test-point-findings.test.ts (25 tests) 2383ms
+   ✓ 24.17-UNIT what a point written from a test starts with, per kind of finding, on v14 and v13 (9)
+     ✓ a failed prerequisite with its test on: under the test; with the test's sub-block off: on the Conclusão step 313ms
+ ✓  @app/domain  src/relatorio/e25r-like-with-like.test.ts (25 tests) 1007ms
+ ✓  @app/domain  src/relatorio/applicability.test.ts (16 tests) 234ms
+ ✓  @app/domain  src/merge/location-removal.test.ts (19 tests) 72ms
+ ✓  @app/domain  src/relatorio/seed-v7.test.ts (19 tests) 64ms
+ ✓  @app/domain  src/relatorio/tree.test.ts (30 tests) 53ms
+ ✓  @app/domain  src/reading/build.test.ts (27 tests) 34ms
+ ✓  @app/domain  src/relatorio/sheet-progress.test.ts (33 tests) 33ms
+ ✓  @app/domain  src/relatorio/parecer.test.ts (22 tests) 1218ms
+ ✓  @app/domain  src/types/e22h-copies.test.ts (15 tests) 89ms
+ ✓  @app/domain  src/relatorio/suggestions.test.ts (25 tests) 168ms
+ ✓  @app/domain  src/merge/policy.test.ts (22 tests) 37ms
+ ✓  @app/domain  src/seed/template.test.ts (30 tests) 171ms
+ ✓  @app/domain  src/templates/from-relatorio.test.ts (43 tests) 457ms
+ ✓  @app/domain  src/types/nominal-tolerance.test.ts (19 tests) 71ms
+ ✓  @app/domain  src/relatorio/e25c-no-measurement.test.ts (15 tests) 303ms
+ ✓  @app/domain  src/relatorio/e28a-insulation.test.ts (40 tests) 547ms
+   ✓ 28.3-UNIT-008 the printed plate (DADOS DO EQUIPAMENTO): CONSTRUÇÃO in the empty last pair, no v17 row moves (2)
+     ✓ a dry v18 unit prints NATUREZA DO LÍQUIDO and TIPO (ANP) "-" and its CONSTRUÇÃO after CLASSE TÉRMICA; every other pair is where v17 prints it 349ms
+ ✓  @app/domain  src/ops/path.test.ts (175 tests) 52ms
+ ✓  @app/domain  src/relatorio/e27b-wording-pass.test.ts (38 tests) 1406ms
+ ✓  @app/domain  src/relatorio/screen-label.test.ts (291 tests) 24ms
+ ✓  @app/domain  src/relatorio/suggestions-display.test.ts (14 tests) 19ms
+ ✓  @app/domain  src/print/section-8.test.ts (24 tests) 1007ms
+ ✓  @app/domain  src/print/printed-verdicts.test.ts (17 tests) 716ms
+   ✓ 25.4-UNIT (g) pins today's behaviour, it does not approve it: a sheet reopened before the snapshot is frozen (1)
+     ✓ the route saw a concluded sheet (Apto, nothing blocking); the job froze it reopened: section 10 prints "[Parecer]" and the revision records printed_parecer null, the value of "section 10 not printed" 402ms
+ ✓  @app/domain  src/relatorio/quadro-eletrico.test.ts (16 tests) 147ms
+ ✓  @app/domain  src/merge/info.test.ts (21 tests) 47ms
+ ✓  @app/domain  src/relatorio/e23w-wave2-fixes.test.ts (21 tests) 343ms
+ ✓  @app/domain  src/points/points.test.ts (20 tests) 345ms
+ ✓  @app/domain  src/types/test-base-update.test.ts (17 tests) 248ms
+ ✓  @app/domain  src/relatorio/e25c-reading-not-applicable.test.ts (16 tests) 1523ms
+   ✓ 25.9-UNIT Story 25.6's rule and the previous visit (3)
+     ✓ a pole N/A now is not judged against the previous visit (the rise rule reads measured poles only) 377ms
+   ✓ 25.9-UNIT the print and the audit text (2)
+     ✓ AC 4: each N/A cell prints "N/A", the ratio row's VAL CALCULADO and CONDIÇÕES and the winding's corrected value too; no other printed cell differs from the same sheet "Não medido" 430ms
+   ✓ 25.9-UNIT the helper of a limit inside a range criterion (every seed, screen only) (2)
+     ✓ the Epic 25 fixture's company row (125 Vcc ± 5 %): "> 125 Vcc" has no verdict and the helper; "> 131,25 Vcc" is out with its own; on v14 and v15 alike 464ms
+ ✓  @app/domain  src/relatorio/library-type.test.ts (15 tests) 65ms
+ ✓  @app/domain  src/contract/telemetry.test.ts (25 tests) 34ms
+ ✓  @app/domain  src/ops/targets.test.ts (17 tests) 86ms
+ ✓  @app/domain  src/points/e25c-every-reading-out.test.ts (16 tests) 947ms
+ ✓  @app/domain  src/types/draft-edit.test.ts (17 tests) 161ms
+ ✓  @app/domain  src/sync/e22h-type-version-id.test.ts (16 tests) 81ms
+ ✓  @app/domain  src/relatorio/e22g-wave-b-fixes.test.ts (19 tests) 447ms
+ ✓  @app/domain  src/relatorio/e25c-stale-conclusion.test.ts (16 tests) 519ms
+ ✓  @app/domain  src/ops/attribution.test.ts (23 tests) 108ms
+ ✓  @app/domain  src/types/test-base-import.test.ts (22 tests) 98ms
+ ✓  @app/domain  src/relatorio/e23g-wave1-fixes.test.ts (21 tests) 47ms
+ ✓  @app/domain  src/print/layout.test.ts (17 tests) 357ms
+ ✓  @app/domain  src/registry/nc-phrase-row.test.ts (42 tests) 25ms
+ ✓  @app/domain  src/relatorio/over-range.test.ts (27 tests) 57ms
+ ✓  @app/domain  src/photos/gallery.test.ts (21 tests) 186ms
+ ✓  @app/domain  src/relatorio/suggestions-plate.test.ts (18 tests) 15ms
+ ✓  @app/domain  src/audit/e25q-stale-and-rules.test.ts (17 tests) 820ms
+ ✓  @app/domain  src/relatorio/e22f-wave-a-fixes.test.ts (20 tests) 494ms
+ ✓  @app/domain  src/relatorio/e25s-thermography.test.ts (15 tests) 185ms
+ ✓  @app/domain  src/relatorio/header-parameter.test.ts (20 tests) 33ms
+ ✓  @app/domain  src/points/points-on-click.test.ts (24 tests) 1272ms
+ ✓  @app/domain  src/permissions/map.test.ts (78 tests) 42ms
+ ✓  @app/domain  src/relatorio/instrument-pick.test.ts (10 tests) 28ms
+ ✓  @app/domain  src/schemas/entities.test.ts (29 tests) 360ms
+ ✓  @app/domain  src/reading/display.test.ts (20 tests) 57ms
+ ✓  @app/domain  src/permissions/role-editor.test.ts (17 tests) 17ms
+ ✓  @app/domain  src/print/criterion-per-row.test.ts (11 tests) 3289ms
+   ✓ 25.20-UNIT the criterion and the result on each row of a v15 measurement table (8)
+     ✓ the deviation between phases: a v15 oil winding with phase C 3 % over the lowest prints COM RESTRIÇÃO on that row, the criterion on each row, "75 °C (corrigido)", every value whole with its unit 355ms
+     ✓ a choice test (the oil sampling) prints as v14 prints it: its answer is its result 642ms
+     ✓ the breaker's paired insulation tables on a second visit read "20 °C (corrigido)", every value of the column on one line, at the frame's 6,5 pt 342ms
+     ✓ the transformer's insulation table, printed alone with its corrected column, reads "20 °C (corrigido)" and holds every word and value whole 330ms
+   ✓ 25.20-UNIT each flag off, and v14 (3)
+     ✓ `criterion_result_per_row` off: no CRITÉRIO and no RESULTADO, the headers still "(corrigido)" 387ms
+ ✓  @app/domain  fixtures/porto-seguro/op-log.test.ts (30 tests) 2736ms
+   ✓ 3.7-UNIT-002 determinism: no wall-clock or random source (4)
+     ✓ generating each op log again, in a fresh module evaluation, yields the same log byte for byte 683ms
+ ✓  @app/domain  src/parse/utterance.test.ts (26 tests) 28ms
+ ✓  @app/domain  src/print/print-fit.test.ts (101 tests) 2269ms
+   ✓ 22.3 the Porto Seguro fixture: every typed value fits its printed column (1)
+     ✓ no word of DADOS DO EQUIPAMENTO, CONFIGURAÇÃO, the cabine tables or an instrument header is wider than its column 481ms
+ ✓  @app/domain  src/relatorio/vector-group.test.ts (81 tests) 37ms
+ ✓  @app/domain  src/print/photo-order.test.ts (9 tests) 71ms
+ ✓  @app/domain  src/points/e28b-point-start.test.ts (25 tests) 1062ms
+   ✓ 28.5-UNIT-004 section 8 prints the deadline from the issue date on v18 and as stored on v17 (3)
+     ✓ v18: the P1 suggestion 09/01/2027, the typed date as typed, P0 the issue date, P4 the next intervention 348ms
+ ✓  @app/domain  src/reading/value.test.ts (30 tests) 14ms
+ ✓  @app/domain  src/status/table.test.ts (32 tests) 17ms
+ ✓  @app/domain  src/relatorio/nameplate-copy.test.ts (14 tests) 11ms
+ ✓  @app/domain  src/relatorio/ficha.test.ts (17 tests) 21ms
+ ✓  @app/domain  src/relatorio/seed-v12.test.ts (15 tests) 34ms
+ ✓  @app/domain  src/relatorio/pre-issue-warnings.test.ts (12 tests) 769ms
+ ✓  @app/domain  src/photos/section-7-order.test.ts (18 tests) 93ms
+ ✓  @app/domain  src/relatorio/dry-insulation.test.ts (40 tests) 18ms
+ ✓  @app/domain  src/relatorio/panel.test.ts (11 tests) 13ms
+ ✓  @app/domain  src/sync/status.test.ts (23 tests) 10ms
+ ✓  @app/domain  src/templates/text.test.ts (19 tests) 47ms
+ ✓  @app/domain  src/relatorio/status-advance.test.ts (28 tests) 25ms
+ ✓  @app/domain  src/contract/contract.test.ts (19 tests) 37ms
+ ✓  @app/domain  src/relatorio/instrument-use.test.ts (13 tests) 1243ms
+ ✓  @app/domain  src/checks/e27a-value-limits.test.ts (13 tests) 120ms
+ ✓  @app/domain  src/print/revisions.test.ts (18 tests) 307ms
+ ✓  @app/domain  src/relatorio/e28a-lists.test.ts (13 tests) 425ms
+ ✓  @app/domain  src/print/section-10.test.ts (13 tests) 2960ms
+   ✓ 7.4-UNIT section 10 layout (6)
+     ✓ 22.6-UNIT prints the derived verdict with no parecer stored, and an own text typed before as "Observações do responsável" 1238ms
+     ✓ 22.6-UNIT "nos itens 8 e 9" reads the printed positions, in a seeded text and in a template's own text 340ms
+     ✓ signs with the typed title, the CRT default, or the council alone when the number is blank 342ms
+ ✓  @app/domain  src/photos/caption.test.ts (21 tests) 13ms
+ ✓  @app/domain  src/relatorio/e27a-parecer-open.test.ts (12 tests) 553ms
+ ✓  @app/domain  src/sync/counts.test.ts (25 tests) 7ms
+ ✓  @app/domain  src/permissions/user-list.test.ts (18 tests) 19ms
+ ✓  @app/domain  src/relatorio/conclusion-unjudged.test.ts (8 tests) 50ms
+ ✓  @app/domain  src/ops/outbox.test.ts (14 tests) 37ms
+ ✓  @app/domain  src/print/section-7.test.ts (11 tests) 736ms
+   ✓ 7.2-UNIT-001 section 7 layout (8)
+     ✓ 2026-11-04: with only sheet photos, the empty section 7 says they print with their equipment, naming the tests section as printed 313ms
+ ✓  @app/domain  src/relatorio/cabine.test.ts (11 tests) 438ms
+ ✓  @app/domain  src/print/e23f-print-fixes.test.ts (9 tests) 134ms
+ ✓  @app/domain  src/relatorio/progress.test.ts (17 tests) 137ms
+ ✓  @app/domain  src/types/company-sheet-context.test.ts (8 tests) 23ms
+ ✓  @app/domain  src/parse/pt-br-number.test.ts (20 tests) 10ms
+ ✓  @app/domain  src/relatorio/e28c-items-and-texts.test.ts (11 tests) 917ms
+   ✓ 28.9-UNIT the relatório's additional items (6)
+     ✓ section 10 on v18: zero items is v17's list; one and three print as topics after the fixed items, in order, before the validity line 604ms
+ ✓  @app/domain  src/print/criteria-tables-print.test.ts (8 tests) 63ms
+ ✓  @app/domain  src/print/section-11.test.ts (7 tests) 458ms
+ ✓  @app/domain  src/audio/hold.test.ts (14 tests) 94ms
+ ✓  @app/domain  src/relatorio/copied-type-hides.test.ts (10 tests) 35ms
+ ✓  @app/domain  src/print/e28b-notes.test.ts (16 tests) 2769ms
+   ✓ 28.7-UNIT a reading above the instrument's limit prints with Bruno's line (v18) (5)
+     ✓ one limit: the cell keeps "> 2 TΩ" and one line names "2 TΩ", the value kept with its unit 785ms
+   ✓ 28.8-UNIT the variation note by Bruno's numbers (v18) (8)
+     ✓ a pole that rose 30 % is named with its rise and its previous value; one at exactly 25 % and one at 20 % are not 322ms
+ ✓  @app/domain  src/relatorio/e25c-rise-at-limit.test.ts (13 tests) 709ms
+   ✓ 25.8-UNIT a v15 contact rise of exactly 50 % is restricted; above it out; v13 and v14 within (13)
+     ✓ the Epic 25 fixture's breaker (30 then 45 µΩ): on v15 restricted, its point names the rise at the limit; on v14 within, no note line 674ms
+ ✓  @app/domain  src/print/seed-v12.test.ts (7 tests) 35ms
+ ✓  @app/domain  src/points/derived-kinds.test.ts (6 tests) 701ms
+ ✓  @app/domain  src/audio/recording.test.ts (22 tests) 22ms
+ ✓  @app/domain  src/types/vector-group-publish.test.ts (8 tests) 95ms
+ ✓  @app/domain  src/relatorio/e27a-points-missing.test.ts (10 tests) 476ms
+ ✓  @app/domain  src/relatorio/pre-issue.test.ts (6 tests) 784ms
+   ✓ 4.3-UNIT preIssue (6)
+     ✓ names each missing setup field on the cover, "0 de 94" on section 9, only the parecer blocking 318ms
+ ✓  @app/domain  src/relatorio/e28w-pass-fixes.test.ts (8 tests) 329ms
+ ✓  @app/domain  src/registration.test.ts (20 tests) 28ms
+ ✓  @app/domain  src/audio/rewrite.test.ts (13 tests) 96ms
+ ✓  @app/domain  src/format/datetime.test.ts (20 tests) 12ms
+ ✓  @app/domain  src/reading/build-v12.test.ts (10 tests) 20ms
+ ✓  @app/domain  src/relatorio/e30b-seed-v19.test.ts (12 tests) 917ms
+   ✓ 30.3-UNIT-A seed v19: a seeded criterion is written with "≥", "≤" and a space after every operator (4)
+     ✓ section 9 of a v19 relatório prints "> 400 MΩ", "< 250 µΩ" and "± 0,5 %", never the glued forms 546ms
+ ✓  @app/domain  src/contract/telemetry-device.test.ts (10 tests) 7ms
+ ✓  @app/domain  src/relatorio/tag.test.ts (16 tests) 9ms
+ ✓  @app/domain  src/print/absent-sections.test.ts (8 tests) 469ms
+ ✓  @app/domain  src/points/priority.test.ts (20 tests) 15ms
+ ✓  @app/domain  src/relatorio/observation-free.test.ts (7 tests) 173ms
+ ✓  @app/domain  src/print/tr-untested-taps.test.ts (9 tests) 66ms
+ ✓  @app/domain  src/email/messages.test.ts (9 tests) 11ms
+ ✓  @app/domain  src/points/link.test.ts (9 tests) 98ms
+ ✓  @app/domain  src/relatorio/e25s-dry-option.test.ts (22 tests) 21ms
+ ✓  @app/domain  src/photos/captions.test.ts (8 tests) 9ms
+ ✓  @app/domain  src/relatorio/section-variables.test.ts (12 tests) 13ms
+ ✓  @app/domain  src/schemas/snapshot-builder.test.ts (9 tests) 2498ms
+   ✓ E9C1-UNIT-001 createSnapshotBuilder equals buildSnapshot (4)
+     ✓ the full Porto Seguro log (3841 ops), applied one at a time with the builder called after every op, serializes as buildSnapshot at every 48th op and the last 2059ms
+ ✓  @app/domain  src/reading/assess.test.ts (15 tests) 30ms
+ ✓  @app/domain  src/print/fixed-texts-v15.test.ts (11 tests) 2467ms
+   ✓ 25.22-UNIT `{obra}`: the obra's site, then its name, on v15; the setup's Local first on v14 (3)
+     ✓ v15: the cover's "Cidade/local" and section 1 read the site, never the Local 712ms
+   ✓ 25.22-UNIT the validity line (3)
+     ✓ v15 prints it whatever the number; v14 (flag off) prints the number or the bracket 518ms
+   ✓ 25.22-UNIT the printed sections of a v15 relatório with the seed's own texts (1)
+     ✓ sections 2, 4, 5 and 6 print the corrected texts; v14 prints FO.SERV-03's 791ms
+ ✓  @app/domain  src/photos/exif.test.ts (9 tests) 7ms
+ ✓  @app/domain  src/relatorio/e25s-ground-grid-points.test.ts (4 tests) 1032ms
+   ✓ 25.16-UNIT the v16 Malha de aterramento takes continuity points beyond the five (4)
+     ✓ a point at 0,8 Ω: the floor is Reprovado, the paragraph names the point and the print lists it after the five 359ms
+ ✓  @app/domain  src/relatorio/arrivals.test.ts (6 tests) 96ms
+ ✓  @app/domain  src/ops/order-key.test.ts (14 tests) 48ms
+ ✓  @app/domain  src/templates/rich-text.test.ts (152 tests) 60ms
+ ✓  @app/domain  src/reading/wait.test.ts (8 tests) 6ms
+ ✓  @app/domain  src/seed/test-help.test.ts (10 tests) 97ms
+ ✓  @app/domain  src/relatorio/section-position.test.ts (7 tests) 954ms
+ ✓  @app/domain  src/contract/ocr.test.ts (15 tests) 17ms
+ ✓  @app/domain  src/photos/numbering.test.ts (7 tests) 33ms
+ ✓  @app/domain  src/checks/e27a-review-limits.test.ts (6 tests) 8ms
+ ✓  @app/domain  src/templates/section-text.test.ts (13 tests) 6ms
+ ✓  @app/domain  src/reading/prose.test.ts (9 tests) 9ms
+ ✓  @app/domain  src/ops/over-range-ops.test.ts (7 tests) 21ms
+ ✓  @app/domain  src/relatorio/resume.test.ts (10 tests) 173ms
+ ✓  @app/domain  src/relatorio/e27b-user-errors.test.ts (6 tests) 193ms
+ ✓  @app/domain  src/relatorio/setup-complete.test.ts (10 tests) 7ms
+ ✓  @app/domain  src/permissions/can.test.ts (67 tests) 11ms
+ ✓  @app/domain  src/templates/list.test.ts (12 tests) 41ms
+ ✓  @app/domain  src/relatorio/e27a-review-fixes.test.ts (2 tests) 117ms
+ ✓  @app/domain  src/relatorio/move.test.ts (8 tests) 15ms
+ ✓  @app/domain  src/registry/instrument-row.test.ts (13 tests) 7ms
+ ✓  @app/domain  src/photos/order.test.ts (9 tests) 6ms
+ ✓  @app/domain  src/sync/clock-offset.test.ts (12 tests) 5ms
+ ✓  @app/domain  src/schemas/block-config.test.ts (10 tests) 12ms
+ ✓  @app/domain  src/templates/e27a-section-numbers.test.ts (5 tests) 148ms
+ ✓  @app/domain  src/seed/e27a-criteria-view.test.ts (5 tests) 7ms
+ ✓  @app/domain  src/schemas/snapshot.test.ts (5 tests) 34ms
+ ✓  @app/domain  src/files/candidate.test.ts (10 tests) 7ms
+ ✓  @app/domain  src/ops/equipment-reuse-key.test.ts (4 tests) 92ms
+ ✓  @app/domain  src/print/e24y-paired-tables.test.ts (6 tests) 104ms
+ ✓  @app/domain  src/photos/text.test.ts (11 tests) 6ms
+ ✓  @app/domain  src/ops/materialize.test.ts (7 tests) 52ms
+ ✓  @app/domain  src/sync/reasons.test.ts (7 tests) 6ms
+ ✓  @app/domain  src/photos/caption-compose.test.ts (5 tests) 6ms
+ ✓  @app/domain  src/points/point-question.test.ts (8 tests) 3ms
+ ✓  @app/domain  src/relatorio/sheet-state.test.ts (7 tests) 10ms
+ ✓  @app/domain  src/points/derived-recommendation.test.ts (2 tests) 13ms
+ ✓  @app/domain  src/registry/e27a-pick-empresa.test.ts (6 tests) 54ms
+ ✓  @app/domain  src/print/document-control.test.ts (5 tests) 131ms
+ ✓  @app/domain  src/templates/convergence.test.ts (5 tests) 312ms
+ ✓  @app/domain  src/checks/calibration.test.ts (15 tests) 14ms
+ ✓  @app/domain  src/photos/e27b-caption-words.test.ts (5 tests) 329ms
+ ✓  @app/domain  src/relatorio/plate-temperature.test.ts (24 tests) 10ms
+ ✓  @app/domain  src/print/e27b-form-words-print.test.ts (3 tests) 818ms
+   ✓ 27.8-UNIT section 9 of a v17 relatório prints the form's words; a v16 one keeps its own (3)
+     ✓ v17 from the standard template built after Story 27.8: "ITEM", "PARA-RAIOS", "1º Subsolo", "TPs e TCs" 457ms
+ ✓  @app/domain  src/sync/late.test.ts (7 tests) 6ms
+ ✓  @app/domain  src/relatorio/local.test.ts (8 tests) 7ms
+ ✓  @app/domain  src/reading/panel.test.ts (6 tests) 6ms
+ ✓  @app/domain  src/relatorio/conclusion-defect.test.ts (3 tests) 4ms
+ ✓  @app/domain  src/relatorio/integrity.test.ts (4 tests) 5ms
+ ✓  @app/domain  src/permissions/user.test.ts (11 tests) 7ms
+ ✓  @app/domain  src/seed/select-option.test.ts (5 tests) 11ms
+ ✓  @app/domain  src/relatorio/block-texts.test.ts (3 tests) 7ms
+ ✓  @app/domain  src/photos/eviction.test.ts (9 tests) 4ms
+ ✓  @app/domain  src/checks/input-refusal.test.ts (7 tests) 4ms
+ ✓  @app/domain  src/types/palette-meta.test.ts (4 tests) 5ms
+ ✓  @app/domain  src/reading/retarget.test.ts (3 tests) 6ms
+ ✓  @app/domain  src/sync/resend.test.ts (3 tests) 4ms
+ ✓  @app/domain  src/ops/op.test.ts (6 tests) 13ms
+ ✓  @app/domain  src/ops/replay.test.ts (7 tests) 81ms
+ ✓  @app/domain  src/seed/criteria.test.ts (11 tests) 22ms
+ ✓  @app/domain  src/relatorio/observation-on-leave.test.ts (15 tests) 7ms
+stdout | src/relatorio/parecer-bench.test.ts > e22f S7 benchmark: the Etapa 6 parecer reads on the 94-sheet Porto Seguro snapshot > seed v1
+E22F-BENCH seed=v1 cold_median_ms=21.2 one_block_changed_median_ms=7.5
+E22F-BENCH-SPLIT seed=v1 effectiveParecer=0.3 parecerReasonText=1.2 composeParecer=1.2 parecerLooser=0.3
+
+stdout | src/relatorio/parecer-bench.test.ts > e22f S7 benchmark: the Etapa 6 parecer reads on the 94-sheet Porto Seguro snapshot > seed v11
+E22F-BENCH seed=v11 cold_median_ms=14.8 one_block_changed_median_ms=7.5
+E22F-BENCH-SPLIT seed=v11 effectiveParecer=0.3 parecerReasonText=2.2 composeParecer=1.2 parecerLooser=0.3
+
+ ✓  @app/domain  src/relatorio/parecer-bench.test.ts (2 tests) 672ms
+   ✓ e22f S7 benchmark: the Etapa 6 parecer reads on the 94-sheet Porto Seguro snapshot (2)
+     ✓ seed v1 377ms
+ ✓  @app/domain  src/relatorio/count-target.test.ts (2 tests) 31ms
+ ✓  @app/domain  src/reading/units.test.ts (6 tests) 5ms
+ ✓  @app/domain  src/text/plural.test.ts (8 tests) 6ms
+ ✓  @app/domain  src/templates/enabled-sub-blocks.test.ts (2 tests) 7ms
+stdout | src/ops/meta-limits.test.ts > 30.1-UNIT-D: the caps of an op's meta > measure: every meta the app writes today (the fixture logs, and every known key filled) is far under both caps
+30.1-UNIT-D measured: the largest meta 766 B, the longest array in a meta 0
+
+ ✓  @app/domain  src/ops/meta-limits.test.ts (2 tests) 17ms
+ ✓  @app/domain  src/reading/escalate.test.ts (5 tests) 5ms
+ ✓  @app/domain  src/relatorio/location-live.test.ts (4 tests) 3ms
+ ✓  @app/domain  src/device/storage.test.ts (8 tests) 4ms
+ ✓  @app/domain  src/permissions/screens.test.ts (36 tests) 6ms
+ ✓  @app/domain  src/registry/word-row.test.ts (18 tests) 12ms
+ ✓  @app/domain  src/photos/upload-order.test.ts (4 tests) 3ms
+ ✓  @app/domain  src/permissions/paused.test.ts (3 tests) 2ms
+ ✓  @app/domain  src/prefs/wake-lock.test.ts (3 tests) 4ms
+ ✓  @app/domain  src/checks/pre-issue.test.ts (5 tests) 4ms
+ ✓  @app/domain  src/relatorio/server-blocked.test.ts (2 tests) 4ms
+ ✓  @app/domain  src/checks/references.test.ts (4 tests) 3ms
+ ✓  @app/domain  src/relatorio/e24y-bruno-words.test.ts (3 tests) 421ms
+   ✓ e24y-P9-UNIT the v14 Inspeção de QGBT's thermography is "TERMOGRAFIA" (2)
+     ✓ titles the v14 inspection's test "Termografia" with no "E1 ·" (section 9 prints it upper case); the Malha keeps "E1 ·" on v13 and v14 418ms
+ ✓  @app/domain  src/reading/boxes.test.ts (4 tests) 5ms
+ ✓  @app/domain  src/print/text-metrics.test.ts (4 tests) 3ms
+ ✓  @app/domain  src/photos/save.test.ts (3 tests) 5ms
+ ✓  @app/domain  src/relatorio/sheet-evaluation.test.ts (1 test) 293ms
+ ✓  @app/domain  src/drafts/key.test.ts (5 tests) 5ms
+ ✓  @app/domain  src/checks/plate-date.test.ts (5 tests) 4ms
+ ✓  @app/domain  src/checks/cnpj.test.ts (9 tests) 6ms
+ ✓  @app/domain  src/print/caption-ordinal.test.ts (5 tests) 2ms
+ ✓  @app/domain  src/checks/storage.test.ts (6 tests) 2ms
+ ✓  @app/domain  src/relatorio/project.test.ts (2 tests) 4ms
+ ✓  @app/domain  src/checks/client-reference.test.ts (4 tests) 2ms
+ ✓  @app/domain  src/registry/client-row.test.ts (3 tests) 14ms
+ ✓  @app/domain  src/checks/pre-issue-client.test.ts (3 tests) 4ms
+ ✓  @app/domain  src/checks/write-error.test.ts (4 tests) 8ms
+ ✓  @app/domain  src/text/normalize-name.test.ts (5 tests) 3ms
+ ✓  @app/domain  src/prefs/camera.test.ts (3 tests) 2ms
+ ✓  @app/domain  src/prefs/theme.test.ts (3 tests) 2ms
+ ✓  @app/domain  src/text/hash.test.ts (3 tests) 2ms
+ ✓  @app/domain  src/registry/empresa.test.ts (1 test) 2ms
+ ✓  @app/domain  src/sync/streams.test.ts (3 tests) 2ms
+ ✓  @app/domain  src/reading/ai.test.ts (6 tests) 4ms
+ ✓  @app/domain  src/seed/voltage-classes.test.ts (2 tests) 3ms
+ ✓  @app/domain  src/domain.test.ts (2 tests) 3ms
+ ✓  @app/domain  src/clock.test.ts (14 tests) 3962ms
+   ✓ determinism source scan (10)
+     ✓ no Date.now in packages/domain/src 576ms
+     ✓ no new Date() without argument in packages/domain/src 520ms
+     ✓ no Math.random in packages/domain/src 495ms
+     ✓ no crypto.randomUUID in packages/domain/src 446ms
+     ✓ no performance.now in packages/domain/src 588ms
+     ✓ no process.env in packages/domain/src 407ms
+     ✓ no Buffer in packages/domain/src 386ms
+stderr | src/sync/engine.test.ts > sync engine > 8.1 auto-confirm after a pull > 9.5: discards a pulled NC draft whose row is not NC, pushed on the next cycle
+suggestion auto-confirm failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/sync/engine.test.ts > sync engine > 8.1 auto-confirm after a pull > 9.5: discards a pulled NC draft whose row is not NC, pushed on the next cycle
+thumb refresh failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/sync/engine.test.ts > sync engine > 8.1 auto-confirm after a pull > 9.5: discards a pulled NC draft whose row is not NC, pushed on the next cycle
+eviction pass failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/sync/engine.test.ts > sync engine > 8.1 auto-confirm after a pull > 9.5: discards a pulled NC draft whose row is not NC, pushed on the next cycle
+outbox prune failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/sync/engine.test.ts > 2.2 upload phase > keeps two uploads in flight and isolates one failure from the rest
+file upload refused permanently {
+  id: '019966b0-0000-7000-8000-0000000000b2',
+  failure: { kind: 'http', status: 409, code: 'file_sha_mismatch' }
+}
+
+stderr | src/sync/engine.test.ts > 6.2 photo uploads > Story 20.12: keeps the pixel-limit details of a dead upload and records a reading the daily ceiling refused
+file upload refused permanently {
+  id: '019966b0-0000-7000-8000-0000000006a1',
+  failure: {
+    kind: 'http',
+    status: 413,
+    code: 'file_too_large',
+    details: { limit: 'pixels', max_pixels: 120000000 }
+  }
+}
+
+stderr | src/sync/engine.test.ts > 6.2 photo uploads > persists a permanent refusal as dead: a reload does not retry it, the others upload, and a cleared error retries
+file upload refused permanently {
+  id: '019966b0-0000-7000-8000-0000000006a1',
+  failure: { kind: 'http', status: 413, code: 'file_too_large' }
+}
+
+stderr | src/sync/engine.test.ts > 6.2 photo uploads > retryUpload waits out a cycle in flight however long it runs, then sends the cleared file in a cycle of its own
+file upload refused permanently {
+  id: '019966b0-0000-7000-8000-0000000006a1',
+  failure: { kind: 'http', status: 413, code: 'file_too_large' }
+}
+
+stderr | src/sync/engine.test.ts > 6.2 photo uploads > runs the eviction pass after the cycle: under pressure the acked original goes, the unacked one and every thumb stay
+file upload refused permanently {
+  id: '019966b0-0000-7000-8000-0000000006b2',
+  failure: { kind: 'http', status: 413, code: 'file_too_large' }
+}
+
+stderr | src/sync/engine.test.ts > W-4 / W-10 (full review 2026-09-30) the public engine calls > every public call resolves on a closed database: no rejection reaches the caller
+sync call failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+sync call failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/sync/engine.test.ts > W-4 / W-10 (full review 2026-09-30) the public engine calls > every public call resolves on a closed database: no rejection reaches the caller
+sync call failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+sync cycle failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/sync/engine.test.ts > W-4 / W-10 (full review 2026-09-30) the public engine calls > every public call resolves on a closed database: no rejection reaches the caller
+sync cycle failed [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.1 the full-resolution capture > a single shot is the camera's own photo where ImageCapture takes one
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.1 the full-resolution capture > review F-01: takePhoto rejects after the viewfinder went away; the frame of the tap is saved, no failure
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.1 the full-resolution capture > review F-01: takePhoto answers after the timeout with the viewfinder gone; the frame of the tap is saved and the late photo ignored
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/sync/engine.test.ts > e25x A2 a commit nudge is a push-only pass > the request count: 20 followed streams, 30 commit nudges in 60 s, with nudge() (the e25a wiring) and with pushNow()
+e25x A2 request count over 60 s, 20 followed streams, 30 commit nudges: nudge() 712, pushNow() 52
+
+ ✓  @app/web  src/sync/engine.test.ts (81 tests) 4662ms
+   ✓ sync engine (39)
+     ✓ Story 20.9 (review): a backlog over SYNC_PUSH_MAX_BYTES goes in several pushes under the cap, each client batch in one push 1000ms
+   ✓ e25x A2 a commit nudge is a push-only pass (12)
+     ✓ the request count: 20 followed streams, 30 commit nudges in 60 s, with nudge() (the e25a wiring) and with pushNow() 802ms
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.1 the full-resolution capture > review F-01: no frame at the tap (the stream had none yet) still waits for one, as before
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.1 the full-resolution capture > falls back to the frame grab when takePhoto rejects, and the shot still saves
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.1 the full-resolution capture > falls back to the frame grab when takePhoto never answers
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.1 the full-resolution capture > without ImageCapture (Safari) the single shot is the frame grab, as before
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.2 torch, zoom and tap-to-focus from the track's capabilities > renders none of them when the track offers nothing
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.2 torch, zoom and tap-to-focus from the track's capabilities > the torch: a 48 px toggle in the top bar, applied through applyConstraints, off again in the next session
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.2 torch, zoom and tap-to-focus from the track's capabilities > the torch: a 48 px toggle in the top bar, applied through applyConstraints, off again in the next session
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.2 torch, zoom and tap-to-focus from the track's capabilities > a refused torch constraint leaves the toggle as it was
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.2 torch, zoom and tap-to-focus from the track's capabilities > the zoom: "-" and "+" with the readout, clamped to the range, never in the shutter row
+camera track settings { zoom: 1 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.2 torch, zoom and tap-to-focus from the track's capabilities > the zoom: a two-finger pinch on the finder scales it, clamped
+camera track settings { zoom: 1 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.2 torch, zoom and tap-to-focus from the track's capabilities > a tap on the preview applies the point of interest and the focus mode, and marks it
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.2 torch, zoom and tap-to-focus from the track's capabilities > a one-finger drag past 10 px is not a focus tap; a move within 10 px still is
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.6 a refused shot blocks the camera until it is stored > a refusal during the session disables the shutter and says why in the hint
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > 13.6 a refused shot blocks the camera until it is stored > the live opener opens normally once the retry stored the held shot
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > FLD-V1: a frame the burst cannot read is said in .cam-hint (data-state="failed"), no toast; the next saved shot brings the hint back
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > FLD-V1: once the camera is closing, a failure is the toast as before (the camera does not say it)
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > DB-4: from "Concluir fotos" until the view closes, .cam-count says the shots are being saved and the shutter and "Concluir fotos" are disabled
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > DB-4: a single shot reads "Salvando a foto…" from the shutter, the shutter disabled, until the view closes
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > closed by its close button while saving and opened again, the new view stays open when the old saves end
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > closed by its close button while saving and opened again, the new view stays open when the old saves end
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > r8cap-camera-session-1: a single shot whose save fails while it closes says the failure after the close, never "Foto salva"
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > r8cap-camera-session-1: a burst closed by "Concluir fotos" whose pending shot fails says the failure after the close, never "Fotos salvas"
+camera track settings { width: 3840, height: 2160 }
+
+stdout | src/surfaces/ficha/camera-view.test.tsx > R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling > DE-2: closing the camera gives the focus back to the opener with preventScroll
+camera track settings { width: 3840, height: 2160 }
+
+ ✓  @app/web  src/surfaces/ficha/camera-view.test.tsx (52 tests) 9762ms
+   ✓ W-13 "Concluir fotos" when storing the shots fails (1)
+     ✓ closes the camera and stops the stream, and the next "Concluir fotos" still works 431ms
+   ✓ 13.1 the full-resolution capture (9)
+     ✓ review F-01: takePhoto answers after the timeout with the viewfinder gone; the frame of the tap is saved and the late photo ignored 2742ms
+     ✓ falls back to the frame grab when takePhoto never answers 2066ms
+   ✓ 13.2 torch, zoom and tap-to-focus from the track's capabilities (8)
+     ✓ the torch: a 48 px toggle in the top bar, applied through applyConstraints, off again in the next session 325ms
+   ✓ R8CAP-UNIT review 2026-10-08 the open camera says its own failures, its saving, and gives the focus back without scrolling (11)
+     ✓ DB-4: from "Concluir fotos" until the view closes, .cam-count says the shots are being saved and the shutter and "Concluir fotos" are disabled 543ms
+     ✓ closed by its close button while saving and opened again, the new view stays open when the old saves end 333ms
+stderr | src/surfaces/export/export-dialog.test.tsx > Export dialog (Story 7.5) > F-12: a preview refused with 401 closes its tab and says the session expired, with "Entrar de novo"
+preview failed SyncRequestError: http 401
+    at Object.<anonymous> (/workspace/apps/web/src/surfaces/export/export-dialog.test.tsx:1261:72)
+    at Object.Mock [as preview] (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+    at /workspace/apps/web/src/surfaces/export/use-preview.ts:127:33
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9) {
+  failure: { kind: 'http', status: 401 }
+}
+
+stderr | src/surfaces/export/export-dialog.test.tsx > Export dialog (Story 7.5) > a failed preview closes its tab and says so
+preview failed Error: offline
+    at Object.<anonymous> (/workspace/apps/web/src/surfaces/export/export-dialog.test.tsx:1292:72)
+    at Object.Mock [as preview] (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+    at /workspace/apps/web/src/surfaces/export/use-preview.ts:127:33
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9)
+
+stderr | src/surfaces/export/export-dialog.test.tsx > Export dialog (Story 7.5) > a preview job that ends failed closes the tab and says so
+preview failed Error: preview job 019966c1-0000-7000-8000-0000000000e2 ended without a file
+    at /workspace/apps/web/src/surfaces/export/use-preview.ts:156:122
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9)
+
+stderr | src/surfaces/relatorio/sumario-surface.test.tsx > 4.3 SumarioSurface > review fixes 2026-10-08: a foot preview refused because the session expired says so with "Entrar de novo", not the generic failure
+preview failed SyncRequestError: http 401
+    at Object.<anonymous> (/workspace/apps/web/src/surfaces/relatorio/sumario-surface.test.tsx:616:72)
+    at Object.Mock [as preview] (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+    at /workspace/apps/web/src/surfaces/export/use-preview.ts:127:33
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9) {
+  failure: { kind: 'http', status: 401 }
+}
+
+stderr | src/surfaces/export/export-dialog.test.tsx > Story 18.4: the generate and preview waits time the press, not the request > a preview closed mid-press is a cancel, a refused one refused, one with no network offline; a dead op held times nothing
+preview failed SyncRequestError: http 401
+    at Object.<anonymous> (/workspace/apps/web/src/surfaces/export/export-dialog.test.tsx:2102:98)
+    at Object.Mock [as preview] (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+    at /workspace/apps/web/src/surfaces/export/use-preview.ts:127:33
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9) {
+  failure: { kind: 'http', status: 401 }
+}
+
+stderr | src/surfaces/export/export-dialog.test.tsx > Story 18.4: the generate and preview waits time the press, not the request > a preview closed mid-press is a cancel, a refused one refused, one with no network offline; a dead op held times nothing
+preview failed SyncRequestError: network failure
+    at Object.<anonymous> (/workspace/apps/web/src/surfaces/export/export-dialog.test.tsx:2107:97)
+    at Object.Mock [as preview] (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+    at /workspace/apps/web/src/surfaces/export/use-preview.ts:127:33
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9) {
+  failure: { kind: 'network' }
+}
+
+ ✓  @app/web  src/surfaces/export/export-dialog.test.tsx (75 tests) 31568ms
+   ✓ Export dialog (Story 4.8) (32)
+     ✓ is a labelled modal that waits for a connection: offline, the button carries the reason and nothing is called 840ms
+     ✓ drains the outbox first ("Enviando…") and only then sends the request with the device op and the expected files 375ms
+     ✓ turns the pulled revision into the toast and the result block, Em revisão and not yet sent; "Marcar como enviado ao cliente" writes the one issue op; lists it under Revisões 769ms
+     ✓ Q11: a pulled edit of the relatório past the snapshot moves the idle line to revision 2 303ms
+     ✓ Q11 (2026-10-10): a revision that lands before the relatório row is read is ready and stays Em revisão; no issue op 413ms
+     ✓ shows the inline error with "Tentar novamente" when the job fails, and a network failure ends the same way 349ms
+     ✓ stops waiting when the running job outlives the queue expiry (a worker that died never writes failed) 478ms
+     ✓ "unchanged" (2026-10-10): answers the existing revision with no ready toast; an Em campo relatório takes generate only and ends Em revisão, not Emitido 431ms
+     ✓ 2026-10-13: a queued generate from Emitido reopens it as Em revisão; revision 2 is not yet sent and mark-as-sent is offered again 307ms
+     ✓ gives up after ten 409 answers with the inline error, and after ten flush rounds that never drain 1164ms
+     ✓ E9 sweep B14: fails at once when the 409 names only files no upload here will bring, and names how many 413ms
+     ✓ E9 sweep B14: retries while a file the 409 names is still on its way from this device, and fails at once once that upload is dead 639ms
+     ✓ honours "pode fechar": the wait survives an unmount, and a remount after the revision arrived finishes it 367ms
+     ✓ waits with a reason for a revision the server named but this device has not pulled, then enables the row 330ms
+     ✓ "unchanged" naming a revision this device does not hold (2026-10-10): it is pulled, and mark-as-sent is not offered of the older held one meanwhile 302ms
+     ✓ Story 16.2: a revision older than the edits says so (6)
+       ✓ A1, A5, A6: edited since revision 1 the banner says "gerado" and every row is tagged; working hides the banner, not the tags; revision 2 clears both until the next edit 475ms
+       ✓ E16-R1: an "unchanged" ready whose revision is not held yet shows no banner and no row tag over the older one; once it lands they show 461ms
+       ✓ A3: nothing edited since the latest revision: no banner, no tag, the ready block as today 330ms
+   ✓ Export dialog (Story 7.5) (19)
+     ✓ F-12: a preview refused with 401 closes its tab and says the session expired, with "Entrar de novo" 645ms
+     ✓ a queued preview job alone never reads as a running issue; its done never shows the issue failure 419ms
+     ✓ a preview job that ends failed closes the tab and says so 375ms
+     ✓ answers a first not_caught_up of the preview with a sync and a retry, which succeeds 748ms
+     ✓ offline, "Pré-visualizar" is disabled with the row's one offline reason and opens nothing 702ms
+     ✓ E11-Q1: shares the DOCX file itself, never a URL, where the sheet takes files; saves it where it does not 915ms
+     ✓ E11-Q1: shares the PDF file itself, never a URL, where the sheet takes files; saves it where it does not 453ms
+     ✓ E11-Q1 review: with a share sheet the result files are prefetched, and "Compartilhar PDF" shares the file in hand within the press, with no fetch of its own 484ms
+     ✓ E11-Q1: each revision row's DOCX and PDF save that revision's own file, reading "Baixando…" while it comes 433ms
+     ✓ E11-Q1: a failed fetch words the failure beside the row and saves nothing; the next press clears it 408ms
+     ✓ lists the other devices' last send, never this device's own 381ms
+     ✓ m2 (2026-10-10): two other devices of one user are one "Último envio" line, the newest 367ms
+   ✓ F-03 (review 2026-10-06, D1): issuing with an empty sheet asks first (5)
+     ✓ names the count, offers "Pré-visualizar" first; "Voltar" issues nothing; "Gerar mesmo assim" issues 679ms
+     ✓ a question standing when the connection drops is put away and never comes back without a press 364ms
+     ✓ "Tentar novamente" after a failure asks the same question before it issues again 495ms
+   ✓ Review fixes 2026-10-08 (QW25): "Pré-visualizar" refuses a dead op and stops when the dialog closes (6)
+     ✓ closing the dialog while the press drains aborts it: no POST after, the tab closed, nothing failed on reopen 571ms
+     ✓ the refusal goes once no dead op is left, and with the dialog; the next press checks again 437ms
+     ✓ a 401 that answers a press already aborted still raises the re-auth banner, and shows no failure 471ms
+   ✓ Story 18.4: the generate and preview waits time the press, not the request (8)
+     ✓ "Gerar relatório": one generate wait per press, ok once the revision is held, its duration the whole press across the not_caught_up retries 623ms
+     ✓ a press stopped by a dead op is refused, a 5xx fail, a session gone refused; each press one wait 448ms
+     ✓ a job past the queue expiry is timeout; one that ends failed after the request answered fail; files no upload brings refused 961ms
+     ✓ closing the dialog mid-generate ends the wait as cancel; the revision landing later adds no ok 506ms
+     ✓ a press whose dialog goes away before the revision is a cancel 1904ms
+     ✓ "Pré-visualizar": one preview wait, ok when the tab is pointed at the PDF, its duration from the press 937ms
+     ✓ a preview closed mid-press is a cancel, a refused one refused, one with no network offline; a dead op held times nothing 1247ms
+   ✓ Story 30.1 (audit 2026-11-24): the generate answers the dialog did not read (2)
+     ✓ 30.1-UNIT-A: a retry answered `running` (the first answer lost) moves the relatório as `queued` does; the revision offers "Marcar como enviado ao cliente"; a second `running` answer writes no second transition 531ms
+ ✓  @app/web  src/surfaces/relatorio/relatorio-tree-removal.test.tsx (19 tests) 34960ms
+   ✓ 14.2 second pass: "Remover" in the location Overflow (2)
+     ✓ is the last item of a local, a painel and a coluna in the Sumário, alone in the destructive group 2329ms
+   ✓ 14.2 second pass: the controls of a row are named apart when default names repeat (1)
+     ✓ two painéis each with a "Coluna 1", and two locals each with a "Painel 1" holding a "Coluna 1": every chevron, drag handle, Position box and Overflow name in the tree is unique, and so is each "Adicionar bloco em" 1752ms
+   ✓ 14.2 second pass: removing a location (6)
+     ✓ a painel with no sheet leaves at once: one tombstone, the mock toast, the announcement, the focus on the row before it; "Desfazer" restores it and focuses its Overflow 1874ms
+     ✓ a painel with a sheet asks first with the kernel's counts; "Cancelar" writes nothing and returns the focus to its Overflow 1241ms
+     ✓ removing a painel writes one batch in order (the painel, its colunas, their sheets, the freed equipment), closes the counters and focuses the next row; "Desfazer" restores every row 1377ms
+     ✓ a coluna: with a sheet it asks ("Remover coluna") and the next coluna takes the focus; the last coluna left leaves at once and the painel's chevron takes it 2741ms
+     ✓ a local: the Confirm counts its painéis, colunas and sheets; one batch in tree order; the foot's "Adicionar local" takes the focus when no row is left; "Desfazer" focuses its Overflow 2645ms
+     ✓ a location removed on another device after its Overflow opened: "Remover" says the location changed and writes nothing 909ms
+   ✓ 14.2 second pass: an edit reads the kernel's live locations (1)
+     ✓ a painel whose local was removed on another device is gone for an edit too: "Renomear" says the location changed and writes nothing 2127ms
+   ✓ 14.2 second pass: a new location beside a removed sibling (1)
+     ✓ "Adicionar coluna" after a middle coluna was removed, and again after the last one was, writes a create whose name and order key no sibling holds, removed ones included 4247ms
+   ✓ 14.2 second pass: "Restaurar ficha removida" with removed locations (8)
+     ✓ lists one entry per removed location beside the removed sheets, newest first; a sheet that left with its location, or sits under it, is not listed 820ms
+     ✓ offers nothing while the read of every location row has not landed: never the sheets of a removed painel one by one 645ms
+     ✓ the dialog open when its last removed ficha comes back on another device says "Nenhuma ficha removida para restaurar", with no list 2376ms
+     ✓ restoring a painel writes one batch from the plan (locations, sheets, equipment), opens section 9 on the restored row, says it, and marks a TAG reused meanwhile as a duplicate; "Desfazer" removes the same rows again 3499ms
+     ✓ a location restored on another device after the dialog opened: "Restaurar" says the location changed and writes nothing 718ms
+     ✓ a coluna and a local come back as a painel does (2)
+       ✓ restoring a coluna writes one batch from the plan, toasts "Coluna restaurada", says it and focuses the restored row 2005ms
+       ✓ restoring a local writes one batch from the plan, toasts "Local restaurado", says it and focuses the restored row 1535ms
+     ✓ restoring a sheet still restores the sheet and its equipment alone when its location is live 1870ms
+ ✓  @app/web  src/surfaces/ficha/ficha-fields.test.tsx (55 tests) 12595ms
+   ✓ F-01 a nameplate field swapped out mid-typing (3)
+     ✓ commits the typed text on unmount instead of dropping it (text field) 1790ms
+     ✓ commits the typed number on unmount (number field) 301ms
+   ✓ F-22 a plate date outside 1900 .. next year (1)
+     ✓ "20/02/0001" shows the invalid-date helper once the focus leaves and writes nothing; a real year is written 982ms
+   ✓ 13.4 the sheet's keyboard attributes and the empty date as text (15)
+     ✓ INP-3: "2024" commits 2024 on Enter 392ms
+     ✓ INP-3: a stored full date cleared in the picker keeps the picker and its focus past the idle commit 1039ms
+   ✓ 25.2-WEB the manufacturer field of the sheet (7)
+     ✓ a stored name the registry does not hold, emptied and left, writes the clear once; the screen and the store agree 735ms
+     ✓ a registered name typed with the focus in the field is stored when the sheet is left 754ms
+     ✓ a new name typed with the focus in the field is created once, as "Criar" does, when the sheet is left 755ms
+     ✓ D2 (fix batch e24z lead): "Criar", then leaves while the registry row and the value land one after the other, never write a clear 531ms
+     ✓ e25x A9: clear "Siemens", pick "WEG" before the store read null, "Siemens" again later, then clear: the last clear is written 341ms
+ ✓  @app/web  src/surfaces/relatorio/sumario-surface.test.tsx (44 tests) 37330ms
+   ✓ F43 (UX pass 2026-10-22): a compact template speaks the Sumário positions (1)
+     ✓ sections 1, 5, 7, 9, 8 and 10 are rows 1 to 6 (Story 20.3): section 9's chevron and its local's "Agrupar por tipo" name row 4 922ms
+   ✓ 4.3 SumarioSurface (26)
+     ✓ lists the 13 rows in FO.SERV-03 order, the tests before the points (Story 20.3), with the kernel titles, metas and notes 712ms
+     ✓ offers the Overflow per row kind and opens rows 1/3 on the setup, row 2 on the section text and row 9 on the points 2710ms
+     ✓ "Capa e dados do relatório" opens the setup at Etapa 1; "Controle do documento" opens nothing 480ms
+     ✓ a Position box move writes one order_key op, renumbers, announces and offers Desfazer 1148ms
+     ✓ Q7: a section move is announced, with its toast, in the render that draws it, well before the settle fallback 534ms
+     ✓ Remover tombstones the row, moves the focus to the row now in its slot and "Restaurar ficha removida" brings it back 1422ms
+     ✓ Em campo opens section 9 expanded on the path to the last sheet, scrolled once to its row; Rascunho opens it collapsed 1550ms
+     ✓ 12.2: arriving with openSection9 and focusBlockId opens section 9 on a Rascunho relatório and focuses that sheet's row 538ms
+     ✓ 15.4: arriving with openSection9 and focusLocationId (back from a local's Verificações) opens section 9 and focuses that local's "Verificações do local" 571ms
+     ✓ F-24: a sheet count opens section 9 on the first sheet it counts and focuses its row; a count of none focuses section 9 2602ms
+     ✓ "Desfazer" after Remover brings the row back and hands the focus to its Overflow trigger 1354ms
+     ✓ marks the parent cabine, and only it, when the last sheet sits in one of its colunas 743ms
+     ✓ "Restaurar ficha removida" names a removed sheet by its TAG and gives every Restaurar its own name 1158ms
+     ✓ 7.5: "Restaurar" lists only what was removed after the last revision 797ms
+     ✓ 7.5: the foot "Pré-visualizar" opens a tab, asks for the preview and reads "Gerando rascunho…"; leaving closes the blank tab 850ms
+     ✓ review fixes 2026-10-08: a foot preview refused because the session expired says so with "Entrar de novo", not the generic failure 743ms
+     ✓ 7.5: offline, the foot "Pré-visualizar" is disabled with the offline reason 513ms
+     ✓ 4.8: "Gerar relatório" opens the Export dialog, and Esc returns the focus to it 1249ms
+   ✓ 4.6 SumarioSurface: status transitions and the issued banner (6)
+     ✓ 27.11-UNIT the phone header menu holds the wide entries and the foot's "Pré-visualizar", which asks for the preview 724ms
+     ✓ carries no backward-move item at Rascunho (nothing to move back to) 589ms
+     ✓ the header Overflow offers "Voltar para Rascunho" from Em campo; confirming writes the put and returns focus to the trigger 2878ms
+     ✓ shows the issued banner with the issue date and revision numbers once a revision exists 1441ms
+     ✓ hides the issued banner once backed all the way to Em campo, even though the revision row is still on record 333ms
+   ✓ status flow 2026-10-10: the Sumário says the status and its next step, under the status pill (6)
+     ✓ Em revisão, nothing edited since revision 1: banner and next step say "not yet sent", the Controle row "Rev. 1 gerada" then "emitida", and "Marcar como enviado ao cliente" writes one issue op 1436ms
+     ✓ decision 2: Em revisão with edits since revision 1 offers no mark-as-sent; the next step asks for revision 2 and the Controle row promises it 2392ms
+     ✓ P5: an unedited Em revisão or Emitido relatório never flashes "há alterações", "Rev. N+1" or the edited next step while the first read is on its way 1708ms
+     ✓ Emitido with nothing edited: the next step says nothing changed since the revision, and no mark-as-sent 1191ms
+   ✓ 13.8 the audit findings on the Sumário (2)
+     ✓ lists the newest finished run under the AI note, and a photo finding's "Ver" opens the gallery 411ms
+     ✓ review F-11: from the Export dialog, a photo finding's "Ver" opens the gallery with ?volta=exportar 670ms
+   ✓ Review fixes 2026-10-08 (WEB-3): the Sumário rename says its refusal (2)
+     ✓ a TAG taken in the store after the dialog checked it: "Salvar" toasts the refusal and writes nothing 528ms
+     ✓ the equipment removed on another device before "Salvar": the "gone" refusal toasts and nothing is written 509ms
+ ✓  @app/web  src/sw/sw-lifecycle.test.ts (41 tests) 218ms
+ ✓  @app/web  src/surfaces/relatorio/relatorio-tree-painel.test.tsx (16 tests) 34078ms
+   ✓ 14.2 relatório tree: three levels (Sumário presentation) (15)
+     ✓ draws the local row with its Função-led meta, its own sheets under "Equipamentos no local", then its painéis with their colunas and sheets 2636ms
+     ✓ matrix "Empty painel": it shows the note, offers "Adicionar coluna" and no "Adicionar bloco" 3900ms
+     ✓ a block that sits on a painel is drawn under it, as it is counted: a block never vanishes 596ms
+     ✓ names the chevron, drag handle, Position box and Overflow of a painel with its local, so the first painel of two locals never reads alike (coordinator review 2026-10-13) 1629ms
+     ✓ the local Overflow says "Adicionar equipamento" only when the block goes on the local itself; with colunas directly under it the item is "Adicionar bloco" and adds to its current coluna (coordinator review 2026-10-13) 1643ms
+     ✓ "Adicionar painel" creates a painel under the local, named after its siblings, opened with its note; "Desfazer" removes it 2034ms
+     ✓ the painel "Adicionar bloco" puts the block in its current coluna, and the local "Adicionar equipamento no local" on the local itself, each with the TAG of the kernel rule 2191ms
+     ✓ "Função e nome" opens the Função dialog filled in and writes funcao and name in one batch; "Desfazer" restores both 4843ms
+     ✓ a local with no Função may be renamed alone through "Função e nome": one name put, the Função untouched 1561ms
+     ✓ "Função e nome" writes only the field the user changed: a name pulled while the dialog was open stays, and a local removed meanwhile is gone 3493ms
+     ✓ "Função e nome" with the name alone changed keeps a Função pulled while the dialog was open 1828ms
+     ✓ renames a painel ("Painel … renomeado", masculine) and moves it by Alt+arrow, the menu and the Position box: one location op each, said, undone by "Desfazer" 3521ms
+     ✓ in a local holding painéis and colunas directly, a painel moves among the painéis and a coluna among the colunas: the total said and the one order_key put are of its own kind 1501ms
+     ✓ a coluna inside a painel moves among the colunas of its own painel, with its drag handle and Position box drawn 951ms
+     ✓ "Adicionar local" at the foot asks the Função and the name and creates the cabine row with both 1552ms
+ ✓  @app/web  src/surfaces/relatorio/setup-surface.test.tsx (57 tests) 44526ms
+   ✓ F43 (UX pass 2026-10-22): the setup on a compact template speaks the Sumário positions (1)
+     ✓ Etapa 2 "Seção 1", Etapa 3 "Seção 6" and its sentences, Etapa 4 Certificados absent, Etapa 6 "Seção 6"; no FO.SERV-03 9, 10 or 11 1073ms
+   ✓ 4.2 SetupSurface (44)
+     ✓ renders the six Etapa bands, Etapa 6 the parecer, with no violations 577ms
+     ✓ 7.4 AC1 22.6: a stricter verdict tap writes the whole parecer once; a looser one is disabled; the summary is the kernel's text, read-only; an earlier typed summary shows under "Observações do responsável" and "Limpar" clears it 373ms
+     ✓ 7.4 22.6: the parecer radiogroup by keyboard skips the disabled verdict: End checks "Não apto" with one op, Home lands on "Apto com restrições" 428ms
+     ✓ autosaves Etapa 1 "Informações adicionais" as one relatorio/setup/additional_info op 523ms
+     ✓ 27.12-UNIT-001 Etapa 1 "Informações adicionais" is a text area of the mock class that keeps line breaks 810ms
+     ✓ typing a date at keyboard speed stores the full year, not a truncated one (review finding 1) 901ms
+     ✓ 25.13: an instrument the sheets use is marked from them, with the count, and a press refuses with the note and writes nothing 904ms
+     ✓ 25.13: an instrument ticked and used on no sheet carries the warning line; unticking it clears the line 795ms
+     ✓ "Concluir dados do relatório" is aria-disabled while a gap remains, and its reason names every gap at once (M2, 2026-10-10) 334ms
+     ✓ commits the Rascunho→Em campo transition once every gap is closed 355ms
+     ✓ the ART/TRT label and echo text follow the council of whichever responsible is picked 854ms
+     ✓ shows an expired instrument's amber clause and a role="status" note the checkbox is described by (review finding 5) 315ms
+     ✓ shows the altitude as "N m" for a value at or above 1000 m, before and after confirming 418ms
+     ✓ F-11: the device is asked for its position once per relatório, however often the page mounts; the reading stays a suggestion 653ms
+     ✓ F-11: a denied position is an answer too: the next visit does not ask again 693ms
+     ✓ Q8: a confirmed geolocation reading reopened by "Alterar" is a plain field, not "Sugerido" again 1731ms
+     ✓ Q8: "Alterar" reopens a confirmed altitude with its value kept and the focus in the field 1485ms
+     ✓ F-02: a typed altitude is never lost (12)
+       ✓ leaving the field for another one writes the typed value; a reload shows it 619ms
+       ✓ Enter writes the typed value 391ms
+       ✓ an idle pause writes the typed value while the field keeps the focus 976ms
+       ✓ leaving the page with the value still typed writes it 443ms
+       ✓ text that is no number writes nothing and the field stays editable 1542ms
+       ✓ Story 18.4: an entry the browser cannot read, left on blur, is one input_refused (setup.altitude, not_a_number); typing queues none 1357ms
+       ✓ a transient entry the browser cannot read ("-", reported as '' with badInput) writes nothing over the stored value, on idle or blur 1520ms
+       ✓ Story 20.9: the altitude takes the kernel range as min and max; -501 and 9001 write nothing and are one out_of_range refusal each, -500 and 9000 are written 2963ms
+       ✓ a decimal typed is kept as typed while the field has the focus; the write rounds to whole metres 2866ms
+       ✓ a geolocation "Sugerido" altitude focused and left, or left on unmount, with nothing typed writes nothing 2017ms
+       ✓ "Concluir dados do relatório" writes the typed altitude before the status 793ms
+       ✓ "Confirmar" writes the altitude exactly once, with the confirmation 1297ms
+     ✓ F-08: an unregistered company says where to fill it in under "Empresa executora", the way to Cadastros › Empresa; gone once registered 774ms
+     ✓ F-08: a registered company shows its name and no pointer 642ms
+     ✓ Q3: Etapa 2 carries no "Escopo" field (the cover prints Etapa 1's Informações adicionais) 551ms
+     ✓ committing an exclusion edit writes the whole array to the relatório row 753ms
+     ✓ W-12: removing an exclusion keeps every other row on its own input (stable keys, never shifted to the neighbour) 1149ms
+     ✓ E4 retro item 24: "Remover" in an exclusion's menu writes the list without it; "Desfazer" puts it back 1739ms
+     ✓ E4 retro item 12: "Concluir" follows the kernel table: offered on Rascunho only; past it, the bar names the gaps still open (2026-10-10), and "Dados salvos" only with none 364ms
+   ✓ Story 17.6: "Altitude do local" takes N/A and says when the device gave none (9)
+     ✓ B7: tapping "N/A" on the empty field writes the mark and clears the number in one batch, and shows the resolved line 400ms
+     ✓ B7: tapping "N/A" over typed text ends with the mark and no number 324ms
+     ✓ B7: a tap that leaves the focus in the field (WebKit) never writes the typed text after the mark 1212ms
+     ✓ B7: a position answering after the tap never prefills the field "Alterar" reopens 711ms
+     ✓ B8: a stored N/A shows the line (over a number and a confirmation) and asks no position 327ms
+     ✓ B9: "Alterar" from N/A reopens the empty field with the focus in it and the hint; a typed value is written 589ms
+   ✓ 28.9 Etapa 6's additional items (3)
+     ✓ on v18 the items show in order under the parecer, with the frame's words; on the fixture's own seed no list 1241ms
+     ✓ typing writes the list without its blank rows, in one put; an empty list says so 783ms
+ ✓  @app/web  src/surfaces/ficha/measurement-test-section.test.tsx (33 tests) 45947ms
+   ✓ 14.5 MeasurementTests: what the sheet draws (5)
+     ✓ draws the six tests in order under their kernel titles, each with its criterion and source 1013ms
+     ✓ the six tests draw with no accessibility violation 9890ms
+     ✓ shows only the rows the configuration shows: no fase C at two poles, the neutral only at four; MT takes the seeded criterion 3820ms
+     ✓ a table of one or two value columns stays a table; one of more stacks into cards, a fixed cell being text in both 619ms
+     ✓ marks the required empty cells and values as missing, never an optional column or a fixed cell 1549ms
+   ✓ 14.5 MeasurementTests: number cells (5)
+     ✓ a typed reading is one put on the cell family, in the row and column of the seed, with the row unit 1761ms
+     ✓ Enter asks the run for the next cell, from the address of the cell typed 1070ms
+     ✓ a pole more than 50 % above the lowest of its side is amber with the kernel helper, and the lowest of each side is shown 972ms
+     ✓ Epic 14 QA Q-3: a stored zero on E1 is to check: the neutral "Conferir" helper, no amber state, no "Marcar Com restrições" 1148ms
+     ✓ "Não medido" in a cell Overflow writes the not-measured value on that cell 1794ms
+   ✓ 14.5 MeasurementTests: choice cells (4)
+     ✓ a two-option row is a Segmented control per column; a tap writes the option key as the kernel choice value 1055ms
+     ✓ Deixado different from Projeto shows the kernel helper on the cell; "Marcar Com restrições" writes the conclusion 3424ms
+     ✓ the Overflow of a two-option cell marks it not measured and clears it 1713ms
+     ✓ a choice of more than two options is a select: an option, "Não medido" and the empty option each write their value 1017ms
+   ✓ 14.5 MeasurementTests: the values of a test (E5 options) (5)
+     ✓ método is a radiogroup of option rows, carga and fonte dos tempos Segmented controls; each choice is one put on the value family 1487ms
+     ✓ the option rows follow the radiogroup keyboard: one tab stop, the arrows move the choice 1712ms
+     ✓ the % and the V, Hz, A group show only with "com carga"; a typed value is one put with its unit; the method line is the kernel sentence 3148ms
+     ✓ "não realizado" marks the test as not run: nothing of its table is missing and the section says so to the stylesheet 651ms
+     ✓ E6 carries the ambient temperature above its table 703ms
+   ✓ 14.5 MeasurementTests: a test switched off, the instrument, a sheet not tested (9)
+     ✓ E1, E2, E3 and E6 carry a switch, E4 and E5 none; switching one off is one block config put that keeps the rest of the config 604ms
+     ✓ a test switched off draws its switch off and its note, no body; switching it on again writes the config 650ms
+     ✓ 23.9 a switchable test the plate makes not applicable, switched on, draws the NA band in place of its body and keeps its switch 723ms
+     ✓ 23.9 switched off, a test the plate makes not applicable is the off test: its switch off and its note, no NA band 487ms
+     ✓ the Instrument picker is drawn where the seed names whose instruments it offers: E1 to E3, never E4 to E6 1878ms
+     ✓ a pick on E1 or E2 is one put on the test's instrument with the registry header and no test parameter 1071ms
+     ✓ E1 to E3 show the instrument last used for their kind in the relatório as "Sugerido", like a seeded test 388ms
+     ✓ on a sheet marked not tested every test is read-only: no switch, no input, the stored values as text 352ms
+   ✓ 23.10 MeasurementTests: "Como ensaiar" on a measurement test's head (2)
+     ✓ draws the action only on the test with help, and pressing it opens the dialog named by that test's title 431ms
+     ✓ an NA test with help keeps the action on its head beside the NA pill; one without help has none 637ms
+ ✓  @app/web  src/surfaces/home/home-surface.test.tsx (33 tests) 6275ms
+   ✓ Home: status board (3)
+     ✓ shows four tiles in board order with live counts, zero included 894ms
+     ✓ a tile filters the list and a second tap clears it 328ms
+     ✓ another tile takes over the filter 341ms
+   ✓ Home: relatório cards (8)
+     ✓ the Em campo relatório on this device sorts first with is-current and its two actions 307ms
+   ✓ Home: the search by client and obra (Story 20.2) (5)
+     ✓ cleared: the clear button and Escape both return the Story 19.2 list, focus stays in the field 381ms
+     ✓ records one home.search action per search started, never its text 551ms
+     ✓ has no axe violations with a query typed 403ms
+   ✓ Home: empty state and shortcuts (3)
+     ✓ says so and offers "Novo relatório", which asks for the client and the obra (Story 4.1) 445ms
+stderr | src/state/session.test.tsx > sign-out deletes the device data (Story 20.11) > a delete another connection blocks: the sign-out completes and the wipe runs at the next boot before any open
+Dexie.delete('releng-0a000000-0000-7000-8000-0000000000a1') was blocked
+
+stderr | src/state/session.test.tsx > sign-out deletes the device data (Story 20.11) > a form sign-in of the same user clears the wipe a blocked sign-out left, so the reboot keeps the database and its outbox
+Dexie.delete('releng-0a000000-0000-7000-8000-0000000000a1') was blocked
+
+ ✓  @app/web  src/surfaces/templates/template-composer-local.test.tsx (17 tests) 15340ms
+   ✓ 14.2 composer: the three levels (10)
+     ✓ a local on a seed with the site checklist names it in its sub-line, between the Função and Agrupar (fix batch fx15q) 743ms
+     ✓ draws a local card with its kicker, flag and sub-line, its own equipment, its painel cards and their colunas; no string calls the root "cabine" 498ms
+     ✓ has no violations with the three levels drawn 1308ms
+     ✓ a painel with no coluna says why it takes no equipment and offers "Adicionar coluna"; the coluna added is the palette target 482ms
+     ✓ "Adicionar painel" names it after its siblings, from the card and from the local menu 1186ms
+     ✓ "Adicionar painel" and "Adicionar coluna" chosen from the Overflow of a collapsed card open it, so what was added is in view 1265ms
+     ✓ names the drag handle, Position box and Overflow of a painel with its local, so the first painel of two locals never reads alike (coordinator review 2026-10-13) 583ms
+     ✓ the first coluna added from an empty painel leaves the focus on its "Adicionar coluna", never on the page (coordinator review 2026-10-13) 434ms
+     ✓ a pointer tap on the chevron of a local or painel card toggles it; the chevron stays out of the accessibility tree and of the tab order (coordinator review 2026-10-13) 448ms
+     ✓ a local from before the painel level keeps its colunas directly under it and its "Adicionar coluna"; a local with none does not offer it 935ms
+   ✓ 14.2 composer: rename, reorder and remove at each level (7)
+     ✓ moves a painel by Alt+arrow, the menu and the Position box, each one skeleton put, said and undone by "Desfazer" 926ms
+     ✓ moves a local with everything under it, said in the masculine ("Local Geradores movido"), and "Desfazer" puts it back 667ms
+     ✓ renames a painel through "Renomear": one skeleton put, said, and "Desfazer" restores the name 1002ms
+     ✓ "Função e nome" opens the Função dialog filled in and writes the Função and the name in one skeleton put, undone together 1619ms
+     ✓ "Função e nome" applies only the field the user changed on the fresh skeleton: a name or a Função that changed while the dialog was open stays 1092ms
+     ✓ removes a painel with its colunas and their blocks after its own Confirm, and a local with everything under it; "Desfazer" restores both fields 1535ms
+     ✓ a coluna inside a painel keeps its menu and moves among the colunas of its own painel only 607ms
+ ✓  @app/web  src/surfaces/local/verificacoes-surface.test.tsx (27 tests) 14441ms
+   ✓ 14.3 "Verificações do local": the surface (25)
+     ✓ draws the header, the intro and the 19 items under their six groups, with the mock's class names 2380ms
+     ✓ an answer is one location/{id}/checklist/{item}/result put; the counters and the attribution follow 1428ms
+     ✓ an NC item opens its chips, its required observation, "Adicionar foto" and "Criar ponto de atenção"; a chip writes the observation 612ms
+     ✓ batch e27d X1: an item just marked NC carries no red mark; "Concluir verificações" shows it on every NC row still empty 609ms
+     ✓ an answered C or NA row with an observation shows the .vl-obs-line; "Editar" opens the field in its place 358ms
+     ✓ 24.6: an NC item with a typed observation set to Conforme keeps it with the warning and "Apagar observação"; a chip alone is removed 1341ms
+     ✓ 24.7: a local's NC item with a point written from it asks before it leaves NC; "Remover ponto" removes it in the same batch 314ms
+     ✓ "Marcar os restantes como Conforme" writes one C put per unanswered item in one batch; "Desfazer" writes the inverses in a new batch 808ms
+     ✓ the first site answer on a Rascunho relatório carries the Em campo status op in its batch and says "Relatório em campo" 510ms
+     ✓ a bulk action that moved a Rascunho relatório to Em campo is undone with its status op: Rascunho is back 1331ms
+     ✓ on an Emitido relatório the banner says that editing these verificações reopens it; the first answer reopens it as Em revisão in its batch 403ms
+     ✓ "Criar ponto de atenção" on an NC item with a photo seeds a point of this local with the photo's token; the row then names its point 601ms
+     ✓ "Concluir verificações" names what is missing and focuses the first unanswered row; with nothing missing it returns to the tree, as "Ver árvore" does 1255ms
+   ✓ Epic 14 QA Q-5: the local's "Do local" block above the items (2)
+     ✓ draws CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO expanded before the intro, with no "Ler visor", no line to this surface and no quick notes 821ms
+     ✓ an SE and an AMBIENTE value are location/{id}/se/* and env/* puts on the local, never a sheet op 434ms
+ ✓  @app/web  src/db/sync-store.test.ts (22 tests) 1408ms
+stderr | src/db/commit.test.ts > status flow 2026-10-10: Rascunho advances by field work, and every status change is published > a listener that throws never fails the write
+status change listener failed Error: listener
+    at /workspace/apps/web/src/db/commit.test.ts:724:13
+    at publishStatusChanges (/workspace/apps/web/src/db/status-changes.ts:38:9)
+    at commitBatch (/workspace/apps/web/src/db/commit.ts:178:3)
+    at /workspace/apps/web/src/db/commit.test.ts:727:7
+    at file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20
+
+ ✓  @app/web  src/db/commit.test.ts (30 tests) 1268ms
+ ✓  @app/web  src/surfaces/templates/template-composer-palette.test.tsx (21 tests) 19901ms
+   ✓ 3.4 composer: quantities per node (9)
+     ✓ sets a quantity on the current coluna from the palette; the coluna lists it and the totals follow 2625ms
+     ✓ 14.5 and 14.9: on seed v6 the palette lists the eight, then "Outros equipamentos" with the Chave de transferência automática and the Quadro elétrico; one CTA from its stepper lands on the coluna and in the totals 952ms
+     ✓ 14.5: a template on seed v4 offers the eight and no library type 536ms
+     ✓ heads the palette with the current node 499ms
+     ✓ "−" to zero from the keyboard in the open coluna moves the focus to its head 1082ms
+     ✓ writes nothing when the node was removed elsewhere before the write, and the stepper keeps its count 1345ms
+     ✓ a local made current by "Adicionar equipamento" holds blocks with no coluna, and lists them under "Equipamentos no local" 1482ms
+     ✓ a local just added is the target already: one tap on its "Adicionar equipamento" opens the drawer on it, and one more after closing reopens it 762ms
+     ✓ with the palette beside the composition (from 1024 px) a second press on the local releases it and no drawer opens: the mock toggle 976ms
+   ✓ 15.5 composer: "Adicionar equipamento" on an open coluna (2)
+     ✓ an empty open coluna says so, then offers the button; below 1024 px it opens the drawer "Blocos" on the coluna and "+" lands there 1554ms
+     ✓ with the palette beside the composition (from 1024 px) the press is idempotent: the coluna stays the target, its row open, no drawer, the focus on the button 1192ms
+   ✓ 3.4 composer: section blocks (8)
+     ✓ F16 (UX pass 2026-10-22): section 5 reads as the Sumário names it, in the palette and on its card 558ms
+     ✓ moves, duplicates and removes sections through the Overflow, with the Confirm dialog and "Desfazer" 2170ms
+     ✓ adds a section from the palette at the end, and "Adicionar abaixo" places the next one under its card 513ms
+     ✓ fix batch fxpw G2: a section the template holds reads "No template" in "Seções", and a tap writes nothing and says so 641ms
+     ✓ p020 P-1a: the standard template (8 and 10 present) shows no warning 394ms
+   ✓ 3.4 composer: concurrent edits (1)
+     ✓ ignores an orphan block, and the next blocks write drops it 812ms
+   ✓ 3.4 composer: name (1)
+     ✓ commits the name on blur as one template/{id}/name put 1341ms
+ ✓  @app/web  src/surfaces/ficha/plate-photo.test.tsx (24 tests) 1028ms
+ ✓  @app/web  src/db/suggestion-store.test.ts (17 tests) 1356ms
+   ✓ E9-Q13 the sweep and a confirm tapped while it runs (2)
+     ✓ never write two status ops for one suggestion, whichever lands first ("Confirmar todos" right after the launch pull) 502ms
+     ✓ never write two status ops for one stale prose suggestion when the engineer confirms it while the discard sweep runs 367ms
+ ✓  @app/web  src/surfaces/account/account-surface.test.tsx (27 tests) 4759ms
+   ✓ Account: sign out with pending work (Story 20.11) (6)
+     ✓ flushes first ("Saindo…"), then counts what is still unsent; the Confirm dialog says Sair deletes it 1353ms
+   ✓ Account: Tema (2)
+     ✓ has no axe violations 301ms
+   ✓ Account: the two dialogs share one modal shell (retro F-DUP-1, F-UNVERIFIED-1) (2)
+     ✓ Sair: aria-modal on the dialog, focus on Cancelar, back on Sair after Cancelar and after Esc 351ms
+     ✓ Editar: a Form dialog whose Conselho is one Tab stop driven by arrows; focus returns to Editar 438ms
+   ✓ 11.5 Account: "Localização nas fotos" (5)
+     ✓ is on by default with the "on" helper; a press commits the switch through the session, with no undo toast 391ms
+ ✓  @app/web  src/surfaces/templates/template-composer-defaults.test.tsx (16 tests) 24506ms
+   ✓ 3.5 composer: sub-block defaults per type (6)
+     ✓ offers "Editar padrões" only for a type the template holds 666ms
+     ✓ shows Toggle rows with the state word, "Sempre" for checklist and conclusion, and the subtype NA count 1569ms
+     ✓ 14.5: a measurement test that is not switchable (E4, E5 of the Chave de transferência automática) reads "Sempre" and offers no switch; the other four are switches 2799ms
+     ✓ the dry subtype ("A SECO" since seed v16, Story 25.19) on the TP pre-marks the seed's oil items (seven on v9), and a new TP placement follows the type 1384ms
+     ✓ two toggles pressed back to back both land: each change applies to the freshest row, in order 768ms
+     ✓ batch e24s (Story 24.14): on seed v14 the Malha de aterramento's first row reads its own title, "Dados da malha"; the TP keeps "Dados de placa" 1273ms
+   ✓ E9 sweep B11: section actions after a pull reordered the sections (2)
+     ✓ "Remover" removes the section it was pressed on, wherever the row read at write time holds it 1064ms
+     ✓ "Descer" moves the section it was pressed on, wherever the row read at write time holds it 829ms
+   ✓ 3.6 composer: section text (8)
+     ✓ E9 sweep B11: writes onto the same section when another device moved it, never onto the one now at its index 1439ms
+     ✓ writes nothing when another device removed the section it was opened on, and says so 838ms
+     ✓ "Restaurar texto padrão" right after typing writes the typed text first, so "Desfazer" brings it back 2039ms
+     ✓ an emptied text, or one typed back to the seed text, is stored as null: the seed text stays in force 4312ms
+     ✓ 11.4: a section whose seed has items (3), edited and brought back to the seed content, is stored as null 1467ms
+     ✓ offers "Editar texto" only on a section with text, opening the seed's text with its variables as chips 1332ms
+     ✓ inserts a chip, autosaves the text on close, and "Restaurar texto padrão" puts the seed back with "Desfazer" 1856ms
+     ✓ E3-A9: a tap on a section card body opens "Editar texto" with the focus in the text; a section with no text has no body button 867ms
+ ✓  @app/web  src/surfaces/users/users-surface.test.tsx (25 tests) 8884ms
+   ✓ 26.9-UNIT-020 the list (3)
+     ✓ renders the device rows overlaid by the route: pills, "· você", the count line; "Todos" leaves the removed out 1069ms
+     ✓ the Removido chip shows the removed with the frame's sentence; Papel narrows by role; an empty result offers "Limpar filtros" 1131ms
+     ✓ the row menu offers the frame's items by status, Remover last 484ms
+   ✓ 26.9-UNIT-022 the confirmations (3)
+     ✓ Remover, Reativar, Reenviar convite and Enviar redefinição de senha say the frame's words 673ms
+   ✓ 26.9-UNIT-023 the last Admin and the route's refusals (9)
+     ✓ the only Admin removing or pausing himself: the refusal dialog, nothing is asked 373ms
+     ✓ a refusal { kind: 'refused', status: 403, …(1) } says its sentence and changes nothing 317ms
+     ✓ a refusal { kind: 'refused', status: 429, …(1) } says its sentence and changes nothing 306ms
+   ✓ e26r-UNIT, e26s-UNIT the reactivation of a user whose role is gone (4)
+     ✓ Reativar Eduardo Prado answered 404 role_not_found: the same dialog asks for another role, then sends role_id and the row turns Ativo 372ms
+   ✓ 26.9-UNIT-024 the new user and the edit, from the screen (3)
+     ✓ "Novo usuário" creates: the row appears as "Convite pendente" with its role, the Toast names the address 528ms
+     ✓ an invitation that did not leave keeps the user and says to resend 423ms
+   ✓ e26s-UNIT the user dialog opens with a company pull (F2-5) (1)
+     ✓ "Novo usuário" and "Editar" each ask one company pull, so a role made a moment ago is in the picker 378ms
+stderr | src/state/session.test.tsx > fix batch fxpw G1: the boot read settles before the engine may run > a pointer left by another user: unsettled on that user's database, settled on the confirmed one
+Another connection wants to delete database 'releng-0b000000-0000-7000-8000-0000000000b1'. Closing db now to resume the delete request.
+
+ ✓  @app/web  src/surfaces/relatorio/relatorio-tree.test.tsx (11 tests) 9048ms
+   ✓ 4.4 location tree (Sumário presentation) (6)
+     ✓ draws cabine › coluna › equipment rows with meta, counters, glyphs (aria-hidden) and state words 1390ms
+     ✓ Left/Right expand and collapse; Left on a leaf or a collapsed node goes to the parent chevron; the Position box keeps its arrows 953ms
+     ✓ offers the Overflow per row kind; "Abrir primeira ficha" is absent on a cabine with no equipment and opens the sheet 1266ms
+     ✓ "Agrupar por tipo" is a menuitemcheckbox writing location/{id}/agrupar_por_tipo, announced, and the meta follows 645ms
+     ✓ moves a block by Position box (clamped), Alt+Arrow and Overflow, one order_key op each, announced with Desfazer 1066ms
+     ✓ Q7: a move is announced, with its toast, in the render that draws it, well before the settle fallback 548ms
+   ✓ 15.4 back from a sheet on a phone lands on the Sumário row (1)
+     ✓ at 390 px, arriving with focusBlockId on a coluna sheet opens its cabine, scrolls its row in and focuses its open button 593ms
+   ✓ 4.4 rail presentation (/relatorio/:id/arvore) (2)
+     ✓ lists cabines and fichas, marks the last sheet aria-current, and the strip opens and collapses the rail 709ms
+   ✓ 11.8 follow-up: the AI entry points follow the server flag (2)
+     ✓ draws "Fotografar equipamento" in the palette while on 771ms
+     ✓ hides "Fotografar equipamento" (not disabled) while off 896ms
+stderr | src/state/drafts.test.tsx > 25.2-WEB a draft written as its field leaves is offered on return > no offer while the field is away; back on it, "Rascunho encontrado — Recuperar" hands the text back
+could not persist the draft [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/state/drafts.test.tsx > 25.2-WEB a draft written as its field leaves is offered on return > after the person put the launch offer away, a draft that comes back is offered alone, not the rows dismissed
+could not persist the draft [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/state/drafts.test.tsx > e25x A3 and A4 the drafts a saved value answers > A3: "Fechar" on a draft offered on return, its field on screen holding nothing typed, drops it; the launch row is kept (retro U7)
+could not persist the draft [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+stderr | src/state/drafts.test.tsx > e25x A3 and A4 the drafts a saved value answers > A3: "Fechar" keeps a draft offered on return whose field holds typed text
+could not persist the draft [DexieError [DatabaseClosedError]: DatabaseClosedError Database has been closed] {
+  inner: [DexieError [DatabaseClosedError]: Database has been closed] {
+    inner: null
+  }
+}
+
+ ✓  @app/web  src/state/drafts.test.tsx (21 tests) 1877ms
+stderr | src/surfaces/export/audit.test.tsx > 13.8 the audit in the Export dialog > a refused request says it could not check
+audit failed SyncRequestError: http 409 ai_features_off
+    at Object.<anonymous> (/workspace/apps/web/src/surfaces/export/audit.test.tsx:292:13)
+    at Object.Mock [as audit] (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+    at /workspace/apps/web/src/surfaces/export/use-audit.ts:102:33
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9) {
+  failure: { kind: 'http', status: 409, code: 'ai_features_off' }
+}
+
+stderr | src/surfaces/export/audit.test.tsx > 13.8 the audit in the Export dialog > Story 20.12: a request refused 429 quota_exceeded says the daily ceiling, once, and the button stays tappable
+audit failed SyncRequestError: http 429 quota_exceeded
+    at Object.<anonymous> (/workspace/apps/web/src/surfaces/export/audit.test.tsx:303:13)
+    at Object.Mock [as audit] (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+    at /workspace/apps/web/src/surfaces/export/use-audit.ts:102:33
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9) {
+  failure: { kind: 'http', status: 429, code: 'quota_exceeded' }
+}
+
+ ✓  @app/web  src/state/session.test.tsx (36 tests) 38594ms
+   ✓ boot with a session the server dropped (retro A8, Story 20.11) (6)
+     ✓ online: lands signed out without opening the database; the pointer, the 401 and the database stay 3696ms
+     ✓ a server slower than the wait: Home from the pointer, then a late 401 closes the database and lands on Login 3060ms
+   ✓ sign-out deletes the device data (Story 20.11) (7)
+     ✓ a delete another connection blocks: the sign-out completes and the wipe runs at the next boot before any open 5136ms
+     ✓ a form sign-in of the same user clears the wipe a blocked sign-out left, so the reboot keeps the database and its outbox 8555ms
+   ✓ the remembered 401 (retro A8) (3)
+     ✓ a sign-in clears it, so an offline reopen is fine 3436ms
+   ✓ 26.11 the cause of the 401: a paused account (4)
+     ✓ a plain boot 401 ends a remembered pause (e26s), and a sign-in clears the cause with the flag 3685ms
+   ✓ boot with a registration saved offline and not pushed yet (retro A5 item 8a) (3)
+     ✓ a re-auth sign-in through the form keeps them too 3338ms
+   ✓ fix batch fxpw G1: the boot read settles before the engine may run (3)
+     ✓ a pointer left by another user: unsettled on that user's database, settled on the confirmed one 3128ms
+     ✓ a boot with no pointer and no session settles signed out; a form sign-in leaves it settled 3183ms
+stderr | src/surfaces/export/audit.test.tsx > Review fixes 2026-10-08 (QW25): the audit's barrier guards > a session already gone asks nothing and shows the sign-in note, never the generic failure
+audit failed SessionExpiredError: session expired
+    at drainForServerJob (/workspace/apps/web/src/surfaces/export/server-job.ts:84:35)
+    at /workspace/apps/web/src/surfaces/export/use-audit.ts:96:13
+    at /workspace/apps/web/src/surfaces/export/use-audit.ts:168:5
+    at onPress (/workspace/apps/web/src/components/button.tsx:79:11)
+    at file:///workspace/node_modules/.pnpm/react-aria@3.52.1_react-dom@19.3.0_react@19.3.0__react@19.3.0/node_modules/react-aria/dist/private/interactions/usePress.mjs:155:13
+    at file:///workspace/node_modules/.pnpm/react-aria@3.52.1_react-dom@19.3.0_react@19.3.0__react@19.3.0/node_modules/react-aria/dist/private/utils/useEffectEvent.mjs:29:19
+    at onClick (file:///workspace/node_modules/.pnpm/react-aria@3.52.1_react-dom@19.3.0_react@19.3.0__react@19.3.0/node_modules/react-aria/dist/private/interactions/usePress.mjs:293:44)
+    at executeDispatch (/workspace/node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:20804:9)
+    at runWithFiberInDEV (/workspace/node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:1048:13)
+    at processDispatchQueue (/workspace/node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/cjs/react-dom-client.development.js:20854:19)
+
+stderr | src/surfaces/export/audit.test.tsx > Review fixes 2026-10-08 (QW25): the audit's barrier guards > a session that goes during the drain asks nothing and shows the sign-in note
+audit failed SessionExpiredError: session expired
+    at drainForServerJob (/workspace/apps/web/src/surfaces/export/server-job.ts:87:35)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processTimers (node:internal/timers:615:9)
+    at /workspace/apps/web/src/surfaces/export/use-audit.ts:96:7
+
+ ✓  @app/web  src/components/toast.test.tsx (17 tests) 646ms
+ ✓  @app/web  src/surfaces/export/audit.test.tsx (22 tests) 4774ms
+   ✓ 13.8 the audit in the Export dialog (12)
+     ✓ renders no button and no findings with AI features off, even with a finished run on the device 728ms
+   ✓ Review fixes 2026-10-08 (QW25): the audit's barrier guards (8)
+     ✓ closing the dialog while the tap drains aborts it: no POST after, and nothing reads as failed on reopen 492ms
+     ✓ unmounting while the tap drains aborts it: no POST after 421ms
+   ✓ 25.24 the out-of-date mark (Story 25.24, M16) (2)
+     ✓ a run written before contract 52 (no point) is marked; an edit still waiting in the outbox marks a current run 408ms
+ ✓  @app/web  src/surfaces/templates/templates-surface.test.tsx (20 tests) 6041ms
+   ✓ Templates: empty state (5)
+     ✓ says there is no template and offers the standard one, with no violations 614ms
+     ✓ commits one template/{id} create of the standard template, then lists it 633ms
+   ✓ 3.3 Templates: list (2)
+     ✓ lists the active templates by name with their summary line and row actions, the archived ones below 316ms
+   ✓ 3.3 Templates: actions (10)
+     ✓ "Desfazer" whose write is refused says why 341ms
+     ✓ "Remover" asks first with the focus on "Cancelar", hides the template, and "Desfazer" brings it back 330ms
+     ✓ after a removal the focus goes to the next row, else the previous, else the heading; after "Desfazer" to the row 1242ms
+     ✓ retires its undo toast when the list is left, so its "Desfazer" never acts from another screen 304ms
+ ✓  @app/web  src/components/registry-picker-field.test.tsx (31 tests) 5618ms
+   ✓ R8LAY DH-1 typed text left in the field (10)
+     ✓ "Criar" then leaving creates nothing a second time 345ms
+   ✓ 25.2-WEB the manufacturer typed and left with the sheet (8)
+     ✓ a new name is created once when the field unmounts, and not again after "Criar" 676ms
+     ✓ D2 (fix batch e24z lead): after "Criar", leaves before and after the entry lands, with the options late, create once and never clear 653ms
+ ✓  @app/web  src/speech/audio-field.test.tsx (20 tests) 2134ms
+   ✓ 31.3-WEB-005 the Audio button (8)
+     ✓ shows a live warning while it holds (amber meter), then the countdown at 2:50, and saves itself at 3:00 808ms
+ ✓  @app/web  src/surfaces/ficha/checklist-row.test.tsx (24 tests) 1686ms
+ ✓  @app/web  src/surfaces/sync/sync-status-surface.test.tsx (27 tests) 948ms
+ ✓  @app/web  src/surfaces/papeis/papeis-surface.test.tsx (16 tests) 5323ms
+   ✓ 26.10-WEB-001 the grid (2)
+     ✓ roles as columns in the list order, modules as rows, the frame's module names and lines 648ms
+   ✓ 26.10-WEB-002 switches and the bar (6)
+     ✓ a module switch: mixed "1 de 3", a tap gives all, a tap takes all, off gives all 371ms
+     ✓ nothing changed: both buttons disabled with "Nenhuma alteração para salvar."; one key change marks the cell and the bar 431ms
+     ✓ "Salvar alterações" sends only the changed roles in one request and redraws from the answer 322ms
+   ✓ 26.10-WEB-003 the role menus and dialogs (6)
+     ✓ restore: a seeded role whose keys were changed takes the seeded set back in the grid, unsaved 502ms
+     ✓ "Novo papel": the duplicate name inline, then the role is created and becomes a column 395ms
+     ✓ rename: a custom role's menu, the dialog with its name, the list redrawn 400ms
+ ✓  @app/web  src/state/toast.test.tsx (22 tests) 1347ms
+ ✓  @app/web  src/db/photo-store.test.ts (14 tests) 302ms
+ ✓  @app/web  src/sync/client.test.ts (21 tests) 84ms
+ ✓  @app/web  src/surfaces/relatorio/relatorio-tree-edits.test.tsx (8 tests) 11405ms
+   ✓ 4.4 location tree (Sumário presentation) (8)
+     ✓ removes an empty block without asking; the focus goes to the parent chevron; Desfazer brings it back and focuses its Overflow 2472ms
+     ✓ Q4: removing a block whose equipment another relatório of the obra holds writes only the block tombstone 942ms
+     ✓ E9 sweep B15: removing a sheet while the obra has a relatório this device does not hold writes only the block tombstone 667ms
+     ✓ asks before removing a block with data; Cancelar returns to the trigger; Remover moves the focus to the row in the slot; Restaurar brings it back 1455ms
+     ✓ shows "TAG ⟨TAG⟩ duplicada" with Renomear on rows whose TAG another live equipment row shares; renaming keeps the equipment and clears it 547ms
+     ✓ e24y-P2: "Renomear TAG" writes the sheet's confirmed, current conclusion composed with the new TAG in the rename's batch 673ms
+     ✓ "Duplicar" asks a new TAG (suggested, refused when taken) and creates equipment + block after the source, copying its config only 677ms
+     ✓ adds, renames and reorders locations with location ops, announced; every block keeps its location 3969ms
+ ✓  @app/web  src/state/reading-arrivals.test.tsx (12 tests) 2790ms
+   ✓ Review fixes 2026-10-08 (DC-4, DB-5, DE-5, DG-3): what an arrival announces, and when it leaves (4)
+     ✓ a reading for the open ficha announces nothing; one for another sheet does, and leaves once its sheet is open 304ms
+     ✓ a caption arrival is its own toast, "N legendas sugeridas", whose "Ver" opens the gallery; none while the gallery is on screen 415ms
+   ✓ Review fixes 2026-10-08 (DC-4): a toast names only its own rows; a ficha draws its cabine only while the block is open (3)
+     ✓ an env reading for the open ficha's cabine is not announced (the cabine read off the device's relatório) 556ms
+     ✓ on another ficha of a complete cabine (its block collapsed, the env fields not drawn), an env reading for the cabine is announced 569ms
+ ✓  @app/web  src/surfaces/ficha/point-place.test.tsx (11 tests) 4086ms
+   ✓ 24.17-UNIT web: the place of "Criar ponto de atenção" (4)
+     ✓ offers the action; the editor opens with the finding as its text, the recommendation as its action and the helper; "Concluir" stores one point of the finding 490ms
+   ✓ 24.17-UNIT web: where the sheet draws the place (4)
+     ✓ at the end of a measurement test's body 555ms
+   ✓ e24x-UNIT D1 the point editor stays open while its autosave creates the point (3)
+     ✓ a test's place: a word typed in Ação, the autosave stores the point, the dialog stays open; "Concluir" closes it with the focus on "Ponto de atenção N", nothing typed lost 1046ms
+     ✓ the Não ensaiado band: the same, the focus on "Desfazer" once the point stands 1342ms
+     ✓ review of e24x: the finding turning from restricao to reading (a reading pulled out) with the editor open keeps the editor and what was typed 331ms
+ ✓  @app/web  src/surfaces/ficha/conclusao-section.test.tsx (13 tests) 791ms
+ ✓  @app/web  src/surfaces/relatorio/relatorio-tree-edges.test.tsx (11 tests) 13623ms
+   ✓ 4.4/4.5 tree edge paths (10)
+     ✓ a block removed elsewhere after its Overflow opened: "Descer" says it changed and writes nothing 983ms
+     ✓ "Duplicar" submitted after another live row took the TAG is refused with the sentence and writes nothing 639ms
+     ✓ 11.2: "Mover para…" submitted after its target coluna was removed elsewhere says the location changed and writes nothing 743ms
+     ✓ "Renomear TAG" after the equipment row was removed elsewhere says the sheet changed 609ms
+     ✓ "Adicionar abaixo" creates the block right after its row; "Desfazer" hands the focus back to that row 1207ms
+     ✓ ".s9-add" opens the palette on the cabine's current coluna and creates there; the palette opens on its first type; "Desfazer" focuses the coluna chevron 1155ms
+     ✓ the cabine's "Adicionar bloco" follows the last sheet's coluna; a cabine with no coluna takes the block itself, "criada em ⟨cabine⟩" 1067ms
+     ✓ "Desfazer" of a Restaurar hands the focus back to the header's "Mais opções do relatório" 1650ms
+     ✓ "Desfazer" after a move focuses the row's Position box; after "Adicionar coluna" the cabine's chevron 2385ms
+     ✓ the undo toast is dismissed when the Sumário is left 1995ms
+   ✓ 4.5 field palette (Sumário) (1)
+     ✓ opens from a coluna row, lists the eight types with the suggested TAG, and one tap creates equipment + block in one batch 1188ms
+ ✓  @app/web  src/surfaces/project/new-relatorio-dialog.test.tsx (14 tests) 7460ms
+   ✓ e22h N4: a company type no version of which reached the device (3)
+     ✓ names it before Criar, and Criar says it again and leaves it out of the batch 703ms
+   ✓ 4.1 NewRelatorioDialog (11)
+     ✓ the end follows the start until typed by hand, and an end before the start is refused 1106ms
+     ✓ 13.4 INP-3: a cleared end, then a cleared start, is filled with today by "Hoje", and Criar is ready again 721ms
+     ✓ Criar writes one batch of 223 ops under one batch_id and opens Relatório setup at Etapa 1 1450ms
+     ✓ Q2: a session user with a registration is written as the responsável técnico in the creation batch 512ms
+     ✓ Q4: reuses the equipment the project already holds by base TAG and type: the chave in Coluna 5 is bound to SEC-C05, no second one is minted 543ms
+     ✓ suggests TAGs around a live equipment of another type: SEC-C05 taken by a TP is not bound, the new chave in Coluna 5 is SC-07 with the key SEC-C05 560ms
+     ✓ E4 retro item 17: another relatório of the obra this device never pulled (3)
+       ✓ online: the project stream is pulled first and its equipment is reused (no suffixed TAG) 723ms
+       ✓ online with a failed pull: refused with the same reason, nothing written 417ms
+ ✓  @app/web  src/surfaces/ficha/added-row.test.tsx (21 tests) 5386ms
+   ✓ 25.14 at 390 px: the added row's controls (5)
+     ✓ the stacking batteries' table shows its cards there, a one-column table stays a table, and the added row's controls are in it 585ms
+     ✓ typing a name commits it on the row's name path (trimmed); emptying it writes null; a name another row has is refused with the helper 848ms
+   ✓ 25.14 at 768 px: the added row's controls (5)
+     ✓ typing a name commits it on the row's name path (trimmed); emptying it writes null; a name another row has is refused with the helper 342ms
+   ✓ 25.14 at 1280 px: the added row's controls (5)
+     ✓ typing a name commits it on the row's name path (trimmed); emptying it writes null; a name another row has is refused with the helper 359ms
+   ✓ 25.14 from the plate's count, the maximum, a read-only sheet (4)
+     ✓ at the test's maximum the action is off with its reason and writes nothing 529ms
+     ✓ the controls draw with no accessibility violation 692ms
+ ✓  @app/web  src/surfaces/roles-screens.test.tsx (15 tests) 4653ms
+   ✓ 26.5-UNIT-006 Home by role (2)
+     ✓ the Engenheiro de Campo: no Atalhos at all; "Novo relatório" disabled with the kernel's reason 789ms
+   ✓ 26.5-UNIT-008 a relatório the role cannot fill (4)
+     ✓ the ficha opens read-only under one Banner, and a press on a cell enters no op in the outbox 621ms
+   ✓ e26r-UNIT-003 an issued relatório for a role that does not issue (2026-11-22, Matheus "sim nos dois") (3)
+     ✓ the Engenheiro de Campo: the ficha opens read-only under one Banner that says why, and a press enters no op 468ms
+   ✓ e26s-UNIT the Sumário's "Adicionar local" follows the fill access (F2-4) (2)
+     ✓ the Admin and the Engenheiro de Campo get it; the Consulta does not, and nothing enters the outbox 742ms
+     ✓ on an Emitido relatório the Engenheiro de Campo does not get it; the Responsável Técnico does 399ms
+   ✓ e26r-UNIT-004 the issued files for a role that downloads and does not issue (2026-11-22, Matheus "sim nos dois") (2)
+     ✓ the Consulta and the Gestor do Projeto: the latest revision's DOCX and PDF on the Sumário, with "Gerar relatório" still refused 472ms
+ ✓  @app/web  src/components/gallery.test.tsx (11 tests) 3279ms
+   ✓ component gallery (11)
+     ✓ renders every shared component, closed and with each overlay open, with zero WCAG 2.2 AA violations 1896ms
+     ✓ every rendered interactive control carries a class the CSS gives a sufficient hit area 428ms
+ ✓  @app/web  src/surfaces/local/entry-points.test.tsx (9 tests) 1922ms
+   ✓ 14.3 entry: the local's Sumário row (2)
+     ✓ shows "Verificações do local" and "N de 19" as the .s9-verif card, first under the open local, and opens the surface 773ms
+     ✓ a painel and a coluna carry no such button; a relatório on seed v3 or v1 shows none at all 473ms
+ ✓  @app/web  src/surfaces/relatorio/section-text-surface.test.tsx (11 tests) 3186ms
+   ✓ 4.7 SectionTextSurface (11)
+     ✓ renders the seed default text with no violations, "Restaurar" disabled (nothing to restore) 438ms
+     ✓ E4 retro item 22: an edit writes the edited marker beside the text; "Restaurar" clears it 848ms
+     ✓ E4 retro item 21: a refused autosave is toasted, not swallowed 332ms
+     ✓ E4 retro item 21: typing after "Restaurar" retires its "Desfazer", so no undo can overwrite the newer text 340ms
+ ✓  @app/web  src/surfaces/ficha/nameplate-oil-rule.test.tsx (12 tests) 2402ms
+   ✓ 14.11 the option lists on seed v6 (1)
+     ✓ TIPO DE ISOLAÇÃO offers EPÓXI, Á SECO and ÓLEO on the transformer, TP and TC; MEIO DE EXTINÇÃO AR to ÓLEO (GVO) on the disjuntor, AR and SF6 on the seccionadora 517ms
+   ✓ 14.11 the oil rule on the nameplate (11)
+     ✓ QA G1: a dry unit offers no N/A control beside VOL. ÓLEO, Potência nominal keeps its own; an oil unit has it beside VOL. ÓLEO 747ms
+ ✓  @app/web  src/components/quantity-stepper.test.tsx (17 tests) 1027ms
+ ✓  @app/web  src/surfaces/templates/company-types-e24c.test.tsx (7 tests) 4246ms
+   ✓ 24.18 the Critérios row of "nominal ± %" (1)
+     ✓ offers the rule after "entre", takes 220 and 5 in its two inputs and shows the kernel's text; back to "entre" asks for the maximum 1188ms
+   ✓ 24.20 the Placa tab refuses a change of the vector-group field (1)
+     ✓ a kind change shows the kernel's toast and writes nothing; the label still changes 871ms
+   ✓ 24.19 a published copy hides its original (4)
+     ✓ the composer's palette lists the copy where the transformer stood, marked "Tipo da empresa", and offers no stepper of the transformer 624ms
+     ✓ e24x D17: the template placing transformers keeps the hidden transformer right after its copy, with "Editar padrões", its stepper disabled by the hidden line 832ms
+     ✓ e24x C3: a company type with no summary and no version text reads "Tipo da empresa" alone 487ms
+ ✓  @app/web  src/surfaces/registries/registries-surface.test.tsx (16 tests) 2996ms
+   ✓ Cadastros tabs (B5) (14)
+     ✓ F-20: with the company not registered and no remembered tab it opens on Empresa 430ms
+     ✓ opens on Instrumentos once the company is registered, lists its tabs and switches the panel with the tab 408ms
+     ✓ instrumentos: lists its rows, opens one, and adds from the toolbar 437ms
+   ✓ Cadastros › Frases de NC (Story 14.12) (2)
+     ✓ lists the learned phrases grouped by type with the item below, renames one and removes one with its undo 448ms
+ ✓  @app/web  src/state/sync.test.tsx (9 tests) 493ms
+ ✓  @app/web  src/surfaces/templates/template-composer.test.tsx (7 tests) 8544ms
+   ✓ 3.4 composer: address (3)
+     ✓ draws the standard template: name, totals, skeleton heading, sections and the autosave note, with no violations 3293ms
+   ✓ 3.4 composer: skeleton (4)
+     ✓ adds a local through the Função dialog, a painel and three colunas, renames one and reorders it every keyboard way, announcing each move 1592ms
+     ✓ Alt+ArrowUp on a coluna moves the coluna only, never its cabine 816ms
+     ✓ a later edit takes the undo of a removal away, so "Desfazer" can never discard it 1486ms
+     ✓ E3-A9: a blank rename says "Informe o nome", keeps the dialog open and writes nothing 1160ms
+ ✓  @app/web  src/surfaces/ficha/plate-photo-reread.test.tsx (11 tests) 918ms
+   ✓ E9 sweep B16: "Tentar novamente" survives a reload (2)
+     ✓ records the press with its status op; a remount keeps it disabled with "Nova leitura pedida" until a new status op 361ms
+ ✓  @app/web  src/surfaces/ficha/read-display.test.tsx (15 tests) 359ms
+ ✓  @app/web  src/surfaces/ficha/conclusao-section-v14.test.tsx (9 tests) 514ms
+ ✓  @app/web  src/telemetry/flush.test.ts (17 tests) 499ms
+stdout | src/telemetry/instrument.test.tsx > Story 18.4: the listeners and the view tracker, and fields that are never pressed > a page restored from the back-forward cache (pageshow persisted) reopens the view left on pagehide; a fresh pageshow or an uninstalled one does not
+Dexie: handling persisted pageshow
+
+stdout | src/telemetry/instrument.test.tsx > Story 18.4: the listeners and the view tracker, and fields that are never pressed > a page restored from the back-forward cache (pageshow persisted) reopens the view left on pagehide; a fresh pageshow or an uninstalled one does not
+Dexie: handling persisted pageshow
+
+stdout | src/telemetry/instrument.test.tsx > Story 18.4: the listeners and the view tracker, and fields that are never pressed > a page restored from the back-forward cache (pageshow persisted) reopens the view left on pagehide; a fresh pageshow or an uninstalled one does not
+Dexie: handling persisted pageshow
+
+ ✓  @app/web  src/telemetry/instrument.test.tsx (13 tests) 808ms
+ ✓  @app/web  src/surfaces/registries/instrument-panel.test.tsx (12 tests) 1680ms
+   ✓ Story 22.10: the top of the instrument's range per test type (2)
+     ✓ shows "Limite de medição (Isolação)" and "(Resistência de contato)", seeded from the row 311ms
+ ✓  @app/web  src/surfaces/users/user-dialog.test.tsx (12 tests) 3659ms
+   ✓ 26.9-UNIT-030 the new user dialog (8)
+     ✓ Nome, E-mail with the 72-hour helper, six Option rows naming their modules; "Enviar convite" waits with its reason 724ms
+     ✓ the duplicate e-mail: the red field and the frame's helper, "Enviar convite" waits until the address changes 417ms
+     ✓ a refusal { kind: 'server', status: 500 } is said in the dialog, which stays open 332ms
+     ✓ a refusal { kind: 'refused', status: 429, …(1) } is said in the dialog, which stays open 381ms
+     ✓ a refusal { kind: 'refused', status: 404, …(1) } is said in the dialog, which stays open 349ms
+   ✓ 26.9-UNIT-031 the edit dialog (4)
+     ✓ the e-mail read-only with its helper; Salvar sends only what changed 483ms
+ ✓  @app/web  src/surfaces/relatorio/tree-actions.test.ts (14 tests) 24ms
+ ✓  @app/web  src/components/generated-text-field.test.tsx (14 tests) 4801ms
+   ✓ 25.2-WEB the conclusion text is saved as it is typed (8)
+     ✓ a 500 ms pause commits the typed text with the cursor still in the field 684ms
+     ✓ an idle commit followed by a blur is one commit; a text equal to the stored one is never committed 713ms
+     ✓ a refused write is not lost: the blur that follows commits the same text again 754ms
+     ✓ e25x A4: a typed commit that succeeded drops the field's older draft (not answering an offer); a refused one drops nothing until it is written 767ms
+     ✓ typed back to the stored text and left: nothing is written, no "edited" mark 744ms
+     ✓ without the props (the Etapa 6 parecer summary) a typed text still commits on blur only, and the text before "Editar" stays a textbox 689ms
+ ✓  @app/web  src/api/auth-client.test.ts (20 tests) 19ms
+ ✓  @app/web  src/surfaces/home/new-project-dialog.test.tsx (6 tests) 2751ms
+   ✓ 4.1 NewProjectDialog (6)
+     ✓ creates a client inline as one registry/client create of company scope and says so 920ms
+     ✓ creates an obra inline as one project create under the chosen client and continues with openNew 355ms
+     ✓ lists only the chosen client's live obras and starts the obra over when the client changes 312ms
+     ✓ a name typed exactly like an existing client picks that client instead of creating a second one 734ms
+ ✓  @app/web  src/surfaces/ficha/nameplate-dry-insulation.test.tsx (12 tests) 1681ms
+ ✓  @app/web  src/db/file-store.test.ts (10 tests) 72ms
+ ✓  @app/web  src/input/use-screen-wake-lock.test.tsx (11 tests) 40ms
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+Not implemented: Window's scrollTo() method
+ ✓  @app/web  src/surfaces/app-shell.test.tsx (16 tests) 454ms
+ ✓  @app/web  src/surfaces/registries/client-panel.test.tsx (15 tests) 1419ms
+ ✓  @app/web  src/db/schema.test.ts (10 tests) 82ms
+ ✓  @app/web  src/surfaces/ficha/measurement-field-over-range.test.tsx (10 tests) 959ms
+   ✓ Story 22.10: a reading above the instrument's limit (8)
+     ✓ "OL" with the picked megger's 2 TΩ stores {raw 2, unit TΩ, over_range} and shows "> 2" 304ms
+ ✓  @app/web  src/state/sync-telemetry.test.tsx (7 tests) 619ms
+ ✓  @app/web  src/surfaces/templates/local-dialog.test.tsx (11 tests) 1808ms
+   ✓ Epic 14 QA Q-17: the description follows the seed version (1)
+     ✓ names the Verificações do local on a seed with site items (mock 42), and leaves them out on v1 to v3 328ms
+   ✓ 14.2 LocalDialog: "Adicionar local" (5)
+     ✓ stops following the Função once the name is typed in, and refuses a blank name 307ms
+ ✓  @app/web  src/surfaces/photos/caption-composer.test.tsx (10 tests) 1370ms
+   ✓ E6-R2 the Caption composer chips while "Editar texto" is on (7)
+     ✓ a hand-typed caption opens in "Editar texto": every chip aria-disabled, none pressed, a tap changes nothing, the note shown 301ms
+     ✓ an "Outro…" field opened before "Editar texto" is read-only while it is on 395ms
+ ✓  @app/web  src/surfaces/login/login-surface.test.tsx (15 tests) 1429ms
+ ✓  @app/web  src/surfaces/project/project-surface.test.tsx (6 tests) 993ms
+ ✓  @app/web  src/sync/policy.test.ts (18 tests) 192ms
+ ✓  @app/web  src/files/capture-rescue.test.ts (14 tests) 14ms
+ ✓  @app/web  src/surfaces/ficha/use-ficha-actions.test.tsx (2 tests) 195ms
+ ✓  @app/web  src/surfaces/templates/rich-text-editor.test.ts (13 tests) 42ms
+ ✓  @app/web  src/surfaces/compact-template-sections.test.tsx (7 tests) 1730ms
+   ✓ F43 (UX pass 2026-10-22): a compact template, surface by surface (7)
+     ✓ Pontos de atenção: the note, the list, a new point's order and the remove confirm say "seção 5" 520ms
+     ✓ Pontos de atenção: removing a point says it leaves "seção 5" 416ms
+     ✓ a ficha: its conclusion helper names "seção 4", through the ficha surface 396ms
+ ✓  @app/web  src/state/overlay-history.test.tsx (14 tests) 753ms
+ ✓  @app/web  src/state/banner-slot.test.tsx (21 tests) 241ms
+stderr | src/files/photo-import.test.ts > 6.4-UNIT-001 importPhotoFiles > converts a HEIC before the encode; a failed conversion and a PDF are skipped and counted
+photo import failed Error: bad heic
+    at /workspace/apps/web/src/files/photo-import.test.ts:178:88
+    at file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1628:35
+    at file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:26
+    at file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3319:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3314:10)
+    at file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3299:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3257:10)
+    at file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3876:64
+
+ ✓  @app/web  src/files/photo-import.test.ts (9 tests) 35ms
+ ✓  @app/web  src/surfaces/registries/instrumentos-tab.test.tsx (5 tests) 640ms
+   ✓ InstrumentosTab (B5) (5)
+     ✓ opens the panel of the row pressed, by tap and by keyboard 304ms
+ ✓  @app/web  src/surfaces/points/point-writes.test.ts (12 tests) 91ms
+ ✓  @app/web  src/surfaces/photos/photo-ops.test.ts (11 tests) 182ms
+ ✓  @app/web  src/speech/ai-write.test.tsx (8 tests) 318ms
+ ✓  @app/web  src/state/status-toaster.test.tsx (8 tests) 808ms
+ ✓  @app/web  src/surfaces/relatorio/block-palette-field.test.tsx (6 tests) 1378ms
+   ✓ 14.5 FieldPalette: the library type after the eight (2)
+     ✓ a relatório on seed v5 lists the eight, then "Outros equipamentos" with the Chave de transferência automática and what it holds before its TAG 459ms
+   ✓ 4.5 FieldPalette (4)
+     ✓ office confirm: TAG and Local prefilled; a TAG already in the obra is refused on blur; changing Local keeps the suggestion (Story 24.8) and the typed TAG 482ms
+ ✓  @app/web  src/db/generate-store.test.ts (7 tests) 338ms
+ ✓  @app/web  src/surfaces/registries/empresa-tab.test.tsx (9 tests) 854ms
+   ✓ 2.3-UNIT-003 Empresa tab (5)
+     ✓ has no Save button and commits one op per field, the first one creating the row 457ms
+ ✓  @app/web  src/db/e22h-resend-renumber.test.ts (2 tests) 135ms
+ ✓  @app/web  src/surfaces/templates/template-composer-undo.test.tsx (5 tests) 9116ms
+   ✓ 3.4 composer: skeleton (5)
+     ✓ leaving the composer takes its removal undo away, so a later visit's edits can never be discarded by it 3038ms
+     ✓ an undo pressed while an edit is queued runs after it, never racing it 1973ms
+     ✓ stores Agrupar por tipo on the skeleton cabine 330ms
+     ✓ after a removal the focus goes to the next row's Overflow, else the previous one's, else the heading 2670ms
+     ✓ removes a coluna with its blocks after a Confirm dialog, in one batch, and "Desfazer" restores both fields 1103ms
+ ✓  @app/web  src/db/outbox-prune.test.ts (5 tests) 141ms
+ ✓  @app/web  src/telemetry/track.test.ts (11 tests) 302ms
+ ✓  @app/web  src/telemetry/readings.test.ts (7 tests) 167ms
+ ✓  @app/web  src/db/prefs.test.ts (18 tests) 130ms
+stderr | src/db/home-store.test.ts > home-store > drops a stored row its kernel schema no longer accepts instead of rendering it
+home-store: relatorio:not-a-uuid does not fit its schema and is not shown [
+  {
+    origin: 'string',
+    code: 'invalid_format',
+    format: 'uuid',
+    pattern: '/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-7[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/',
+    path: [ 'id' ],
+    message: 'Invalid UUID'
+  },
+  {
+    expected: 'string',
+    code: 'invalid_type',
+    path: [ 'project_id' ],
+    message: 'Invalid input: expected string, received undefined'
+  },
+  {
+    expected: 'string',
+    code: 'invalid_type',
+    path: [ 'template_id' ],
+    message: 'Invalid input: expected string, received undefined'
+  },
+  {
+    expected: 'number',
+    code: 'invalid_type',
+    path: [ 'template_version' ],
+    message: 'Invalid input: expected number, received undefined'
+  },
+  {
+    expected: 'string',
+    code: 'invalid_type',
+    path: [ 'seed_version' ],
+    message: 'Invalid input: expected string, received undefined'
+  },
+  {
+    code: 'invalid_value',
+    values: [ 'rascunho', 'em_campo', 'em_revisao', 'emitido' ],
+    path: [ 'status' ],
+    message: 'Invalid option: expected one of "rascunho"|"em_campo"|"em_revisao"|"emitido"'
+  },
+  {
+    expected: 'object',
+    code: 'invalid_type',
+    path: [ 'setup' ],
+    message: 'Invalid input: expected object, received undefined'
+  },
+  {
+    expected: 'object',
+    code: 'invalid_type',
+    path: [ 'export' ],
+    message: 'Invalid input: expected object, received undefined'
+  },
+  {
+    expected: 'string',
+    code: 'invalid_type',
+    path: [ 'preview_file_id' ],
+    message: 'Invalid input: expected string, received undefined'
+  },
+  {
+    expected: 'string',
+    code: 'invalid_type',
+    path: [ 'removed_at' ],
+    message: 'Invalid input: expected string, received undefined'
+  }
+]
+
+ ✓  @app/web  src/db/home-store.test.ts (7 tests) 81ms
+ ✓  @app/web  src/state/removed-local-notice.test.tsx (7 tests) 327ms
+ ✓  @app/web  src/components/chip.test.tsx (11 tests) 612ms
+ ✓  @app/web  src/db/removed-locations.test.ts (2 tests) 138ms
+ ✓  @app/web  src/state/generate-watcher.test.tsx (6 tests) 654ms
+ ✓  @app/web  src/components/number-input.test.tsx (6 tests) 1948ms
+   ✓ useNumberInput (Story 5.5; PR #30 carry-over) (5)
+     ✓ "3.3", a pause, "00": never rewritten while typing, echoes "= 3.300 A", commits 3300 once on blur 1349ms
+ ✓  @app/web  src/components/segmented-control.test.tsx (9 tests) 695ms
+ ✓  @app/web  src/sync/nudges.test.ts (7 tests) 71ms
+ ✓  @app/web  src/surfaces/points/point-editor-draft.test.tsx (5 tests) 10435ms
+   ✓ G1-WEB a new point with a typed Prazo leaves no draft once "Concluir" stores it (5)
+     ✓ from a test: the point is stored with its deadline and no drafts row of it is left 2362ms
+     ✓ from an NC item: the point is stored with its deadline and no drafts row of it is left 1958ms
+     ✓ an older Prazo held, then a new one typed that creates the point: "Concluir" leaves no draft (the create stores the new one) 3110ms
+     ✓ control: a refused deadline write keeps the editor open and the draft of the typed Prazo 2153ms
+     ✓ control: a priority tap with no typed Prazo leaves no draft 848ms
+ ✓  @app/web  src/surfaces/ficha/nameplate-tag-rename.test.tsx (6 tests) 2874ms
+   ✓ e24y-P3 the plate's TAG field renames the equipment (6)
+     ✓ typing "QM8" and leaving the field renames DJ-01, under the rename's toast; with no stored cell none is written (review Y2: an undo would leave a null cell) 1511ms
+     ✓ a stored cell that differs: typing the equipment's own TAG writes the cell alone, with no rename toast 401ms
+ ✓  @app/web  src/surfaces/ficha/e25c-reading-not-applicable.test.tsx (6 tests) 1816ms
+   ✓ 25.9 the helper of a limit inside a range criterion (every seed) (3)
+     ✓ v14: "> 125 Vcc" on a row judged 125 Vcc ± 5 % shows the neutral helper, no amber state, no "Marcar Com restrições" 511ms
+   ✓ 25.9 "Não se aplica" on a number cell (seed v15) (3)
+     ✓ not offered on a v14 sheet (the kernel says no), nor when the provider says nothing 439ms
+     ✓ a stored N/A reads "N/A" on the NA fill, and is not offered again 324ms
+ ✓  @app/web  src/sw/register.test.ts (16 tests) 18ms
+ ✓  @app/web  src/surfaces/login/set-password-surface.test.tsx (11 tests) 2215ms
+   ✓ 26.6-UNIT-004 the set-password page (11)
+     ✓ shows the frame words and the kernel rule; no greeting, no e-mail, no expiry line 327ms
+     ✓ a password under 8 characters sends nothing and the rule turns into the error 441ms
+ ✓  @app/web  src/surfaces/ficha/mark-restriction-offered.test.tsx (4 tests) 2032ms
+   ✓ 24.3 "Marcar Com restrições" on a reading out of its criterion (4)
+     ✓ v14: the out reading shows its helper, and no "Marcar Com restrições" 866ms
+     ✓ a choice cell out of its criterion (the CTA's Deixado unlike Projeto): v14 no action; v13 the action 952ms
+stderr | src/components/upload-tile.test.tsx > UploadTile > shows an inline reason when the commit rejects, instead of an unhandled rejection
+attaching the file failed Error [QuotaExceededError]: quota
+    at /workspace/apps/web/src/components/upload-tile.test.tsx:105:27
+    at Mock (file:///workspace/node_modules/.pnpm/vitest@5.0.1_@types+node@24.13.6_jsdom@30.1.0_@noble+hashes@2.4.0__vite@8.3.0_@types+no_a4c7d54fd954a150ef678ec830c84e38/node_modules/vitest/dist/chunks/spy.DQ0ZsPbi.js:320:40)
+    at handleChange (/workspace/apps/web/src/components/upload-tile.tsx:88:13)
+
+ ✓  @app/web  src/components/upload-tile.test.tsx (9 tests) 504ms
+ ✓  @app/web  src/db/relatorio-state.test.ts (6 tests) 521ms
+ ✓  @app/web  src/components/overflow-menu.test.tsx (7 tests) 811ms
+ ✓  @app/web  src/components/number-input-drafts.test.tsx (4 tests) 526ms
+ ✓  @app/web  src/state/permissions.test.tsx (13 tests) 545ms
+ ✓  @app/web  src/clock.test.ts (8 tests) 2704ms
+   ✓ clock.ts (e20f) (8)
+     ✓ a device 30 minutes fast learns the offset from one answer, stamps server time, and keeps the offset for the next boot 1590ms
+ ✓  @app/web  src/surfaces/ficha/configuracao-section.test.tsx (7 tests) 380ms
+ ✓  @app/web  src/surfaces/ficha/input-refusals.test.tsx (4 tests) 485ms
+ ✓  @app/web  src/surfaces/sync/decision-actions.test.tsx (1 test) 157ms
+ ✓  @app/web  src/speech/audio-fields-remaining.test.tsx (9 tests) 455ms
+ ✓  @app/web  src/telemetry/routes.test.tsx (6 tests) 90ms
+ ✓  @app/web  src/surfaces/templates/type-editor-test-texts.test.tsx (4 tests) 509ms
+ ✓  @app/web  src/surfaces/ficha/sheet-photos-section.test.tsx (4 tests) 355ms
+ ✓  @app/web  src/sync/first-pull.test.ts (7 tests) 133ms
+ ✓  @app/web  src/components/suggestion-field.test.tsx (8 tests) 266ms
+ ✓  @app/web  src/input/use-field-commit.test.tsx (9 tests) 65ms
+ ✓  @app/web  src/surfaces/ficha/ensaios-section.test.tsx (3 tests) 345ms
+ ✓  @app/web  src/surfaces/export/revision-file.test.ts (10 tests) 44ms
+ ✓  @app/web  src/surfaces/ficha/conclusao-section-refused-text.test.tsx (1 test) 818ms
+   ✓ e25x A1 a refused conclusion text is written again, and is a draft meanwhile (1)
+     ✓ the 500 ms pause is refused: the tab-hide writes its draft, the blur writes the same text again, then the draft goes 817ms
+ ✓  @app/web  src/db/company-types.test.ts (6 tests) 208ms
+ ✓  @app/web  src/surfaces/templates/section-text-editor.test.ts (11 tests) 38ms
+ ✓  @app/web  src/speech/recorder.test.ts (13 tests) 832ms
+   ✓ 31.3-WEB-004 startRecording on fake browser parts (6)
+     ✓ reaches the countdown at 2:50 and says the limit at 3:00, once 711ms
+ ✓  @app/web  src/state/theme.test.tsx (6 tests) 274ms
+ ✓  @app/web  src/surfaces/eviction-recovery-surface.test.tsx (9 tests) 573ms
+stderr | src/surfaces/points/point-draft-recovery.test.tsx > 14.3-UNIT usePointDraftRecovery > Story 20.4: a new point's picked equipment, kept in its draft, goes into the point "Recuperar" creates
+Another connection wants to delete database 'releng-019966b0-0152-7000-8000-000000000001'. Closing db now to resume the delete request.
+
+ ✓  @app/web  src/surfaces/points/point-draft-recovery.test.tsx (2 tests) 356ms
+ ✓  @app/web  src/surfaces/ficha/header-parameter-field.test.tsx (6 tests) 301ms
+ ✓  @app/web  src/surfaces/login/forgot-surface.test.tsx (7 tests) 687ms
+ ✓  @app/web  src/telemetry/sync-observer.test.ts (12 tests) 300ms
+ ✓  @app/web  src/surfaces/ficha/use-on-screen.test.tsx (5 tests) 46ms
+ ✓  @app/web  src/telemetry/dialogs.test.tsx (5 tests) 393ms
+ ✓  @app/web  src/surfaces/ficha/measurement-field-unmount.test.tsx (5 tests) 2602ms
+   ✓ 25.2-WEB a reading left with the sheet (5)
+     ✓ "3.3", a pause of two seconds, "00", then left: 3300 is committed once, no idle commit ran 2101ms
+ ✓  @app/web  src/input/use-press-and-hold.test.ts (8 tests) 28ms
+ ✓  @app/web  src/surfaces/ficha/row-voltage-source.test.tsx (2 tests) 313ms
+ ✓  @app/web  src/surfaces/ficha/attach-file.test.tsx (6 tests) 254ms
+ ✓  @app/web  src/components/tri-state-control.test.tsx (6 tests) 303ms
+ ✓  @app/web  src/telemetry/context.test.ts (7 tests) 11ms
+ ✓  @app/web  src/surfaces/relatorio/copied-type-palette.test.tsx (3 tests) 273ms
+ ✓  @app/web  src/surfaces/ficha/test-help-dialog.test.tsx (5 tests) 592ms
+ ✓  @app/web  src/surfaces/templates/type-list-import.test.tsx (3 tests) 1060ms
+   ✓ 23.12 Tipos: "Importar base de ensaios" (3)
+     ✓ renders the action in the Tipos section head 409ms
+     ✓ a valid file opens the preview; "Importar" commits one batch and the copies appear; a second import offers no confirm 475ms
+ ✓  @app/web  src/surfaces/relatorio/tag-dialogs.test.tsx (4 tests) 647ms
+   ✓ 4.5 TAG dialogs (4)
+     ✓ refuses an empty or taken TAG on blur with the sentence, keeps the primary aria-disabled with its reason, and submits a free one trimmed 427ms
+ ✓  @app/web  src/state/late-ops.test.tsx (6 tests) 25ms
+ ✓  @app/web  src/surfaces/photos/photo-file.test.ts (7 tests) 16ms
+ ✓  @app/web  src/sw/shell-version.test.ts (8 tests) 83ms
+ ✓  @app/web  src/surfaces/points/points-resolved-remove.test.tsx (1 test) 383ms
+   ✓ 24.7 "Remover ponto" beside "Origem resolvida" on the Pontos screen (1)
+     ✓ the flagged card offers it, it opens the removal confirmation, and "Desfazer" restores the point 382ms
+ ✓  @app/web  src/styles/app-css.test.ts (45 tests) 8ms
+ ✓  @app/web  src/telemetry/targets.test.ts (5 tests) 50ms
+ ✓  @app/web  src/components/date-field.test.tsx (7 tests) 532ms
+ ✓  @app/web  src/db/drafts.test.ts (9 tests) 94ms
+ ✓  @app/web  src/api/admin-users-client.test.ts (5 tests) 34ms
+ ✓  @app/web  src/surfaces/ficha/use-ficha-actions-v14.test.tsx (2 tests) 379ms
+ ✓  @app/web  src/surfaces/export/use-mark-sent.test.ts (5 tests) 295ms
+ ✓  @app/web  src/surfaces/points/point-text-editor.test.ts (6 tests) 36ms
+ ✓  @app/web  src/surfaces/relatorio/relatorio-editor.test.tsx (5 tests) 2349ms
+   ✓ Q7 useRelatorioEditor settle ordering (3)
+     ✓ an older pending settle toasts before a newer edit's own toast, so "Desfazer" stands for the newer batch 1148ms
+     ✓ an older pending settle is said before a newer announcement, never after it 1133ms
+ ✓  @app/web  src/input/press-hold.test.ts (11 tests) 26ms
+ ✓  @app/web  src/surfaces/ficha/nameplate-field.test.tsx (5 tests) 348ms
+ ✓  @app/web  src/api/telemetry-client.test.ts (7 tests) 29ms
+ ✓  @app/web  src/surfaces/registries/word-registry-panel.test.tsx (6 tests) 419ms
+ ✓  @app/web  src/telemetry/views.test.ts (5 tests) 55ms
+ ✓  @app/web  src/sw/offline-vehicle.test.ts (11 tests) 2559ms
+   ✓ the offline vehicle uses nothing the web-only decision forbids (6)
+     ✓ never reaches for a web app manifest 809ms
+     ✓ never reaches for an install prompt 643ms
+     ✓ never reaches for the Background Sync API 504ms
+     ✓ never reaches for a persistent-storage request 591ms
+ ✓  @app/web  src/surfaces/ficha/measurement-field-restricted.test.tsx (3 tests) 172ms
+ ✓  @app/web  src/surfaces/relatorio/tag-rename-ops.test.tsx (2 tests) 24ms
+ ✓  @app/web  src/styles/sprite.test.ts (4 tests) 2700ms
+   ✓ icon sprite (4)
+     ✓ holds every symbol referenced under apps/web/src 896ms
+     ✓ is named by sprite.ts alone: no source file writes a sprite path of its own, and public/ serves no unhashed copy 994ms
+     ✓ leaves no reference to the removed inline sprite 805ms
+ ✓  @app/web  src/components/button.test.tsx (9 tests) 262ms
+ ✓  @app/web  src/surfaces/ficha/use-ficha-steps.test.tsx (5 tests) 220ms
+ ✓  @app/web  src/components/sync-badge.test.tsx (5 tests) 190ms
+ ✓  @app/web  src/styles/contrast.test.ts (16 tests) 9ms
+ ✓  @app/web  src/components/crop-thumb.test.tsx (2 tests) 156ms
+ ✓  @app/web  src/state/history-return.test.tsx (5 tests) 160ms
+ ✓  @app/web  src/components/tabs.test.tsx (3 tests) 2035ms
+   ✓ Tabs (3)
+     ✓ renders a tablist/tab/tabpanel with the panel following the selected tab 792ms
+     ✓ renders a one-row phone selector whose accessible name is the current tab, with a menu of all six 1011ms
+ ✓  @app/web  src/state/sync-paused.test.tsx (3 tests) 118ms
+ ✓  @app/web  src/input/text-area-caps.test.tsx (3 tests) 194ms
+ ✓  @app/web  src/files/geolocation.test.ts (6 tests) 7ms
+ ✓  @app/web  src/telemetry/rendered-targets.test.tsx (6 tests) 157ms
+ ✓  @app/web  src/input/field-commit.test.ts (8 tests) 12ms
+ ✓  @app/web  src/state/permissions-offline-unknown.test.tsx (5 tests) 128ms
+ ✓  @app/web  src/db/audio-commit.test.ts (3 tests) 34ms
+ ✓  @app/web  src/surfaces/ficha/ficha-header.test.tsx (6 tests) 92ms
+ ✓  @app/web  src/surfaces/ficha/camera-opening.test.tsx (3 tests) 219ms
+ ✓  @app/web  src/surfaces/ficha/nameplate-selv.test.tsx (1 test) 56ms
+ ✓  @app/web  src/surfaces/export/server-job.test.ts (5 tests) 60ms
+ ✓  @app/web  src/sw/sw-plan.test.ts (8 tests) 4ms
+ ✓  @app/web  src/components/combobox.test.tsx (8 tests) 576ms
+ ✓  @app/web  src/surfaces/home/home-first-sign-in.test.tsx (1 test) 75ms
+ ✓  @app/web  src/surfaces/templates/use-reorder.test.tsx (3 tests) 334ms
+ ✓  @app/web  src/input/focus-restore.test.ts (6 tests) 11ms
+ ✓  @app/web  src/surfaces/ficha/plate-focus.test.ts (3 tests) 23ms
+ ✓  @app/web  src/surfaces/fixtures/fixture-route.test.ts (5 tests) 1914ms
+   ✓ the dev-only field fixture cannot reach a production bundle (5)
+     ✓ is imported by nothing else under src 966ms
+     ✓ has no navigation pointing at it 944ms
+ ✓  @app/web  src/surfaces/relatorio/setup/setup-fields.test.tsx (4 tests) 55ms
+ ✓  @app/web  src/surfaces/templates/type-editor-chip-commit.test.tsx (3 tests) 1187ms
+   ✓ type editor chip list: the unmount add and the row menu (3)
+     ✓ Remover on the open item drops the typed phrase instead of writing it into the next item 637ms
+     ✓ Descer on the open item drops the typed phrase instead of writing it into the item that took its index 399ms
+ ✓  @app/web  src/state/theme-boot.test.ts (6 tests) 6ms
+ ✓  @app/web  src/db/porto-seguro-fixture.test.ts (2 tests) 787ms
+   ✓ Porto Seguro fixture loads into Dexie (2)
+     ✓ applyPulled(db, portoSeguro.log) resolves without throwing, the full 94-block relatorio reads back, and toSnapshot is the golden byte for byte (audit 1.4) 738ms
+ ✓  @app/web  src/db/decision-store.test.ts (1 test) 52ms
+ ✓  @app/web  src/surfaces/ficha/use-photo-capture.test.ts (1 test) 56ms
+ ✓  @app/web  src/files/photo-encode.test.ts (3 tests) 12ms
+ ✓  @app/web  src/state/user-storage.test.ts (3 tests) 4ms
+ ✓  @app/web  src/surfaces/points/point-link-picker.test.tsx (2 tests) 604ms
+   ✓ 20.4 PointLinkPicker (2)
+     ✓ names the current link, lists the groups, and a pick returns the focus to the trigger 335ms
+ ✓  @app/web  src/input/pointer-gesture.test.ts (5 tests) 6ms
+ ✓  @app/web  src/components/toggle.test.tsx (5 tests) 350ms
+ ✓  @app/web  src/state/use-undoable-edits.test.tsx (3 tests) 469ms
+   ✓ review fix: an undo toast queued behind an outcome (3)
+     ✓ is withdrawn by retire: no "Desfazer" after the outcome 353ms
+ ✓  @app/web  src/surfaces/registries/criterios-tab.test.tsx (4 tests) 489ms
+ ✓  @app/web  src/app-return.test.tsx (17 tests) 49ms
+ ✓  @app/web  src/surfaces/registries/frases-nc-panel.test.tsx (3 tests) 328ms
+ ✓  @app/web  src/state/forward-arrival.test.tsx (3 tests) 192ms
+ ✓  @app/web  src/components/sync-announcer.test.tsx (4 tests) 44ms
+ ✓  @app/web  src/surfaces/registries/cnpj-field.test.tsx (2 tests) 323ms
+ ✓  @app/web  src/surfaces/ficha/use-photo-capture-report.test.tsx (2 tests) 40ms
+ ✓  @app/web  src/components/confirm-dialog.test.tsx (4 tests) 614ms
+ ✓  @app/web  src/state/audio-arrivals.test.ts (4 tests) 6ms
+ ✓  @app/web  src/db/sign-out.test.ts (3 tests) 35ms
+ ✓  @app/web  src/surfaces/ficha/issued-banner.test.tsx (2 tests) 77ms
+ ✓  @app/web  src/components/checkbox.test.tsx (5 tests) 523ms
+ ✓  @app/web  src/surfaces/templates/section-list.test.tsx (2 tests) 273ms
+ ✓  @app/web  src/state/draft-autosave.test.ts (2 tests) 17ms
+ ✓  @app/web  src/db/pre-issue-golden.test.ts (1 test) 717ms
+   ✓ 7.5-UNIT AD-2 pre-issue identity (Dexie) (1)
+     ✓ the Sumário's pre-issue rows over Dexie equal pre-issue.golden.json 715ms
+ ✓  @app/web  src/surfaces/registries/word-registry-tab.test.tsx (1 test) 166ms
+ ✓  @app/web  src/surfaces/photos/gallery-back.test.tsx (2 tests) 51ms
+ ✓  @app/web  src/components/status-tile.test.tsx (3 tests) 176ms
+ ✓  @app/web  src/input/use-pinch-zoom.test.ts (3 tests) 3ms
+ ✓  @app/web  src/surfaces/home/relatorio-card.test.tsx (3 tests) 154ms
+ ✓  @app/web  src/state/last-session.test.ts (6 tests) 4ms
+ ✓  @app/web  src/db/live-outbox.test.ts (1 test) 169ms
+ ✓  @app/web  src/device/storage-estimate.test.ts (4 tests) 3ms
+ ✓  @app/web  src/surfaces/templates/reorder-controls.test.tsx (2 tests) 119ms
+ ✓  @app/web  src/surfaces/ficha/use-saved-status.test.tsx (1 test) 39ms
+ ✓  @app/web  src/surfaces/registries/clientes-tab.test.tsx (1 test) 242ms
+ ✓  @app/web  src/input/touch-action.test.ts (4 tests) 4ms
+ ✓  @app/web  src/sw/boot-splash.test.ts (2 tests) 3ms
+ ✓  @app/web  src/styles/styles.test.ts (3 tests) 14ms
+ ✓  @app/web  src/components/char-count.test.tsx (3 tests) 31ms
+ ✓  @app/web  src/zod-config.test.ts (2 tests) 914ms
+   ✓ zod-config (review fixes 2026-09-30, security L11) (2)
+     ✓ turns zod jitless before the kernel builds its schemas, so a parse never calls Function 909ms
+ ✓  @app/web  src/components/photo-row.test.tsx (3 tests) 175ms
+ ✓  tooling  scripts/deploy.test.ts (28 tests) 1771ms
+ ✓  @app/web  src/components/status-pill.test.tsx (4 tests) 52ms
+ ✓  tooling  scripts/infra-tf.test.ts (5 tests) 108ms
+ ✓  tooling  scripts/verify.test.ts (6 tests) 35ms
+ ✓  tooling  scripts/preview-tab.test.ts (6 tests) 4ms
+ ✓  @app/web  src/surfaces/relatorio/not-tested-dialog.test.tsx (2 tests) 317ms
+ ✓  tooling  scripts/e2e-plain-http-cookie.test.ts (4 tests) 4ms
+ ✓  tooling  scripts/api-suite.test.ts (14 tests) 1940ms
+   ✓ the batch gate's print lane (chore T4) (7)
+     ✓ watches every file the print can depend on: the import closure of the render code and the print lane's tests lies under the triggers 1247ms
+ ✓  tooling  scripts/security-pins.test.ts (2 tests) 3ms
+ ✓  tooling  scripts/speech-engine-removed.test.ts (2 tests) 2560ms
+   ✓ 31.3 the speech engine is removed (2)
+     ✓ names the speech engine flag nowhere in the source, compose, .env.example, the Dockerfiles or the e2e support 2556ms
+ ✓  tooling  scripts/preflight.test.ts (28 tests) 5353ms
+   ✓ scripts/preflight.ts the probe (8)
+     ✓ healthy with no restart ever: one sample, no wait, silent, exit 0 454ms
+     ✓ a restarting container: exit 1 with one message, no wait 498ms
+     ✓ a growing count: the second sample after the interval, then exit 1 523ms
+     ✓ no socket: one line, exit 0 487ms
+     ✓ an engine error: one line naming it, exit 0 427ms
+     ✓ no compose project in the environment: one line, exit 0 527ms
+   ✓ scripts/preflight.ts review fixes (2026-10-15) (6)
+     ✓ (a) no container of the project (or only the gate's own one-off): one line, exit 0 775ms
+     ✓ (e) an engine that never answers: the deadline ends the probe with one engine-error line, exit 0, on time 577ms
+     ✓ (b) any other failed inspect is an engine error: one line, exit 0; (c) a parseable start time reads that run's log 490ms
+ ✓  tooling  scripts/nc-chip-phrases.test.ts (2 tests) 3ms
+ ✓  tooling  scripts/telemetry-queries.test.ts (9 tests) 15ms
+ ✓  tooling  scripts/e2e.test.ts (47 tests) 2993ms
+   ✓ focused tests are refused (TST-V1) (3)
+     ✓ no e2e or unit test file carries a focused test or suite 751ms
+   ✓ the e2e lint rules (TST-V1) (1)
+     ✓ refuses a focused test and an unawaited action, and warns on a fixed wait outside the allow-list 833ms
+ ✓  tooling  scripts/tooling.test.ts (21 tests) 13794ms
+   ✓ import-direction lint rules (3)
+     ✓ fails domain importing an app 962ms
+   ✓ test-reset guard (3)
+     ✓ exits non-zero when run without the compose marker 2621ms
+   ✓ seed-users CLI (7)
+     ✓ refuses outside docker-compose and names the requirement 2875ms
+     ✓ exits non-zero on a v4 company id before touching the database 2881ms
+   ✓ A7: derived text lives in the kernel (1)
+     ✓ apps/web writes no pt-BR status word and no singular-or-plural ternary of its own 386ms
+   ✓ naming (1)
+     ✓ never shows the codename in a user-visible web string 481ms
+   ✓ emoji and forbidden-document-word scans (2)
+     ✓ never introduces an emoji under apps/**, packages/**, scripts/**, e2e/** 1730ms
+     ✓ never uses the forbidden word for the document under apps/**, packages/**, scripts/**, e2e/** (the word is "relatório") 1654ms
+
+ Test Files  524 passed (524)
+      Tests  8209 passed (8209)
+   Start at  05:18:07
+   Duration  330.47s (tests 35%, import 32%, environment 15%, transform 11%, setup 6%)
+
+     Import   @app/web  899 modules were evaluated 70470 times · 507.03s total, 29% of tracked time
+             ~67.87s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

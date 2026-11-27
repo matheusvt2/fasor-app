@@ -2,16 +2,17 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PRINT_FILES } from '../apps/api/src/test-lanes.ts';
+import { PRINT_FILES, PRINT_PAIR } from '../apps/api/src/test-lanes.ts';
 
 /**
  * Chore T4 (2026-11-26, sprint-change-proposal-2026-11-04.md § 4.5): the one entry of the api
  * suite. `pnpm test:api` runs the four lanes of `apps/api/src/test-lanes.ts` as two phases of
  * Vitest runs (`suitePlan`):
  *
- * 1. two runs at the same time: `parallel` (project `api`, on `PARALLEL_WORKERS` workers, each on
- *    its own test pair) and `queue` (projects `api-serial` then `api-print`, one file at a time on
- *    the fixed pair, which spends most of its time waiting on the api's one LibreOffice);
+ * 1. three runs at the same time: `parallel` (project `api`, on `PARALLEL_WORKERS` workers, each on
+ *    its own test pair), `serial` (project `api-serial`, one file at a time on the fixed pair) and
+ *    `print` (project `api-print`, one file at a time on `PRINT_PAIR`); the last two spend most of
+ *    their time waiting on the api's one LibreOffice, which orders their conversions (AD-15);
  * 2. `solo` (project `api-solo`), with nothing beside it.
  *
  * Both phases always run, and the command fails when any run failed or no run had a test file.
@@ -124,27 +125,26 @@ export function parseArgs(argv: readonly string[]): { batch: boolean; extra: str
   return { batch: extra.length !== argv.length, extra };
 }
 
-/** One Vitest run of the suite: its name (for the log and the summary) and its projects. */
+/** One Vitest run of the suite: its name (for the log and the summary), its projects and the variables it adds. */
 export interface SuiteRun {
   name: string;
   projects: string[];
+  env?: Record<string, string>;
 }
 
 /**
  * The runs of one command, as phases: the runs of a phase start together, and a phase starts when
  * the one before has ended, whatever its result (every lane always runs). Phase 1 is the parallel
- * lane beside the `queue` run (`api-serial`, then `api-print` unless the batch form leaves it out);
- * phase 2 is the `api-solo` files with nothing beside them.
+ * lane beside the `serial` run and the `print` run (unless the batch form leaves it out), the print
+ * run on `PRINT_PAIR`; phase 2 is the `api-solo` files with nothing beside them.
  */
 export function suitePlan(batch: boolean, decision: PrintLaneDecision): SuiteRun[][] {
-  const queue = !batch || decision.run ? ['api-serial', 'api-print'] : ['api-serial'];
-  return [
-    [
-      { name: 'parallel', projects: ['api'] },
-      { name: 'queue', projects: queue },
-    ],
-    [{ name: 'solo', projects: ['api-solo'] }],
+  const first: SuiteRun[] = [
+    { name: 'parallel', projects: ['api'] },
+    { name: 'serial', projects: ['api-serial'] },
   ];
+  if (!batch || decision.run) first.push({ name: 'print', projects: ['api-print'], env: { API_TEST_PAIR: String(PRINT_PAIR) } });
+  return [first, [{ name: 'solo', projects: ['api-solo'] }]];
 }
 
 /** The Vitest arguments of one run: the projects, the `@slow` filter, no failure on an empty run, then the caller's own. */
@@ -347,7 +347,7 @@ function killTree(child: ChildProcess): void {
 function vitestRunner(extra: readonly string[]): RunVitest {
   return (run, alone) =>
     new Promise((done) => {
-      const child = spawn('pnpm', vitestArgs(run.projects, extra), { cwd: API_DIR, env: { ...process.env, FORCE_COLOR: '0' }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const child = spawn('pnpm', vitestArgs(run.projects, extra), { cwd: API_DIR, env: { ...process.env, ...run.env, FORCE_COLOR: '0' }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
       const chunks: Buffer[] = [];
       const take = (chunk: Buffer) => {
         chunks.push(chunk);

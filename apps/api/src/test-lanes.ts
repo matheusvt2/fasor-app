@@ -8,12 +8,14 @@
  *      worker seeds its own pair of test companies (`testSeedPair(slot + 1)`, `db/test-seed.ts`,
  *      `test-setup/test-pair.ts`), and every other id a file writes is minted per run, so files
  *      running at once share no row.
- *    - beside it, on one worker and one file at a time, `api-serial` then `api-print`, on the fixed
- *      pair (pair 1), which no parallel worker uses. `api-serial` holds the files that share
- *      something a second file would race on (the api's one document queue, AD-15; the small Porto
- *      Seguro fixture's fixed ids); `api-print` the print locks and the LibreOffice print checks.
- *      `pnpm test:api` always runs `api-print`; `pnpm test:api:batch` runs it only when the batch
- *      changed a path of `PRINT_TRIGGERS` (or when it cannot tell).
+ *    - beside it, each in a Vitest run of its own, on one worker and one file at a time:
+ *      `api-serial` on the fixed pair (pair 1) and `api-print` on `PRINT_PAIR`, pairs no parallel
+ *      worker uses. `api-serial` holds the files that share something a second file of theirs would
+ *      race on (the small Porto Seguro fixture's fixed ids; the api's one document queue, AD-15,
+ *      which orders the conversions of both runs); `api-print` the print locks and the LibreOffice
+ *      print checks, whose layout-lock fixtures carry fixed op ids of their own. `pnpm test:api`
+ *      always runs `api-print`; `pnpm test:api:batch` runs it only when the batch changed a path of
+ *      `PRINT_TRIGGERS` (or when it cannot tell).
  * 2. `api-solo`: the files that must have nothing beside them (a timing budget, a boot upgrade over
  *    every company, the legacy companies every seed removes), one at a time.
  *
@@ -95,6 +97,13 @@ export const SOLO_FILES: readonly LaneEntry[] = [
   { file: 'src/db/roles.integration.test.ts', why: `${BOOT_UPGRADE} (\`upgradeRolesAndUsers\` gives every company its five roles, and its second run must write nothing)` },
   { file: 'src/db/template-seed-upgrade.integration.test.ts', why: `${BOOT_UPGRADE} (\`upgradeTemplateSeeds\` moves every company's templates)` },
 ];
+
+/**
+ * The test pair of the `api-print` run (`API_TEST_PAIR`, set by `scripts/api-suite.ts`): the last
+ * pair the scheme holds, above every parallel worker's (`slot + 1`), so the print files sign in and
+ * re-seed beside the serial run's fixed pair without revoking its sessions.
+ */
+export const PRINT_PAIR = 255;
 
 /** The setup file that gives each parallel worker its own test pair. */
 export const PARALLEL_SETUP_FILE = 'src/test-setup/test-pair.ts';
