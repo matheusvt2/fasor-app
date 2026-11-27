@@ -1,4 +1,4 @@
-import type { BlockRow } from '@app/domain';
+import { parseRichText, type BlockRow } from '@app/domain';
 import type { BrowserContext, Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -123,6 +123,38 @@ test('@p0 31.9-E2E-003 an answer the guard refuses leaves the field unchanged an
   await expect(field).toHaveValue(REFUSED);
   expect((await storedBlock(page, blockId)).sheet.checklist.contatos?.observation?.value).toBe(REFUSED);
   expect(await aiOps(page)).toEqual([]);
+});
+
+test('@p0 e31f-E2E-003 a section text rewritten by the AI control keeps its block structure and its bold; "Desfazer" brings the former text back', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  await page.goto(`/relatorio/${relatorioId}`);
+  await page.getByRole('list', { name: 'Sumário do relatório' }).getByRole('button', { name: /^Definições/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/secao/[0-9a-f-]{36}$`));
+  const sectionId = page.url().split('/').at(-1)!;
+  const area = page.getByRole('textbox', { name: 'Texto da seção' });
+  const sectionText = async () => String(((await storedBlock(page, sectionId)).config as { section_text?: string } | null)?.section_text ?? '');
+  // The first line in bold, stored before the tap.
+  await area.click();
+  await page.keyboard.press('Control+Home');
+  await page.keyboard.press('Shift+End');
+  await page.getByRole('toolbar', { name: 'Formatação' }).getByRole('button', { name: 'Negrito' }).click();
+  await area.blur();
+  await expect.poll(async () => (await sectionText()).includes('**')).toBe(true);
+  const before = await sectionText();
+  const shape = (text: string) => parseRichText(text).map((block) => block.kind);
+
+  await page.locator('.secao-content').getByRole('button', { name: 'Melhorar o texto com IA: texto da seção' }).click();
+  await expect.poll(async () => (await aiOps(page)).length, { timeout: 30_000 }).toBeGreaterThan(0);
+  const written = await sectionText();
+  expect(written).not.toBe(before);
+  // Every block keeps its kind (a list item is never written back as a paragraph) and the bold survives.
+  expect(shape(written)).toEqual(shape(before));
+  expect(written).toContain('**');
+  await expect(area.locator('strong')).not.toHaveCount(0);
+
+  await page.locator('.secao-content .ai-done').getByRole('button', { name: /^Desfazer o texto melhorado por IA: / }).click();
+  await expect.poll(sectionText).toBe(before);
 });
 
 test('@p0 31.9-E2E-004 "Texto da conclusão" holding the composed text becomes the edited text; the result stays; "Desfazer" brings the composed text back', async ({ page }) => {

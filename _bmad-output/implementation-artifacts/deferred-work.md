@@ -1300,3 +1300,16 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/contract/version.ts` (contract 62); the usage-event name list in `packages/domain/src/contract/`; `apps/web/src/db/audio-commit.ts` `commitAudioCapture`, `commitAudioDismiss`.
   class: gap
   state: open (owner: the next Epic 18-style usage batch; needs Matheus's word on the contract bump)
+
+## Deferred from: review-fix batch e31f, Epic 31 (2026-11-26)
+
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.7 outcome line (the narrowing) and e31f item 13 (Matheus, 2026-11-26: "later, in another delivery")
+  summary: The mic is missing on the three escopo texts (the local's text, the exclusions list, the additional items) and on the "Marcar não ensaiado" dialog (the reason's own text before the mark is stored). None of them is a value of the closed `audio_target` union, so each needs a new target value, which is a contract bump (62 to 63) that Epic 31 did not take.
+  evidence: `packages/domain/src/schemas/entities.ts` (the `audio_target` union); `packages/domain/src/audio/target.ts`; the escopo setup surface and the Não ensaiado dialog in `apps/web/src/surfaces/`.
+  class: gap
+  state: open (owner: a later delivery, on Matheus's word on the contract bump)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.4 (text typed while the audio was pending) and e31f item 3 (the reverse order)
+  summary: The job now rebuilds the field's write from a fresh read under the company lock, so a text the server already holds when the job commits is kept. The reverse order is not fixed: a device put on the same field still waiting in the outbox when the job commits (typed offline, or not yet pushed) carries the whole value the device held, without the audio's text, and lands after the job's put, so the field loses the audio's text (last writer wins on a whole-value path). The audio row keeps `transcript_heard` and `transcript_written`, and the field's mark reads "Áudio, editado" with "Ver texto como falado", so the text can be recovered by hand, but nothing puts it back by itself. A fix needs the device to rebase its pending put on the arriving audio put (re-append the audio text when its pending value does not hold it) or the server to merge a client put that did not see the audio put; either touches the commit path and the op fold, which this batch did not take.
+  evidence: `apps/api/src/jobs/transcription/job.ts` (`compose`); `apps/web/src/db/commit.ts`; the device's pull fold in `apps/web/src/sync/`; `packages/domain/src/audio/write.ts` `appendAudioText`.
+  class: bug
+  state: open (owner: Matheus decides the rule, device rebase or server merge; the batch that builds it runs the durability specs on the matrix)

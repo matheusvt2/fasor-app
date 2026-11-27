@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   aiRewriteSource,
+  aiRewriteWrite,
   aiWritePath,
+  blockFieldPath,
+  isSectionBlockType,
   aiWriteResponseSchema,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
@@ -294,6 +297,40 @@ describe('31.9-API-003 "Texto da conclusão" holding the composed text', () => {
     expect(answer).toMatchObject({ outcome: 'written', source: expected!.text });
     expect(calls[0]!.context.conclusion).toBeDefined();
     expect(calls[0]!.text).toBe(expected!.text);
+  });
+});
+
+describe('e31f-API-001 a section text is rewritten block by block, keeping its formatting', () => {
+  it('one writing call per block; the answer holds one line per block, which the write gives back its kind and its marks', async () => {
+    const section = main.blocks.find((block) => isSectionBlockType(block.block_type))!;
+    const sectionText = 'Inspeção da **cabine primária** realizada.\n- item um verificado\n- item dois verificado';
+    const op = makeOp(
+      {
+        kind: 'put',
+        scope: 'relatorio',
+        company_id: companyId,
+        project_id: null,
+        relatorio_id: main.relatorioId,
+        path: blockFieldPath(section.id, 'config'),
+        value: { ...((section.config ?? {}) as Record<string, unknown>), section_text: sectionText, section_text_edited: true } as never,
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: ADMIN,
+        device_id: DEVICE,
+      },
+      { newId, now: now() },
+    );
+    expect((await applyOps(db, company, [op], { now, origin: 'client', actorId: ADMIN })).rejected).toEqual([]);
+    as(ADMIN);
+    calls.length = 0;
+    const target: AudioTarget = { type: 'section', block_id: section.id };
+    const res = await write(app, main.relatorioId, { target, last_op_id: op.op_id });
+    const answer = aiWriteResponseSchema.parse(await res.json());
+    expect(calls.map((call) => call.text)).toEqual(['Inspeção da cabine primária realizada.', 'item um verificado', 'item dois verificado']);
+    expect(answer).toEqual({ outcome: 'written', source: 'Inspeção da cabine primária realizada.\nitem um verificado\nitem dois verificado', text: 'Inspeção da cabine primária realizada.\nItem um verificado.\nItem dois verificado.' });
+    const write2 = aiRewriteWrite(await toSnapshot(db, company, main.relatorioId), target, answer.outcome === 'written' ? answer.text : '', { now: now() })!;
+    expect((write2.puts[0]!.value as { section_text: string }).section_text).toBe('Inspeção da **cabine primária** realizada.\n- Item um verificado.\n- Item dois verificado.');
   });
 });
 

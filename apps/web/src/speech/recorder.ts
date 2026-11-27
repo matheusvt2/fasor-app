@@ -295,7 +295,13 @@ export async function startRecording(deps: RecorderDeps, handlers: { onTick: (ti
       ended = true;
       const elapsed = Math.max(0, deps.clock.now() - startedAt);
       deps.clock.clearInterval(timer);
-      if (recorder.state !== 'inactive') recorder.stop();
+      try {
+        if (recorder.state !== 'inactive') recorder.stop();
+      } catch (error) {
+        // e31f: the microphone is released even when the recorder fails at stop (the field then says so).
+        teardown();
+        throw error;
+      }
       await stopped;
       teardown();
       const mime = containerMime(recorder.mimeType || 'audio/webm');

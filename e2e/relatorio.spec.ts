@@ -577,7 +577,7 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await expect(setupRoot.getByRole('group', { name: 'Início da execução' }).getByRole('spinbutton')).toHaveText(['01', '10', '2026']);
   await typeDate(setupRoot, 'Fim da execução', '03102026');
   await expect(setupRoot.getByRole('group', { name: 'Fim da execução' }).getByRole('spinbutton')).toHaveText(['03', '10', '2026']);
-  await page.getByLabel('Informações adicionais').fill('Acesso pela portaria 2');
+  await page.getByRole('textbox', { name: 'Informações adicionais' }).fill('Acesso pela portaria 2');
   await page.getByTestId('upload-input-cover_photo').setInputFiles({ name: 'capa.png', mimeType: 'image/png', buffer: COVER_PHOTO });
   await expect(page.locator('.tile-name')).toContainText('capa.png');
 
@@ -631,7 +631,7 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await expect(page.getByText('Altitude do local: < 1000 m — confirmada')).toBeVisible();
   await typeDate(setupRoot, 'Próxima intervenção recomendada', '15092027');
   await expect(setupRoot.getByRole('group', { name: 'Próxima intervenção recomendada' }).getByRole('spinbutton')).toHaveText(['15', '09', '2027']);
-  await page.getByLabel('Justificativa').fill('Manutenção anual programada');
+  await page.getByRole('textbox', { name: 'Justificativa' }).fill('Manutenção anual programada');
 
   // "Concluir dados do relatório": every gap closed, one Rascunho → Em campo status put.
   const complete = page.getByRole('button', { name: 'Concluir dados do relatório' });

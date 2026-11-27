@@ -2,6 +2,7 @@ import {
   AUDIO_RETRANSCRIBE_PATH,
   audioPermissionPath,
   can,
+  isRetryableAudioStatus,
   permissionForPath,
   type AudioRetranscribeResponse,
   type Clock,
@@ -14,17 +15,24 @@ import type { Db } from '../db/client.ts';
 import { findFileRow } from '../db/repositories/files.ts';
 import type { TranscriptionPayload } from '../jobs/transcription/payload.ts';
 import { startTranscription } from '../jobs/transcription/status.ts';
+import { FixedWindowLimiter, tooMany, type RateLimitRule } from './rate-limit.ts';
 import { type AppEnv, ForbiddenError, requireSession } from './session.ts';
 
 /*
- * Story 31.2 (AD-30): `POST /api/audios/{id}/retranscribe` ("Tentar de novo") queues a `failed`
- * audio's transcription again: one new job and `audio_status = transcribing`. The company comes
- * from the session and scopes the lookup (AD-10), so another company's audio, an unknown id, a
- * malformed id and a row that is not an audio all answer the same `404`. It needs the key of the
- * audio's field (AD-29: the mic follows the field's own write permission), `403` otherwise. Only a
- * `failed` audio is queued again (`409 invalid_request` for any other status); one whose bytes the
- * server does not hold answers `409 not_caught_up`; with AI_FEATURES off, `409 ai_features_off`.
+ * Story 31.2 (AD-30): `POST /api/audios/{id}/retranscribe` ("Tentar de novo") queues an audio's
+ * transcription again: one new job and `audio_status = transcribing`. The company comes from the
+ * session and scopes the lookup (AD-10), so another company's audio, an unknown id, a malformed id
+ * and a row that is not an audio all answer the same `404`. It needs the key of the audio's field
+ * (AD-29: the mic follows the field's own write permission), `403` otherwise; over the per-user limit
+ * `429 rate_limited` (e31f). The kernel says which status may be queued again
+ * (`isRetryableAudioStatus`): a `failed` audio, and (e31f) a `queued` one, left without a job (sent
+ * while AI features were off, or a send lost); any other status `409 invalid_request`. One whose
+ * bytes the server does not hold answers `409 not_caught_up`; with AI_FEATURES off,
+ * `409 ai_features_off`.
  */
+
+/** e31f: the default per-user limit of "Tentar de novo" (each one may pay for speech again). */
+export const AUDIO_RETRANSCRIBE_RATE_LIMIT: RateLimitRule = { max: 10, windowMs: 60_000 };
 
 export interface AudioRoutesDeps {
   now: Clock;
@@ -33,6 +41,9 @@ export interface AudioRoutesDeps {
   enqueueTranscription?: (payload: TranscriptionPayload) => Promise<void>;
   /** `false` when `AI_FEATURES=off`. Absent reads as on. */
   aiFeatures?: boolean;
+  /** e31f: the per-user limit; absent, `AUDIO_RETRANSCRIBE_RATE_LIMIT`. Always on. */
+  limit?: RateLimitRule;
+  limitNow?: () => number;
 }
 
 function fail(code: ErrorCode, message: string): ErrorResponse {
@@ -43,6 +54,7 @@ const notFound = fail('not_found', 'No such audio.');
 
 export function createAudioRoutes(db: Db, deps: AudioRoutesDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
+  const limiter = new FixedWindowLimiter(deps.limit ?? AUDIO_RETRANSCRIBE_RATE_LIMIT, deps.limitNow);
 
   routes.post(AUDIO_RETRANSCRIBE_PATH, async (c) => {
     const session = requireSession(c);
@@ -53,13 +65,15 @@ export function createAudioRoutes(db: Db, deps: AudioRoutesDeps): Hono<AppEnv> {
     if (record.removedAt !== null || audio.removed_at !== null) return c.json(notFound, 404);
     const need = permissionForPath(audioPermissionPath(audio.audio_target), { kind: 'put', value: null });
     if (need !== 'none' && !can(session.role, need)) throw new ForbiddenError();
-    if (audio.audio_status !== 'failed') return c.json(fail('invalid_request', 'Only an audio whose transcription failed is transcribed again.'), 409);
+    const decision = limiter.consume(session.userId);
+    if (!decision.allowed) return tooMany(c, decision.retryAfterSeconds);
+    if (!isRetryableAudioStatus(audio.audio_status)) return c.json(fail('invalid_request', 'Only an audio that failed, or waits with no job, is transcribed again.'), 409);
     if (audio.uploaded_at === null) return c.json(fail('not_caught_up', 'The audio has not been uploaded yet.'), 409);
     if (deps.aiFeatures === false) return c.json(fail('ai_features_off', 'AI features are off on this server.'), 409);
     const enqueue = deps.enqueueTranscription;
     if (enqueue === undefined) throw new Error('retranscribe: no transcription queue is wired');
 
-    const outcome = await startTranscription({ db, now: deps.now, newId: deps.newId, enqueue }, session.companyId, { id, relatorioId: record.relatorioId }, ['failed']);
+    const outcome = await startTranscription({ db, now: deps.now, newId: deps.newId, enqueue }, session.companyId, { id, relatorioId: record.relatorioId }, [audio.audio_status]);
     if (outcome === 'send_failed') throw new Error('retranscribe: the transcription job was not sent');
     // `moved`: the job was sent and wrote its own status first (a fast run); the audio is on its way all the same.
     const answer: AudioRetranscribeResponse = { audio_id: id, audio_status: 'transcribing' };

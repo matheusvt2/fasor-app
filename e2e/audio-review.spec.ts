@@ -246,8 +246,10 @@ test('@p0 31.6-E2E-001 an audio on its way holds the ficha (its line, a refused 
   await offline(context, page);
   await record(observacoes(page), 'observações');
   await expect(holdLine(page)).toContainText('1 áudio aguardando transcrição');
-  const place = holdLine(page).getByRole('button');
+  // e31f: the place is the first button of its entry; "Dispensar" follows it.
+  const place = holdLine(page).locator('.audio-held > button');
   await expect(place).toHaveText(/ · Observações da ficha$/);
+  await expect(holdLine(page).getByRole('button', { name: /^Dispensar: .* · Observações da ficha$/ })).toBeVisible();
 
   // "Concluir e avançar" refuses, says why and stays; nothing concludes the sheet.
   await page.locator('#ficha-primary').click();
@@ -341,4 +343,67 @@ test('@p0 31.6-E2E-002 a pending and a failed audio block the issue, each with i
   await page.goto(`/relatorio/${relatorioId}`);
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
   await expect(page.getByRole('dialog', { name: 'Gerar relatório' }).locator('li[data-audio-row]')).toHaveCount(0);
+});
+
+test('@p0 e31f-E2E-001 every audio that holds can be dismissed from the Export dialog and from the ficha\'s line; "Tentar de novo" only where it applies', async ({ page }) => {
+  test.setTimeout(300_000);
+  const { relatorioId, sheet } = await filledSetUp(page);
+  const obs = { type: 'sheet_field' as const, block_id: sheet.blockId, field: 'observations' as const };
+  // One on its way that never reached the server (no "Tentar de novo"), one failed (both actions).
+  const pending = await pushHeldAudio(account.companyId, relatorioId, { type: 'setup', field: 'parecer_text' }, 'queued');
+  const failed = await pushHeldAudio(account.companyId, relatorioId, obs, 'failed');
+  await openSheet(page, relatorioId, sheet.blockId);
+  await syncNowAndReturn(page);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+
+  await page.goto(`/relatorio/${relatorioId}`);
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Gerar relatório' });
+  const pendingRow = dialog.locator('li[data-audio-row="audios_pending"]');
+  await expect(pendingRow.getByRole('button', { name: 'Dispensar: Resumo do parecer' })).toBeVisible();
+  await expect(pendingRow.getByRole('button', { name: /^Tentar de novo: / })).toHaveCount(0);
+  const failedRow = dialog.locator('li[data-audio-row="audios_failed"]');
+  await expect(failedRow.getByRole('button', { name: /^Tentar de novo: .* · Observações da ficha$/ })).toBeVisible();
+  await expect(failedRow.getByRole('button', { name: /^Dispensar: .* · Observações da ficha$/ })).toBeVisible();
+
+  // "Dispensar" in the dialog: the device's status write; the row goes, the other stays.
+  await pendingRow.getByRole('button', { name: 'Dispensar: Resumo do parecer' }).click();
+  await expect.poll(async () => (await outbox(page)).some((op) => op.path === `file/${pending}/audio_status` && op.value === 'dismissed')).toBe(true);
+  await expect(pendingRow).toHaveCount(0);
+  await expect(failedRow).toHaveCount(1);
+  await page.keyboard.press('Escape');
+
+  // The ficha's line: the failed audio's "Dispensar" frees the ficha and keeps the audio.
+  await openSheet(page, relatorioId, sheet.blockId);
+  await expect(holdLine(page)).toContainText('1 áudio não transcrito');
+  await holdLine(page).getByRole('button', { name: /^Dispensar: / }).click();
+  await expect.poll(async () => (await outbox(page)).some((op) => op.path === `file/${failed}/audio_status` && op.value === 'dismissed')).toBe(true);
+  await expect(holdLine(page)).toHaveCount(0);
+  await expect((await deviceAudios(page, database)).find((row) => row.id === failed)).toMatchObject({ audio_status: 'dismissed' });
+
+  // The server takes both dismisses: the queued one and the failed one.
+  await syncNowAndReturn(page);
+  await expect.poll(async () => (await serverRow(account.companyId, 'file', pending))?.audio_status).toBe('dismissed');
+  await expect.poll(async () => (await serverRow(account.companyId, 'file', failed))?.audio_status).toBe('dismissed');
+});
+
+test('@p0 e31f-E2E-002 leaving the ficha mid-recording saves the recording to its field instead of throwing it away', async ({ page, context }) => {
+  test.setTimeout(240_000);
+  await installVoice(context);
+  const { relatorioId, sheet } = await filledSetUp(page);
+  await openSheet(page, relatorioId, sheet.blockId);
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await offline(context, page);
+  const known = new Set((await deviceAudios(page, database)).map((row) => row.id));
+  const before = known.size;
+  const scope = observacoes(page);
+  await scope.getByRole('button', { name: 'Gravar áudio: observações' }).click();
+  await expect(scope.getByRole('button', { name: 'Parar a gravação: observações' })).toHaveAttribute('aria-pressed', 'true');
+  await expect.poll(async () => Number(((await scope.locator('.audio-rec .audio-time').first().textContent()) ?? '0:00').split(':')[1]), { timeout: 15_000 }).toBeGreaterThanOrEqual(3);
+  // The button goes away with the ficha (Sync status opened from the badge, in the app).
+  await syncBadge(page).click();
+  await expect.poll(async () => (await deviceAudios(page, database)).length).toBe(before + 1);
+  const saved = (await deviceAudios(page, database)).find((row) => !known.has(row.id))!;
+  expect(saved).toMatchObject({ audio_status: 'queued', audio_target: { type: 'sheet_field', block_id: sheet.blockId, field: 'observations' } });
+  await expect.poll(async () => (await outbox(page)).some((op) => op.kind === 'create' && op.path === `file/${saved.id}`)).toBe(true);
 });

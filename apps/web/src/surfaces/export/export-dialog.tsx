@@ -59,6 +59,7 @@ import './export.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 import { useDialogTelemetry } from '../../telemetry/hooks.ts';
 import { spriteHref } from '../../styles/sprite.ts';
+import { HeldAudioButtons } from '../../speech/audio-field.tsx';
 
 export interface ExportDialogProps {
   relatorioId: string;
@@ -556,6 +557,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                           {/* The parecer row's " — " before the first place, "; " between them. */}
                           {index === 0 ? ' — ' : '; '}
                           <span data-audio-place="">{audio.place}</span>
+                          {/* e31f (Matheus, 2026-11-26): "Dispensar" on every audio not done, "Tentar de novo" where it applies. */}
+                          <HeldAudioButtons audioId={audio.audioId} place={audio.place} />
                         </span>
                       ))}
                     </span>

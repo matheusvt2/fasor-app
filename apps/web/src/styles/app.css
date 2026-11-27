@@ -1573,3 +1573,9 @@ button.pp-mod-toggle { cursor: pointer; }
 [data-route="/relatorio/:id/ficha/:blockId"] .e28-just { display: flex; flex-direction: column; gap: var(--sp-4); }
 [data-route="/relatorio/:id/ficha/:blockId"] .e28-just .field.e28-name { max-width: 420px; }
 [data-route="/relatorio/:id/ficha/:blockId"] .e28-just .observation-field { min-height: 120px; }
+
+/* e31f (Matheus, 2026-11-26: "Dispensar na lista de pendências"): an audio listed with its place in
+   `.audio-pending` (the ficha's hold line, the Export dialog's rows) keeps its place and its two actions
+   ("Tentar de novo", "Dispensar") on one wrapping row, spaced like `.audio-pending` itself; the mock
+   `62-audio-estados.html` (g) draws them (amended in the same change). */
+.audio-held, .audio-held-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }

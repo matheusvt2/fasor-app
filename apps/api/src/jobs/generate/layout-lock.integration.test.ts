@@ -51,6 +51,11 @@ import { applyOps } from '../../sync/apply.ts';
  * goldens (`golden/layout-lock-v18/pdf-text.json`, `golden/layout-lock-v18-epic25/pdf-text.json`) were taken once with
  * `GOLDEN_UPDATE=1` on the batch's first commit, against an api running that commit, whose product code is
  * de79700b's byte for byte. No older golden moved, and none moves through Epic 30.
+ *
+ * Review-fix batch e31f, item 11 (Matheus, 2026-11-26): the winding resistance's empty optional rows "AT, primeiro tap"
+ * and "AT, último tap" leave the print, so every v13 to v18 PDF text golden loses those two rows and the pages after
+ * them reflow (some end one page shorter); retaken with `GOLDEN_UPDATE=1` against an api running this batch. Nothing
+ * else moved.
  */
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';

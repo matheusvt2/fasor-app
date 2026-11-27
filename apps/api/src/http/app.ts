@@ -137,6 +137,9 @@ export interface AppOptions {
   writing?: { name: string; provider: WritingProvider };
   aiWriteLimit?: RateLimitRule;
   aiWriteLimitNow?: () => number;
+  /** e31f: the retranscribe route's per-user limit (absent, `AUDIO_RETRANSCRIBE_RATE_LIMIT`; always on). */
+  retranscribeLimit?: RateLimitRule;
+  retranscribeLimitNow?: () => number;
   /** Story 13.8: test override of the send to the `audit` queue; wins over `boss`. With neither, the audit route answers 500 after failing its run. */
   enqueueAudit?: (payload: AuditPayload) => Promise<void>;
   /** Story 11.8 follow-up: `config.AI_FEATURES === 'on'`; absent reads as on (every existing test). */
@@ -423,6 +426,8 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       newId: options.newId ?? mintId,
       ...(sendTranscription === undefined ? {} : { enqueueTranscription: sendTranscription }),
       aiFeatures,
+      ...(options.retranscribeLimit === undefined ? {} : { limit: options.retranscribeLimit }),
+      ...(options.retranscribeLimitNow === undefined ? {} : { limitNow: options.retranscribeLimitNow }),
     }),
   );
   // Story 31.9: the AI control's write route, behind the same session middleware.

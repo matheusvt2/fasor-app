@@ -6,6 +6,7 @@ import {
   audioProseWrite,
   audioReadingSuggestion,
   audioTableReading,
+  audioTooLong,
   audioWritingContext,
   audioWritingLevel,
   can,
@@ -69,6 +70,12 @@ import { storedAudioStatus, transcriptionServerOp, writeAudioStatus } from './st
  * A transient failure before the last attempt rethrows for pg-boss to retry; the last attempt and a
  * permanent failure write `failed` (from a runnable status) and return.
  *
+ * e31f (review of Epic 31): the field's puts are built inside that batch's transaction from a fresh
+ * read of the field (`compose`), never from the snapshot read before the model call. The text as
+ * heard is stored as soon as it is heard, and an attempt that finds it stored does not call the
+ * speech provider again. An audio past the server's cap (`audioTooLong`, by its quality's duration
+ * before speech and by the provider's own duration after) fails with a `too_long` reason.
+ *
  * Permissions (AD-29): the push route refuses an audio create whose actor lacks the key of the field
  * it targets (`permissionForPath` of the `file` create). The job writes as `system:transcription`
  * but does not bypass that: it reads the role of the audio's creator again and fails the audio
@@ -131,6 +138,38 @@ interface RunFacts {
   fallback: string | null;
   notAReading: boolean;
   committed: boolean;
+  /** e31f: the text as heard came from an earlier attempt (`transcript_heard` stored), so no speech was paid. */
+  speechReused: boolean;
+}
+
+/**
+ * e31f: stores the text as heard as soon as it is heard (`system:transcription`, while the audio is
+ * still runnable), so a later attempt after a transient failure of the writing step reuses it
+ * instead of paying for speech again. A failure here is logged and the attempt goes on.
+ */
+async function storeHeard(deps: TranscriptionJobDeps, companyId: CompanyId, audio: { id: string; relatorioId: string }, heard: string): Promise<void> {
+  const op = transcriptionServerOp({
+    companyId,
+    relatorioId: audio.relatorioId,
+    kind: 'put',
+    path: formatPath({ family: 'file/server', id: audio.id, field: 'transcript_heard' }),
+    value: heard,
+    batchId: null,
+    now: deps.now,
+    newId: deps.newId,
+  });
+  try {
+    await applyServerBatch(deps.db, companyId, [op], {
+      now: deps.now,
+      before: async (tx) => {
+        const status = await storedAudioStatus(tx, companyId, audio.id);
+        if (status === null || !RUNNABLE.includes(status)) throw new SkippedError(`the audio became ${status ?? 'absent'}`);
+      },
+    });
+  } catch (error) {
+    if (error instanceof SkippedError) throw error;
+    logError('transcript heard not stored ahead', { company_id: companyId, audio_id: audio.id, error: errorText(error) });
+  }
 }
 
 /** The company's `local` and `atividade` registry rows: the words an automatic caption agrees with. */
@@ -171,7 +210,7 @@ export async function runTranscriptionJob(deps: TranscriptionJobDeps, payload: T
   const companyId = asCompanyId(payload.company_id);
   const startedAt = deps.now().getTime();
   const runId = deps.newId();
-  const facts: RunFacts = { relatorioId: null, audioFound: false, level: null, speech: null, writing: null, billed: null, guard: null, fallback: null, notAReading: false, committed: false };
+  const facts: RunFacts = { relatorioId: null, audioFound: false, level: null, speech: null, writing: null, billed: null, guard: null, fallback: null, notAReading: false, committed: false, speechReused: false };
   const logFields = () => ({ company_id: payload.company_id, relatorio_id: facts.relatorioId, job_id: attempt.jobId, audio_id: payload.audio_id, run_id: runId, attempt: attempt.attempt });
 
   async function recordRun(outcome: 'ok' | 'error', error: string | null, executor: Db | Tx = deps.db): Promise<void> {
@@ -223,13 +262,25 @@ export async function runTranscriptionJob(deps: TranscriptionJobDeps, payload: T
     facts.level = audioWritingLevel(audio.audio_target);
     if (audio.uploaded_at === null) throw new PermanentReadingError('the audio has not been uploaded');
 
-    const key = objectKey(companyId, 'audio', audio.id, 'original', relatorioId);
-    const stored = await getObject(deps.s3, deps.bucket, key);
-    if (stored === null) throw new PermanentReadingError('the audio object is missing');
-    const bytes = new Uint8Array(await buffer(stored.body));
-    const speech = await deps.speech.transcribe({ bytes, mime: audio.mime, sha256: audio.sha256, key });
-    facts.speech = speech;
-    const heard = speech.text.trim();
+    let heard: string;
+    if (audio.transcript_heard !== null) {
+      // e31f: an earlier attempt heard it already (and stored the text as heard); speech is not paid twice.
+      heard = audio.transcript_heard.trim();
+      facts.speechReused = true;
+    } else {
+      // e31f: the server's own length cap; a longer audio is never sent to the speech provider.
+      if (audioTooLong(audio.quality.duration_ms)) throw new PermanentReadingError(`too_long: the audio lasts ${audio.quality.duration_ms} ms`);
+      const key = objectKey(companyId, 'audio', audio.id, 'original', relatorioId);
+      const stored = await getObject(deps.s3, deps.bucket, key);
+      if (stored === null) throw new PermanentReadingError('the audio object is missing');
+      const bytes = new Uint8Array(await buffer(stored.body));
+      const speech = await deps.speech.transcribe({ bytes, mime: audio.mime, sha256: audio.sha256, key });
+      facts.speech = speech;
+      // The provider's own duration, where it reports one: a longer audio is not written.
+      if (audioTooLong(speech.audio_seconds * 1000)) throw new PermanentReadingError(`too_long: the provider heard ${speech.audio_seconds} s`);
+      heard = speech.text.trim();
+      await storeHeard(deps, companyId, { id: audio.id, relatorioId }, heard);
+    }
 
     // Only the audio's own company and relatório are read for the prompt (AD-30).
     const snapshot = await toSnapshot(deps.db, companyId, relatorioId);
@@ -248,7 +299,8 @@ export async function runTranscriptionJob(deps: TranscriptionJobDeps, payload: T
       }
     }
 
-    let puts: { path: string; value: JsonValue }[] = [];
+    // The text the field receives (written, or as heard), its target and level; null when nothing is written.
+    let fieldText: string | null = null;
     let written: string | null = null;
     if (suggestion === null && heard !== '') {
       const level = audioWritingLevel(target);
@@ -274,31 +326,45 @@ export async function runTranscriptionJob(deps: TranscriptionJobDeps, payload: T
         facts.billed = billedCallOf(error);
         facts.fallback = `writing_failed: ${errorText(error)}`;
       }
-      const write = audioProseWrite(snapshot, target, text, options);
-      if (write === null) throw new PermanentReadingError('the target field is no longer in the relatorio');
-      puts = write.puts;
+      // The field must still be there; its write is built again under the lock below.
+      if (audioProseWrite(snapshot, target, text, options) === null) throw new PermanentReadingError('the target field is no longer in the relatorio');
+      fieldText = text;
     }
     if (heard === '') facts.fallback = 'no_speech';
 
     const batchId = deps.newId();
     const op = (kind: 'create' | 'put', path: string, value: unknown, meta?: { source_audio_id: string }) =>
       transcriptionServerOp({ companyId, relatorioId, kind, path, value, batchId, now: deps.now, newId: deps.newId, ...(meta === undefined ? {} : { meta }) });
-    const batch = [
-      ...(suggestion === null ? [] : [op('create', suggestionPath(suggestion.id), suggestion)]),
-      ...puts.map((put) => op('put', put.path, put.value, { source_audio_id: audio.id })),
-      op('put', formatPath({ family: 'file/server', id: audio.id, field: 'transcript_heard' }), heard),
-      op('put', formatPath({ family: 'file/server', id: audio.id, field: 'transcript_written' }), written),
-      op('put', formatPath({ family: 'file/server', id: audio.id, field: 'transcription_run_id' }), runId),
-      ...(facts.notAReading ? [op('put', formatPath({ family: 'file/server', id: audio.id, field: 'not_a_reading' }), true)] : []),
-      op('put', fileFieldPath(audio.id, 'audio_status'), 'done' satisfies AudioStatus),
-    ];
+    let puts = 0;
     try {
-      await applyServerBatch(deps.db, companyId, batch, {
+      await applyServerBatch(deps.db, companyId, [], {
         now: deps.now,
         before: async (tx) => {
           const status = await storedAudioStatus(tx, companyId, audio.id);
           if (status === null || !RUNNABLE.includes(status)) throw new SkippedError(`the audio became ${status ?? 'absent'}`);
           await recordRun('ok', null, tx);
+        },
+        // e31f: the field's write is rebuilt from the field as it is now, under the company lock, so
+        // a text typed while the audio was "Transcrevendo" is kept, and a parecer verdict, a Não
+        // ensaiado mark or a section's config changed meanwhile is never reverted (`audioProseWrite`
+        // spreads the current object and changes only its text).
+        compose: async (tx) => {
+          let fieldPuts: { path: string; value: JsonValue }[] = [];
+          if (fieldText !== null) {
+            const write = audioProseWrite(await toSnapshot(tx, companyId, relatorioId), target, fieldText, options);
+            if (write === null) throw new PermanentReadingError('the target field is no longer in the relatorio');
+            fieldPuts = write.puts;
+          }
+          puts = fieldPuts.length;
+          return [
+            ...(suggestion === null ? [] : [op('create', suggestionPath(suggestion.id), suggestion)]),
+            ...fieldPuts.map((put) => op('put', put.path, put.value, { source_audio_id: audio.id })),
+            op('put', formatPath({ family: 'file/server', id: audio.id, field: 'transcript_heard' }), heard),
+            op('put', formatPath({ family: 'file/server', id: audio.id, field: 'transcript_written' }), written),
+            op('put', formatPath({ family: 'file/server', id: audio.id, field: 'transcription_run_id' }), runId),
+            ...(facts.notAReading ? [op('put', formatPath({ family: 'file/server', id: audio.id, field: 'not_a_reading' }), true)] : []),
+            op('put', fileFieldPath(audio.id, 'audio_status'), 'done' satisfies AudioStatus),
+          ];
         },
       });
     } catch (error) {
@@ -306,7 +372,7 @@ export async function runTranscriptionJob(deps: TranscriptionJobDeps, payload: T
       throw error;
     }
     facts.committed = true;
-    log('transcription done', { ...logFields(), writing_level: facts.level, suggestion: suggestion !== null, puts: puts.length, guard: facts.guard, fallback: facts.fallback, not_a_reading: facts.notAReading });
+    log('transcription done', { ...logFields(), writing_level: facts.level, suggestion: suggestion !== null, puts, guard: facts.guard, fallback: facts.fallback, not_a_reading: facts.notAReading, speech_reused: facts.speechReused });
   } catch (error) {
     if (facts.committed) {
       logError('transcription done, logging failed', { ...logFields(), error: errorText(error) });

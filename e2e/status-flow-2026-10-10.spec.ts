@@ -181,7 +181,7 @@ for (const viewport of WIDTHS) {
     await expect(complete).toHaveAccessibleDescription(`Concluir dados do relatório: falta ${gaps}`);
 
     // Decision 1: a Dados do relatório edit keeps Rascunho and says nothing about the status.
-    const info = page.getByLabel('Informações adicionais');
+    const info = page.getByRole('textbox', { name: 'Informações adicionais' });
     await info.click();
     await info.pressSequentially('Parada de 12 horas');
     await page.keyboard.press('Tab');

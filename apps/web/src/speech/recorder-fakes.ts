@@ -41,7 +41,7 @@ export interface FakeRecorderWorld {
   asked: () => number;
 }
 
-export function fakeRecorderWorld(options: { refuse?: string; mime?: string } = {}): FakeRecorderWorld {
+export function fakeRecorderWorld(options: { refuse?: string; mime?: string; /** e31f: the MediaRecorder throws at stop. */ stopThrows?: boolean } = {}): FakeRecorderWorld {
   let now = 0;
   let frame = 0;
   let source: SampleSource = silence;
@@ -85,6 +85,7 @@ export function fakeRecorderWorld(options: { refuse?: string; mime?: string } = 
       this.state = 'recording';
     }
     stop() {
+      if (options.stopThrows === true) throw new Error('the recorder failed at stop');
       this.state = 'inactive';
       queueMicrotask(() => {
         for (const listener of this.listeners.dataavailable ?? []) listener({ data: new Blob(['opus-bytes'], { type: this.mimeType }) });
