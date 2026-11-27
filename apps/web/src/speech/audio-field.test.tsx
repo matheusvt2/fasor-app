@@ -71,11 +71,16 @@ describe('31.3-WEB-005 the Audio button', () => {
     const { container, rerender } = render(<Harness world={fakeRecorderWorld()} commit={vi.fn()}><AudioField target={ITEM} label="observação do item 8" text="" /></Harness>);
     const button = screen.getByRole('button', { name: 'Gravar áudio: observação do item 8' });
     expect(button).toHaveAttribute('aria-pressed', 'false');
-    expect(container.querySelector('.audio-tools > .audio-rec > .audio-btn')).toBe(button);
+    // Story 31.10: on a prose field the button is the field bar's audio control, Text-button-shaped with its word.
+    expect(container.querySelector('.field-tray > .field-bar > .audio-rec > .audio-btn')).toBe(button);
+    expect(button.querySelector('.audio-glyph .ico-mic')).not.toBeNull();
+    expect(button.querySelector('.audio-word')).toHaveTextContent('Gravar áudio');
+    expect(button.querySelector('.audio-stop-word')).toHaveTextContent('Parar');
     expect(container.querySelectorAll('.audio-meter i')).toHaveLength(5);
     rerender(<Harness world={null} commit={vi.fn()}><AudioField target={ITEM} label="observação do item 8" text="" /></Harness>);
     expect(container.querySelector('.audio-btn')).toBeNull();
-    expect(container.querySelector('.audio-tools')).toBeNull();
+    // A bar with no control is not drawn.
+    expect(container.querySelector('.field-tray')).toBeNull();
     rerender(<AiFeaturesContext value={false}><Harness world={fakeRecorderWorld()} commit={vi.fn()}><AudioField target={ITEM} label="observação do item 8" text="" /></Harness></AiFeaturesContext>);
     expect(container.querySelector('.audio-btn')).toBeNull();
   });

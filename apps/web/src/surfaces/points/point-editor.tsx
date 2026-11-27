@@ -40,7 +40,7 @@ import { useDraftAutosave } from '../../state/draft-autosave.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
-import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioField } from '../../speech/audio-field.tsx';
 import { PhotoRefTile } from './photo-ref-tile.tsx';
 import {
   actionValue,
@@ -702,7 +702,6 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           <span className="field-label" id={textLabelId}>
             {t.textLabel}
           </span>
-          <AudioButton target={audioTarget} label={t.audioField} disabledReason={liveRow === null ? t.audioNeedsPoint : null} />
         </div>
         {findings.length === 0 ? null : (
           <>
@@ -719,9 +718,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           </>
         )}
         <div {...area.areaProps} className="observation-field poa-text-area" aria-labelledby={textLabelId} aria-describedby={helperId} />
+        {/* Story 31.10: the field bar inside the field's box. Story 31.9: the AI control rewrites the stored point's text, so a point not saved yet has none. */}
+        <AudioField target={audioTarget} text={text} label={t.audioField} disabledReason={liveRow === null ? t.audioNeedsPoint : null} ai={liveRow !== null} />
         <CharCount length={text.length} cap={POINT_TEXT_CAP} />
-        {/* Story 31.9: the AI control rewrites the stored point's text, so a point not saved yet has none. */}
-        <AudioFieldLines target={audioTarget} text={text} label={t.audioField} ai={liveRow !== null} />
         <span className="helper" id={helperId}>
           {t.textHelper}
         </span>

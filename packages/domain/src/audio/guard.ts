@@ -199,6 +199,50 @@ export function resultWordsOf(text: string): Set<string> {
   return found;
 }
 
+/**
+ * Story 31.10: which words of a text (split on spacing, punctuation kept) are values the guard keeps:
+ * a written number (signed, or with its unit glued), the unit right after one (one word or two), or
+ * a TAG. The AI control's comparison never marks them as changed (`aiRewriteDiff`), since a proposal
+ * that passed the guard holds the same ones. A spoken number is a word like any other here.
+ */
+export function guardedWordFlags(words: readonly string[]): boolean[] {
+  const flags = words.map(() => false);
+  let afterNumber = false;
+  for (let i = 0; i < words.length; i++) {
+    const bare = words[i]!.replace(EDGE, '');
+    const unsigned = bare.replace(SIGNED, '');
+    if (bare !== '' && (DIGITS.test(unsigned) || GLUED.test(unsigned))) {
+      flags[i] = true;
+      // A unit glued to the number ("13,8kV") is its unit; the next word is a word, as the guard reads it.
+      const glued = GLUED.exec(unsigned);
+      afterNumber = glued === null || unitOf(glued[2]!) === null;
+      continue;
+    }
+    if (TAG.test(bare) && /\d/.test(bare)) {
+      flags[i] = true;
+      afterNumber = false;
+      continue;
+    }
+    if (afterNumber && bare !== '') {
+      const next = i + 1 < words.length ? words[i + 1]!.replace(EDGE, '') : '';
+      if (next !== '' && unitOf(bare, next) !== null) {
+        flags[i] = true;
+        flags[i + 1] = true;
+        i += 1;
+        afterNumber = false;
+        continue;
+      }
+      if (unitOf(bare) !== null) {
+        flags[i] = true;
+        afterNumber = false;
+        continue;
+      }
+    }
+    afterNumber = false;
+  }
+  return flags;
+}
+
 /** The numbers, units, TAGs and result words a text holds. */
 function scan(text: string): Found {
   const found: Found = { numbers: new Set(), units: new Set(), tags: new Set(), results: resultWordsOf(text), measures: [] };

@@ -66,9 +66,16 @@ export type AiWriteRequest = z.infer<typeof aiWriteRequestSchema>;
  * company's daily ceiling of AI control taps `429 quota_exceeded`, no model called.
  */
 export const aiWriteResponseSchema = z.discriminatedUnion('outcome', [
-  z.object({ outcome: z.literal('written'), source: z.string(), text: z.string().min(1) }),
-  z.object({ outcome: z.literal('refused'), reason: z.enum(['guard', 'failed']) }),
+  z.object({ outcome: z.literal('written'), source: z.string(), text: z.string().min(1), run_id: z.string().optional() }),
+  z.object({ outcome: z.literal('refused'), reason: z.enum(['guard', 'failed']), guard_kinds: z.array(z.enum(['number', 'unit', 'tag', 'result'])).optional(), run_id: z.string().optional() }),
 ]);
+/*
+ * Story 31.10 (additive, no contract number): `guard_kinds` names the kinds the guard refused
+ * (`GuardKind`: never a value of the text, the run row keeps the full reason) so the device says
+ * why; `run_id` is the id of the call's `transcription_runs` row, which the device names when it
+ * writes the text (`meta.ai_run_id`) or reports what it did with a refused proposal (Epic 32). Both
+ * are optional, so a device on the older build reads the answer as before.
+ */
 export type AiWriteResponse = z.infer<typeof aiWriteResponseSchema>;
 
 /** What the speech step is given: the audio's bytes and where they are stored (Amazon Transcribe reads the object). */

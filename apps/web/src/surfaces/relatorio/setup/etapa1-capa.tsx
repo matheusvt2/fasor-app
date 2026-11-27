@@ -6,7 +6,7 @@ import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { commitFilePick, useAttachedFile } from '../../../db/file-commit.ts';
 import { newId } from '../../../ids.ts';
-import { AudioButton, AudioFieldLines } from '../../../speech/audio-field.tsx';
+import { AudioField } from '../../../speech/audio-field.tsx';
 import { useSession } from '../../../state/session.tsx';
 import { useServicePeriod, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
 
@@ -110,7 +110,6 @@ export function Etapa1Capa({
               <label className="field-label" htmlFor={additionalInfoId}>
                 {t.additionalInfoLabel}
               </label>
-              <AudioButton target={ADDITIONAL_INFO_AUDIO} label={t.audioAdditionalInfo} />
             </div>
             {/* Story 27.12 (F16): long text gets a text area of the mock's textarea class
                 (`components.css` `.observation-field`); the mock draws a one-line `.input`. */}
@@ -122,8 +121,9 @@ export function Etapa1Capa({
               onChange={(event) => additionalInfo.change(event.target.value)}
               onBlur={additionalInfo.blur}
             />
+            {/* Story 31.10: the field bar inside the field's box; the count follows it. */}
+            <AudioField target={ADDITIONAL_INFO_AUDIO} text={additionalInfo.text} label={t.audioAdditionalInfo} />
             <CharCount length={additionalInfo.text.length} cap={ADDITIONAL_INFO_CAP} />
-            <AudioFieldLines target={ADDITIONAL_INFO_AUDIO} text={additionalInfo.text} label={t.audioAdditionalInfo} />
           </div>
           <UploadTile
             className="span-2"

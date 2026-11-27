@@ -12,6 +12,7 @@ import {
   type Clock,
   type ErrorCode,
   type ErrorResponse,
+  type GuardKind,
   type GuardReason,
   type NewId,
   type WritingProvider,
@@ -69,6 +70,11 @@ function guardText(reasons: readonly GuardReason[]): string {
   return reasons.length === 0 ? 'guard: empty text' : `guard: ${reasons.map((reason) => `${reason.problem} ${reason.kind} ${reason.value}`).join('; ')}`;
 }
 
+/** Story 31.10: the distinct kinds of the guard's reasons, in the guard's order (an empty answer names none). */
+function guardKinds(reasons: readonly GuardReason[]): GuardKind[] {
+  return [...new Set(reasons.map((reason) => reason.kind))];
+}
+
 function errorText(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 }
@@ -109,6 +115,8 @@ export function createAiWriteRoutes(db: Db, deps: AiWriteRouteDeps): Hono<AppEnv
     }
 
     const startedAt = deps.now().getTime();
+    // Story 31.10: the run row's id is made first, so the answer names it (`run_id`).
+    const runId = deps.newId();
     let result: WritingResult | null = null;
     let billed: ReturnType<typeof billedCallOf> = null;
     let error: string | null = null;
@@ -130,20 +138,20 @@ export function createAiWriteRoutes(db: Db, deps: AiWriteRouteDeps): Hono<AppEnv
       const verdict = aiRewriteVerdict(source, text);
       if (verdict.ok) {
         guard = 'passed';
-        answer = { outcome: 'written', source: source.text, text };
+        answer = { outcome: 'written', source: source.text, text, run_id: runId };
       } else {
         guard = 'failed';
         fallback = guardText(verdict.reasons);
-        answer = { outcome: 'refused', reason: 'guard' };
+        // Story 31.10: the kinds the guard named, never a value of the text.
+        answer = { outcome: 'refused', reason: 'guard', guard_kinds: guardKinds(verdict.reasons), run_id: runId };
       }
     } catch (caught) {
       billed = billedCallOf(caught);
       error = errorText(caught);
       fallback = `writing_failed: ${error}`;
-      answer = { outcome: 'refused', reason: 'failed' };
+      answer = { outcome: 'refused', reason: 'failed', run_id: runId };
     }
 
-    const runId = deps.newId();
     const usage = result?.usage ?? billed?.usage ?? null;
     const fields = { company_id: session.companyId, relatorio_id: relatorioId, run_id: runId, target: target.type, outcome: answer.outcome };
     try {

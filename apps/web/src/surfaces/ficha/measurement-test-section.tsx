@@ -34,7 +34,7 @@ import { newId } from '../../ids.ts';
 import { wrapsOnPhone } from './configuracao-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { ReadOnlyField, SheetField, useTypedText } from './ficha-fields.tsx';
-import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioField } from '../../speech/audio-field.tsx';
 import { APPLIED_SECTION_CLASS, AppliedBand, NotApplicableTest } from './applicability-band.tsx';
 import { addedRowNameOp, addedRowRemoveOp, conclusionOp, measurementCellOp, measurementChoiceCellOp, testValueOp } from './ficha-ops.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
@@ -454,7 +454,6 @@ function TextTestValue({ api, testKey, value, readOnly }: { api: FichaApi; testK
         <label className="field-label" htmlFor={fieldId}>
           {value.label}
         </label>
-        <AudioButton target={audio} label={t.audioField} />
       </div>
       <textarea
         id={fieldId}
@@ -465,7 +464,8 @@ function TextTestValue({ api, testKey, value, readOnly }: { api: FichaApi; testK
         onChange={(event) => typed.change(event.target.value)}
         onBlur={() => typed.blur()}
       />
-      <AudioFieldLines target={audio} text={typed.text} label={t.audioField} />
+      {/* Story 31.10: the field bar inside the field's box. */}
+      <AudioField target={audio} text={typed.text} label={t.audioField} />
     </div>
   );
 }

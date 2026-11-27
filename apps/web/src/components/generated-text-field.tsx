@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ui } from '../copy/ui.ts';
 import { useFieldCommit } from '../input/use-field-commit.ts';
 import { useDraftSource, type PersistOptions } from '../state/drafts.tsx';
@@ -45,6 +45,11 @@ export interface GeneratedTextFieldProps {
    * Without it a typed text is committed on blur only (the Etapa 6 parecer summary).
    */
   commitWhileTyping?: boolean;
+  /**
+   * Story 31.10: the field bar (`AudioField`), drawn right under the text, inside the field's box, so the criteria
+   * line, the actions and the helpers follow it in the order they have.
+   */
+  tray?: ReactNode;
 }
 
 /**
@@ -74,6 +79,7 @@ export function GeneratedTextField({
   maxLength,
   presentation = 'field',
   commitWhileTyping = false,
+  tray,
 }: GeneratedTextFieldProps) {
   const t = ui.generatedText;
   const labelId = useId();
@@ -225,6 +231,8 @@ export function GeneratedTextField({
           {text}
         </div>
       )}
+      {/* Story 31.10: the field bar (the audio and AI controls) right under the text, before the field's own lines. */}
+      {tray}
       {typing ? <CharCount length={value.length} cap={maxLength ?? null} /> : null}
       {suggested && !typing ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
       {stale ? null : criteriaLine}

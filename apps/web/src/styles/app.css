@@ -1579,3 +1579,11 @@ button.pp-mod-toggle { cursor: pointer; }
    ("Tentar de novo", "Dispensar") on one wrapping row, spaced like `.audio-pending` itself; the mock
    `62-audio-estados.html` (g) draws them (amended in the same change). */
 .audio-held, .audio-held-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+
+/* Story 31.10 (Matheus, 2026-11-27, "Opcao A"): the field bar's `.frame-phone` rules of components.css
+   "Field bar", translated as the mock-container convention says, declarations verbatim:
+   `.frame-phone .ai-compare` and `.frame-phone .field-bar > .audio-rec, … > .ai-write, … > .btn`. */
+@media (max-width: 767.98px) {
+  .ai-compare { grid-template-columns: 1fr; }
+  .field-bar > .audio-rec, .field-bar > .ai-write, .field-bar > .btn { flex-basis: 100%; margin-left: 0; }
+}

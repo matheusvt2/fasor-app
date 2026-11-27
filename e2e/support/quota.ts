@@ -8,7 +8,7 @@ import { createDb } from '../../apps/api/src/db/client.ts';
  */
 
 /** Puts the company's count of `kind` for today (`America/Sao_Paulo`) at `count`. */
-export async function setDailyUsage(companyId: string, kind: 'reading' | 'audit', count: number): Promise<void> {
+export async function setDailyUsage(companyId: string, kind: 'reading' | 'audit' | 'ai_write', count: number): Promise<void> {
   const { sql } = createDb(loadConfig().DATABASE_URL);
   try {
     await sql`
