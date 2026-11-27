@@ -7,8 +7,7 @@
     "start": "tsx src/main.ts",
     "migrate": "tsx src/db/migrate-cli.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run",
-    "test:fast": "vitest run -t '^(?!.*@slow)'"
+    "test": "vitest run"
   },
   "dependencies": {
     "@app/domain": "workspace:*",

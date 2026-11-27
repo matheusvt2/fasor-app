@@ -1,4 +1,10 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
+import { PARALLEL_SETUP_FILE, PARALLEL_WORKERS, PRINT_FILES, SERIAL_FILES } from './src/test-lanes.ts';
+
+const serial = SERIAL_FILES.map((entry) => entry.file);
+const print = PRINT_FILES.map((entry) => entry.file);
+/** `API_PARALLEL_WORKERS=N` sizes the parallel lane for one run (measurements, a loaded machine); unset, PARALLEL_WORKERS. */
+const parallelWorkers = Number(process.env.API_PARALLEL_WORKERS) || PARALLEL_WORKERS;
 
 export default defineConfig({
   test: {
@@ -7,16 +13,47 @@ export default defineConfig({
     // load the same way the root and web projects did; 15 s gives headroom without masking a
     // real hang. Mirrors vitest.config.ts (root) and apps/web/vite.config.ts.
     testTimeout: 15_000,
-    // `apps/api/src/db/seed.ts`'s own doc comment on `resetTestCompanyData` warns it must
-    // never run while other `*.integration.test.ts` files are seeding the same TEST_SEED
-    // companies in their own `beforeAll`, "since a reset there would wipe rows a neighbouring
-    // file had just written." The new `test-reset.integration.test.ts` (A6, F-DUP-3) calls it
-    // directly from inside this same suite, so file-level parallelism has to be off here, or
-    // that exact race becomes live. The whole suite runs in under 10s, so serializing costs
-    // nothing against the 15-minute gate budget.
-    fileParallelism: false,
+    // Chore T4 (2026-11-26): the suite used to run one file at a time (`fileParallelism: false`),
+    // because the files shared the two TEST_SEED companies and `resetTestCompanyData` or a re-seed
+    // in one file wiped rows or revoked sessions another file was using. It had grown to 678 s
+    // (166 files, gate of batch e31d). It now runs in three lanes (`src/test-lanes.ts`), one after
+    // the other: `api` on PARALLEL_WORKERS workers, each worker on its own TEST_SEED pair (the
+    // setup file below), so a reset or a re-seed in one worker never reaches another's companies;
+    // then `api-serial` and `api-print`, one file at a time, for the files that share the api's
+    // document queue, a fixed-id fixture or the legacy companies. `scripts/api-suite.ts` runs them.
     // TST-V1 (review 2026-10-08): a focused `it.only` fails the run (Vitest allows it
     // outside CI by default).
     allowOnly: false,
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'api',
+          include: ['src/**/*.test.ts'],
+          exclude: [...configDefaults.exclude, ...serial, ...print],
+          setupFiles: [PARALLEL_SETUP_FILE],
+          maxWorkers: parallelWorkers,
+          sequence: { groupOrder: 0 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'api-serial',
+          include: serial,
+          fileParallelism: false,
+          sequence: { groupOrder: 1 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'api-print',
+          include: print,
+          fileParallelism: false,
+          sequence: { groupOrder: 2 },
+        },
+      },
+    ],
   },
 });
