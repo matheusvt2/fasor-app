@@ -38,7 +38,8 @@ import { syncNowAndReturn } from './support/sync.ts';
  * above the Sticky action bar (the e23f pitfall); at 390 px the rows are cards. The last tap,
  * holding readings, is then dropped from TAPS: its row stays after the plate rows with its
  * readings, flagged "Fora da placa", still judged and never missing, and the DOCX, through its
- * download, prints every row. Every derived word and number is the kernel's, from the device's own
+ * download, prints the tested taps and that row (fix fix-tr-untested-taps, Bruno 2026-11-26: an
+ * untested tap is left out; was "prints every row"). Every derived word and number is the kernel's, from the device's own
  * block row (E12-A6); the readings are invented. It generates through the one queue and
  * LibreOffice of the api, so the file is in the serial group (`e2e/support/groups.ts`).
  */
@@ -169,7 +170,7 @@ async function generateRevision(page: Page, n: number): Promise<void> {
   await expect(ready).toBeVisible();
 }
 
-test('@p0 23.8-E2E-001 five taps with the third in service: five rows in plate order, 1, 3 and 5 marked, each VAL CALCULADO from its tap; readings on 1, 3 and 5 complete the test, the others "Não medido"; a dropped tap keeps its row and reading flagged "Fora da placa"; the DOCX prints every row', async ({ page }) => {
+test('@p0 23.8-E2E-001 five taps with the third in service: five rows in plate order, 1, 3 and 5 marked, each VAL CALCULADO from its tap; readings on 1, 3 and 5 complete the test, the others "Não medido"; a dropped tap keeps its row and reading flagged "Fora da placa"; the DOCX prints the tested taps and that row', async ({ page }) => {
   test.setTimeout(420_000);
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -281,7 +282,8 @@ test('@p0 23.8-E2E-001 five taps with the third in service: five rows in plate o
   await expect.poll(() => stepMissing(page, 'Ensaios')).toBe(before - 9 + 3);
   expect((await blockRow(page, blockId)).sheet.test[TEST_KEY]!.cells['11400']!['3']!.value).toEqual(measured('51.98', null));
 
-  // Synced, the DOCX (through its download) prints every row: the plate's by position, the dropped one with "-".
+  // Synced, the DOCX (through its download) prints the tested taps by position and the dropped one with "-".
+  // Fix fix-tr-untested-taps (Bruno 2026-11-26): tap 2 (unmarked) and tap 4 (the new extreme, still empty) are left out.
   await syncNowAndReturn(page);
   await expect.poll(async () => [...new Set((await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}`)).map((row) => row.status))]).toEqual(['acked']);
   await setParecer(page, relatorioId);
@@ -294,13 +296,13 @@ test('@p0 23.8-E2E-001 five taps with the third in service: five rows in plate o
   expect(ttr, 'the DOCX prints the TTR').toBeDefined();
   const header = ttr!.findIndex((row) => row[0] === 'TAP Nº');
   const printed = ttr!.slice(header + 1).filter((row) => /^(\d+|-)$/.test(row[0] ?? ''));
-  expect(printed.map((row) => row[0])).toEqual(['1', '2', '3', '4', '-']);
-  expect(printed.map((row) => row[1])).toEqual(['13,8 kV', '13,2 kV', '12,6 kV', '12 kV', '11,4 kV']);
+  expect(printed.map((row) => row[0])).toEqual(['1', '3', '-']);
+  expect(printed.map((row) => row[1])).toEqual(['13,8 kV', '12,6 kV', '11,4 kV']);
   // TAP Nº, V PRIMÁRIO, V SECUNDÁRIO, VAL CALCULADO, the three captures, CONDIÇÕES.
   expect(printed[0]!.slice(3, 7)).toEqual(['62,90', '62,95', '62,88', '62,93']);
-  // An unmarked tap with nothing measured prints "-" (the conservative reading, open with Bruno).
-  expect(printed[1]!.slice(4)).toEqual(['-', '-', '-', '-']);
-  expect(printed[4]!.at(-1)).toBe('SATISFATÓRIO');
+  // An untested tap no longer prints (was: an unmarked tap with nothing measured printed "-", the conservative reading open with Bruno).
+  expect(printed.some((row) => row[1] === '13,2 kV' || row[1] === '12 kV')).toBe(false);
+  expect(printed[2]!.at(-1)).toBe('SATISFATÓRIO');
 });
 
 /** The ratio meter's synthetic display (34.512, no unit), which the api's `fake` reads through the TTR's default fixture. */

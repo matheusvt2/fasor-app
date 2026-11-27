@@ -293,6 +293,24 @@ export function isTapTable(rows: readonly { tap: EvaluatedTap | null }[]): boole
   return rows.some((row) => row.tap !== null);
 }
 
+/** Whether a tap row of the plate was tested: one of its typed cells holds anything (a reading, "Não medido", N/A, a limit). */
+function tapRowTested(row: { tap: EvaluatedTap | null; cells: readonly { role: 'capture' | 'input' | 'index'; state: string }[] }): boolean {
+  return row.cells.some((cell) => tapCellTyped(row, cell) && cell.state !== 'empty');
+}
+
+/**
+ * Fix fix-tr-untested-taps (Bruno 2026-11-26, "os tap dos TR ficam mostrando todos, mesmo os não ensaiados"): the rows
+ * of a table the relatório prints. On a tap table (the TTR from TAPS, seed v13 on) a tap of the plate whose typed cells
+ * are all empty, the row the sheet reads "Não medido" by itself, is left out, marked or not; the tested taps and the rows
+ * off the plate print in the table's order. When no tap of the plate was tested every row prints, as Story 23.8 printed
+ * them. Every other table, every v1 to v12 table and a table with TAPS empty print all their rows, as before. Print only:
+ * the sheet, the progress and the conclusion read the table's rows as they are.
+ */
+export function printedTapRows<R extends { tap: EvaluatedTap | null; cells: readonly { role: 'capture' | 'input' | 'index'; state: string }[] }>(rows: readonly R[]): R[] {
+  if (!isTapTable(rows) || !rows.some((row) => row.tap?.onPlate === true && tapRowTested(row))) return [...rows];
+  return rows.filter((row) => row.tap === null || !row.tap.onPlate || tapRowTested(row));
+}
+
 /** Fix batch e23g (R2-4): an unmarked tap of the plate: it requires nothing and is drawn muted (the mock's `tr.tap-optional`). */
 export function tapRowOptional(row: { tap: EvaluatedTap | null }): boolean {
   return row.tap !== null && row.tap.onPlate && !tapRowRequired(row);
