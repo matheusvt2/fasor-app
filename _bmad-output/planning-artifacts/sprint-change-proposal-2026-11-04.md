@@ -182,6 +182,25 @@ So a document test is about 28 % generation and 72 % UI work (sign-in 1.6 min, p
 - Two `pnpm test:e2e:full` runs on the branch under the host lock, each recorded in the PR with the `queue` and `solo` wall times, the whole run's wall time and the load line, against this baseline (serial 30.6 min, total 53.6 min).
 - A test red under the new lanes and green alone is fixed, or its spec goes back to `solo` with a dated `why`.
 
+### 4.5 Chore T4: the api suite in lanes, the print lane only where the print can change (added 2026-11-26)
+
+**Dev model:** opus · **Effort:** high
+
+Approved by Matheus on 2026-11-26 ("pode fazer 1 e 2 ja"). Spec: `_bmad-output/implementation-artifacts/spec-t4-api-suite-speed.md`, branch `t4-api-suite-speed`. A measurement of the unit suite's transform cache was added the same day at his request ("vamos testar o cache"), measuring only, with no change to the unit suite's config or to test isolation in `apps/web` ("nao vamos fazer nada com vazamento").
+
+**Why.** `pnpm test:api` ran one file at a time; its config comment still said the suite took under 10 s. The gate of batch e31d measured 678 s (166 files, 1264 tests), and the same mode on the T4 stack 733 s. Twelve files were half of it; `layout-lock.integration.test.ts` alone took 76 s and re-rendered every frozen seed version on every batch gate.
+
+**Change.**
+
+1. **Lanes.** Four Vitest projects (`apps/api/src/test-lanes.ts`, each listed file with its reason), run by `scripts/api-suite.ts` in two phases: first `api-solo` (the generation timing, the legacy companies, the two boot upgrades) with nothing beside it, then the parallel lane (`api`, four workers) beside a `queue` run (`api-serial`, the document queue and the fixed-id fixture, then `api-print`, one file at a time). Each parallel worker seeds its own pair of test companies (`testSeedPair`, the e2e side's per-worker pair applied to the api suite, slot `k` on pair `k + 1`); the queue and solo runs keep the fixed pair.
+2. **Print lane only where the print can change.** `pnpm test:api` and `pnpm verify` always run every lane. The batch gate runs `pnpm test:api:batch` with the batch's changed files (`API_CHANGED_FILES`, filled on the host from git), which leaves the print lane out only when no changed path is under `PRINT_TRIGGERS` (the render code and goldens, the whole kernel, the api modules the print reaches, the image, the manifests, the lane machinery); an unset or empty list runs it.
+3. **Guards.** `scripts/api-suite.test.ts` fails a new test file that reaches a shared resource and sits in the parallel lane, a file in two lanes, a missing reason, and a print dependency outside `PRINT_TRIGGERS` (the print's import closure, computed from the files).
+4. **Isolation fixes.** Three leaks surfaced once files ran beside each other or in a new order, and were fixed in the tests: a global `seq` adjacency in `standard-template.integration.test.ts`, the "Celtta" manufacturer `suggestion.integration.test.ts` taught its company and never removed (the baseline run went red on it too), and `pull-stream.integration.test.ts` holding the small fixture's fixed relatório id (now the company's copy).
+
+**Result** (spec § Measurements): on the 8-vCPU podman VM, `pnpm test:api` went from 733 s (the old one-file mode on this machine; 678 s on the e31d gate) to 466 to 533 s in four green runs (1268 tests), and the batch form without the print lane to 296 s. The full form's critical path is the api's one LibreOffice (the queue run, 420 to 490 s beside the parallel lane); running the print lane in a third run beside it was measured slower on this CPU-bound machine and reverted. The unit transform cache measured 334 s uncached, 309 s filling, 286 s reading (measurement only).
+
+**Definition of done:** the spec's Verification commands green with their output in the PR; three consecutive green `test:api` runs with their wall times; AGENTS.md "Running and verifying", `docs/kbs/workflow/merge-gate.md`, `docs/kbs/code/monorepo.md` and `docs/kbs/log.md` updated.
+
 ## 5. Implementation handoff
 
 **Scope: Minor.** The Developer agent implements directly. No backlog reorganization and no PM or Architect replan.
@@ -192,6 +211,7 @@ So a document test is about 28 % generation and 72 % UI work (sign-in 1.6 min, p
 | 4.2 Generation spike | Developer or TEA (opus · high) | Findings note written; a costed story proposal only if worth it |
 | 4.3 Decision-of-record line | Coordinator | The line added to `AGENTS.md` (2026-11-04, a one-off; no Policy amendment) |
 | 4.4 Chore T3 (added 2026-11-09) | Developer (`bmad-build-auto`, opus · high) | AC 1 to 7 met, two `test:e2e:full` runs recorded in the PR |
+| 4.5 Chore T4 (added 2026-11-26) | Developer (batch agent, opus · high) | Lanes and guards in, three green `test:api` runs recorded in the PR |
 
 **Success criteria.**
 - No spec waits for the sync tick again; the guard proves it in `test:unit`.
