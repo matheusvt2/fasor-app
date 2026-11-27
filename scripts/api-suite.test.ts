@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PARALLEL_SETUP_FILE, PARALLEL_WORKERS, PRINT_FILES, PRINT_PAIR, SERIAL_FILES, SOLO_FILES } from '../apps/api/src/test-lanes.ts';
-import { TEST_PAIR_ENV, testSeedPair } from '../apps/api/src/db/test-seed.ts';
+import { PARALLEL_SETUP_FILE, PARALLEL_WORKERS, PRINT_FILES, SERIAL_FILES, SOLO_FILES } from '../apps/api/src/test-lanes.ts';
+import { TEST_PAIR_ENV } from '../apps/api/src/db/test-seed.ts';
 import {
   API_PROJECTS,
   importClosure,
@@ -144,22 +144,18 @@ describe('the api suite lanes (chore T4)', () => {
 });
 
 describe('scripts/api-suite.ts phases (chore T4)', () => {
-  it('runs the parallel lane beside the serial run and the print run (on its own pair), then the solo lane alone', () => {
+  it('runs the parallel lane beside the queue run (serial, then print), then the solo lane alone', () => {
     const full = suitePlan(false, { run: false, reason: '' });
     expect(full).toEqual([
       [
         { name: 'parallel', projects: ['api'] },
-        { name: 'serial', projects: ['api-serial'] },
-        { name: 'print', projects: ['api-print'], env: { [TEST_PAIR_ENV]: String(PRINT_PAIR) } },
+        { name: 'queue', projects: ['api-serial', 'api-print'] },
       ],
       [{ name: 'solo', projects: ['api-solo'] }],
     ]);
     expect(suitePlan(true, { run: true, reason: '' })).toEqual(full);
-    expect(suitePlan(true, { run: false, reason: '' })[0]?.map((run) => run.name)).toEqual(['parallel', 'serial']);
+    expect(suitePlan(true, { run: false, reason: '' })[0]?.[1]).toEqual({ name: 'queue', projects: ['api-serial'] });
     expect(full.flat().flatMap((run) => run.projects).sort()).toEqual([...API_PROJECTS].sort());
-    // The print pair is none of the parallel workers' (slot + 1) and not the serial run's fixed pair.
-    expect(PRINT_PAIR).toBeGreaterThan(PARALLEL_WORKERS + 1);
-    expect(testSeedPair(PRINT_PAIR).companies[0].companyId).not.toBe(testSeedPair(1).companies[0].companyId);
   });
 
   it('starts the runs of a phase together, runs every phase whatever the one before gave, and fails when any run failed', async () => {
@@ -167,17 +163,16 @@ describe('scripts/api-suite.ts phases (chore T4)', () => {
     let clock = 0;
     const runner = async (run: SuiteRun, alone: boolean) => {
       log.push(`start ${run.name}${alone ? ' alone' : ''}`);
-      await new Promise((done) => setTimeout(done, run.name === 'parallel' ? 10 : run.name === 'print' ? 5 : 1));
+      await new Promise((done) => setTimeout(done, run.name === 'parallel' ? 5 : 1));
       clock += 10;
       log.push(`end ${run.name}`);
-      return { exitCode: run.name === 'serial' ? 1 : 0, output: ` Test Files  3 passed (3)\n` };
+      return { exitCode: run.name === 'queue' ? 1 : 0, output: ` Test Files  3 passed (3)\n` };
     };
     const results = await runPlan(suitePlan(false, { run: true, reason: '' }), runner, () => {}, () => clock);
-    expect(log).toEqual(['start parallel', 'start serial', 'start print', 'end serial', 'end print', 'end parallel', 'start solo alone', 'end solo']);
+    expect(log).toEqual(['start parallel', 'start queue', 'end queue', 'end parallel', 'start solo alone', 'end solo']);
     expect(results.map((result) => [result.name, result.exitCode, result.files])).toEqual([
       ['parallel', 0, 3],
-      ['serial', 1, 3],
-      ['print', 0, 3],
+      ['queue', 1, 3],
       ['solo', 0, 3],
     ]);
     expect(suiteExit(results)).toBe(1);
@@ -192,7 +187,7 @@ describe('scripts/api-suite.ts phases (chore T4)', () => {
   });
 
   it('passes the projects, the @slow filter and --passWithNoTests, then the caller\'s arguments, and ends with one line per run', () => {
-    expect(vitestArgs(['api-serial'], ['src/x.test.ts'])).toEqual(['exec', 'vitest', 'run', '--project', 'api-serial', '-t', '^(?!.*@slow)', '--passWithNoTests', 'src/x.test.ts']);
+    expect(vitestArgs(['api-serial', 'api-print'], ['src/x.test.ts'])).toEqual(['exec', 'vitest', 'run', '--project', 'api-serial', '--project', 'api-print', '-t', '^(?!.*@slow)', '--passWithNoTests', 'src/x.test.ts']);
     expect(summaryLines([{ name: 'parallel', exitCode: 0, durationMs: 1500, files: 130 }], 2000)).toEqual([
       '[test:api]   parallel  passed            130 files  1.5 s',
       '[test:api]   total     2.0 s',
