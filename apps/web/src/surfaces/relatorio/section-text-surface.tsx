@@ -1,4 +1,5 @@
 import {
+  audioRichFieldText,
   blockFieldPath,
   defaultSectionText,
   editedSectionTextConfig,
@@ -17,7 +18,7 @@ import {
   type TemplateRow,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Button, Chip, ReadOnlyBanner, TextButton } from '../../components/index.ts';
 import { useFillAccess } from '../../state/permissions.tsx';
@@ -26,6 +27,7 @@ import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { blockRowsOf, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
+import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { RichTextField } from '../../input/rich-text-field.tsx';
 import { useRichTextArea } from '../../input/use-rich-text-area.ts';
@@ -145,6 +147,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
     onChange: (text) => {
       // Typing over a restore takes its "Desfazer" away at once: an undo now would put the
       // old text back over what is being typed.
+      shownText.current = text;
       edits.retire();
       committer.change(text);
     },
@@ -156,6 +159,23 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
   const { insert, setText } = editor;
   const areaRef = editor.areaProps.ref;
 
+  // Story 31.7: the area is uncontrolled, so a text that arrives from an audio (the server's put, a new paragraph at the
+  // end) is drawn here while nobody types in it; what this editor itself last reported or set never redraws.
+  const shownText = useRef(initialText);
+  const seenStored = useRef(own ?? seeded ?? '');
+  const storedText = own ?? seeded ?? '';
+  const focusedNow = useRef(focused);
+  focusedNow.current = focused;
+  useEffect(() => {
+    // Only a change of the stored text counts (never the focus moving), and never while the user is typing here.
+    if (storedText === seenStored.current) return;
+    seenStored.current = storedText;
+    if (storedText === shownText.current || focusedNow.current) return;
+    shownText.current = storedText;
+    setText(storedText);
+  }, [storedText, setText]);
+  const audio = useMemo(() => ({ type: 'section' as const, block_id: block.id }), [block.id]);
+
   async function onRestore(): Promise<void> {
     if (!canRestore || own === null) return;
     const editedText = own;
@@ -165,10 +185,12 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
     // The area is uncontrolled (Story 11.4): a restore/undo changes what is shown for a
     // reason other than typing in it, so the visible text is set here rather than relying
     // on a remount, which would also fire on every ordinary autosave (`own` changes then too).
+    shownText.current = templateText ?? seeded ?? '';
     setText(templateText ?? seeded ?? '');
     edits.undoable(t.restored, batch, {
       label: t.undo,
       onUndo: () => {
+        shownText.current = editedText;
         setText(editedText);
         // E3-A8: the toast that held focus is about to close; without this the undone
         // edit would leave focus stranded on `<body>`. The text area is what the undo
@@ -205,10 +227,14 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
       <div className="secao-content">
         {canFill ? null : <ReadOnlyBanner reason={fillReason} />}
         <div>
-          <p className="field-label" id="secao-lbl">
-            {t.fieldLabel}
-          </p>
+          <div className="section-head">
+            <p className="field-label" id="secao-lbl">
+              {t.fieldLabel}
+            </p>
+            {canFill ? <AudioButton target={audio} label={t.audioField} /> : null}
+          </div>
           <RichTextField editor={editor} focused={focused} labelledBy="secao-lbl" areaClassName="secao-text" readOnly={!canFill} />
+          <AudioFieldLines target={audio} text={audioRichFieldText(storedText)} label={t.audioField} readOnly={!canFill} />
         </div>
 
         {canFill ? (

@@ -13886,6 +13886,8 @@ So that voice is the same everywhere.
 
 **Definition of Done:** web tests per field; E2E "31.7-E2E-001" (`@p0`, audio on the conclusion text adds to the composed text) and "-002" (section text paragraph); goldens byte-equal.
 
+*(Outcome, 2026-11-26, batch e31d: built, no contract change. The mic, status line, mark and play sit on: the utility's "Não ensaiado" justification (the stored mark's note; the dialog that picks the reason has no stored field yet, so no mic there), "Texto da conclusão" (an audio adds to the composed text and the field becomes the edited text), the section text surface (a new paragraph; the area redraws when the stored text moves while nobody types in it), the capa's "Informações adicionais", the next intervention's justification and the parecer summary (once a verdict is tapped). Kernel: `audioRichFieldText`; the Não ensaiado write adds to the utility's shown default when no note is stored. Narrowing, open to Matheus: the escopo `local` and exclusions and the additional items are not in the closed `audio_target` union, so they have no mic; a new target value would need a contract number. The deferred-work row of e31c is closed: `assignPhotoBatch` skips the caption of a photo whose caption moved since it was saved.)*
+
 ### Story 31.8: Amazon Transcribe in production
 
 **Dev model:** opus · **Effort:** medium · infra (Terraform) and api (the `transcribe` provider); the only story that touches AWS; batch e31e

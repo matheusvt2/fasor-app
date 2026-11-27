@@ -1,8 +1,9 @@
 import { hasNotTestedPoint, isUtilityNotTested, notTestedJustification, notTestedOffersPoint, notTestedPointText, notTestedReasonText, textCapOf, type BlockRow, type RelatorioSnapshot } from '@app/domain';
-import { useId, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { ConfirmDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { notTestedSynced } from '../../db/sync-store.ts';
+import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
 import { useSession } from '../../state/session.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { useTypedText } from './ficha-fields.tsx';
@@ -132,6 +133,8 @@ function UtilityJustification({ api, block, tag }: { api: FichaApi; block: Pick<
     { entityId: block.id, field: 'concessionaria-justificativa' },
     { cap: TEXT_CAP },
   );
+  // Story 31.7: the justification's audio adds to the stored text (the mark's note), at the polish level.
+  const audio = useMemo(() => ({ type: 'sheet_field' as const, block_id: block.id, field: 'not_tested_text' as const }), [block.id]);
   return (
     <section className="section" aria-labelledby={headingId}>
       <div className="section-head">
@@ -154,9 +157,12 @@ function UtilityJustification({ api, block, tag }: { api: FichaApi; block: Pick<
           <span className="helper">{name.text.trim() === '' ? t.nameEmpty : t.nameTyped}</span>
         </div>
         <div className="field">
-          <label className="field-label" htmlFor={textId}>
-            {t.textLabel}
-          </label>
+          <div className="section-head">
+            <label className="field-label" htmlFor={textId}>
+              {t.textLabel}
+            </label>
+            <AudioButton target={audio} label={t.audioField} />
+          </div>
           <textarea
             id={textId}
             className="observation-field"
@@ -165,6 +171,7 @@ function UtilityJustification({ api, block, tag }: { api: FichaApi; block: Pick<
             onChange={(event) => text.change(event.target.value)}
             onBlur={() => text.blur()}
           />
+          <AudioFieldLines target={audio} text={text.text} label={t.audioField} />
           <span className="helper">{t.textHelper}</span>
         </div>
       </div>

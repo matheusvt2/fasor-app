@@ -13,6 +13,7 @@ import {
   appendAudioText,
   audioAutomaticCaptions,
   audioContextText,
+  audioRichFieldText,
   audioPermissionPath,
   audioProseWrite,
   audioQualityVerdict,
@@ -359,6 +360,61 @@ describe('31.1-UNIT-007 the write of a prose field: added after the text already
     expect(audioProseWrite(snapshot, { type: 'setup', field: 'parecer_text' }, 'x', opts)).toBeNull();
     // A sheet not marked Não ensaiado has no note to add to.
     expect(audioProseWrite(snapshot, { type: 'sheet_field', block_id: SECCIONADORA, field: 'not_tested_text' }, 'x', opts)).toBeNull();
+  });
+});
+
+describe('31.7-UNIT-001 the mic on the remaining prose fields', () => {
+  const opts = { now: new Date('2026-09-27T12:00:00Z'), registry: [] };
+
+  it('a section text takes the transcript as a new paragraph and keeps the formatting', () => {
+    const snapshot = small();
+    // The small fixture holds no section block: a section_2 block is made from a sheet row of it.
+    const section = { ...snapshot.blocks[0]!, id: '019966b0-0031-7000-8000-0000000000a1', block_type: 'section_2', equipment_id: null, config: { section_text: 'Texto **negrito**.\n- um\n- dois' } };
+    const withText = { ...snapshot, blocks: [...snapshot.blocks, section] } as unknown as RelatorioSnapshot;
+    const write = audioProseWrite(withText, { type: 'section', block_id: section!.id }, 'Frase falada.', opts);
+    expect(write!.puts).toHaveLength(1);
+    expect(write!.puts[0]!.path).toBe(`block/${section!.id}/config`);
+    expect((write!.puts[0]!.value as { section_text: string }).section_text).toBe('Texto **negrito**.\n- um\n- dois\n\nFrase falada.');
+  });
+
+  it('the setup texts and the parecer summary are added to, the parecer one marked edited', () => {
+    const snapshot = small();
+    const withSetup = { ...snapshot, relatorio: { ...snapshot.relatorio, setup: { ...snapshot.relatorio.setup, additional_info: 'Já havia texto.' } } };
+    expect(audioProseWrite(withSetup, { type: 'setup', field: 'additional_info' }, 'Mais um.', opts)).toEqual({
+      puts: [{ path: 'relatorio/setup/additional_info', value: 'Já havia texto.\n\nMais um.' }],
+    });
+    const withParecer = { ...snapshot, relatorio: { ...snapshot.relatorio, setup: { ...snapshot.relatorio.setup, parecer: { verdict: 'apto' as const, text: null, text_status: null, text_basis: null } } } };
+    const parecer = audioProseWrite(withParecer as never, { type: 'setup', field: 'parecer_text' }, 'Resumo falado.', opts);
+    expect(parecer!.puts[0]!.path).toBe('relatorio/setup/parecer');
+    expect(parecer!.puts[0]!.value).toMatchObject({ verdict: 'apto', text_status: 'edited' });
+    expect(String((parecer!.puts[0]!.value as { text: string }).text)).toMatch(/\n\nResumo falado\.$/);
+  });
+
+  it('the levels: the setup texts polish, the parecer and the sections report, the Não ensaiado note polish', () => {
+    expect(audioWritingLevel({ type: 'setup', field: 'additional_info' })).toBe('polish');
+    expect(audioWritingLevel({ type: 'setup', field: 'next_intervention_justification' })).toBe('polish');
+    expect(audioWritingLevel({ type: 'setup', field: 'parecer_text' })).toBe('report');
+    expect(audioWritingLevel({ type: 'section', block_id: BLOCK })).toBe('report');
+    expect(audioWritingLevel({ type: 'sheet_field', block_id: BLOCK, field: 'not_tested_text' })).toBe('polish');
+    expect(audioWritingLevel({ type: 'sheet_field', block_id: BLOCK, field: 'conclusion_text' })).toBe('report');
+  });
+
+  it('a note on a Não ensaiado sheet is added to; none stored and no utility default means the transcript alone', () => {
+    const snapshot = small();
+    const marked = (text: string | null) => ({
+      ...snapshot,
+      blocks: snapshot.blocks.map((row) => (row.id === SECCIONADORA ? { ...row, not_tested: { reason: 'outro', text, at: '2026-09-27T12:00:00.000Z' } } : row)),
+    });
+    const target = { type: 'sheet_field', block_id: SECCIONADORA, field: 'not_tested_text' } as const;
+    const added = audioProseWrite(marked('Cliente pediu.') as never, target, 'Sem desligamento.', opts);
+    expect(added!.puts[0]!.value).toMatchObject({ text: 'Cliente pediu.\n\nSem desligamento.' });
+    const alone = audioProseWrite(marked(null) as never, target, 'Sem desligamento.', opts);
+    expect(alone!.puts[0]!.value).toMatchObject({ text: 'Sem desligamento.' });
+  });
+
+  it('reads a rich field as plain lines for the mark', () => {
+    expect(audioRichFieldText('Texto **negrito**.\n- um\n\nFrase falada.')).toBe('Texto negrito.\num\nFrase falada.');
+    expect(audioRichFieldText(null)).toBe('');
   });
 });
 

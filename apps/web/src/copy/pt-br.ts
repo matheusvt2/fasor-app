@@ -1578,6 +1578,8 @@ export const copy = {
       nameEmpty: 'Digite o nome: ele completa o texto abaixo.',
       textLabel: 'Texto impresso na seção 9',
       textHelper: 'Texto padrão do motivo, editável. Se o caso for outro (medição desligada ou retirada da cabine), reescreva.',
+      // authored (Story 31.7, listed for Bruno): the field the Audio button of the justification names.
+      audioField: 'justificativa de não ensaiado',
     },
     // The Section stepper (`60-ficha.html` `.section-stepper`).
     stepperLabel: 'Seções da ficha — toque para ir à seção',
@@ -1884,6 +1886,8 @@ export const copy = {
       // `key-equipment-sheet-v09.html` suggested sheet observation helper (Story 12.4), verbatim.
       observationSuggestedHelper: 'Montada dos itens NC · confirmada com o texto da conclusão',
       textLabel: 'Texto da conclusão',
+      // authored (Story 31.7, listed for Bruno): the field the Audio button of the conclusion text names.
+      audioTextField: 'texto da conclusão',
       // `60-ficha.html` helper under the suggested text. F43 (UX pass 2026-10-22): `section` is the
       // kernel's `sectionRefText` for section 9 ("seção 5" by its Sumário position).
       // authored (F43, coordinator review): the absent forms.
@@ -1913,6 +1917,10 @@ export const copy = {
     // wording is a fixed pt-BR date list; this batch's dates are the kernel's `dateRangeText`).
     datesEcho: (text: string) => `Na capa: ${text}`,
     additionalInfoLabel: 'Informações adicionais',
+    // authored (Story 31.7, listed for Bruno): the fields the Audio buttons of the setup texts name.
+    audioAdditionalInfo: 'informações adicionais',
+    audioJustification: 'justificativa da próxima intervenção',
+    audioParecer: 'resumo do parecer',
     coverPhotoLabel: 'Foto de capa',
     // Etapa 2 — Objetivo e escopo.
     etapa2Title: 'Etapa 2 — Objetivo e escopo',
@@ -2037,6 +2045,8 @@ export const copy = {
     proximaSecao: 'Próxima seção',
     notFound: 'Seção não encontrada.',
     fieldLabel: 'Texto da seção',
+    // authored (Story 31.7, listed for Bruno): the field the section text's Audio button names.
+    audioField: 'texto da seção',
     insertVariable: 'Inserir dado do relatório',
     restore: 'Restaurar texto do template',
     // authored: the reason beside "Restaurar texto do template" once the section already

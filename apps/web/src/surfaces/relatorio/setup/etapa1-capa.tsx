@@ -6,6 +6,7 @@ import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { commitFilePick, useAttachedFile } from '../../../db/file-commit.ts';
 import { newId } from '../../../ids.ts';
+import { AudioButton, AudioFieldLines } from '../../../speech/audio-field.tsx';
 import { useSession } from '../../../state/session.tsx';
 import { useServicePeriod, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
 
@@ -16,6 +17,9 @@ const today = () => calendarDateOfInstant(now());
 
 /** Story 20.9: the kernel's cap of "Informações adicionais" (long text). */
 const ADDITIONAL_INFO_CAP = textCapOf(relatorioSetupPath('additional_info'));
+
+/** Story 31.7: the field an audio of the cover's additional information fills (the audio's text arrives through the server's put). */
+const ADDITIONAL_INFO_AUDIO = { type: 'setup', field: 'additional_info' } as const;
 
 export function Etapa1Capa({
   relatorioId,
@@ -102,9 +106,12 @@ export function Etapa1Capa({
             </div>
           </div>
           <div className="field span-2">
-            <label className="field-label" htmlFor={additionalInfoId}>
-              {t.additionalInfoLabel}
-            </label>
+            <div className="section-head">
+              <label className="field-label" htmlFor={additionalInfoId}>
+                {t.additionalInfoLabel}
+              </label>
+              <AudioButton target={ADDITIONAL_INFO_AUDIO} label={t.audioAdditionalInfo} />
+            </div>
             {/* Story 27.12 (F16): long text gets a text area of the mock's textarea class
                 (`components.css` `.observation-field`); the mock draws a one-line `.input`. */}
             <textarea
@@ -116,6 +123,7 @@ export function Etapa1Capa({
               onBlur={additionalInfo.blur}
             />
             <CharCount length={additionalInfo.text.length} cap={ADDITIONAL_INFO_CAP} />
+            <AudioFieldLines target={ADDITIONAL_INFO_AUDIO} text={additionalInfo.text} label={t.audioAdditionalInfo} />
           </div>
           <UploadTile
             className="span-2"

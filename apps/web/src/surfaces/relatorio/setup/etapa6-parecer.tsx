@@ -24,6 +24,7 @@ import { TextButton } from '../../../components/index.ts';
 import { GeneratedTextField } from '../../../components/generated-text-field.tsx';
 import { useLatestChoice } from '../../../components/use-latest-choice.ts';
 import { copy } from '../../../copy/pt-br.ts';
+import { AudioField } from '../../../speech/audio-field.tsx';
 import type { BandRef } from './setup-fields.ts';
 import type { UndoableEdits } from '../../../state/use-undoable-edits.ts';
 import { AdditionalItems } from './additional-items.tsx';
@@ -54,6 +55,9 @@ const NO_ITEMS: readonly string[] = [];
 
 /** The segments in the mock's order; the value attribute is the box tone (`components.css`). */
 const SEGMENTS: readonly ParecerVerdict[] = PARECER_VERDICTS;
+
+/** Story 31.7: the field an audio of the parecer summary fills. */
+const PARECER_AUDIO = { type: 'setup', field: 'parecer_text' } as const;
 
 export function Etapa6Parecer({
   relatorioId,
@@ -196,6 +200,9 @@ export function Etapa6Parecer({
           confirmedHelper={absent?.confirmedHelper ?? t.parecerComposed(sectionRefText(snapshot, 10))}
           readOnly
         />
+
+        {/* Story 31.7: the summary's audio adds the written text after the composed one and makes it the relatório's own text; no verdict tapped (no stored parecer), no field to write. */}
+        {snapshot.relatorio.setup.parecer === null ? null : <AudioField target={PARECER_AUDIO} label={t.audioParecer} text={ownText} />}
 
         {ownText === null ? null : (
           <div className="field">

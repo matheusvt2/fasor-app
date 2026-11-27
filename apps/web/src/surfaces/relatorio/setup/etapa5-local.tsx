@@ -5,12 +5,16 @@ import { useNumberInput, type ParsedNumber } from '../../../components/number-in
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
+import { AudioButton, AudioFieldLines } from '../../../speech/audio-field.tsx';
 import { trackInputRefused } from '../../../telemetry/hooks.ts';
 import { keptAltitudeAnswer, siteAltitudeReading } from './altitude-reading.ts';
 import { useDateField, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
 
 /** Story 14.10 lane B: the "Hoje" chip of an empty Próxima intervenção, today in America/Sao_Paulo (Etapa 1's rule, 13.4). */
 const today = () => calendarDateOfInstant(now());
+
+/** Story 31.7: the field an audio of the next intervention's justification fills. */
+const JUSTIFICATION_AUDIO = { type: 'setup', field: 'next_intervention_justification' } as const;
 
 /** Story 20.9: the kernel's cap of the next intervention's justification (medium text). */
 const JUSTIFICATION_CAP = textCapOf(relatorioSetupPath('next_intervention_justification'));
@@ -188,9 +192,12 @@ export function Etapa5Local({
             today={today}
           />
           <div className="field">
-            <label className="field-label" htmlFor={justificationId}>
-              {t.nextInterventionJustificationLabel}
-            </label>
+            <div className="section-head">
+              <label className="field-label" htmlFor={justificationId}>
+                {t.nextInterventionJustificationLabel}
+              </label>
+              <AudioButton target={JUSTIFICATION_AUDIO} label={t.audioJustification} />
+            </div>
             <input
               id={justificationId}
               className="input"
@@ -200,6 +207,7 @@ export function Etapa5Local({
               onBlur={justification.blur}
             />
             <CharCount length={justification.text.length} cap={JUSTIFICATION_CAP} />
+            <AudioFieldLines target={JUSTIFICATION_AUDIO} text={justification.text} label={t.audioJustification} />
           </div>
         </div>
       </div>

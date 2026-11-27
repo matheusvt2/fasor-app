@@ -1,4 +1,5 @@
 import { blockFieldPath, fileFieldPath, pointFieldPath, relatorioSetupPath, sheetChecklistPath, sheetConclusionPath, sheetObservationsPath, sheetTestValuePath } from '../ops/path.ts';
+import { isUtilityNotTested, notTestedJustification } from '../points/derived.ts';
 import { composeConclusion } from '../relatorio/conclusion.ts';
 import { composeParecer } from '../relatorio/parecer.ts';
 import { editedSectionTextConfig } from '../relatorio/section-variables.ts';
@@ -7,7 +8,7 @@ import { isSectionBlockType } from '../schemas/block-config.ts';
 import type { AudioTarget, BlockRow, JsonValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
-import { parseRichText, plainTextToRichBlocks, serializeRichText } from '../templates/rich-text.ts';
+import { parseRichText, plainTextToRichBlocks, richRunsText, serializeRichText } from '../templates/rich-text.ts';
 import { defaultSectionText } from '../templates/section-text.ts';
 import { audioAutomaticCaptions, type AudioContextOptions } from './context.ts';
 
@@ -26,6 +27,14 @@ export function appendAudioText(current: string | null | undefined, text: string
   const base = (current ?? '').trim() === '' ? '' : (current as string);
   if (options.rich === true) return serializeRichText([...parseRichText(base), ...plainTextToRichBlocks(text)]);
   return base === '' ? text : `${base.replace(/\s+$/, '')}\n\n${text}`;
+}
+
+/**
+ * Story 31.7: the characters of a rich-text field (a section text) as the audio mark compares them with the
+ * audio's written text: one line per block, the markup gone.
+ */
+export function audioRichFieldText(text: string | null | undefined): string {
+  return parseRichText(text ?? '').map((block) => richRunsText(block.runs)).join('\n');
 }
 
 /** The puts that write an audio's text into its field, in order. */
@@ -62,7 +71,10 @@ export function audioProseWrite(snapshot: RelatorioSnapshot, target: AudioTarget
       if (target.field === 'observations') return one(sheetObservationsPath(block.id), appendAudioText(textOf(block.sheet.observations?.value), text));
       if (target.field === 'not_tested_text') {
         if (block.not_tested === null) return null;
-        return one(blockFieldPath(block.id, 'not_tested'), { ...block.not_tested, text: appendAudioText(block.not_tested.text, text) } as JsonValue);
+        // A stored note is added to; with none, the justification the ficha shows (the utility's default, Story 28.4) is.
+        const tag = block.equipment_id === null ? null : (snapshot.equipment.find((row) => row.id === block.equipment_id)?.tag ?? null);
+        const shown = block.not_tested.text ?? (isUtilityNotTested(block) ? notTestedJustification(block, tag) : null);
+        return one(blockFieldPath(block.id, 'not_tested'), { ...block.not_tested, text: appendAudioText(shown, text) } as JsonValue);
       }
       // The conclusion text: added to the stored text, else to the composed one, and edited either way.
       const stored = textOf(block.sheet.conclusion.text?.value);
