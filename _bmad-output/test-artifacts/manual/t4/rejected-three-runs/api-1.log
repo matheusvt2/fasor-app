@@ -1,0 +1,1067 @@
+>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+ Container fasor-t4-minio-1 Running 
+ Container fasor-t4-postgres-1 Running 
+ Container fasor-t4-api-1 Running 
+ Container fasor-t4-install-1 Starting 
+ Container fasor-t4-install-1 Started 
+ Container fasor-t4-postgres-1 Waiting 
+ Container fasor-t4-minio-1 Waiting 
+ Container fasor-t4-install-1 Waiting 
+ Container fasor-t4-install-1 Exited 
+ Container fasor-t4-postgres-1 Healthy 
+ Container fasor-t4-minio-1 Healthy 
+ Container fasor-t4-postgres-1 Waiting 
+ Container fasor-t4-minio-1 Waiting 
+ Container fasor-t4-api-1 Waiting 
+ Container fasor-t4-install-1 Waiting 
+ Container fasor-t4-postgres-1 Healthy 
+ Container fasor-t4-minio-1 Healthy 
+ Container fasor-t4-install-1 Exited 
+ Container fasor-t4-api-1 Healthy 
+ Container fasor-t4-tools-run-af63d292044e Creating 
+ Container fasor-t4-tools-run-af63d292044e Created 
+$ tsx scripts/preflight.ts && tsx scripts/api-suite.ts
+[test:api] phase 1: parallel (api) + serial (api-serial) + print (api-print)
+[test:api] phase 2: solo (api-solo)
+[test:api] ===== parallel: FAILED in 433.5 s =====
+ RUN  v5.0.1 /workspace/apps/api
+ ✓  api  src/http/reading.integration.test.ts (7 tests) 42497ms
+   ✓ 8.4-INT the plate read end to end over the compose api (6)
+     ✓ the first PUT sends one job: running, then done, with the eleven suggestions of the README 10737ms
+     ✓ a retried PUT sends no second job and writes no status op 3216ms
+     ✓ another company answers the unknown-id 404 on a reread and 409 on a PUT, and changes nothing 13593ms
+     ✓ a reread answers 202 running, makes a new run and discards the previous pending suggestions 3050ms
+     ✓ a reread of a photo that is not a plate reading is 400, of one not uploaded yet 409, of a non-photo 404 538ms
+     ✓ E78-Q5: a reread while the photo is running answers 409 reading_running: no job sent, no run 1765ms
+   ✓ 9.1-INT a display read end to end over the compose api (1)
+     ✓ the PUT sends one display job: running, then done, with 1 MINUTO suggested; a reread runs it again; another company gets 404 6292ms
+ ✓  api  src/jobs/generate/docx.test.ts (35 tests) 70976ms
+   ✓ 4.8-UNIT-006 DOCX structure golden (3)
+     ✓ matches golden/porto-seguro-skeleton.json (headings, tables, header, footer) 7426ms
+     ✓ writes the page numbers it is given into the ÍNDICE 5991ms
+   ✓ 7.1-UNIT section 9 in the DOCX (5)
+     ✓ embeds a block-linked photo inside its sheet, with "Imagem N: ⟨legenda⟩." beneath and N its numberPhotos number 2051ms
+     ✓ keeps the photo line and leaves its image cell empty when the bytes are missing or unreadable, and never throws 7243ms
+   ✓ 14.2-UNIT section 9 in the DOCX: a painel is a band over its sheets (4)
+     ✓ flag on: the direct run by type, then the band alone followed on the same page by the painel colunas' type groups, numbered across the section 593ms
+   ✓ Story 20.3 a new relatório in the DOCX: the tests section before the points section (2)
+     ✓ prints "8 RELATÓRIOS DOS ENSAIOS" then "9 PONTOS DE ATENÇÃO ...", the ÍNDICE in that order, and breaks the page before both 4191ms
+     ✓ breaks the page before an empty points section printed after the tests (its note alone) 5160ms
+   ✓ Stories 20.5 and 20.6 section 9 in the DOCX: tables kept whole, item lines and a page per ficha (6)
+     ✓ 20.5: keeps every row but the last of DADOS DO EQUIPAMENTO, VERIFICAÇÕES GERAIS and VERIFICAÇÕES DO LOCAL with the next and repeats their band and header rows; a measurement table neither 548ms
+     ✓ 22.2: a photo prints its image and its caption line, nothing under it (no item line) 828ms
+     ✓ 22.3: every row of a ficha's tables up to CONCLUSÃO keeps with the next but a table's last; a part kept with the next keeps its last row and its gap; the photo block keeps nothing 1093ms
+     ✓ 20.6: every ficha and every local block starts a page, the break on the heading that introduces it, never doubled after the section heading 473ms
+   ✓ 4.8-UNIT-007 images (4)
+     ✓ embeds the logo in the header and the cover photo in the body 3048ms
+     ✓ A11: with a logo, the header is a two-cell borderless table, the logo left and both lines right 5218ms
+     ✓ Story 16.1: the logo drawing fits inside its cell, margins included, wide or tall 7540ms
+     ✓ prints without an image sharp cannot read, and never throws for it 3262ms
+   ✓ 7.2/7.3-UNIT sections 7, 8 and 11 (2)
+     ✓ prints the photo table, the bullets and the certificate placeholders from the layout alone (no bytes) 2857ms
+     ✓ embeds the photos it has bytes for and each certificate page on its own page; the rest print their placeholders 2485ms
+   ✓ 11.10-UNIT section 8 action-plan table (4)
+     ✓ F-05: a point citing a photo after "etc." prints "…, conforme Imagem N. <ação>" as its bullet; the table keeps the text 2220ms
+     ✓ prints the header row and one row per bullet directly after the last bullet 3778ms
+     ✓ 24.17-UNIT seed v14 (`keepRowsWhole`): every body row is kept whole too; the header alone repeats 1953ms
+     ✓ E11-Q4: every header word fits its column at 9 pt bold inside the cell margins, so no word breaks in the PDF 755ms
+ ✓  api  src/db/tombstone.integration.test.ts (16 tests) 85912ms
+   ✓ findTombstoneCandidates (1)
+     ✓ lists the live client, projects and relatórios whose name, local or project matches, case-insensitive 387ms
+   ✓ applyTombstone (2)
+     ✓ writes the three ops in one batch as system:cleanup; the stream carries the remove; the summary drops the relatório 355ms
+   ✓ tombstone-cli (6)
+     ✓ --find lists the matches and exits 0 17822ms
+     ✓ --find with no match prints no match and exits 0 16898ms
+     ✓ a refused --apply exits 1, says why and writes nothing 11712ms
+     ✓ a dry run of consistent ids exits 0 and writes nothing; the same ids with --apply write the tombstones 20213ms
+     ✓ refuses --find given twice and an argument named after an object key 10599ms
+     ✓ refuses a malformed id before it opens the database 5235ms
+ ✓  api  src/db/friction-read.integration.test.ts (12 tests) 48381ms
+   ✓ friction-read-cli (3)
+     ✓ prints one JSON line per sheet, per relatório and for the company, with no seeded text 9372ms
+     ✓ refuses a bad id, a missing --company and an unknown flag, with nothing on stdout 19401ms
+     ✓ E18-A1 (R-A18): a refusal names the expected shape and never echoes the refused argument or value 18744ms
+ ✓  api  src/jobs/reading/job.integration.test.ts (57 tests) 102978ms
+   ✓ 8.4-INT reading job attempts (15)
+     ✓ a fixture with outcome error: three attempts, three run rows, failed, no suggestion 4079ms
+     ✓ a fixture with outcome timeout: three attempts, three run rows, failed, no suggestion 3089ms
+     ✓ a photo without a fixture on a cable reads the cables' default plate (batch e24s): done, one ok run 1556ms
+     ✓ 13.7: a para_raio plate the device re-encoded (no fixture of its own) reads its synthetic plate: done, one pending suggestion per value 3246ms
+     ✓ 13.7: a chave_seccionadora plate the device re-encoded (no fixture of its own) reads its synthetic plate: done, one pending suggestion per value 2715ms
+     ✓ 13.7: a disjuntor_mt plate the device re-encoded (no fixture of its own) reads its synthetic plate: done, one pending suggestion per value 2927ms
+     ✓ 13.7: a tp plate the device re-encoded (no fixture of its own) reads its synthetic plate: done, one pending suggestion per value 3568ms
+     ✓ 13.7: a tc plate the device re-encoded (no fixture of its own) reads its synthetic plate: done, one pending suggestion per value 3204ms
+     ✓ E78-Q2: a transformer plate the device re-encoded (no fixture of its own) reads the synthetic plate: done, eleven pending suggestions 3645ms
+     ✓ E78-Q2 on seed v13: the same re-encoded transformer plate reads to done with ten pending suggestions, none on TAP ATUAL or TAPS 2548ms
+     ✓ 21.2: a v11 transformer plate printing "Dyn1" suggests it citing its word; one drawing a Yyn0 diagram offers "Yyn0" in verify, citing no token over the whole image 3341ms
+     ✓ 22.7 and 22.9 plumbing tests: a v12 oil transformer plate ("TIPO TRICAST", "Tipo óleo isolante B", no insulation word) suggests TIPO TRICAST, TIPO DO ÓLEO B and TIPO DE ISOLAÇÃO ÓLEO MINERAL in verify citing the oil words; a v12 TC plate printing "0,6C25" suggests EXATIDÃO 0,6 2511ms
+     ✓ 23.7: a v13 plate of each type suggests every new printable field as the kernel parses it; TAPS printed with no unit asks for a check 7455ms
+     ✓ 23.17 plumbing tests (batch e23t): a v13 plate printing "Tipo óleo isolante B" suggests TIPO (ANP) B, NATUREZA DO LÍQUIDO MINERAL and TIPO DE ISOLAÇÃO ÓLEO ISOLANTE, the two composed in verify citing the oil words; a silicone plate suggests SILICONE and no class 3126ms
+     ✓ an OCR read of another image size is transient: three attempts, failed, no suggestion 4138ms
+   ✓ 8.4-INT permanent guards: one run row, failed, no suggestion (4)
+     ✓ the print variant is missing 1963ms
+     ✓ the photo was removed 1177ms
+     ✓ the target block was removed 1392ms
+     ✓ the target block belongs to another relatório 2428ms
+   ✓ 8.4-INT EXIF orientation (1)
+     ✓ a photo stored sideways (orientation 6) is read upright, boxes normalized over the upright size 803ms
+   ✓ 8.4-INT startReading keeps a status the job already wrote (1)
+     ✓ writes running after the send, and not over a done written before it 1791ms
+   ✓ 8.5-INT registry verdicts on a Chave seccionadora (2)
+     ✓ in the registry: the canonical names, suggested; out of it: verify and the create hint 2757ms
+     ✓ a second run of a photo discards its previous pending suggestions and emits its own 1460ms
+   ✓ 8.4-INT foreign payloads and the AI flag (2)
+     ✓ 11.8 follow-up: with AI features off a queued plate job fails permanently before OCR; no provider is built 1316ms
+   ✓ 11.7-INT the textract provider through an injected client (nothing reaches AWS) (2)
+     ✓ a plate photo reads to done, its suggestions boxed by the Textract tokens, the run naming textract 1409ms
+     ✓ AccessDeniedException ends failed in one attempt, permanent, the run naming textract 985ms
+   ✓ E78-Q6 a reading whose last attempt dies ends failed (the dead letter queue) (4)
+     ✓ a provider that never answers: the attempt expires, the dead letter worker writes failed as system:reading 2740ms
+     ✓ writes nothing while a job for the key is queued, or once the status moved on 1724ms
+   ✓ 9.2-INT the panel reading (7)
+     ✓ reads the type and the column into one pending suggestion on file/{id}/block_id, and ends done 600ms
+     ✓ 14.5: the structuring step is asked for the types of the relatório's seed version: the library type on v5, the eight on v1 1474ms
+     ✓ a photo re-targeted to plate before its panel job runs: the panel job ends superseded, writing neither failed nor done 1270ms
+     ✓ re-targeted while the panel job runs: the check inside the batch ends it superseded, no status and no suggestion 1648ms
+     ✓ re-targeted while the panel job runs, which then fails permanently: superseded, no failed written over the plate 1156ms
+     ✓ a target that does not parse, a location gone or one of another relatório fails permanently 1822ms
+     ✓ a target that is a live painel of the relatório fails permanently: a painel takes no block (carry-over co14a) 773ms
+   ✓ 11.6-INT the bedrock provider through an injected client (nothing reaches AWS) (18)
+     ✓ a plate reads to done through Converse: suggestions from the tool input, the run row with the model, prompt_version, tokens and USD 941ms
+     ✓ e21f: the drawn Yyn0 plate answered with a wrong composed "Dy1" and the Yyn0 diagram facts stores "Yyn0" in verify, citing no token, on bedrock-structuring-10 2224ms
+     ✓ e21a R-1: the drawn plate answered with the model's own "Dy1" and diagram facts citing only ids the OCR did not return keeps "Dy1" as a diagram read, not lost 1079ms
+     ✓ e21a R-9: the printed Dyn1 plate answered with its "Dyn1" entry plus Yyn0 diagram facts citing real labels stores "Dyn1" suggested, citing its word, no note 631ms
+     ✓ a plate more than half verify is read once more on the escalation model; the reading with more suggested values is kept, usage summed 895ms
+     ✓ the escalation keeps the first reading when it has fewer suggested values 936ms
+     ✓ an OCR read with no word never escalates, even with no suggestion: only the first model is called 762ms
+     ✓ an empty first reading with OCR words present is read again on the escalation model, which is kept 1245ms
+     ✓ an escalation that returns only verify rows replaces an empty first reading (a tie on suggested goes to the one with more rows) 1703ms
+     ✓ with BEDROCK_ESCALATION_MODEL_ID empty no second call is made 1056ms
+     ✓ 30.2-API-B1: an escalation that fails after billing (an answer with no tool call) keeps the first reading, and the run row holds both calls, the total their sum 1048ms
+     ✓ 30.2-API-B2: an escalated run whose second reading is kept records each call with its own model, the total their sum 940ms
+     ✓ 30.2-API-B3: a first call that fails after billing fails the run, and the run row still holds that call 1267ms
+     ✓ an escalation that fails with AccessDeniedException (permanent) keeps the first reading: done, its suggestions, the Haiku model and usage 1103ms
+     ✓ an escalation that fails with ThrottlingException (transient) keeps the first reading: done, its suggestions, the Haiku model and usage 1376ms
+     ✓ a panel front reads to done through Converse on the panel model, never escalating: one suggestion on the photo block_id, usage on the run row 811ms
+     ✓ a panel front whose reading is all low-confidence (verify) still never escalates: only the panel model is called 936ms
+     ✓ AccessDeniedException ends failed in one attempt, permanent, naming the AWS error; no suggestion 709ms
+   ✓ 14.6-INT a plate reading on a block of a company type (1)
+     ✓ suggests the fields of the version the block references, and drops a key that version lacks 742ms
+ ❯  api  src/db/users-read.integration.test.ts (6 tests | 2 failed) 46284ms
+   ✓ readUsers (3)
+     ✓ lists the users of one company with their sessions and last sign-in, never the neighbour 7ms
+     ✓ lists every company without a filter, by company name then user name 2ms
+     ✓ reads a company with no users as an empty list 1ms
+   ❯ users-read-cli (3)
+     ✓ prints one JSON line per user of the company and a closing count 5558ms
+     × refuses a bad id, a flag without a value and an unknown flag, with nothing on stdout 18725ms
+     × E18-A1 (R-A18): a refusal names the expected shape and never echoes the refused argument or value 21599ms
+ ✓  api  src/sync/targets.integration.test.ts (18 tests) 36075ms
+   ✓ S5: a put on a row that does not exist in the relatório it names (4)
+     ✓ a put naming a relatório the company does not hold (another company's, or none) is refused; no orphan op is stored 3144ms
+     ✓ a put on a block id that does not exist is refused 1350ms
+     ✓ a put on R1's block filed under R2 is refused; under R1 it applies 1774ms
+     ✓ a create filed under a relatório the company does not hold, and a relatório create filed under another relatório, are refused 972ms
+   ✓ what keeps applying (2)
+     ✓ in-batch creates: a local, an equipment, a block and its values created in one offline batch apply in order 1476ms
+     ✓ a put on a tombstoned row still applies (LWW), and an equipment put filed under another obra is refused 2264ms
+   ✓ the responsible engineer and the removal of an issued relatório (2)
+     ✓ a responsible_user_id that is no user of the company is refused op_value_invalid, in a put and in a create; the company's user applies 724ms
+     ✓ an Emitido relatório is not removed (op_forbidden); after a back move to Em revisão the removal applies 1088ms
+   ✓ review: the obra a create files its row under, and the rows a value names (2)
+     ✓ an equipment or relatório create naming no obra of the company is refused op_target_missing; an obra created earlier in the push counts 1403ms
+     ✓ e20w relink: a point's equipment_id and location_id written in one batch apply with live ids and with null; another relatório's rows are refused op_target_missing (e20f; op_value_invalid before) 2007ms
+   ✓ e20f: every reference a value names exists where the op is filed (8)
+     ✓ a local's parent_id naming R2's local or no local is refused; R1's own local, null, and a local created earlier in the push apply 2050ms
+     ✓ a block's feeds_block_id naming a missing block or R2's block is refused; R1's block and null apply 3019ms
+     ✓ the cover photo naming R2's photo or no file is refused; R1's photo created earlier in the push, and null, apply 4069ms
+     ✓ instrument_ids with an id that is no instrument (a client, a missing id) is refused; instruments, one created earlier in the push, and [] apply 1140ms
+     ✓ a project's client_id naming no client (an instrument, a missing id, another company's client) is refused; a client and null apply 1645ms
+     ✓ review: a brand file naming no file is refused; a company file, a null certificate, and a feeding block created earlier in the push apply 949ms
+     ✓ a registry file id naming no file of the company is refused; a file of the company applies 1541ms
+     ✓ a confirm naming a suggestion of another relatório, or none, is refused; its own suggestion applies 4156ms
+ ✓  api  src/http/admin-users.integration.test.ts (21 tests) 25400ms
+   ✓ 26.8-API-001 each route (7)
+     ✓ create: an Engenheiro de Campo is born invited with the role, one invitation is stored, and after the link he signs in holding that role 432ms
+     ✓ pause, reactivate, remove: the state rules, the sessions kept and inert while paused, ended by reactivate, the same password after it 841ms
+     ✓ resend the invitation: only for an invited user; the old link dies, a new 72-hour link and message 2080ms
+     ✓ send a password reset: an active or invited user gets a 1-hour link; a paused one is refused 697ms
+   ✓ 26.8-API-002 the last Admin and a paused user (7)
+     ✓ the only active Admin cannot pause, remove or lower himself; with a second Admin he can 1222ms
+     ✓ two requests at once that would each leave one Admin cannot both pass (the company lock) 877ms
+     ✓ an active user with an open session is paused: his next request is 401, and after reactivate he signs in again with the same password 1381ms
+     ✓ 26.11-API-001 a paused or removed user keeps his sessions and every path refuses them with user_inactive, get-session included; a reactivation ends them; sign-out still works 2154ms
+     ✓ e26r-API-001 a reactivation ends every session of that user and no one else's 1233ms
+     ✓ e26r-API-002 a paused user's request after the update age leaves session.expires_at as it was; an active user's slides 1151ms
+     ✓ e26r-API-003 a user whose role was removed is not reactivated: role_not_found and nothing changes; given a live role, he is 3096ms
+   ✓ e26s-API-001 the reactivation that carries a role (2026-11-22) (2)
+     ✓ a removed user whose role was removed: refused without a role, with a removed role and with another company's role, nothing changes; with a live role he is reactivated and signs in 519ms
+     ✓ a paused user is reactivated with a live role too; the same role as his own writes only the status; the last-Admin and state rules hold 498ms
+   ✓ 26.8-API-003 roles, tenants, duplicates, the limit and history (5)
+     ✓ a Gestor do Projeto and a Consulta get 403 forbidden on every route; an inactive Admin gets 401 user_inactive 1246ms
+     ✓ an e-mail that already belongs to a user (this company, another one, a removed user) is user_email_taken: no message, no row 992ms
+     ✓ create, resend-invitation and password-reset share one limit per Admin 740ms
+     ✓ a removed responsável: his name, his row and every op he wrote stay in the relatório and its history 2425ms
+ ✓  api  src/db/smoke-seed.integration.test.ts (5 tests) 29166ms
+   ✓ resetAndSeedSmokeCompany (3)
+     ✓ seeds a fresh smoke company, and a second run over a run's leftovers brings it back to the same state; the neighbour is untouched 2025ms
+   ✓ smoke-seed-cli (2)
+     ✓ refuses a bad company id before it opens the database, naming it 12665ms
+     ✓ resets and seeds the smoke company, logging the ids and never the password 13300ms
+ ✓  api  src/jobs/generate/docx-section-10.test.ts (7 tests) 28543ms
+   ✓ 7.4-UNIT section 10 in the DOCX (2)
+     ✓ 22.6: prints the box (the effective verdict as title, the composed summary, then the typed one as "Observações do responsável"), the bullets without the third under Não apto, the validity line and the signature block 3315ms
+     ✓ E78-Q11: the Parecer box row cannot split across pages, and its title keeps with its summary 3052ms
+   ✓ 7.5-UNIT draft equals issued (3)
+     ✓ the document body differs only by the revision row; the header only by the RASCUNHO drawing 6384ms
+     ✓ fails a draft whose watermark cannot be read, never printing it without RASCUNHO 1545ms
+   ✓ A-24 the watermark drawn once per job (1)
+     ✓ a draft given the drawn watermark is the draft that draws its own 6591ms
+   ✓ 14.10 the first TOC pass of a preview leaves the watermark out (1)
+     ✓ pass 1 of a draft has no drawing and the same body; pass 2 and later, and an issued document, render the layout whole 7418ms
+ ✓  api  src/sync/value-limits.integration.test.ts (13 tests) 33096ms
+   ✓ S4: a value outside its field's cap, type or range (4)
+     ✓ an additional_info of 20 001 characters is refused op_value_invalid; 20 000 are applied 3458ms
+     ✓ sheet observations as an object and a site altitude of -99 999 m are refused; -500 m is applied 1581ms
+     ✓ the refused value of a client batch is refused alone: the batch's other ops apply 1310ms
+     ✓ fix batch e24x (B3): an equipment create whose reuse_key holds 1 001 characters is refused op_value_invalid; the longest key the reuse builds is applied 2241ms
+   ✓ e20f, E20-A1 (R-1): the relatório budget of stored bytes (2)
+     ✓ one relatório filled near the budget: a crossing create is refused; a shrinking put, a put of null and a removal apply; a restore is refused without room and applies with it; five growing puts of one push apply while they fit 9927ms
+     ✓ R-1d: a relatório whose stored bytes are server rows only (an audit run, a generation job) still takes a user's write 2299ms
+   ✓ e20f (QA N1): a value nested 20 000 levels deep (1)
+     ✓ answers 200 with that op refused op_value_invalid and the other op of the push applied; the api keeps answering 1568ms
+   ✓ Story 30.1 D (R-12 (E20)): an op whose meta is over the byte or the count cap (1)
+     ✓ 30.1-API-D: each such op is refused op_value_invalid alone, never logged; the rest of the push applies 1987ms
+   ✓ S4 body: the push body cap (2)
+     ✓ a push over 4 MiB (the 5 MB string of the security pass) is answered 413 body_too_large whole; nothing of it is applied 1067ms
+     ✓ a push just under the cap is read and answered per op 2589ms
+   ✓ e20f: an open-shaped value is bounded whole (3)
+     ✓ a nameplate cell of 15 000 short strings, and a block config of seven 20 000-character strings, are refused op_value_invalid; the rows are unchanged 1290ms
+     ✓ e22g (review S4): a nameplate number put in the over_range state is refused op_value_invalid and never logged; the same number measured applies 1261ms
+     ✓ a nameplate cell at exactly the byte and count caps applies; one item or one byte more is refused 1861ms
+ ✓  api  src/jobs/reading/job-display.integration.test.ts (12 tests) 23181ms
+   ✓ 9.1-INT the display reading kind (12)
+     ✓ a seccionadora contato aberto shot: done, one pending suggestion of 147 GΩ on T1, suggested, fill; a run row with no model 1558ms
+     ✓ typed first: the suggestion is a replace and the typed cell is never written by the job 2410ms
+     ✓ the contact resistance: the micro-ohmmeter read at low confidence is verify, in µΩ 1047ms
+     ✓ a transformer tester showing 30 s / 1 min / 10 min: only 1 MINUTO is suggested 1403ms
+     ✓ batch e23t: a v13 transformer's display shot on POLARIZAÇÃO fills the IP as a pending suggestion, unitless 2069ms
+     ✓ fix batch e23g (R2-1): a v13 transformer with TAPS, the ratio meter shot on a tap row: the suggestion lands on that row 2039ms
+     ✓ fix batch e23g (R2-1): a company copy of the v13 transformer with TAPS: the job reads the version's nameplate and the suggestion lands on the tap row 2406ms
+     ✓ the thermo-hygrometer of a cabine: temperature and humidity on the cabine environment 1179ms
+     ✓ no value read: done with no suggestion 2441ms
+     ✓ permanent failures: one run row, failed, no suggestion (3)
+       ✓ a target that does not parse 1102ms
+       ✓ a removed block, and a test the block does not have 1385ms
+       ✓ a cabine of another relatório, and a removed cabine 3782ms
+ ✓  api  src/jobs/reading/job-prose.integration.test.ts (12 tests) 21637ms
+   ✓ 9.3-INT the caption reading kind (6)
+     ✓ a photo with no context: done, one pending suggested fill on its caption, full image, no token; the run row carries the model 3082ms
+     ✓ audit 8.4: the attempt logs one structured line naming the company, relatório, job, photo, kind, run and attempt, with its outcome 1006ms
+     ✓ the provider cannot caption (prose null): done, no suggestion 1029ms
+     ✓ a people mark, a caption or a sheet at run time: done, no suggestion, the provider never called 2096ms
+     ✓ a mark set after a first reading: the rerun discards the pending caption and calls nothing 1450ms
+     ✓ provider error and timeout are transient: retried, failed on the last attempt 2205ms
+   ✓ 9.5-INT the nc_obs reading kind (3)
+     ✓ an NC row with an empty observation: one suggested fill on that row observation, nothing else 1132ms
+     ✓ drift: a row turned C, a cleared row or a typed observation: done, no suggestion, the provider never called 1378ms
+     ✓ a bad target is a permanent failure: one run row, failed, no suggestion (1)
+       ✓ unparseable, a block of another relatório, another type, a removed block, an item not on the block 3484ms
+   ✓ 11.6-INT the prose kinds through the bedrock provider (an injected client; nothing reaches AWS) (3)
+     ✓ a caption reads to done: one suggested fill from the model sentence, the run row with model, prompt_version, tokens and USD 2090ms
+     ✓ an NC draft reads to done on BEDROCK_PROSE_MODEL_ID, the prompt naming the checklist item 1421ms
+     ✓ an empty sentence is nothing to suggest: done, no row, the usage still on the run row 1121ms
+ ✓  api  src/sync/attribution.integration.test.ts (8 tests) 16391ms
+   ✓ S3: a value naming another actor than the op's (4)
+     ✓ a concluded_by naming a colleague is refused op_attribution; the sheet keeps its value and the op is never logged 1668ms
+     ✓ not_tested.by and meta.restore.removed_by naming a colleague with no matching history are refused 3082ms
+     ✓ undo restores history: a value naming a colleague equal to the one their own op wrote on the same path is applied 2022ms
+     ✓ review: the undo of "Manter" puts back a removal conflict naming the colleague who edited the block, whose edit the relatório logs 2391ms
+   ✓ S3 clock: an instant past the server's clock or before the relatório's creation (4)
+     ✓ a client_ts or a value instant more than 10 minutes ahead is refused; 9 minutes ahead is applied 1363ms
+     ✓ an instant more than 10 minutes before the relatório's creation is refused; 9 minutes before is applied 1664ms
+     ✓ review: the creation instant is the earlier of the create's client_ts and its receipt, so a creator's fast clock moves no bound 757ms
+     ✓ offline two days: ops two days old, after the relatório's creation, apply; section 9 prints no attribution (Story 22.2) 2515ms
+ ✓  api  src/sync/panel-retarget.integration.test.ts (8 tests) 18061ms
+   ✓ 9.2-INT the panel photo re-targeted to the new block plate (8)
+     ✓ an uploaded panel photo: one batch creates the block and re-targets the photo; the row is plate and queued, then running, and plate is sent once 3496ms
+     ✓ Story 20.12: at the daily ceiling the re-target sends no reading, marks the photo failed, and spends nothing 1657ms
+     ✓ a photo not uploaded yet: the re-target sends nothing and the row stays plate and queued; the upload then sends plate 1509ms
+     ✓ refuses a reading_kind other than plate or null, and a reading_target that is neither an object nor null, as op_invalid 1125ms
+     ✓ never touches nor sends a photo of another company: its company is a tenant mismatch, its id alone writes nothing there 876ms
+     ✓ E9-Q2 refuses a client reading_kind put of the stored kind (queued, running, done) or any other kind on a plate photo, with nothing sent and the row unchanged 817ms
+     ✓ E9-Q2 a null reading_kind put is applied as a plain photo (none) and sends nothing 1008ms
+     ✓ E9-Q3 the undo of the create batch removes the block, leaves the photo a plain one (none) and sends no reading 919ms
+ ✓  api  src/sync/three-levels.integration.test.ts (6 tests) 16815ms
+   ✓ 23.6-INT a point written from a restricted test through the route (contract 36) (2)
+     ✓ a create with origin restricao and its test_key is accepted and is the one section 8 entry; an origin the contract does not know is refused 3257ms
+   ✓ 23.6-INT the issue's last_results keeps the corrected value (AD-25, contract 36) (1)
+     ✓ a v13 transformer at 40 °C of oil keeps its AT reading corrected to 20 °C; a v12 transformer's reading carries none; company B never reads either 4751ms
+   ✓ e23w-INT W2-1 a re-issue never takes a later visit's place in last_results (AD-25 order rule) (3)
+     ✓ A issued, then B of the same obra issued over it, then A re-issued: B stays on top with prior A's re-issue, and A reads no previous visit 2128ms
+     ✓ A issued, then B over it and C over B: A re-issued (revision 2) writes nothing, C stays on top (a later visit unrelated to A by its chain) 4693ms
+2026-11-27T05:58:57.900Z WARN [Better Auth]: Invalid password
+ ✓  api  src/http/audit.integration.test.ts (10 tests) 15312ms
+   ✓ 13.8-API-001 one tap, one run, one job (4)
+     ✓ POST answers 202 with a queued run; the fake job writes only the run; the stream at version 15 carries its create and one finding per kind 2221ms
+     ✓ a second POST while the run is active answers 409 audit_running with its id and sends no second job 2230ms
+     ✓ a provider failure fails the run with its error code; the button may ask again 1732ms
+     ✓ API-V2 (review 2026-10-08): a denied Bedrock call fails the run as provider_refused, not invalid_output 1057ms
+   ✓ 13.8-API-004 the queue refuses the job (1)
+     ✓ answers 500, records the run failed/enqueue_failed, and a later tap with a working queue is queued (not 409) 1113ms
+   ✓ 13.8-API-002 refusals (3)
+     ✓ AI features off: 409 ai_features_off, no run, no job 1758ms
+     ✓ the barrier answers 409 not_caught_up for an op the server lacks, an unknown relatório 404, a bad body 400 1022ms
+   ✓ 25.24-API-001 the run's point, the new kind, the 426 and another company's read (1)
+     ✓ the job records the point it read under the lock; an observation citing "item 9" gets the new kind on its sheet; a version-51 pull is refused; company B reads nothing of it 2325ms
+   ✓ 13.8-API-003 the Bedrock audit logs its tokens and USD (1)
+     ✓ one Converse call on an injected client; a finding citing a ref not sent is dropped and counted 1262ms
+2026-11-27T05:58:58.773Z WARN [Better Auth]: Invalid password
+2026-11-27T05:59:00.097Z WARN [Better Auth]: Invalid password
+2026-11-27T05:59:01.283Z WARN [Better Auth]: Password is too short
+2026-11-27T05:59:01.354Z WARN [Better Auth]: Password is too long
+2026-11-27T05:59:03.134Z WARN [Better Auth]: Invalid password
+ ✓  api  src/sync/photo-order.integration.test.ts (5 tests) 9241ms
+   ✓ 21.3-API-001 a photo order key through the sync route (5)
+     ✓ a photo create then an order_key put: the server row holds the key and the pull carries it back identical 1995ms
+     ✓ two devices moving the same photo converge: the later applied put wins on the row and on every pull 1457ms
+     ✓ a key over the cap, of another type, outside 0-9a-z or ending in 0 is refused per op; the rest of the push applies 691ms
+     ✓ a put on a photo of another relatório is refused op_target_missing 3682ms
+     ✓ a version-29 pull is answered 426 contract_outdated 812ms
+2026-11-27T05:59:03.919Z WARN [Better Auth]: Invalid password
+ ✓  api  src/auth/change-password.integration.test.ts (8 tests) 9954ms
+   ✓ 29.1-API change password (8)
+     ✓ the new password signs in and the old one does not; this device stays signed in and every other session ends, even when the body asks to keep them 2420ms
+     ✓ a wrong current password is INVALID_PASSWORD; the password and the sessions are unchanged 1377ms
+     ✓ a new password of 7 or 129 characters is refused and the password is unchanged 1223ms
+     ✓ without a session the change is 401; a paused user is 401 user_inactive and his password is unchanged 350ms
+     ✓ the sixth change of one user in a minute is rate-limited, whatever client address it comes from 1161ms
+     ✓ a form-encoded, multipart or text body asking to keep the other sessions is 403 forbidden_origin; the password and the sessions are unchanged 795ms
+     ✓ one client address over 20 changes a minute is rate-limited, with or without a session 817ms
+ ✓  api  src/jobs/generate/docx-line-breaks.test.ts (4 tests) 14851ms
+   ✓ e23f (a) section 8 line breaks in the DOCX (2)
+     ✓ prints a bullet's and an action-plan cell's line breaks as <w:br/>, one bulleted paragraph and one cell paragraph 3836ms
+     ✓ keeps each bullet of a section 8 with no line break one run with no break, as before 2243ms
+   ✓ e27d-UNIT X7 the cover's "Informações adicionais" with line breaks (2)
+     ✓ the kernel keeps the breaks; the DOCX prints them as two <w:br/> in one paragraph, never a line feed in a run 4480ms
+     ✓ a value with no break is one run with no break, as before 4275ms
+ ✓  api  src/sync/company-types.integration.test.ts (16 tests) 10808ms
+   ✓ Story 14.6: publishing through the route (5)
+     ✓ publishes v1, and a draft edited after it stays open as the next version 310ms
+   ✓ Story 14.6: company blocks through the route (3)
+     ✓ a block naming a version the company holds applies; one naming no version row is refused op_invalid 3052ms
+     ✓ cross-tenant: company B never resolves company A's type, and its pull never carries A's rows 1901ms
+     ✓ refuses a config put changing the block's type version, and a sheet write outside its definition; a write inside it applies 1818ms
+   ✓ e22h S2: a block names its company type version by the version row's id (two devices, through the route) (2)
+     ✓ a refused publish never binds its block to the other device's version; renumbered, the block resolves its own row 1269ms
+     ✓ refuses a company block create that names its version by number alone (op_invalid) 884ms
+ ✓  api  src/sync/status-transition.integration.test.ts (10 tests) 17227ms
+   ✓ S1: a forged status is refused, and the server row keeps its status (3)
+     ✓ a Rascunho put straight to Emitido is refused op_status_transition; the op is never logged 2342ms
+     ✓ Em revisão with no issue job queued after the last status op is refused; once a generate is queued it applies 1962ms
+   ✓ e20f: a forged seen status gains nothing (1)
+     ✓ once Emitido, now Rascunho and edited since: Em revisão naming the old Emitido op, with no generate, is refused 2601ms
+   ✓ the UI paths apply as before (2)
+     ✓ setup complete, generate, mark as sent, an edit after Emitido, the backward moves and their Desfazer, and a generate answered unchanged 1849ms
+     ✓ the first field value carries Em campo in its batch, and its "Desfazer" puts Rascunho back 1714ms
+   ✓ two devices with a stale status: one marks the revision as sent, the other still sees Rascunho (4)
+     ✓ A first: A applies; B's status op is refused and B's edit of the same batch applies 1874ms
+     ✓ B first: B's status op is refused and its edit applies; then A applies 1014ms
+     ✓ review: the "Desfazer" of B's refused status op is refused too, so Emitido never steps back to Rascunho 1259ms
+     ✓ a re-sent push whose status op was applied answers its seq again, whatever the status is now 1184ms
+ ✓  api  src/sync/e30c-removed-local.integration.test.ts (5 tests) 11907ms
+   ✓ 30.4-API-001 a local removed against site work, through the sync route (5)
+     ✓ removal first: Bruno's answers land on the removed local and mark it; nothing is deleted; both devices fold the server's row; "Restaurar local" clears the mark 2284ms
+     ✓ work first: a removal that did not see Bruno's pushed answers marks the local; "Deixar removido" clears it and the local stays removed at the same time 3031ms
+     ✓ e30h-API-001 answers written before contract 61 on a row the old reducer folded, then a removal after it: the server and both devices hold the same row and no mark 1747ms
+     ✓ e30h-API-007 a site photo and a site point on the local, in both orders against its removal: the server marks it, keeps both, and both devices fold its row 2377ms
+     ✓ a version-60 client (the contract before) is refused the relatório's stream with 426 contract_outdated; a current one reads it; its push is still accepted 1572ms
+ ✓  api  src/sync/e24s-seed-v14-sheets.integration.test.ts (6 tests) 13522ms
+   ✓ 24.11-API-001 and 24.12 the v14 transformer's and Inspeção de QGBT's new items through the route (contract 47) (6)
+     ✓ a v14 transformer takes TANQUE E ALETAS, LIMPEZA DAS BOBINAS and TRINCAS NA RESINA; a v13 one refuses them op_invalid 3632ms
+     ✓ a v14 Inspeção de QGBT takes TESTE DE FUNCIONAMENTO, REAPERTO GERAL and its thermography; a v13 one refuses the test and the item 3026ms
+     ✓ a company type duplicated from the v14 transformer publishes with its `dry_items`, and its sheet takes the dry items 1553ms
+     ✓ 24.13-API-001 a v14 No-break de comando takes its plate and its six items; a v13 relatório refuses the block op_invalid 2153ms
+     ✓ 24.14-API-001 the oil sampling's "Descreva o motivo" folds a text up to 1000 characters and refuses a longer one or a v13 one 2469ms
+ ✓  api  src/sync/caption-batch.integration.test.ts (4 tests) 11337ms
+   ✓ ledger 1131 a gallery batch asks for its caption reading once answered (4)
+     ✓ an uploaded batch photo sends nothing; the answer caption put queues it and sends the caption reading once 1324ms
+     ✓ the answer of a three-photo batch is one multi-op batch: every caption put is applied and queues its photo 2103ms
+     ✓ the put pushed before the upload queues the photo; the upload sends the caption reading once 1558ms
+     ✓ refuses the caption put on a photo with a sheet, a caption, the people mark or a reading already, on a logo and on no row, with the row unchanged and nothing sent 1833ms
+ ✓  api  src/http/admin-roles.integration.test.ts (13 tests) 9332ms
+   ✓ 26.10-API-002 the keys reach the push; races; who may call (4)
+     ✓ "Estagiário" with view and fill: its user's reading is accepted; the Admin takes relatorio.fill; the same kind of reading is refused op_forbidden 3953ms
+     ✓ the Engenheiro de Campo is refused a create; given relatorio.create, his create is accepted 580ms
+     ✓ a Gestor do Projeto and a Consulta get 403 forbidden on every route; an inactive Admin gets 401 user_inactive 1145ms
+ ✓  api  src/jobs/transcription/transcription.integration.test.ts (15 tests) 9778ms
+   ✓ 31.2-API-001 receipt: one job per audio, the audio transcribing (4)
+     ✓ an uploaded WebM/Opus audio sends one transcription job and goes transcribing by a system:transcription op; a retried upload sends nothing more 397ms
+     ✓ a queue of its own: the job is a singleton per audio, with three attempts, and a transient failure ends failed after the third 1554ms
+   ✓ 31.2-API-002 a prose field: written by the fake model, added after its value, naming the audio (2)
+     ✓ polish: the observation of a checklist item gets the written text, the audio done with both transcripts and its run 1078ms
+     ✓ report: OBSERVAÇÕES of the ficha, with the context of the field; the conclusion text adds to the composed text, edited 604ms
+   ✓ 31.2-API-004 the guard and a writing call that fails for good give the field the text as heard (2)
+     ✓ a permanent writing failure falls back at once; a transient one is retried, and falls back on the last attempt 304ms
+   ✓ 31.2-API-006 tenant scoping and the field permission (2)
+     ✓ a role without the key of the field is refused the audio create; the field user records on a sheet field; a consulta user is refused the retranscribe 444ms
+ ✓  api  src/sync/relatorio-creation.integration.test.ts (8 tests) 13477ms
+   ✓ 4.1-API relatório creation as one batch (1)
+     ✓ pushes the project plus the 223 instantiate drafts under one batch_id with zero rejections, and the relatório stream unites the equipment ops 1359ms
+   ✓ 24.2-API-001 seed v14 through the sync route (1)
+     ✓ a relatório created from the standard template on v14 is on v14, every sheet on v14; a version-46 client is refused its stream with 426, a current one reads it (pinned to v14 since seed v15, Story 25.5) 1077ms
+   ✓ 25.5-API-001 seed v15 through the sync route (1)
+     ✓ a relatório created from the standard template on v15 is on v15, every sheet on v15; a version-49 client is refused its stream with 426 contract_outdated, a current one reads it (pinned to v15 since seed v16, batch e25s) 1368ms
+   ✓ e25s-API-001 seed v16 through the sync route (1)
+     ✓ a relatório created from the standard template on v16 is on v16, every sheet on v16; a version-52 client is refused its stream with 426 contract_outdated, a current one reads it (pinned to v16 since seed v17, batch e27b) 1501ms
+   ✓ 27.8-API-001 seed v17 through the sync route (1)
+     ✓ a relatório created from the standard template on v17 is on v17, every sheet on v17; a version-56 client is refused its stream with 426 contract_outdated, a current one reads it (pinned to v17 since seed v18, batch e28a) 2236ms
+   ✓ 28.2-API-001 seed v18 through the sync route (1)
+     ✓ a relatório created from the standard template on v18 is on v18, every sheet on v18; a version-57 client is refused its stream with 426 contract_outdated, a current one reads it (pinned to v18 since seed v19, batch e30b) 1680ms
+   ✓ 30.3-API-001 seed v19 through the sync route (1)
+     ✓ a relatório created from the standard template is born on v19, every sheet on v19; a version-59 client is refused its stream with 426 contract_outdated, a current one reads it 1987ms
+   ✓ 28.4-API-001 the v18 item and reason keys through the sync route (1)
+     ✓ item 18, the new thermography reason and the utility reason with its name are applied; a version-57 pull of the relatório is refused with 426 1418ms
+ ✓  api  src/db/standard-template.integration.test.ts (12 tests) 7486ms
+   ✓ seedStandardTemplate (4)
+     ✓ seeds one template equal to standardTemplate, and a second run adds nothing 1441ms
+     ✓ seeds again once the only template of that name was removed 1213ms
+     ✓ seeds no second template once the seeded one was renamed 427ms
+   ✓ F-09 (review 2026-10-06, D4): the voltage classes come with the standard template (4)
+     ✓ seeds 13,8 · 15 · 24,2 · 36,2 kV as registry/voltage_class rows in the template's own batch; no manufacturer; a second run adds none 322ms
+     ✓ gives none to a company that already holds a voltage class 397ms
+     ✓ a company already holding the standard template and no class gets the four on the next run, once, whatever runs race 754ms
+     ✓ three runs racing on one company seed the four classes once 512ms
+   ✓ seedStandardTemplate on a database seeded before the current seed version (E12-Q4) (3)
+     ✓ moves an unedited v1 template to SEED_VERSION in one server batch, version kept at 1; its relatório keeps v1; a second run adds no op 622ms
+     ✓ the seed path alone (`seedStandardTemplate`) leaves an edited v1 template (version above 1) at v1, with no op; on a started server the boot step has already moved it 337ms
+   ✓ seedTestCompanies and the standard template (1)
+     ✓ gives Empresa A the template once and leaves Empresa B without one, with no cross-company row 941ms
+ ✓  api  src/http/files.integration.test.ts (26 tests) 8304ms
+   ✓ 2.2-API-001 PUT /api/files/:id stores the object and emits uploaded_at (2)
+     ✓ stores the bytes under the immutable key and reports uploaded_at 1088ms
+   ✓ 2.2-API-002 refusals (10)
+     ✓ answers 413 file_too_large for a body past the 25 MB cap, and stores nothing 441ms
+     ✓ answers 413 for a chunked body over the limit, with no content-length to go on 667ms
+     ✓ refuses a row whose own id is not the id it is filed under, and touches neither key 491ms
+   ✓ 2.2-API-006 the bytes are never served as a page (1)
+     ✓ serves the original as a download, and neither route lets the browser sniff a type 364ms
+   ✓ 2.2-API-003 variants (5)
+     ✓ two PUTs of the same file at once (a retry whose first answer was lost) emit uploaded_at and variants once each, and answer the same uploaded_at 597ms
+   ✓ 2.2-API-007 no object key ever comes out of the row (2)
+     ✓ a forged `variants` map naming another company's keys serves nothing 612ms
+   ✓ 2.2-API-004 tenant scoping (AD-10) (2)
+     ✓ company B can neither PUT nor GET company A file, and cannot tell it from an unknown id 803ms
+   ✓ 6.2-API-001 a photo through the sync route and PUT (2)
+     ✓ 409 before the create is applied; then stored under its relatório with 512/2000 variants, idempotent on (id, sha256) 764ms
+ ✓  api  src/sync/nameplate-applicability.integration.test.ts (6 tests) 11710ms
+   ✓ 23.8-INT a cell of the v13 TTR through the route (contract 35) (1)
+     ✓ writes a tap of the plate's list and refuses a row the list does not hold, row 0 included once TAPS is filled 2958ms
+   ✓ e23z-INT item 3 a TTR row off the plate takes a clear through the route (contract 40; fix batch e24f, contract 42) (3)
+     ✓ a put of null on each filled cell of a tap dropped from TAPS is applied; a non-null put on it is refused 3337ms
+     ✓ e24f-INT R-5 a second "Apagar leitura" from another device, synced later, is accepted and changes nothing 2731ms
+     ✓ speaks contract 40: a version-39 pull is answered 426 contract_outdated, the current one is answered 492ms
+   ✓ 23.9-INT the applicability override through the route (contract 35) (2)
+     ✓ accepts "applied" and null on a test with a condition, refuses another value and a test without one 914ms
+ ✓  api  src/sync/e25s-added-rows.integration.test.ts (4 tests) 11296ms
+   ✓ 25.14-API-001 a row added on the sheet through the route (contract 54) (4)
+     ✓ the new paths are applied and stored under the test: the name adds the row, a reading and a choice under it, a rename, a removal that keeps the readings and a restore 3718ms
+     ✓ refused op_invalid: a test whose definition lacks the key, a seeded test, a reading of a row that does not exist, and a row past the test's maximum 2658ms
+     ✓ two devices that each add a row while offline: both rows stand on the server, each with its reading; nothing merges two rows of one name 1923ms
+     ✓ a version-53 client pulling the relatório that holds an added row is answered 426 contract_outdated; the current one is answered 1665ms
+ ✓  api  src/sync/tc-thermo-ground.integration.test.ts (3 tests) 7387ms
+   ✓ 23.18 to 23.21-INT the thermography, the polarity and the Malha de aterramento through the route (contract 39) (3)
+     ✓ a v13 config switching the thermography, its value and cells, a TC polarity and a Malha block with its readings are accepted 2897ms
+     ✓ a polarity outside its options and a Malha block on a v12 relatório are refused op_invalid 2544ms
+     ✓ speaks contract 39: a version-38 pull is answered 426 contract_outdated, the current one is answered 449ms
+ ✓  api  src/sync/e27a-company-and-limits.integration.test.ts (8 tests) 6277ms
+   ✓ 27.1-API-001 the server refuses a second live empresa row (3)
+     ✓ a company holding A refuses the create of B (op_forbidden); A is unchanged, a put on A and a re-sent create of A still apply 532ms
+   ✓ 27.1-API-002 the scripts of Task 1, on a company that already has an empresa row (2)
+     ✓ seedSampleRelatorio (seed-users.ts --sample-relatorio), run twice: one live empresa row, and every row of the company has its op 1394ms
+   ✓ 27.2-API-001 the new limits on the server (3)
+     ✓ a humidity of 150 % is refused op_value_invalid by the fold and never logged; 0 and 100 apply; a temperature of 999 °C applies 2150ms
+     ✓ an op an older device queued with 150 % lands in its rejected list alone; the rest of its batch applies 1108ms
+ ✓  api  src/jobs/generate/docx-site-checklist.test.ts (13 tests) 9206ms
+   ✓ 14.4 VERIFICAÇÕES DO LOCAL in the DOCX: once per local, right after AMBIENTE DE ENSAIO (13)
+     ✓ ordem_de_campo, flag false: under the local Heading 2, SE, AMBIENTE, the table and its photo, then the first sheet; the painel bands carry none; the local with no equipment prints its own 1014ms
+     ✓ ordem_de_campo, flag true: under the local Heading 2, SE, AMBIENTE, the table and its photo, then the first sheet; the painel bands carry none; the local with no equipment prints its own 518ms
+     ✓ por_local_e_tipo, flag false: under the local Heading 2, SE, AMBIENTE, the table and its photo, then the first sheet; the painel bands carry none; the local with no equipment prints its own 363ms
+     ✓ flag on with no equipment directly on the local: its own numbered heading comes first with the table, then the first painel band on a new page (Story 20.6) 402ms
+     ✓ a local with no equipment followed by another local: the next local starts a new page, though the one before it drew no sheet 446ms
+     ✓ a relatório whose locals hold no equipment at all still prints section 9: each local heading with its table, and no empty-section note 791ms
+     ✓ draws the table as the print mock: title band, ÍTEM · C · NC · NA · OBSERVAÇÕES, a shaded group row across the five columns before each group, upper-case labels numbered 1 to 19, the X and the observation; an unanswered row with no mark 1547ms
+     ✓ a removed local prints nothing: no heading, no table, not its site photo (17.1: never in section 7 either); its point leaves section 8 932ms
+     ✓ sections 7 and 8: the site photo prints once, under its local (17.1: not in section 7), and the point created from the item as a bullet and an action-plan row naming the local 587ms
+     ✓ a relatório on v1 prints no site table: the cabine tables stay inside the first sheet and a local with no equipment prints nothing 373ms
+     ✓ a relatório on v2 prints no site table: the cabine tables stay inside the first sheet and a local with no equipment prints nothing 1209ms
+     ✓ a relatório on v3 prints no site table: the cabine tables stay inside the first sheet and a local with no equipment prints nothing 725ms
+ ✓  api  src/sync/suggestion.integration.test.ts (3 tests) 6225ms
+   ✓ 8.1-API suggestions through the sync route (3)
+     ✓ refuses a client suggestion create as op_server_only and stores nothing of it 1476ms
+     ✓ accepts the confirm pair on a suggestion the server wrote: the row reads confirmed, the cell carries its provenance 1955ms
+     ✓ accepts a photo create that queues a plate reading, and refuses one reporting a reading or queued without a kind 1715ms
+ ✓  api  src/db/test-reset.integration.test.ts (5 tests) 2460ms
+   ✓ resetTestCompanyData (4)
+     ✓ clears both TEST_SEED companies and leaves every other company alone 526ms
+   ✓ E-3 test-reset of one company (1)
+     ✓ empties the named company's rows and every object version under its prefix, past one listing page, and leaves the other company alone 1726ms
+ ✓  api  src/jobs/generate/docx-table-size.test.ts (1 test) 5375ms
+   ✓ e22g B1 a stepped-down reading table in the DOCX (1)
+     ✓ prints each run of the table at its size, and nothing else changes size 5365ms
+ ✓  api  src/auth/auth.integration.test.ts (16 tests) 4894ms
+   ✓ 1.3-API-001 session, cookie and provisioning (14)
+     ✓ provisions both seeded users idempotently 452ms
+     ✓ sets an httpOnly, SameSite=Lax, Secure cookie with a 30-day lifetime 1229ms
+     ✓ accepts a dev server on any localhost port (worktrees use different host ports) 443ms
+     ✓ refuses a bad password without saying which field failed 605ms
+     ✓ revokes existing sessions when the user is re-seeded (password reset) 617ms
+     ✓ e26t-API-001 a sign-in carrying the cookie of a deleted session answers a new session, and no 401 of the old cookie sets a cookie 404ms
+2026-11-27T06:00:27.178Z WARN [Better Auth]: Reset Password: User not found
+ ✓  api  src/sync/e25s-seed-v16-lists.integration.test.ts (2 tests) 5650ms
+   ✓ 25.18-API-001 the v16 TC's item on its secondary through the route (contract 54) (2)
+     ✓ a v16 TC takes the item NC with its phrase; the v16 TP and a v15 TC refuse it op_invalid 3815ms
+2026-11-27T06:00:27.818Z WARN [Better Auth]: Invalid password
+ ✓  api  src/jobs/generate/pdf-raster.test.ts (7 tests) 1953ms
+   ✓ rasterizePdfPages with pdftoppm (7)
+     ✓ writes one PNG per page, in page order, at the page size x 150 / 72 1070ms
+     ✓ kills a run past its timeout with RasterizeTimeoutError (transient) and removes its directory 335ms
+     ✓ A-5: caps the run at the time left in the budget, and refuses to start past it 432ms
+2026-11-27T06:00:28.765Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.780Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.792Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.804Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.818Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.824Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.885Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.901Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.911Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.917Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.929Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.938Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.949Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.965Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.977Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.984Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.988Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.992Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:28.994Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:29.000Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:29.004Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:29.011Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:29.020Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:29.024Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:29.027Z WARN [Better Auth]: Reset Password: User not found
+2026-11-27T06:00:29.032Z WARN [Better Auth]: Reset Password: User not found
+ ✓  api  src/auth/password-reset.integration.test.ts (9 tests) 3477ms
+   ✓ 26.6-API-001b forgot password and the set-password link (9)
+     ✓ the link sets the password once: the user signs in with it, his other sessions are gone, a second use is INVALID_TOKEN 769ms
+     ✓ an invited user sets his password through a 72-hour link, asks for a reset like anyone, and becomes active at his first sign-in 512ms
+ ✓  api  src/sync/e24a-conclusion.integration.test.ts (2 tests) 3307ms
+   ✓ 24.3-API-001 the conclude batch of a v14 sheet a reading out makes Reprovado, through the sync route (2)
+     ✓ v14: one batch puts Reprovado and removes the stored restriction; the row holds no restriction and reads Reprovado alone; the pull carries both puts 1599ms
+     ✓ v13: the same sheet concludes as before: no restriction put, the stored Com restrições stays, Reprovado · Com restrições 950ms
+ ✓  api  src/storage/s3.test.ts (8 tests) 1101ms
+   ✓ A-6 S3 request timeouts (1)
+     ✓ rejects a GetObject the endpoint never answers, within the request timeout 1055ms
+ ✓  api  src/sync/e28c-additional-items.integration.test.ts (1 test) 3270ms
+   ✓ 28.9-API-001 the additional items through the sync route (1)
+     ✓ a relatório born on the current seed (v19) holds none; the field writes two in order; a role without relatorio.fill is refused op_forbidden; past the cap op_value_invalid 729ms
+ ✓  api  src/sync/points.integration.test.ts (2 tests) 3189ms
+   ✓ 6.6-API-001 point fields through the sync route (1)
+     ✓ pushes a point create with its action and the action, priority, deadline and owner puts, and pulls them back identical 1309ms
+   ✓ 22.5-API-001 a point written from a derived entry through the sync route (1)
+     ✓ pushes a point create with origin nc and its item_key, and one with origin reading and its test_key, and pulls them back identical; the source is fixed at create; a version-30 bundle is answered 426 637ms
+ ✓  api  src/jobs/generate/docx-fixed-texts-v15.test.ts (4 tests) 4607ms
+   ✓ 25.22-INT the DOCX of a v15 relatório: the cover, the fixed texts, section 3's ending, the validity line and the ratio headers (4)
+     ✓ the relay exclusion and a blank ART: the site on the cover and in section 1, no relay clause, the line with no number 2278ms
+     ✓ no exclusion naming a relay and the ART filled: the clause stays, and the validity line is the same 819ms
+     ✓ the obra with no site: its name on the cover and in section 1 742ms
+     ✓ the same relatório on v14 prints FO.SERV-03's texts: the Local, the relay clause, "[ART/TRT]"-style line, "TP's" and "TPS" 765ms
+ ✓  api  src/sync/transformer-tests.integration.test.ts (2 tests) 2999ms
+   ✓ 23.15-INT the new measurement tests through the route (contract 38) (2)
+     ✓ a config switching them, their cells and values are accepted on a v13 sheet; an unknown test key is refused 2287ms
+ ✓  api  src/sync/conflicts.integration.test.ts (9 tests) 5263ms
+   ✓ 10.3-API-002 one TAG created on two devices (1)
+     ✓ is listed by the kernel from the pulled rows and log (later = higher seq); "Manter as duas" suffixes the later one 1402ms
+   ✓ 10.2/10.3-API-003 replay (1)
+     ✓ a log holding an open contradiction, an open removal conflict and resolved ones replays byte-equal on the device 326ms
+   ✓ E10-Q6 a client older than contract 12 cannot settle a mark it never saw (1)
+     ✓ a put on a cell holding `conflict`, or a removal write on a block holding `removal_conflict`, is answered 426 and nothing applies; an unmarked cell is accepted 575ms
+ ✓  api  src/sync/test-base-update.integration.test.ts (4 tests) 3648ms
+   ✓ 25.23-API-001 the base update through the route (4)
+     ✓ company A imports revision A: the versions carry index_help and base_texts 1980ms
+     ✓ speaks contract 51: a version-50 pull is answered 426 contract_outdated, the current one is answered 376ms
+     ✓ company B pulls nothing of A's update, and its own update plans every type as a create 670ms
+ ✓  api  src/sync/e25s-thermography.integration.test.ts (3 tests) 5745ms
+   ✓ 25.15-INT the v16 thermography through the route (contract 54) (3)
+     ✓ a v16 answer, its reason and text, a point's reading and an added point are accepted; "Equipamento em carga" is refused 3987ms
+     ✓ a v15 relatório keeps "Equipamento em carga" and takes no answer of v16 1297ms
+ ✓  api  src/sync/e25c-reading-not-applicable.integration.test.ts (2 tests) 4117ms
+   ✓ 25.9-API-001 "Não se aplica" on a reading cell through the sync route (2)
+     ✓ v15: the cell and the whole ratio row are applied, pulled back as pushed, and the server reads them N/A, filled and never judged 1436ms
+     ✓ v14: the same puts are applied as the fold always applied them, and read as before (invalid, never N/A) 1202ms
+ ✓  api  src/sync/learned-options.integration.test.ts (15 tests) 3904ms
+   ✓ Story 14.12 (contract 23): learned options through POST /api/sync/ops (15)
+     ✓ NC typed: one server create of registry/nc_phrase in the push, outside the push answer, on the company stream 564ms
+     ✓ Chip + typed: the observation is split at the offered phrases and only the typed piece is learned; only chips teach nothing 429ms
+     ✓ Other company: company B never receives company A's learned rows 393ms
+     ✓ review: a phrase the office renamed away is not learned again from a sheet that still holds the old spelling 557ms
+ ✓  api  src/sync/people-in-photo.integration.test.ts (1 test) 2731ms
+   ✓ 9.3-API-001 the people mark through the sync route (1)
+     ✓ pushes a photo create with people_in_photo and a people_in_photo put, and pulls them back identical 1953ms
+ ✓  api  src/http/quota.integration.test.ts (5 tests) 3390ms
+   ✓ 20.12-INT the daily ceiling of readings (4)
+     ✓ file receipt: under the ceiling the reading starts and spends one; at it, nothing is sent and the photo is kept, failed 588ms
+   ✓ 20.12-INT the daily ceiling of audits (1)
+     ✓ at the ceiling 429 quota_exceeded, no audit_run and nothing sent; under it one run, one unit spent 1807ms
+ ✓  api  src/jobs/audit/coverage.integration.test.ts (1 test) 3039ms
+   ✓ 14.10-API-001 the audit run stores its coverage (contract 20) (1)
+     ✓ the route creates the run with no coverage; the fake job writes sent and total; the stream carries the put; a device push of it is refused as server-only 2125ms
+ ✓  api  src/jobs/generate/e25c-rise-at-limit.integration.test.ts (2 tests) 4244ms
+   ✓ 25.8-INT the note line of a v15 second visit names the contact rise at the limit (2)
+     ✓ v15: each pole restricted, and the DOCX prints the note line naming the three rises "no limite de 50 %" 2771ms
+     ✓ v14: the same rise stays within and its DOCX prints no note line naming it 1464ms
+ ✓  api  src/sync/equipment-reuse-key.integration.test.ts (1 test) 3304ms
+   ✓ 24.21-API-001 the equipment reuse key through the sync route (1)
+     ✓ a create carries the key, a second device reads it back, a rename keeps it, a put to the key is refused, contract 41 is refused, and another company reaches nothing 2709ms
+ ✓  api  src/sync/test-base-import.integration.test.ts (3 tests) 2189ms
+   ✓ Story 23.12: the base import through the route (3)
+     ✓ company A pushes its plan: every op applies and the versions carry the help and the recommendation 1269ms
+     ✓ company B's pull carries none of A's types, its plan is full, and its push leaves A's types unchanged 558ms
+ ✓  api  src/sync/merge.integration.test.ts (5 tests) 2354ms
+ ✓  api  src/jobs/reading/providers/fake.test.ts (31 tests) 3261ms
+   ✓ 8.4-API committed fake fixtures (8)
+     ✓ names every fixture after the sha256 of the plate JPEG, a synthetic display or an image in images/ 1046ms
+   ✓ 8.4-API provider switch (4)
+     ✓ no api source reads a cloud credential or names the personal Claude app 1607ms
+ ✓  api  src/http/ai-write.integration.test.ts (9 tests) 3210ms
+   ✓ 31.9-API-001 the rewrite at the report level, with the field context, and its run row (2)
+     ✓ answers the written text and stores model, prompt version, tokens and USD; nothing is written to the relatório 334ms
+ ✓  api  src/http/files-reading.integration.test.ts (8 tests) 3328ms
+   ✓ 8.4-INT file receipt and the reading queue (5)
+     ✓ E78-Q7: a send that fails: the upload answers 200 and the plate photo ends failed ("Tentar novamente" is offered) 350ms
+   ✓ 11.8-INT AI_FEATURES=off: the LLM kinds are refused, display stays, the account says so (3)
+     ✓ file receipt of a plate, panel, caption or nc_obs photo sends no job and marks it failed; a display photo is sent 734ms
+ ✓  api  src/sync/jsonb-round-trip.integration.test.ts (1 test) 3436ms
+   ✓ F-1 jsonb round trip (1)
+     ✓ pulls back a string op value that is itself JSON text as the identical string, and entities.row keeps it too 1946ms
+ ✓  api  src/jobs/generate/e25s-thermography-docx.test.ts (2 tests) 3299ms
+   ✓ 25.15-INT the DOCX of a v16 relatório with a thermography "Não realizada" and one "Realizada" with an added point (2)
+     ✓ "Realizada" prints its table with the added point after the four, judged out; "Não realizada" prints its one line; unanswered, nothing 1351ms
+     ✓ the v15 relatório prints no such line, and no added point 1946ms
+ ✓  api  src/jobs/generate/e25s-ground-grid-docx.test.ts (2 tests) 2942ms
+   ✓ 25.16-INT the DOCX of a v16 Malha de aterramento with two added continuity points (2)
+     ✓ prints the five rows, then "Cerca metálica" and "Estrutura do portão" with the criterion and their results; the paragraph names the point out 1314ms
+     ✓ the v15 Malha prints its five rows only 1623ms
+ ✓  api  src/jobs/generate/e25c-reading-not-applicable.integration.test.ts (1 test) 2936ms
+   ✓ 25.9-INT the DOCX with N/A cells in a seeded table and in a measurement table (1)
+     ✓ each N/A cell prints "N/A" (and the derived cells of the all-N/A row and the corrected value), and no other cell moves 2934ms
+ ✓  api  src/sync/move-block.integration.test.ts (2 tests) 2697ms
+ ✓  api  src/jobs/generate/e25c-no-measurement.integration.test.ts (1 test) 2406ms
+   ✓ 25.6-INT the DOCX of a v15 relatório with a sheet on which nothing was measured (1)
+     ✓ section 9: the cabos de entrada prints its CONCLUSÃO boxes empty and no paragraph on v15, APROVADO and SEM on v14; section 10 counts it not concluded; every other table the same 2391ms
+ ✓  api  src/db/migrations-match.test.ts (1 test) 3458ms
+   ✓ committed migrations (1)
+     ✓ are up to date with schema.ts 3282ms
+ ✓  api  src/sync/template-seed-push.integration.test.ts (4 tests) 2305ms
+   ✓ Epic 14 QA Q-7: a template pushed on an older seed version reaches the current one in the push (4)
+     ✓ a create on v3 and a duplicate on v4 land on SEED_VERSION with their version kept; the move is a system:identity op of its own batch, and the company pull carries it 1093ms
+     ✓ an old template edited in the push keeps its new version; one restored is moved too; one removed in the push stays where it was 399ms
+ ✓  api  src/sync/sync-cta.integration.test.ts (8 tests) 2127ms
+   ✓ Story 14.5 (contract 19): the Chave de transferência automática through POST /api/sync/ops (8)
+     ✓ on a v5 relatório the block create, a cell, a choice cell, test values and the configuration are accepted, and the server row equals the kernel replay, byte for byte 585ms
+ ✓  api  src/jobs/generate/e25c-conclusion-text.integration.test.ts (1 test) 2567ms
+   ✓ 25.7-INT the DOCX of a v15 relatório with a test left unmeasured and a Reprovado by hand (1)
+     ✓ section 9: the seccionadora names its contact resistance as not measured and the cabos de saída its Reprovado as the responsible's on v15; v14 prints today's paragraphs; every other table the same 2565ms
+ ✓  api  src/http/edges.integration.test.ts (8 tests) 2451ms
+   ✓ 20.13-INT the better-auth allowlist (S7) (1)
+     ✓ update-user, list-sessions and revoke-other-sessions are 404s; the name and the sessions are unchanged 306ms
+   ✓ E20-A1 (R-5) the cover photo of a removed relatório, and uploads to removed files (2)
+     ✓ a company-wide cover photo answers 404 while every relatório naming it is removed, 200 while one of them is live, and 200 again after the restore 337ms
+ ✓  api  src/jobs/generate/e25c-point-names-readings.integration.test.ts (2 tests) 3022ms
+   ✓ 25.10-INT section 8 of a v15 relatório prints every reading a point names (2)
+     ✓ v15: the point started from the switch's contact test names the three poles in row order, and section 8 prints them in its bullet and its action-plan row 1911ms
+     ✓ v14: the same poles start a point naming the worst one, as today 1106ms
+ ✓  api  src/jobs/generate/docx-cta.test.ts (11 tests) 2113ms
+   ✓ 14.5-UNIT section 9 in the DOCX: a Chave de transferência automática under "Outros equipamentos" (11)
+     ✓ the "Outros equipamentos" group is a Heading 2 after the Transformadores group of the same local, and a line of the ÍNDICE 865ms
+     ✓ a test switched off prints nothing: no table, no line and no off note, and its neighbours stay 672ms
+ ✓  api  src/email/email.integration.test.ts (5 tests) 667ms
+   ✓ 26.6-API-001a the e-mail seam (5)
+     ✓ fake store: the link and the token of a message, the wait, the filters and the clear 357ms
+ ✓  api  src/sync/sync-v6.integration.test.ts (4 tests) 1564ms
+   ✓ Stories 14.9 and 14.11 (contract 21): seed v6 through POST /api/sync/ops (4)
+     ✓ contract 21: the route speaks it and a version-20 bundle's pull is answered 426 508ms
+ ✓  api  src/jobs/generate/docx-seed-v7.test.ts (4 tests) 3292ms
+   ✓ 14.14-UNIT section 9 in the DOCX on seed v7 (4)
+     ✓ a disjuntor on "Outro" prints the medium as spelled, VOL. ÓLEO as typed and its oil item as answered 1365ms
+     ✓ a disjuntor on "Ar" prints its oil item as stored and VOL. ÓLEO "-", as a non-oil unit 767ms
+     ✓ the QGBT prints no help text, no SELV notice and no test-voltage notice; the TENSÃO ENSAIO prints as typed 485ms
+     ✓ v6 untouched: a disjuntor on "ÓLEO (PVO)" prints as it shipped; "AR" prints VOL. ÓLEO "-" 669ms
+ ✓  api  src/sync/sync-v7.integration.test.ts (3 tests) 2467ms
+   ✓ Story 14.14 (contract 22): seed v7 through POST /api/sync/ops (3)
+     ✓ contract 22: the route speaks it and a version-21 bundle's pull is answered 426 674ms
+     ✓ a v7 disjuntor on "Outro" keeps its oil item and VOL. ÓLEO; the crossing to "Ar" through the route equals the kernel replay, the photo kept untied 498ms
+     ✓ a v7 QGBT marked SELV/PELV at 380 V with an insulation cell: only the pushed cells are written, the row equals the kernel replay 400ms
+ ✓  api  src/sync/company-types-e24c.integration.test.ts (4 tests) 1696ms
+   ✓ 24.18-API-001: "nominal ± %" through the sync route (2)
+     ✓ publishes a version whose row is 220 V ± 5 %, stored as written 757ms
+ ✓  api  src/sync/template-convergence.integration.test.ts (1 test) 2277ms
+   ✓ 3.4-API-001 concurrent template edits converge (1)
+     ✓ accepts a coluna removal and a block on that coluna from two devices, and every device folds to the server row 1431ms
+ ✓  api  src/jobs/generate/libreoffice.test.ts (6 tests) 426ms
+   ✓ convertToPdf over a fake soffice (5)
+     ✓ kills a conversion that outlives the timeout and removes the job directory 313ms
+ ✓  api  src/sync/push-route.integration.test.ts (2 tests) 2133ms
+ ✓  api  src/db/migrate.integration.test.ts (1 test) 1615ms
+ ✓  api  src/jobs/reading/providers/ocr-svc.test.ts (7 tests) 367ms
+ ✓  api  src/http/telemetry.integration.test.ts (14 tests) 1644ms
+ ✓  api  src/jobs/generate/e24s-no-break-docx.test.ts (1 test) 1787ms
+   ✓ 24.13-INT the DOCX of a v14 relatório prints the No-break de comando under "Outros equipamentos", before the Malha (1)
+     ✓ its title, its plate, its six rows and its conclusion, in its group and order; v13 prints none 1784ms
+ ✓  api  src/http/body-limit.node.integration.test.ts (2 tests) 367ms
+   ✓ E20-A1 (R-11) the push body cap through @hono/node-server (2)
+     ✓ a declared length one byte over SYNC_PUSH_MAX_BYTES with a slow body answers the JSON 413 body_too_large, and the socket is not reset while the client keeps writing 319ms
+ ✓  api  src/storage/variants.test.ts (4 tests) 950ms
+   ✓ A12 renderVariants auto-orients (3)
+     ✓ an EXIF-6 original yields upright thumb and print (width and height swapped vs the raw pixels), with no EXIF 354ms
+   ✓ A-7 the thumb from the print (1)
+     ✓ keeps the sizes and the format of a 3:2 JPEG and of an SVG 571ms
+ ✓  api  src/jobs/generate/docx-qgbt.test.ts (7 tests) 2725ms
+   ✓ 14.9-UNIT section 9 in the DOCX: a Quadro elétrico (QGBT/QD) under "Outros equipamentos" (6)
+     ✓ the group is a Heading 2 after the Transformadores group of the same local, and the sheet is titled QGBT/QD's 2273ms
+     ✓ above 500 V the ACEITÁVEL MΩ prints 1,0 436ms
+ ✓  api  src/sync/pull-stream.integration.test.ts (2 tests) 1607ms
+   ✓ A-2 the relatório stream, page by page (1)
+     ✓ pages the union of the relatório and project streams exactly as the OR did 546ms
+   ✓ A-22 toSnapshot reads the project rows, not the sibling relatórios (1)
+     ✓ a sibling relatório of the same project, with rows of its own, leaves the snapshot as it was 1022ms
+ ✓  api  src/jobs/generate/docx-company-type.test.ts (4 tests) 963ms
+   ✓ Story 14.6: company types in section 9 of the DOCX (2)
+     ✓ prints every company sheet under "Outros equipamentos", each titled by the version its block references 509ms
+ ✓  api  src/boot.integration.test.ts (3 tests) 303ms
+ ✓  api  src/sync/replay.integration.test.ts (8 tests) 1300ms
+   ✓ 1.4-INT-001 replay byte-equality (Drizzle layer) (8)
+     ✓ applies the small fixture in order and materializes the golden snapshot 849ms
+ ✓  api  src/jobs/generate/docx-rich-text.test.ts (4 tests) 388ms
+ ✓  api  src/db/e2e-leak-check.integration.test.ts (3 tests) 490ms
+   ✓ findE2eLeaks (2)
+     ✓ passes rows inside the pair and names every row a worker user wrote outside it 316ms
+ ✓  api  src/sync/apply-batch.integration.test.ts (8 tests) 328ms
+ ✓  api  src/sync/registry-names.integration.test.ts (4 tests) 200ms
+ ✓  api  src/jobs/generate/sections/section-11.test.ts (4 tests) 194ms
+ ✓  api  src/jobs/reading/providers/textract.test.ts (45 tests) 119ms
+ ✓  api  src/jobs/reading/providers/bedrock.test.ts (66 tests) 294ms
+ ✓  api  src/sync/push-record.integration.test.ts (1 test) 198ms
+ ✓  api  src/config.test.ts (25 tests) 63ms
+ ✓  api  src/http/app.test.ts (9 tests) 85ms
+ ✓  api  src/ai/aws.test.ts (8 tests) 37ms
+ ✓  api  src/http/security.test.ts (21 tests) 109ms
+ ✓  api  src/db/test-seed.test.ts (4 tests) 109ms
+ ✓  api  src/jobs/reading/worker-invalid.integration.test.ts (2 tests) 83ms
+ ✓  api  src/http/health.test.ts (3 tests) 83ms
+ ✓  api  src/jobs/reading/image.test.ts (3 tests) 32ms
+ ✓  api  src/jobs/audit/audit.test.ts (17 tests) 110ms
+ ✓  api  src/jobs/reading/providers/ai-features.test.ts (2 tests) 16ms
+ ✓  api  src/http/edges.test.ts (6 tests) 53ms
+ ✓  api  src/telemetry/sink.test.ts (13 tests) 14ms
+ ✓  api  src/jobs/reading/providers/vector-diagram.test.ts (22 tests) 31ms
+ ✓  api  src/db/e2e-leak-check.test.ts (5 tests) 28ms
+ ✓  api  src/http/session.test.ts (3 tests) 65ms
+ ✓  api  src/jobs/transcription/providers/speech-transcribe.test.ts (9 tests) 9ms
+ ✓  api  src/jobs/generate/sections/section-7.test.ts (2 tests) 51ms
+ ✓  api  src/scripts/eval-samples.test.ts (3 tests) 14ms
+ ✓  api  src/db/cli-run.test.ts (3 tests) 8ms
+ ✓  api  src/db/smoke-seed.test.ts (4 tests) 20ms
+ ✓  api  src/jobs/queue.test.ts (1 test) 10ms
+ ✓  api  src/auth/auth.test.ts (1 test) 20ms
+ ✓  api  src/jobs/generate/job-timing.test.ts (3 tests) 9ms
+ ✓  api  src/jobs/generate/toc.test.ts (8 tests) 4ms
+ ✓  api  src/jobs/generate/pdf-outline.test.ts (2 tests) 7ms
+ ✓  api  src/db/repositories/company-id.test.ts (3 tests) 8ms
+ ✓  api  src/scripts/eval-group-read.test.ts (2 tests) 3ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL   api  src/db/users-read.integration.test.ts > users-read-cli > refuses a bad id, a flag without a value and an unknown flag, with nothing on stdout
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/db/users-read.integration.test.ts:96:3
+     94|   });
+     95|
+     96|   it('refuses a bad id, a flag without a value and an unknown flag, wi…
+       |   ^
+     97|     for (const args of [['--company', 'not-an-id'], ['--company'], ['-…
+     98|       const run = cli(args);
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ FAIL   api  src/db/users-read.integration.test.ts > users-read-cli > E18-A1 (R-A18): a refusal names the expected shape and never echoes the refused argument or value
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/db/users-read.integration.test.ts:105:3
+    103|   });
+    104|
+    105|   it('E18-A1 (R-A18): a refusal names the expected shape and never ech…
+       |   ^
+    106|     for (const args of [['--company', 'not-a-uuid-SECRET'], ['--SECRET…
+    107|       const run = cli(args);
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+ Test Files  1 failed | 129 passed (130)
+      Tests  2 failed | 1023 passed (1025)
+   Start at  05:55:19
+   Duration  432.31s (tests 61%, import 33%, transform 5%)
+[test:api] ===== serial: FAILED in 441.6 s =====
+ RUN  v5.0.1 /workspace/apps/api
+ ❯  api-serial  src/sync/roles.integration.test.ts (21 tests | 1 failed) 29321ms
+   ✓ 26.4 the push asks the role for the key of each op (4)
+     ✓ an Engenheiro de Campo pushes a reading, a template edit and a registry edit in one push: the reading applies, the two others are refused op_forbidden, each alone 496ms
+     ✓ a client write of role/*, user/{id}/role_id or user/{id}/status is op_server_only, the Admin's included 54ms
+     ✓ an Admin of this company acting on company B: the tenant refusals of today are unchanged 44ms
+     ✓ a version-54 bundle pulling from this server gets 426 contract_outdated 17ms
+   ✓ 26.4-API-001 each key, a role lacking only it and a role holding it (11)
+     ✓ relatorio.view: refused for the role lacking only it, accepted for the role holding it 151ms
+     ✓ relatorio.create: refused for the role lacking only it, accepted for the role holding it 50ms
+     ✓ relatorio.delete: refused for the role lacking only it, accepted for the role holding it 41ms
+     ✓ relatorio.fill: refused for the role lacking only it, accepted for the role holding it 58ms
+     ✓ relatorio.issue: refused for the role lacking only it, accepted for the role holding it 46ms
+     ✓ export.download: refused for the role lacking only it, accepted for the role holding it 37ms
+     ✓ template.edit: refused for the role lacking only it, accepted for the role holding it 179ms
+     ✓ equipment_type.edit: refused for the role lacking only it, accepted for the role holding it 129ms
+     ✓ registry.edit: refused for the role lacking only it, accepted for the role holding it 105ms
+     ✓ suggestion.review, users.manage and roles.manage open no client op and no route yet: no client action reaches them (since Story 26.8 users.manage opens the Admin routes alone) 22ms
+     ✓ a user whose role row the company does not hold holds no key (fail closed) 121ms
+   ❯ 26.4-API-002 the routes (3)
+     ✓ a Gestor do Projeto calls generate: 403 forbidden and no job is queued; his move to Emitido is refused op_forbidden 198ms
+     × a Responsável Técnico generates and issues as every user does today; a Consulta user downloads the issued PDF and his reading is refused 9983ms
+     ✓ an upload needs relatorio.fill and a file read relatorio.view 3408ms
+   ✓ 26.4-API-003 a user who is not active (3)
+     ✓ a paused user with a valid cookie pushes: 401 user_inactive and nothing applied; every read is 401; sign-in is refused 1934ms
+     ✓ a removed user with a valid cookie pushes: 401 user_inactive and nothing applied; every read is 401; sign-in is refused 3067ms
+     ✓ reactivated, the same cookie works again and the push applies 440ms
+ ✓  api-serial  src/db/seed-cli.integration.test.ts (3 tests) 58501ms
+   ✓ seed-users CLI (3)
+     ✓ provisions the two test companies through the CLI 17018ms
+     ✓ seeds the standard template once with --standard-template, however often it runs (Story 3.2) 21288ms
+     ✓ seeds the small Porto Seguro relatório onto the named company with --sample-relatorio, under ids derived for it (review F-14) 20169ms
+ ✓  api-serial  src/http/generate.integration.test.ts (15 tests) 37027ms
+   ✓ 4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:id/docx (15)
+     ✓ accepts the generate (202 queued), the worker renders both files, and the revision reaches the pull with a converged TOC 3255ms
+     ✓ Story 22.12: the issue wrote each measured equipment's last_results in its batch, on the project stream, and company B never pulls it 538ms
+     ✓ serves the DOCX with the download headers, and its ÍNDICE pages equal the PDF outline 573ms
+     ✓ 11.1-INT serves the stored PDF with the download headers; it is the revision, Rev. 1 printed 1663ms
+     ✓ allocates number 2 after an edit, and never 1 again 13509ms
+     ✓ counts a project-scope edit (an equipment TAG) as an edit too: number 3 15112ms
+     ✓ E4 retro item 18: an equipment of the obra this relatório does not reference is no edit of it: unchanged 378ms
+ ✓  api-serial  src/http/preview.integration.test.ts (7 tests) 39218ms
+   ✓ 7.4/7.5-INT parecer, preview and the blocked issue (7)
+     ✓ answers another company's preview press with 404 and queues no job 485ms
+     ✓ queues a preview even while an issue job runs; it renders the RASCUNHO PDF, served at preview.pdf, and changes nothing else 10181ms
+     ✓ issues once the parecer is set, ignoring a preview job and a running job past its expiry; section 10 prints and last_nameplate is projected 12541ms
+     ✓ 11.1-INT draft equals issued PDF: a preview of the unedited issued snapshot has the same pages and text but the revision label, and only the draft carries the watermark 13921ms
+ ✓  api-serial  src/sync/sync.integration.test.ts (53 tests) 25304ms
+   ✓ 2.5-API-004 manufacturer/voltage_class normalized-name merge (7)
+     ✓ never merges across kinds: a manufacturer and a voltage_class of the same normalized name both stay live 431ms
+     ✓ never merges across companies: two companies with the same normalized name each keep their own row (AD-10) 816ms
+   ✓ the registration as user ops (retro A2) (4)
+     ✓ an own-user put reaches the entity, and GET /api/account composes it 416ms
+   ✓ 1.5-API-005 contract skew (2)
+     ✓ e25s-API-002, 25.5-API-002, 25.4-API-002, 24.2-API-001, 24.18-API-002, 24.15-API-001 contract 49 (fix batch e25r, R-1; contract 48, Story 25.4, batch e25b; contract 47, Stories 24.10 to 24.14, batch e24s; contract 46, Stories 24.15 and 24.16, batch e24p; contract 45, Stories 24.18 to 24.20, batch e24c; contract 44, Stories 24.2 to 24.4, batch e24a; contract 43, Stories 24.8 and 24.21, batch e24b; contract 42, fix batch e24f; contract 41, fix batch e24h; contract 40, fix batch e23z; contract 39, Stories 23.13, 23.18, 23.20 and 23.21, batch e23e; contract 38, Stories 23.15 to 23.17 and 23.19, batch e23t; contract 37, Stories 23.10 and 23.11, batch e23h; contract 36, Stories 23.5, 23.6 and 23.14, batch e23v; contract 35, Stories 23.7 to 23.9, batch e23b; contract 33, Story 14.6; contract 32, Stories 22.7 to 22.12; contract 31, Stories 22.4 to 22.6; contract 30, Stories 21.1 to 21.3; Stories 20.7 to 20.10; fix batch fxrm; Stories 15.7 and 17.6; Story 16.4; Stories 15.3 and 15.6; UX pass 2026-10-22 F43; Story 14.12; Stories 14.9 and 14.11; Story 14.10 lane B; Story 14.5; Story 14.3 matrix "Old client"; contract 50, Story 25.5, batch e25c; contract 51, Story 25.23, batch e25p; contract 52, Story 25.24, batch e25p; contract 53, seed v16, batch e25s; contract 54, Story 25.18, batch e25s; contract 55, Story 26.2, batch e26a; contract 56, Stories 27.1 and 27.2, batch e27a; contract 57, seed v17, batch e27b; contract 58, seed v18, batch e28a; contract 59, Story 28.9, batch e28c; contract 61, Story 30.4, batch e30c; contract 62, Story 31.1, batch e31a): a version-58 pull is refused with 426 contract_outdated on every stream, a version-59 pull is answered 2159ms
+   ✓ Story 14.2 (contract 17): Local › Painel › Coluna through POST /api/sync/ops (5)
+     ✓ accepts a painel tree with a Função, and the server rows equal the kernel replay of the same log, byte for byte 757ms
+   ✓ Story 14.3 (contract 18): Verificações do local through POST /api/sync/ops (10)
+     ✓ Stories 22.8 and 22.11 (seed v12, contract 32): an inspecao_qgbt create on a v12 coluna and a voltage cell put on a v12 transformer are applied and carried; a v11 transformer refuses the column; a version-31 pull is 426 357ms
+     ✓ matrix "Edit in Emitido": with nothing edited the generate answers unchanged; a site put on the Emitido relatório makes the next generate build revision 2, whose document prints the answer 13487ms
+   ✓ Story 14.2, second pass: a location removal batch and its restore through POST /api/sync/ops (2)
+     ✓ a painel with two colunas and their sheets leaves in one batch and comes back in one: the stored rows, the server snapshot and the summary agree with the kernel 902ms
+ ✓  api-serial  src/jobs/generate/job-photo-read.integration.test.ts (3 tests) 8553ms
+   ✓ A-4 a read that throws fails the issue job; it never issues a revision without its evidence (3)
+     ✓ the next press, with the reads working again, issues revision 1 6533ms
+ ✓  api-serial  src/sync/porto-seguro.integration.test.ts (3 tests) 20739ms
+   ✓ 3.7-INT-001 Porto Seguro fixture replay byte-equality (Drizzle layer) (2)
+     ✓ applies all ~2500 ops with zero rejections and materializes the golden snapshot 20046ms
+   ✓ 3.7-INT-002 Porto Seguro small fixture replay byte-equality (Drizzle layer) (1)
+     ✓ applies the small fixture with zero rejections and materializes its own golden snapshot 320ms
+ ✓  api-serial  src/sync/e26r-issued.integration.test.ts (5 tests) 10627ms
+   ✓ e26r-API-004 leaving Emitido needs relatorio.issue (3)
+     ✓ the Engenheiro de Campo and the Gestor do Projeto: every family that would reopen is refused op_forbidden, alone, never logged; the relatório stays Emitido 3218ms
+     ✓ the Responsável Técnico reopens it with an edit; the Admin moves it back; on Em revisão the Engenheiro de Campo fills again 3900ms
+     ✓ the op's claim gains nothing: a status op naming a non-Emitido status it saw is judged by the server's Emitido 1316ms
+ ✓  api-serial  src/jobs/generate/job.integration.test.ts (1 test) 10449ms
+   ✓ 7.2/7.3-INT-001 a revision with a photo, a point citing it and two certificates (1)
+     ✓ prints "Imagem 1:", the resolved point, the rasterized pages and the placeholder of the unreadable certificate, and still commits the revision 8538ms
+ ✓  api-serial  src/jobs/generate/job-fault.integration.test.ts (1 test) 6642ms
+   ✓ 4.8-INT-003 GENERATE_FAULT=libreoffice_timeout (1)
+     ✓ fails the job at the conversion step, records the error, allocates no revision and stores no file; the next generate succeeds with number 1 5421ms
+ ✓  api-serial  src/jobs/generate/rich-text.integration.test.ts (1 test) 9222ms
+   ✓ 11.4-PRINT-BOTH a formatted section text in the issued DOCX and PDF (1)
+     ✓ prints bold, italic, the bullets and the decimal list in the DOCX, and bold and italic fonts in the PDF; 11.10-PDF: the action-plan table with every header word whole 7284ms
+ ✓  api-serial  src/db/test-fixtures.integration.test.ts (6 tests) 5723ms
+   ✓ E-4 removePortoSeguroSmall (1)
+     ✓ refuses, deleting nothing, when the fixture lives in a company that is not a test company; removes it when that company is named 1326ms
+   ✓ review F-14 the developer's sample relatório (1)
+     ✓ seeded on a non-test company under derived ids: removePortoSeguroSmall(db) does not throw and the sample's rows survive 1456ms
+   ✓ chore T3 the e2e workers' fixture copies (3)
+     ✓ seeds two worker companies at once; removing one copy leaves the other whole 2039ms
+     ✓ refuses, deleting nothing, to remove the copy of a company that is not a test company 680ms
+ ✓  api-serial  src/jobs/generate/job-certificate.integration.test.ts (6 tests) 2727ms
+   ✓ the page cache, by company and sha256 (4)
+     ✓ rasterizes once: a later load reads the stored pages and runs no rasterizer 384ms
+     ✓ ignores a corrupt entry, rasterizes again and rewrites it 359ms
+     ✓ keeps companies apart: the same certificate cached by one company is a miss for another 596ms
+ ✓  api-serial  src/http/e25c-stale-conclusion.integration.test.ts (1 test) 2650ms
+   ✓ 25.7-API-001 the server refuses to issue while a concluded sheet holds a stale conclusion text (1)
+     ✓ a stale text pushed through the sync route: 409 pre_issue_blocked naming conclusion_stale, no job; "Substituir" pushed the same way, and the next press is queued 350ms
+ ✓  api-serial  src/http/e31c-audio-hold.integration.test.ts (1 test) 2352ms
+   ✓ 31.6-API-001 a pending or failed audio blocks the issue on the server (1)
+     ✓ queued: 409 audios_pending; failed: 409 audios_failed; dismissed by the device: the issue is queued 334ms
+ ✓  api-serial  src/http/generate.enqueue.integration.test.ts (1 test) 1893ms
+ ✓  api-serial  src/http/generate-lock.integration.test.ts (1 test) 733ms
+ ✓  api-serial  src/http/request-log.integration.test.ts (2 tests) 1465ms
+ ✓  api-serial  src/jobs/audit/worker.integration.test.ts (2 tests) 2218ms
+ ✓  api-serial  src/jobs/generate/worker.integration.test.ts (2 tests) 531ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL   api-serial  src/sync/roles.integration.test.ts > 26.4-API-002 the routes > a Responsável Técnico generates and issues as every user does today; a Consulta user downloads the issued PDF and his reading is refused
+TypeError: fetch failed
+Caused by: Error: read ECONNRESET
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -104, code: 'ECONNRESET', syscall: 'read' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+ Test Files  1 failed | 19 passed (20)
+      Tests  1 failed | 134 passed (135)
+   Start at  05:55:18
+   Duration  440.57s (tests 64%, import 29%, transform 7%)
+[test:api] ===== print: passed in 523.6 s =====
+ RUN  v5.0.1 /workspace/apps/api
+ ✓  api-print  src/jobs/generate/layout-lock.integration.test.ts (18 tests) 226776ms
+   ✓ 30.3-INT-001 (28.2-INT-001, 27.8-INT-LOCK, e25s-INT-LOCK, 25.5-INT-LOCK, 24.2-INT-LOCK, 23.2-INT-LOCK) the PDF text of the locked seed versions is byte-equal to its golden (14)
+     ✓ layout-lock-v5: the preview PDF of the synthetic relatório prints its golden text, page by page 33411ms
+     ✓ layout-lock-v11: the preview PDF of the synthetic relatório prints its golden text, page by page 8217ms
+     ✓ layout-lock-v12: the preview PDF of the synthetic relatório prints its golden text, page by page 8064ms
+     ✓ layout-lock-v13: the preview PDF of the synthetic relatório prints its golden text, page by page 10056ms
+     ✓ layout-lock-v14: the preview PDF of the synthetic relatório prints its golden text, page by page 9764ms
+     ✓ layout-lock-v15: the preview PDF of the synthetic relatório prints its golden text, page by page 11943ms
+     ✓ layout-lock-v16: the preview PDF of the synthetic relatório prints its golden text, page by page 16494ms
+     ✓ layout-lock-v17: the preview PDF of the synthetic relatório prints its golden text, page by page 18339ms
+     ✓ layout-lock-v18: the preview PDF of the synthetic relatório prints its golden text, page by page 19337ms
+     ✓ layout-lock-v14-epic25: the preview PDF of the synthetic relatório prints its golden text, page by page 11746ms
+     ✓ layout-lock-v15-epic25: the preview PDF of the synthetic relatório prints its golden text, page by page 14619ms
+     ✓ layout-lock-v16-epic25: the preview PDF of the synthetic relatório prints its golden text, page by page 12574ms
+     ✓ layout-lock-v17-epic25: the preview PDF of the synthetic relatório prints its golden text, page by page 8023ms
+     ✓ layout-lock-v18-epic25: the preview PDF of the synthetic relatório prints its golden text, page by page 11496ms
+ ✓  api-print  src/jobs/generate/e25p-criterion-per-row.integration.test.ts (1 test) 59814ms
+   ✓ 25.20-INT a v15 relatório with every measurement test of the seed and one company table, on a first and on a second visit (1)
+     ✓ the DOCX prints the kernel's tables (CRITÉRIO, RESULTADO, "(corrigido)"), and the PDF prints every token of the touched tables whole on one line 53734ms
+ ✓  api-print  src/jobs/generate/e25b-revision-verdicts.integration.test.ts (6 tests) 48663ms
+   ✓ 25.4-API-001 25.4-INT the revision keeps the verdicts its document printed (6)
+     ✓ a preview of the v13 relatório stores no revision (its job done, no revision row, no revision create in the stream) 12798ms
+     ✓ v13: revision 1 records the parecer and each ficha's pair as its DOCX prints them, the kernel's printedVerdicts over the same ops; the stored choices unchanged 11337ms
+     ✓ v14: the parecer stored Apto and the breaker stored Aprovado · Sem restrições with its reading out: revision 1 records nao_apto and the breaker {reprovado, null} as the DOCX prints them; setup.parecer and every stored pair unchanged 9756ms
+     ✓ v14 with the section-10 block removed: revision 2 records printed_parecer null (the key present) and the pairs its DOCX prints; revision 1 unchanged 9062ms
+     ✓ company B is refused A's revision files and A's relatório stream, as every revision read is 705ms
+ ✓  api-print  src/jobs/generate/e24y-paired-tables.integration.test.ts (1 test) 31170ms
+   ✓ e24y-P1-INT the paired insulation tables of a second visit in the PDF (1)
+     ✓ v13 and v14 previewed: v14 prints every GUARD, FASE A/B/C and 20 °C whole and each value with its unit; both recorded 25151ms
+ ✓  api-print  src/jobs/generate/e25r-like-with-like.integration.test.ts (5 tests) 23007ms
+   ✓ e25r-R1-API-001 a v14 second visit issued twice keeps "like with like": no history note line, the same tables (5)
+     ✓ revision 1: no note line under the transformer's tables; the equipment's last_results.prior carries plate_measured, on the server and in the obra's stream 8760ms
+     ✓ revision 2, nothing edited on the transformer (R-1): still no note line, and the transformer's tables print as in revision 1; the prior keeps its field 4888ms
+     ✓ e25r-R1-API-002 the contrast (matrix row 8): A without the field on top and the plate of another visit on the row print the note line, as v13 compares 4914ms
+     ✓ e25r-R1-API-003 contract 49: a version-48 pull answers 426 contract_outdated on the company, relatório and project streams; a current pull is answered; a version-48 push is applied 320ms
+ ✓  api-print  src/jobs/generate/e24s-v14-print.integration.test.ts (1 test) 8030ms
+   ✓ e24s-INT the PDF of a v14 relatório prints the batch's sheets (Stories 24.10 to 24.14) (1)
+     ✓ the TP and TC lists, the transformer's items, the inspection's items, the No-break before the Malha and the oil sampling's "Outro" text; the PDF is kept in test-results/e24s-pdf 6588ms
+ ✓  api-print  src/jobs/generate/e24a-v14-print.integration.test.ts (4 tests) 7340ms
+   ✓ 24.4-INT the DOCX of a v14 relatório (3)
+     ✓ section 10: Não apto, the summary names each reprovada with its findings, the third bullet absent, no bold "8 e 9" run 387ms
+   ✓ 24.4-INT the PDF of a v14 relatório (24.3: the Reprovado ficha's boxes; 24.4: section 10 names the finding) (1)
+     ✓ the breaker's CONCLUSÃO row has both restriction boxes empty, and the Parecer names it with its finding; the PDF is kept in test-results/e24a-pdf 5287ms
+ ✓  api-print  src/jobs/generate/docx-layout-lock.test.ts (44 tests) 10451ms
+   ✓ 30.3-UNIT-LOCK (28.2-UNIT-LOCK, 27.8-UNIT-LOCK, e25s-UNIT-LOCK, 24.2-UNIT-LOCK, 23.2-UNIT-LOCK) the DOCX of the locked seed versions is byte-equal to its golden (10)
+     ✓ v5: every layout part of the synthetic relatório matches its golden/layout-lock directory 336ms
+     ✓ v11: every layout part of the synthetic relatório matches its golden/layout-lock directory 387ms
+     ✓ v12: every layout part of the synthetic relatório matches its golden/layout-lock directory 651ms
+   ✓ 25.5-UNIT-SAME a v15 relatório with the v14 Epic 25 fixture's answers concludes and prints as the v14 one (2)
+     ✓ v14 and v15 give one layout and one DOCX once ids and the version are masked 604ms
+   ✓ e25s-UNIT-SAME a v16 relatório with the v15 fixtures' answers concludes and prints as the v15 one (4)
+     ✓ the Epic 25 fixture: v15 and v16 give one layout and one DOCX once ids and the version are masked 727ms
+   ✓ 27.8-UNIT-SAME a v17 relatório with the v16 fixtures' answers concludes as the v16 one and prints the same but for the named words and the section 10 sentence (6)
+     ✓ the Epic 25 fixture: v16 and v17 give the same verdicts, each ficha's pair and the parecer 448ms
+     ✓ the rule-built fixture: v16 in v17's words and v17 with the section 10 sentence off give one layout and one DOCX once ids and the version are masked 315ms
+     ✓ the Epic 25 fixture: v16 in v17's words and v17 with the section 10 sentence off give one layout and one DOCX once ids and the version are masked 553ms
+   ✓ 28.2-UNIT-SAME a v18 relatório with the v17 fixtures' answers concludes and prints as the v17 one (4)
+     ✓ the Epic 25 fixture: v17 and v18 give one layout and one DOCX once ids and the version are masked 669ms
+   ✓ 30.3-UNIT-SAME a v19 relatório with the v18 fixtures' answers concludes and prints as the v18 one but for its three flags (6)
+     ✓ with the three flags read off (4)
+       ✓ the Epic 25 fixture: v18 and v19 give one layout and one DOCX once ids and the version are masked 531ms
+     ✓ the Epic 25 fixture: with the flags as shipped the verdicts are still v18's, and the layouts differ only by the criteria's form 304ms
+ ✓  api-print  src/jobs/generate/e24p-v14-print.integration.test.ts (4 tests) 9660ms
+   ✓ 24.15-INT, 24.16-INT the DOCX of a v14 second visit (3)
+     ✓ every MANUT. ANTERIOR header carries the visit's date (a day, a month, an issue date); the note lines under the contact and the insulation tables 374ms
+     ✓ the v14 twin with no service date kept prints the issue date in the header; v13 prints the header alone and no note line 371ms
+   ✓ 24.15-INT, 24.16-INT the PDF of a v14 second visit (1)
+     ✓ prints the dated headers and the two note lines; the PDF is kept in test-results/e24p-pdf 6907ms
+ ✓  api-print  src/jobs/generate/e25b-revision-verdicts-gaps.integration.test.ts (2 tests) 6799ms
+   ✓ 25.4-API-003 25.4-API-004 the printed verdicts of a revision: never defaulted, never rewritten (2)
+     ✓ 25.4-API-003 (T1) a revision create written before contract 48 pulls with neither printed key; revision 2 issued through the route carries both; revision 1 is unchanged 5105ms
+ ✓  api-print  src/jobs/generate/v13-insulation-print.integration.test.ts (2 tests) 7822ms
+   ✓ e23p-INT-P2 the v13 transformer's insulation table prints every word whole in the PDF, in its four shapes (2)
+     ✓ previewed through LibreOffice, each table holds its words whole the expected number of times and no fragment of one 6689ms
+     ✓ e24f-INT R-8 every column filled with long values: no word wider than its column in the kernel's table, each value whole in the PDF, the same words in the DOCX 387ms
+ ✓  api-print  src/jobs/generate/e28c-v18-print.integration.test.ts (5 tests | 1 skipped) 1379ms
+   ✓ 28.9-INT-001 and 28.10-INT-001 the v18 DOCX (4)
+     ✓ v18 with a Malha: the two items close section 10's topics before the validity line; section 1 "de"; section 2 the paragraph after the insulation one 645ms
+     ✓ v18 with its own section 2 text and a Malha: that text only 301ms
+ ✓  api-print  src/jobs/generate/e28b-v18-print.integration.test.ts (3 tests | 1 skipped) 957ms
+   ✓ 28.5-INT-001, 28.7-INT-001, 28.8-INT-001 the v18 DOCX (2)
+     ✓ v18: the deadlines from the issue date, Bruno's line under the insulation, the notes by his numbers 698ms
+ ↓  api-print  src/jobs/generate/cover-line-breaks.integration.test.ts (1 test | 1 skipped)
+ ↓  api-print  src/jobs/generate/e28r-first-issue-deadline.integration.test.ts (1 test | 1 skipped)
+ ↓  api-print  src/jobs/generate/page-placement.integration.test.ts (6 tests | 6 skipped)
+ Test Files  13 passed | 3 skipped (16)
+      Tests  94 passed | 10 skipped (104)
+   Start at  05:55:18
+   Duration  522.69s (tests 85%, import 12%, transform 3%)
+[test:api] ===== solo: api-solo =====
+ RUN  v5.0.1 /workspace/apps/api
+ ❯  api-solo  src/jobs/generate/generation-time.integration.test.ts (1 test | 1 failed) 27633ms
+   ❯ 14.10-INT generation time of the production shape (76 sheets, 2 filled, one photo) (1)
+     × a preview and then an issue each time every stage and the total under the target 26797ms
+ ✓  api-solo  src/db/roles.integration.test.ts (4 tests) 11701ms
+   ✓ 26.3-API-001 the migration of roles and users (2)
+     ✓ the seed gives a new company its roles with its first user, the user is Admin by default, and a re-seed without a role keeps the role 616ms
+   ✓ 26.3-API-001 seed-users --role and the company pull (2)
+     ✓ refuses an unknown role before touching the database 4297ms
+     ✓ with --role engenheiro_de_campo the user signs in and the device pulls its role, its keys and its status 6489ms
+ ✓  api-solo  src/db/seed.integration.test.ts (7 tests) 1526ms
+   ✓ seedTestCompanies on a volume seeded before Story 1.5 (1)
+     ✓ removes the legacy companies with everything attached and provisions the two v7 companies 414ms
+   ✓ the user projection (retro A2) (5)
+     ✓ puts one server-only user/{id} create per seeded user in the company stream, and a re-seed adds none 451ms
+     ✓ mints a uuidv7 for a new user, keeps it on re-seed, and re-keys a legacy slug user 343ms
+ ✓  api-solo  src/db/template-seed-upgrade.integration.test.ts (2 tests) 735ms
+   ✓ upgradeTemplateSeeds (Story 14.3, matrix "Templates") (2)
+     ✓ moves every live template on v1 to v5 to the current version, seed_version alone; relatórios, removed and current templates stay; a broken row is skipped and logged; a second run writes no op 582ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL   api-solo  src/jobs/generate/generation-time.integration.test.ts > 14.10-INT generation time of the production shape (76 sheets, 2 filled, one photo) > a preview and then an issue each time every stage and the total under the target
+Error: GET /containers/581fb248c5a94496cdc1c452e36b44ee78e62a7b1de9390ba8acfb771422a9a3/logs timed out after 5 s
+ ❯ ClientRequest.<anonymous> ../../scripts/preflight.ts:138:41
+    136|       res.on('error', rejectGet);
+    137|     });
+    138|     req.on('timeout', () => req.destroy(new Error(`GET ${path.split('?…
+       |                                         ^
+    139|     req.on('error', (error: NodeJS.ErrnoException) => {
+    140|       if (error.code === 'ENOENT' || error.code === 'EACCES' || error.…
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 13 passed (14)
+   Start at  06:04:02
+   Duration  54.93s (tests 77%, import 12%, transform 11%)
+[test:api] ===== solo: FAILED in 55.8 s =====
+[test:api] summary
+[test:api]   parallel  failed (exit 1)   130 files  433.5 s
+[test:api]   serial    failed (exit 1)    20 files  441.6 s
+[test:api]   print     passed             16 files  523.6 s
+[test:api]   solo      failed (exit 1)     4 files  55.8 s
+[test:api]   total     579.4 s
+[test:api] FAILED
+[ELIFECYCLE] Command failed with exit code 1.
+Error: executing /usr/local/bin/docker-compose --profile tools run --rm --user node tools pnpm test:api: exit status 1

@@ -78,6 +78,10 @@ describe('readUsers', () => {
 
 describe('users-read-cli', () => {
   const cli = (args: string[]) => spawnSync('pnpm', ['exec', 'tsx', 'apps/api/src/db/users-read-cli.ts', ...args], { cwd: root, encoding: 'utf8' });
+  // Chore T4: each run starts `pnpm exec tsx`, 2 to 5 s on a loaded machine, and two tests run it three
+  // times; the 60 s of `friction-read.integration.test.ts`'s same three CLI tests, instead of the 15 s
+  // default, which they overran beside the other api files (measured 2026-11-26 and 2026-11-27).
+  const CLI_TIMEOUT_MS = 60_000;
 
   it('prints one JSON line per user of the company and a closing count', () => {
     const run = cli(['--company', companyId]);
@@ -91,7 +95,7 @@ describe('users-read-cli', () => {
     expect(users[0]).toMatchObject({ company_id: companyId, name: `Ana ${tag}`, email: `ana-${tag}@teste.local`, sessions: 2 });
     expect(parsed.at(-1)).toMatchObject({ msg: 'users read done', users: 2, company_id: companyId });
     expect(run.stdout).not.toContain(`Caio ${tag}`);
-  });
+  }, CLI_TIMEOUT_MS);
 
   it('refuses a bad id, a flag without a value and an unknown flag, with nothing on stdout', () => {
     for (const args of [['--company', 'not-an-id'], ['--company'], ['--all']]) {
@@ -100,7 +104,7 @@ describe('users-read-cli', () => {
       expect(run.stdout).toBe('');
       expect(run.stderr).toContain('refused');
     }
-  });
+  }, CLI_TIMEOUT_MS);
 
   it('E18-A1 (R-A18): a refusal names the expected shape and never echoes the refused argument or value', () => {
     for (const args of [['--company', 'not-a-uuid-SECRET'], ['--SECRET'], ['--company', 'x', '--SECRET']]) {
@@ -111,5 +115,5 @@ describe('users-read-cli', () => {
       expect(run.stderr).not.toContain('SECRET');
       expect(run.stdout).not.toContain('SECRET');
     }
-  });
+  }, CLI_TIMEOUT_MS);
 });

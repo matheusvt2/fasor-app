@@ -1,0 +1,106 @@
+>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+ Container fasor-t4-postgres-1 Running 
+ Container fasor-t4-minio-1 Running 
+ Container fasor-t4-api-1 Running 
+ Container fasor-t4-install-1 Starting 
+ Container fasor-t4-install-1 Started 
+ Container fasor-t4-minio-1 Waiting 
+ Container fasor-t4-install-1 Waiting 
+ Container fasor-t4-postgres-1 Waiting 
+ Container fasor-t4-postgres-1 Healthy 
+ Container fasor-t4-install-1 Exited 
+ Container fasor-t4-minio-1 Healthy 
+ Container fasor-t4-install-1 Waiting 
+ Container fasor-t4-postgres-1 Waiting 
+ Container fasor-t4-minio-1 Waiting 
+ Container fasor-t4-api-1 Waiting 
+ Container fasor-t4-api-1 Healthy 
+ Container fasor-t4-install-1 Exited 
+ Container fasor-t4-minio-1 Healthy 
+ Container fasor-t4-postgres-1 Healthy 
+ Container fasor-t4-tools-run-63c27ea72d0f Creating 
+ Container fasor-t4-tools-run-63c27ea72d0f Created 
+$ tsx scripts/preflight.ts && eslint .
+/workspace/.scratch-t4/guard-head.ts
+   8:3   error  'importClosure' is defined but never used      @typescript-eslint/no-unused-vars
+  10:3   error  'matchTrigger' is defined but never used       @typescript-eslint/no-unused-vars
+  11:3   error  'parseArgs' is defined but never used          @typescript-eslint/no-unused-vars
+  12:3   error  'parseChangedFiles' is defined but never used  @typescript-eslint/no-unused-vars
+  13:3   error  'printClosureRoots' is defined but never used  @typescript-eslint/no-unused-vars
+  14:3   error  'printLaneDecision' is defined but never used  @typescript-eslint/no-unused-vars
+  15:3   error  'PRINT_TRIGGERS' is defined but never used     @typescript-eslint/no-unused-vars
+  22:3   error  'WHOLE_DOMAIN' is defined but never used       @typescript-eslint/no-unused-vars
+  25:10  error  'PHASES' is defined but never used             @typescript-eslint/no-unused-vars
+/workspace/.scratch-t4/guard-tail.ts
+  1:2  error  Parsing error: Declaration or statement expected
+/workspace/.scratch-t4/head-part.ts
+   1:10  error  'spawn' is defined but never used             @typescript-eslint/no-unused-vars
+   1:22  error  'ChildProcess' is defined but never used      @typescript-eslint/no-unused-vars
+   2:10  error  'existsSync' is defined but never used        @typescript-eslint/no-unused-vars
+   2:22  error  'mkdirSync' is defined but never used         @typescript-eslint/no-unused-vars
+   2:33  error  'readdirSync' is defined but never used       @typescript-eslint/no-unused-vars
+   2:46  error  'readFileSync' is defined but never used      @typescript-eslint/no-unused-vars
+   2:60  error  'writeFileSync' is defined but never used     @typescript-eslint/no-unused-vars
+   3:10  error  'dirname' is defined but never used           @typescript-eslint/no-unused-vars
+   3:19  error  'join' is defined but never used              @typescript-eslint/no-unused-vars
+   3:25  error  'relative' is defined but never used          @typescript-eslint/no-unused-vars
+   4:10  error  'pathToFileURL' is defined but never used     @typescript-eslint/no-unused-vars
+   5:10  error  'PRINT_FILES' is defined but never used       @typescript-eslint/no-unused-vars
+  40:7   error  'API_DIR' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  41:7   error  'LOG_DIR' is assigned a value but never used  @typescript-eslint/no-unused-vars
+/workspace/.scratch-t4/next-runner.ts
+  28:68  error  Unexpected control character(s) in regular expression: \x1b  no-control-regex
+/workspace/e2e/audit-fixes-30-1.spec.ts
+  69:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/durability.spec.ts
+  363:9   warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  625:9   warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  628:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  794:15  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/e24y-tag-rename.spec.ts
+  106:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/ergonomics.spec.ts
+  118:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/ficha.durability.spec.ts
+   70:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  158:9   warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  318:9   warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/ficha.spec.ts
+   290:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  1368:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  1878:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/parecer-export.spec.ts
+  399:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/password-by-email.spec.ts
+  154:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/photo-zoom.durability.spec.ts
+  184:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  243:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/plate-shot-fallback.spec.ts
+  100:13  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/plate.spec.ts
+  150:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/points.spec.ts
+  522:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/review-field-defects-2.spec.ts
+  241:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/review-layout-copy-3.spec.ts
+  241:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  624:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/sheet-photos.spec.ts
+  167:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/status-flow-2026-10-10.spec.ts
+  257:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/support/durability.ts
+  180:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/templates.spec.ts
+  363:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/typed-values-kept.spec.ts
+  313:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/ui-hygiene.spec.ts
+  235:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+/workspace/e2e/usage-events.spec.ts
+  238:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+✖ 55 problems (25 errors, 30 warnings)
+[ELIFECYCLE] Command failed with exit code 1.
+Error: executing /usr/local/bin/docker-compose --profile tools run --rm --user node tools pnpm lint: exit status 1

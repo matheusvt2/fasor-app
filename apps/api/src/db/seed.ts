@@ -527,10 +527,11 @@ export async function removeLegacyTestCompanies(db: Db): Promise<number> {
  * It is called by the Playwright global setup, `scripts/test-reset.ts` (guarded to only
  * ever pass a `TEST_SEED` company id, F-DUP-3), and this file's own sibling
  * `test-reset.integration.test.ts` — never by `seedTestCompanies`: the api integration
- * files each seed in their own `beforeAll` and normally run side by side, which would let
- * a reset here wipe rows a neighbouring file had just written. `apps/api/vitest.config.ts`
- * sets `fileParallelism: false` specifically so `test-reset.integration.test.ts` can call
- * this safely; do not re-enable file parallelism there without re-solving this race first.
+ * files each seed in their own `beforeAll`, which would let a reset here wipe rows a
+ * neighbouring file had just written. Chore T4 (2026-11-26): the api suite's parallel lane
+ * gives each worker its own `TEST_SEED` pair (`test-seed.ts`, `apps/api/src/test-lanes.ts`),
+ * so a file only ever resets its own worker's companies, which no file running at the same
+ * time uses.
  */
 export async function resetTestCompanyData(
   db: Db,

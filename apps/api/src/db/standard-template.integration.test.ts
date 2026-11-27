@@ -284,7 +284,12 @@ describe('F-09 (review 2026-10-06, D4): the voltage classes come with the standa
         .where(and(eq(ops.company_id, companyId), or(like(ops.path, 'template/%'), like(ops.path, 'registry/%'))))
         .orderBy(ops.seq);
       expect(log.map((op) => op.path.split('/').slice(0, 2).join('/'))).toEqual(['template/' + id, ...SEEDED_VOLTAGE_CLASSES.map(() => 'registry/voltage_class')]);
-      expect(log.every((op, i) => i === 0 || op.seq === log[i - 1]!.seq + 1)).toBe(true);
+      // Consecutive in the company's log: no other op of the company sits between them. (Chore T4: `seq`
+      // is one sequence for every company, so a file writing another company at the same time may take
+      // numbers in between; the company's own stream, which a device pulls, has no gap.)
+      const companyLog = await db.select({ seq: ops.seq }).from(ops).where(eq(ops.company_id, companyId)).orderBy(ops.seq);
+      const first = companyLog.findIndex((op) => op.seq === log[0]!.seq);
+      expect(companyLog.slice(first, first + log.length).map((op) => op.seq)).toEqual(log.map((op) => op.seq));
       expect(log.every((op) => op.kind === 'create' && op.actor_id === 'system:identity')).toBe(true);
       expect(log.some((op) => op.path.startsWith('registry/manufacturer/'))).toBe(false);
 

@@ -1,10 +1,10 @@
 import type { EntityRow } from '@app/domain';
-import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { eq } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { now } from '../clock.ts';
 import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
+import { smallFixtureCopy } from '../db/test-fixtures.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
@@ -87,20 +87,16 @@ describe('A-22 toSnapshot reads the project rows, not the sibling relatórios', 
   it('a sibling relatório of the same project, with rows of its own, leaves the snapshot as it was', async () => {
     const company = asCompanyId(newId());
     companies.push(company);
-    const remapped = portoSeguroSmall.log.map((op) => {
-      const value =
-        op.kind === 'create' && op.value !== null && typeof op.value === 'object' && !Array.isArray(op.value) && 'company_id' in op.value
-          ? { ...(op.value as Record<string, unknown>), company_id: company }
-          : op.value;
-      return { ...op, op_id: newId(), company_id: company, value, seq: undefined };
-    });
-    // The fixture's ids are its own; on a throwaway company only its op ids must be fresh.
-    const result = await applyOps(db, company, remapped, { now, origin: 'server' });
+    // Chore T4: the company's own copy of the small fixture (`smallFixtureCopy`, every id derived from
+    // the company), not the fixture's fixed relatório and project ids, which an `api-serial` file seeds
+    // at the same time and `removePortoSeguroSmall` refuses to find in a company it does not know.
+    const copy = smallFixtureCopy(company);
+    const result = await applyOps(db, company, copy.log, { now, origin: 'server' });
     expect(result.rejected).toEqual([]);
-    const before = await toSnapshot(db, company, portoSeguroSmall.relatorioId);
+    const before = await toSnapshot(db, company, copy.relatorioId);
 
     const sibling = newId();
-    const project = portoSeguroSmall.projectId;
+    const project = copy.projectId;
     const rows: (typeof entities.$inferInsert)[] = [
       { company_id: company, entity: 'relatorio', id: sibling, relatorio_id: sibling, project_id: project, row: { ...(before.relatorio as object), id: sibling } as EntityRow, updated_seq: 1 },
       ...Array.from({ length: 30 }, () => {
@@ -109,7 +105,7 @@ describe('A-22 toSnapshot reads the project rows, not the sibling relatórios', 
       }),
     ];
     await db.insert(entities).values(rows);
-    const after = await toSnapshot(db, company, portoSeguroSmall.relatorioId);
+    const after = await toSnapshot(db, company, copy.relatorioId);
     expect(after).toEqual(before);
     expect(after.equipment.length).toBeGreaterThan(0);
   });

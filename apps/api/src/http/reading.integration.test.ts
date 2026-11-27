@@ -36,6 +36,7 @@ import { createDb } from '../db/client.ts';
 import { entities, ops, readingRuns } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
+import { dropRegistryRowsNamed } from '../db/test-cleanup.ts';
 import { newId } from '../ids.ts';
 import { readingServerOp, readingStatusPath } from '../jobs/reading/status.ts';
 import { applyOps } from '../sync/apply.ts';
@@ -269,6 +270,10 @@ function createdSuggestions(all: Op[]): SuggestionRow[] {
 
 beforeAll(async () => {
   await seedTestCompanies(db, auth);
+  // Chore T4: the README plate reads "Celtta", which must be a manufacturer the company lacks for
+  // the reading to hint its creation; another file of this test pair may have taught it (a confirmed
+  // FABRICANTE, `suggestion.integration.test.ts`), or an earlier run stopped before its cleanup.
+  await dropRegistryRowsNamed(db, companyA.companyId, 'manufacturer', 'Celtta');
 }, 60_000);
 
 afterAll(async () => {

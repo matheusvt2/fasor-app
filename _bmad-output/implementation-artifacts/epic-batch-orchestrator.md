@@ -142,6 +142,12 @@ overrides (they win over the workflow text):
   story gate". The coordinator runs the full `@p0`, `test:e2e:full` and the matrix once per wave on the integrated
   main. A failure called a flake still needs its failing state explained and a passing isolated run on the same
   commit.
+- (2026-11-26, chore T4) In the batch gate, read `pnpm test:api` as `pnpm test:api:batch` with the batch's changed
+  files: `podman compose --profile tools run --rm --user node -e API_CHANGED_FILES="$(git diff --name-only origin/main...HEAD; git diff --name-only HEAD; git ls-files --others --exclude-standard)" tools pnpm test:api:batch`
+  (run from the worktree on the host, so git sees it). It leaves the print lane out only when no changed path is under
+  `PRINT_TRIGGERS` (`scripts/api-suite.ts`) and says which way it went on its first line. The wave gate keeps the plain
+  `pnpm test:api` (every lane). A new api test file that reaches a shared resource goes in a lane of
+  `apps/api/src/test-lanes.ts`, or `scripts/api-suite.test.ts` fails.
 - (2026-11-07, Epic 22 wave C gate) Before the integrated gate on the main checkout, the coordinator runs
   `podman compose restart api web`: the api's route tests and every e2e hit the live `api:3000` container, which does
   not reload `packages/domain`. The wave C gate went red (12 api, 6 full, 3 matrix) only because that container ran
