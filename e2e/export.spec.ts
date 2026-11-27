@@ -97,7 +97,7 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   // Q3: what Etapa 1's "Informações adicionais" says is what the cover prints.
   const relatorioId = await createRelatorio(page, {
     whileOnSetup: async () => {
-      await page.getByLabel('Informações adicionais').fill(ADDITIONAL_INFO);
+      await page.getByRole('textbox', { name: 'Informações adicionais' }).fill(ADDITIONAL_INFO);
     },
   });
   await expect(headerPill(page)).toHaveText('Rascunho');
@@ -370,7 +370,7 @@ test('@p0 E4-E2E-001 generate, mark as sent, edit, Em revisão, generate revisio
   await sumarioList(page).getByRole('button', { name: /^Capa e dados do relatório/ }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
   await expectBelowAppBar(page, page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' }));
-  const info = page.getByLabel('Informações adicionais');
+  const info = page.getByRole('textbox', { name: 'Informações adicionais' });
   await info.click();
   await info.pressSequentially('Parada de 12 horas');
   await page.keyboard.press('Tab');

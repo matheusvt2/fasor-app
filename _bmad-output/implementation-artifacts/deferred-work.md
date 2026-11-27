@@ -1300,3 +1300,44 @@ All rows closed; see deferred-work-archive.md
   evidence: `packages/domain/src/contract/version.ts` (contract 62); the usage-event name list in `packages/domain/src/contract/`; `apps/web/src/db/audio-commit.ts` `commitAudioCapture`, `commitAudioDismiss`.
   class: gap
   state: open (owner: the next Epic 18-style usage batch; needs Matheus's word on the contract bump)
+
+## Deferred from: review-fix batch e31f, Epic 31 (2026-11-26)
+
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.7 outcome line (the narrowing) and e31f item 13 (Matheus, 2026-11-26: "later, in another delivery")
+  summary: The mic is missing on the three escopo texts (the local's text, the exclusions list, the additional items) and on the "Marcar não ensaiado" dialog (the reason's own text before the mark is stored). None of them is a value of the closed `audio_target` union, so each needs a new target value, which is a contract bump (62 to 63) that Epic 31 did not take.
+  evidence: `packages/domain/src/schemas/entities.ts` (the `audio_target` union); `packages/domain/src/audio/target.ts`; the escopo setup surface and the Não ensaiado dialog in `apps/web/src/surfaces/`.
+  class: gap
+  state: open (owner: a later delivery, on Matheus's word on the contract bump)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.4 (text typed while the audio was pending) and e31f item 3 (the reverse order)
+  summary: The job now rebuilds the field's write from a fresh read under the company lock, so a text the server already holds when the job commits is kept. The reverse order is not fixed: a device put on the same field still waiting in the outbox when the job commits (typed offline, or not yet pushed) carries the whole value the device held, without the audio's text, and lands after the job's put, so the field loses the audio's text (last writer wins on a whole-value path). The audio row keeps `transcript_heard` and `transcript_written`, and the field's mark reads "Áudio, editado" with "Ver texto como falado", so the text can be recovered by hand, but nothing puts it back by itself. A fix needs the device to rebase its pending put on the arriving audio put (re-append the audio text when its pending value does not hold it) or the server to merge a client put that did not see the audio put; either touches the commit path and the op fold, which this batch did not take.
+  evidence: `apps/api/src/jobs/transcription/job.ts` (`compose`); `apps/web/src/db/commit.ts`; the device's pull fold in `apps/web/src/sync/`; `packages/domain/src/audio/write.ts` `appendAudioText`.
+  class: bug
+  state: open (owner: Matheus decides the rule, device rebase or server merge; the batch that builds it runs the durability specs on the matrix)
+
+## Deferred from: Epic 31 delivery and deploy (2026-11-27)
+
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Epic 31 delivery record (2026-11-27)
+  summary: Two tests failed in the final gate on `8aefd758` and passed alone, twice each: `files.spec.ts` 2.2-E2E-002 (a 15 s timeout on a 26 MB upload, `test:e2e:full`) and `company-type.durability.spec.ts` 14.8-E2E-001 on durability-android-chrome (a 30 s download timeout, `test:e2e:matrix`). Alone: 8 of 8 and 2 of 2 green. The machine was shared with another session's stacks, so both are recorded as load-induced; nothing was changed, and they are not fixed. Watch them on the next full gate on an idle machine.
+  evidence: the final gate logs of 2026-11-27 (`test-results/`, not tracked); the Epic 31 delivery line in `epics.md`.
+  class: test-gap
+  state: open (owner: the next wave gate; if either fails again on an idle machine, find its cause as Story 30.5 did)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.9 and e31f (the AI control keeps formatting on a section text)
+  summary: The AI control rewrites a section text block by block and keeps its block formatting, but inline marks (bold, italic, links) inside a block may be lost on a rewrite. "Desfazer" restores the text before the rewrite.
+  evidence: `packages/domain/src/audio/rewrite.ts`; `apps/web` `useAiWriteControl`.
+  class: debt
+  state: open (owner: Matheus decides whether Bruno's texts use inline marks; if so, a batch that rewrites at the inline level)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Epic 31 (strings and the trade vocabulary)
+  summary: The new pt-BR strings of Epic 31 (the Audio button and its states, the hold lines, "Dispensar", the AI control) and the trade vocabulary list sent to Amazon Transcribe (`fasor-production-trade-words`) were authored by the agents; Bruno has not read them. Which strings are still open is not recorded here beyond the `// authored:` marks in `apps/web/src/copy/pt-br.ts`.
+  evidence: `apps/web/src/copy/pt-br.ts` (`// authored:` lines of Epic 31); `infra/production/transcribe.tf`.
+  class: docs
+  state: open (owner: Matheus sends the strings and the word list to Bruno; a copy batch applies his answers)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.8
+  summary: The production smoke (8 of 8) sends no audio, so Amazon Transcribe in production has not heard a real voice. A real-voice check is owed: record a short audio on a test company in production, see the text arrive and read the cost in `transcription_runs`.
+  evidence: deploy of 2026-11-27 as `8aefd758`; `stt_provider = "transcribe"` set; vocabulary `fasor-production-trade-words` READY.
+  class: test-gap
+  state: open (owner: Matheus, with a real recording, on his word for the spend)
+- source_spec: `_bmad-output/implementation-artifacts/reviews/code-review-2026-11-26.md` (security pass, PR #404)
+  summary: The security pass is merged to main (`ed9dcece`) but was merged after the tested commit, so it is not in the `8aefd758` deploy, and its Terraform (instance role deny, `compute.tf`) is not applied.
+  evidence: `git log` (`ed9dcece` after `8aefd758`); the 2026-11-27 deploy record.
+  class: debt
+  state: open (owner: the next deploy, on Matheus's word; Terraform by PR and apply only)

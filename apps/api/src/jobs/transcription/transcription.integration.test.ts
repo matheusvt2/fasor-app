@@ -106,7 +106,7 @@ function readJson<T>(path: string): T {
 }
 
 /** The text the fake speech step hears for these bytes (`fixtures/speech.json`, by sha256). */
-function hears(bytes: Uint8Array, entry: { text: string } | { error: 'transient' | 'permanent' }): void {
+function hears(bytes: Uint8Array, entry: { text: string; audio_seconds?: number } | { error: 'transient' | 'permanent' }): void {
   const fixture = readJson<SpeechFixture>(speechPath);
   fixture.by_sha256[sha256(bytes)] = entry;
   writeFileSync(speechPath, JSON.stringify(fixture));
@@ -126,7 +126,7 @@ const recording = (label: string) => new TextEncoder().encode(`synthetic-audio-$
 let session: { userId: string; companyId: CompanyId };
 const enqueued: TranscriptionPayload[] = [];
 
-function makeApp(options: { aiFeatures?: boolean } = {}): Hono<AppEnv> {
+function makeApp(options: { aiFeatures?: boolean; retranscribeLimit?: { max: number; windowMs: number } } = {}): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   app.use('*', async (c, next) => {
     const { role } = await roleOfUser(db, session.companyId, session.userId);
@@ -142,7 +142,16 @@ function makeApp(options: { aiFeatures?: boolean } = {}): Hono<AppEnv> {
   };
   app.route('/', createSyncRoutes(db, { now, newId }));
   app.route('/', createFileRoutes(db, s3, bucket, { now, enqueueTranscription: enqueue, ...(options.aiFeatures === undefined ? {} : { aiFeatures: options.aiFeatures }) }));
-  app.route('/', createAudioRoutes(db, { now, newId, enqueueTranscription: enqueue, ...(options.aiFeatures === undefined ? {} : { aiFeatures: options.aiFeatures }) }));
+  app.route(
+    '/',
+    createAudioRoutes(db, {
+      now,
+      newId,
+      enqueueTranscription: enqueue,
+      ...(options.aiFeatures === undefined ? {} : { aiFeatures: options.aiFeatures }),
+      ...(options.retranscribeLimit === undefined ? {} : { limit: options.retranscribeLimit }),
+    }),
+  );
   return app;
 }
 
@@ -596,6 +605,181 @@ describe('31.2-API-007 a device writes only dismissed; a dismissed audio is neve
     expect((await audioOf(id)).audio_status).toBe('dismissed');
     expect((await blockOf(seccionadora.id)).sheet.checklist.contatos?.observation?.value ?? null).toBe(observation);
     expect((await runsOf(id))[0]).toMatchObject({ outcome: 'error', error: 'skipped: the audio is dismissed' });
+  });
+});
+
+/** A device's put, as the sync route receives it. */
+function devicePut(path: string, value: unknown, actor = ADMIN): Op {
+  return makeOp({ kind: 'put', scope: 'relatorio', company_id: companyId, project_id: null, relatorio_id: main.relatorioId, path, value: value as never, prev_op_id: null, batch_id: null, meta: null, actor_id: actor, device_id: DEVICE }, { newId, now: now() });
+}
+
+/** The job's deps with a writing step that first runs `meanwhile` (a device's put landing while the model writes). */
+function writingWhile(meanwhile: () => Promise<void>): TranscriptionJobDeps {
+  return {
+    ...deps,
+    writing: {
+      write: async (input) => {
+        writingCalls.push(input);
+        await meanwhile();
+        return fakeWriting.write(input);
+      },
+    },
+  };
+}
+
+const runWith = (jobDeps: TranscriptionJobDeps, audioId: string, attempt = 1, lastAttempt = false) =>
+  runTranscriptionJob(jobDeps, { company_id: companyId, audio_id: audioId }, { jobId: 'direct', attempt, lastAttempt });
+
+const blockOfType = (type: string) => main.blocks.find((block) => block.block_type === type && block.equipment_id !== null)!;
+
+describe('e31f-API-002 the job writes the field from a fresh read under the lock', () => {
+  it('a text typed while the audio was "Transcrevendo" is kept, the audio text added after it', async () => {
+    const dj = blockOfType('disjuntor_mt');
+    const bytes = recording('typed-meanwhile');
+    hears(bytes, { text: 'disjuntor com oleo escurecido' });
+    const id = await recorded({ type: 'sheet_field', block_id: dj.id, field: 'observations' }, bytes);
+    await runWith(writingWhile(async () => void (await push(ADMIN, [devicePut(`sheet/${dj.id}/observations`, 'Texto digitado agora.')]))), id);
+    expect((await blockOf(dj.id)).sheet.observations?.value).toBe('Texto digitado agora.\n\nDisjuntor com oleo escurecido.');
+    expect((await audioOf(id)).audio_status).toBe('done');
+  });
+
+  it('a parecer verdict tapped meanwhile is never reverted: only the summary moves', async () => {
+    expect((await push(ADMIN, [devicePut('relatorio/setup/parecer', { verdict: 'apto', text: null, text_status: null, text_basis: null })])).rejected).toEqual([]);
+    const bytes = recording('parecer-meanwhile');
+    hears(bytes, { text: 'instalacao em condicoes de operacao' });
+    const id = await recorded({ type: 'setup', field: 'parecer_text' }, bytes);
+    await runWith(writingWhile(async () => void (await push(ADMIN, [devicePut('relatorio/setup/parecer', { verdict: 'apto_com_restricoes', text: null, text_status: null, text_basis: null })]))), id);
+    const parecer = (await rowOf<{ setup: { parecer: { verdict: string; text: string | null; text_status: string | null } } }>('relatorio', main.relatorioId)).setup.parecer;
+    expect(parecer.verdict).toBe('apto_com_restricoes');
+    expect(parecer.text).toMatch(/Instalacao em condicoes de operacao\.$/);
+    expect(parecer.text_status).toBe('edited');
+  });
+
+  it('a Não ensaiado reason changed meanwhile is never reverted: only the note moves', async () => {
+    const tp = blockOfType('tp');
+    // The mark's instant is the device's now (the attribution rule refuses an instant before the relatório).
+    const mark = (reason: string) => ({ reason, text: null, at: now().toISOString(), by: ADMIN });
+    expect((await push(ADMIN, [devicePut(`block/${tp.id}/not_tested`, mark('outro'))])).rejected).toEqual([]);
+    const bytes = recording('not-tested-meanwhile');
+    hears(bytes, { text: 'equipamento sem acesso no dia' });
+    const id = await recorded({ type: 'sheet_field', block_id: tp.id, field: 'not_tested_text' }, bytes);
+    await runWith(writingWhile(async () => void (await push(ADMIN, [devicePut(`block/${tp.id}/not_tested`, mark('impossibilidade_desligamento'))]))), id);
+    const notTested = (await blockOf(tp.id)).not_tested;
+    expect(notTested).toMatchObject({ reason: 'impossibilidade_desligamento' });
+    expect(notTested!.text).toMatch(/Equipamento sem acesso no dia\.$/);
+  });
+});
+
+describe('e31f-API-003 the server cap and speech paid once', () => {
+  it('an audio past the cap by its quality is never sent to speech: failed, the run row says too_long', async () => {
+    const bytes = recording('too-long');
+    const quality = audioQualityOf({ level: 0.2, clipped_share: 0, noise_ratio: 0.1, duration_ms: 200_000, speech_ms: 150_000 });
+    const { op, id } = audioCreate({ actor: ADMIN, relatorioId: main.relatorioId, target: item('contatos'), bytes, quality });
+    expect((await push(ADMIN, [op])).rejected).toEqual([]);
+    expect((await upload(app, id, bytes)).status).toBe(200);
+    await run(id);
+    expect((await audioOf(id)).audio_status).toBe('failed');
+    const [runRow] = await runsOf(id);
+    expect(runRow).toMatchObject({ outcome: 'error', speech_model: null, audio_seconds: null });
+    expect(runRow!.error).toMatch(/too_long/);
+  });
+
+  it('an audio the provider hears past the cap is never written: failed, no writing call', async () => {
+    const bytes = recording('heard-too-long');
+    hears(bytes, { text: 'fala longa demais', audio_seconds: 400 });
+    const id = await recorded(item('contatos'), bytes);
+    writingCalls.length = 0;
+    await run(id);
+    expect((await audioOf(id)).audio_status).toBe('failed');
+    expect(writingCalls).toEqual([]);
+    const [runRow] = await runsOf(id);
+    expect(runRow).toMatchObject({ outcome: 'error', speech_model: 'fake', audio_seconds: 400 });
+    expect(runRow!.error).toMatch(/too_long/);
+  });
+
+  it('after a transient writing failure the next attempt reuses the stored text as heard, with no speech call', async () => {
+    const bytes = recording('reuse-heard');
+    hears(bytes, { text: 'cabo com emenda aparente' });
+    writes({ heard: 'cabo com emenda aparente', error: 'transient' });
+    const id = await recorded(item('contatos'), bytes);
+    await expect(run(id, 1, false)).rejects.toThrow(/transient/);
+    expect(await audioOf(id)).toMatchObject({ audio_status: 'transcribing', transcript_heard: 'cabo com emenda aparente' });
+    // Speech would now fail for good: the second attempt never calls it.
+    hears(bytes, { error: 'permanent' });
+    writes({ heard: 'cabo com emenda aparente', text: 'Cabo com emenda aparente.' });
+    await run(id, 2, false);
+    expect(await audioOf(id)).toMatchObject({ audio_status: 'done', transcript_heard: 'cabo com emenda aparente', transcript_written: 'Cabo com emenda aparente.' });
+    const rows = await runsOf(id);
+    expect(rows.map((row) => [row.outcome, row.speech_model])).toEqual([
+      ['error', 'fake'],
+      ['ok', null],
+    ]);
+  });
+});
+
+describe('e31f-API-004 "Tentar de novo" of a queued audio, its limit, and the dismiss rules', () => {
+  it('an audio left queued with AI features off is queued again by "Tentar de novo"; one not uploaded answers 409 not_caught_up', async () => {
+    const off = makeApp({ aiFeatures: false });
+    const bytes = recording('queued-retry');
+    const { op, id } = audioCreate({ actor: ADMIN, relatorioId: main.relatorioId, target: item('contatos'), bytes });
+    expect((await push(ADMIN, [op])).rejected).toEqual([]);
+    expect((await upload(off, id, bytes)).status).toBe(200);
+    expect((await audioOf(id)).audio_status).toBe('queued');
+    as(ADMIN);
+    const before = enqueued.length;
+    const res = await request(app, audioRetranscribePath(id), { method: 'POST' });
+    expect(res.status, await res.clone().text()).toBe(202);
+    expect(enqueued.slice(before)).toEqual([{ company_id: companyId, audio_id: id }]);
+    expect((await audioOf(id)).audio_status).toBe('transcribing');
+
+    const waiting = audioCreate({ actor: ADMIN, relatorioId: main.relatorioId, target: item('contatos'), bytes: recording('not-uploaded') });
+    expect((await push(ADMIN, [waiting.op])).rejected).toEqual([]);
+    as(ADMIN);
+    const early = await request(app, audioRetranscribePath(waiting.id), { method: 'POST' });
+    expect(early.status).toBe(409);
+    expect(await early.json()).toMatchObject({ code: 'not_caught_up' });
+  });
+
+  it('past the per-user limit the route answers 429', async () => {
+    const limited = makeApp({ retranscribeLimit: { max: 1, windowMs: 60_000 } });
+    const off = makeApp({ aiFeatures: false });
+    const bytes = recording('limited');
+    const { op, id } = audioCreate({ actor: ADMIN, relatorioId: main.relatorioId, target: item('contatos'), bytes });
+    expect((await push(ADMIN, [op])).rejected).toEqual([]);
+    expect((await upload(off, id, bytes)).status).toBe(200);
+    as(ADMIN);
+    expect((await request(limited, audioRetranscribePath(id), { method: 'POST' })).status).toBe(202);
+    const again = await request(limited, audioRetranscribePath(id), { method: 'POST' });
+    expect(again.status).toBe(429);
+    expect(again.headers.get('retry-after')).not.toBeNull();
+  });
+
+  it("a dismiss needs the key of the audio's field; it is accepted from queued and failed, refused on a done audio", async () => {
+    const setup = audioCreate({ actor: ADMIN, relatorioId: main.relatorioId, target: { type: 'setup', field: 'additional_info' }, bytes: recording('dismiss-setup') });
+    expect((await push(ADMIN, [setup.op])).rejected).toEqual([]);
+    // The Engenheiro de Campo fills the ficha (relatorio.fill) but "Informações adicionais" is not his field.
+    const forbidden = devicePut(`file/${setup.id}/audio_status`, 'dismissed', FIELD);
+    expect((await push(FIELD, [forbidden])).rejected).toEqual([{ op_id: forbidden.op_id, code: 'op_forbidden' }]);
+    const queued = devicePut(`file/${setup.id}/audio_status`, 'dismissed');
+    expect((await push(ADMIN, [queued])).rejected).toEqual([]);
+    expect((await audioOf(setup.id)).audio_status).toBe('dismissed');
+
+    const failing = recording('dismiss-failed');
+    hears(failing, { error: 'permanent' });
+    const failedId = await recorded(item('contatos'), failing);
+    await run(failedId);
+    expect((await audioOf(failedId)).audio_status).toBe('failed');
+    const fromFailed = devicePut(`file/${failedId}/audio_status`, 'dismissed', FIELD);
+    expect((await push(FIELD, [fromFailed])).rejected).toEqual([]);
+
+    const ok = recording('dismiss-done');
+    hears(ok, { text: 'contato limpo' });
+    const doneId = await recorded(item('contatos'), ok);
+    await run(doneId);
+    expect((await audioOf(doneId)).audio_status).toBe('done');
+    const late = devicePut(`file/${doneId}/audio_status`, 'dismissed');
+    expect((await push(ADMIN, [late])).rejected).toEqual([{ op_id: late.op_id, code: 'op_invalid' }]);
+    expect((await audioOf(doneId)).audio_status).toBe('done');
   });
 });
 

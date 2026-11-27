@@ -15,11 +15,16 @@ import {
   audioSheetStep,
   audioSyncCounts,
   audioSyncLines,
+  audioRetryAllowed,
   audioTableReading,
+  audioTextInField,
+  audioTooLong,
   audioWrittenTarget,
+  heldAudioActions,
   heldAudios,
   heldAudiosText,
   isHoldingAudioStatus,
+  isTranscribedAudio,
 } from './index.ts';
 
 /*
@@ -194,5 +199,28 @@ describe('31.6-UNIT-003 Sync status counts the audios', () => {
     expect(counts).toEqual({ to_upload: 1, transcribing: 2, failed: 1 });
     expect(audioSyncLines(counts).map((line) => line.text)).toEqual(['1 áudio aguardando envio', '2 áudios aguardando transcrição', '1 áudio não transcrito']);
     expect(audioSyncLines(audioSyncCounts([]))).toEqual([]);
+  });
+});
+
+describe('e31f-UNIT-008 what a not-done audio offers, and the server cap', () => {
+  const at = '2026-11-26T12:00:00.000Z';
+  it('"Dispensar" on every audio that holds; "Tentar de novo" on a failed one and on a queued one the server holds', () => {
+    expect(heldAudioActions({ audio_status: 'queued', uploaded_at: null })).toEqual({ retry: false, dismiss: true });
+    expect(heldAudioActions({ audio_status: 'queued', uploaded_at: at })).toEqual({ retry: true, dismiss: true });
+    expect(heldAudioActions({ audio_status: 'transcribing', uploaded_at: at })).toEqual({ retry: false, dismiss: true });
+    expect(heldAudioActions({ audio_status: 'failed', uploaded_at: at })).toEqual({ retry: true, dismiss: true });
+    expect(heldAudioActions({ audio_status: 'done', uploaded_at: at })).toEqual({ retry: false, dismiss: false });
+    expect(heldAudioActions({ audio_status: 'dismissed', uploaded_at: at })).toEqual({ retry: false, dismiss: false });
+    expect(audioRetryAllowed({ audio_status: 'failed', uploaded_at: null })).toBe(false);
+  });
+
+  it('the arrival rule and the server cap are the kernel own', () => {
+    expect(isTranscribedAudio({ audio_status: 'done', removed_at: null })).toBe(true);
+    expect(isTranscribedAudio({ audio_status: 'done', removed_at: at })).toBe(false);
+    expect(isTranscribedAudio({ audio_status: 'failed', removed_at: null })).toBe(false);
+    expect(audioTextInField({ audio_target: { type: 'table', block_id: TEST_RELATORIO, test_key: 'x', table_key: 'y' } })).toBe(false);
+    expect(audioTextInField({ audio_target: { type: 'table', block_id: TEST_RELATORIO, test_key: 'x', table_key: 'y' }, not_a_reading: true })).toBe(true);
+    expect(audioTooLong(190_000)).toBe(false);
+    expect(audioTooLong(190_001)).toBe(true);
   });
 });

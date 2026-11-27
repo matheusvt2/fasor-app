@@ -16,8 +16,12 @@ const valid = {
   TRUSTED_ORIGINS: 'http://localhost:5173',
 };
 
-/** 2026-11-22 (e26r): what a production process needs on top of `valid` to boot (a real mailer and sender). */
-const productionMail = { EMAIL_PROVIDER: 'ses', EMAIL_FROM: 'no-reply@example.com' };
+/**
+ * 2026-11-22 (e26r): what a production process needs on top of `valid` to boot (a real mailer and sender);
+ * 2026-11-26 (e31f): and, with AI features on (the default), a real speech provider.
+ */
+const productionMail = { EMAIL_PROVIDER: 'ses', EMAIL_FROM: 'no-reply@example.com', STT_PROVIDER: 'transcribe' };
+const realSpeech = { STT_PROVIDER: 'transcribe' };
 
 describe('config', () => {
   it('parses a valid environment and defaults providers to fake', () => {
@@ -235,14 +239,33 @@ describe('config', () => {
       }
       return [];
     };
-    expect(variablesOf({ ...valid, NODE_ENV: 'production' })).toEqual(['EMAIL_PROVIDER']);
-    expect(variablesOf({ ...valid, NODE_ENV: 'production', EMAIL_PROVIDER: 'fake', EMAIL_FROM: 'no-reply@example.com' })).toEqual(['EMAIL_PROVIDER']);
-    expect(variablesOf({ ...valid, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses' })).toEqual(['EMAIL_FROM']);
-    expect(variablesOf({ ...valid, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses', EMAIL_FROM: DEFAULT_EMAIL_FROM })).toEqual(['EMAIL_FROM']);
-    const booted = loadConfig({ ...valid, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses', EMAIL_FROM: 'no-reply@example.com' });
+    expect(variablesOf({ ...valid, ...realSpeech, NODE_ENV: 'production' })).toEqual(['EMAIL_PROVIDER']);
+    expect(variablesOf({ ...valid, ...realSpeech, NODE_ENV: 'production', EMAIL_PROVIDER: 'fake', EMAIL_FROM: 'no-reply@example.com' })).toEqual(['EMAIL_PROVIDER']);
+    expect(variablesOf({ ...valid, ...realSpeech, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses' })).toEqual(['EMAIL_FROM']);
+    expect(variablesOf({ ...valid, ...realSpeech, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses', EMAIL_FROM: DEFAULT_EMAIL_FROM })).toEqual(['EMAIL_FROM']);
+    const booted = loadConfig({ ...valid, ...realSpeech, NODE_ENV: 'production', EMAIL_PROVIDER: 'ses', EMAIL_FROM: 'no-reply@example.com' });
     expect([booted.EMAIL_PROVIDER, booted.EMAIL_FROM]).toEqual(['ses', 'no-reply@example.com']);
     expect(loadConfig({ ...valid, NODE_ENV: 'development' }).EMAIL_PROVIDER).toBe('fake');
     expect(loadConfig({ ...valid, NODE_ENV: 'test', EMAIL_PROVIDER: 'ses' }).EMAIL_FROM).toBe(DEFAULT_EMAIL_FROM);
+  });
+
+  it('e31f-UNIT-001: production with AI features on refuses the fake speech provider; transcribe boots; AI off or outside production fake still boots', () => {
+    const variablesOf = (env: Record<string, string | undefined>): string[] => {
+      try {
+        loadConfig(env);
+      } catch (error) {
+        if (error instanceof ConfigError) return error.variables;
+        throw error;
+      }
+      return [];
+    };
+    const mail = { EMAIL_PROVIDER: 'ses', EMAIL_FROM: 'no-reply@example.com' };
+    expect(variablesOf({ ...valid, ...mail, NODE_ENV: 'production' })).toEqual(['STT_PROVIDER']);
+    expect(variablesOf({ ...valid, ...mail, NODE_ENV: 'production', AI_FEATURES: 'on', STT_PROVIDER: 'fake' })).toEqual(['STT_PROVIDER']);
+    expect(variablesOf({ ...valid, ...mail, NODE_ENV: 'production', STT_PROVIDER: '' })).toEqual(['STT_PROVIDER']);
+    expect(loadConfig({ ...valid, ...mail, NODE_ENV: 'production', STT_PROVIDER: 'transcribe' }).STT_PROVIDER).toBe('transcribe');
+    expect(loadConfig({ ...valid, ...mail, NODE_ENV: 'production', AI_FEATURES: 'off' }).STT_PROVIDER).toBe('fake');
+    expect(loadConfig({ ...valid, NODE_ENV: 'development' }).STT_PROVIDER).toBe('fake');
   });
 
   it('26.6-API-001a: the e-mail limits default to 5 per address and 20 per client a minute, 30 Admin e-mails per 10 minutes, whatever RATE_LIMIT says', () => {

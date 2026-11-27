@@ -453,8 +453,7 @@ describe('23.15 to 23.19-UNIT one v13 snapshot: floor, points, parecer, progress
       ['', '', '75 °C'],
       ['ENROLAMENTO', 'FASE A', 'FASE B', 'FASE C', 'FASE A', 'FASE B', 'FASE C'],
       ['AT, TAP ATUAL', '1,000 Ω', '1,010 Ω', '1,030 Ω', '1,17 Ω', '1,182 Ω', '1,205 Ω'],
-      ['AT, PRIMEIRO TAP', '-', '-', '-', '-', '-', '-'],
-      ['AT, ÚLTIMO TAP', '-', '-', '-', '-', '-', '-'],
+      // e31f (Matheus, 2026-11-26): the empty optional "AT, primeiro tap" and "AT, último tap" are left out of the print.
       ['BT', '2 mΩ', '2 mΩ', '2 mΩ', '2,34 mΩ', '2,34 mΩ', '2,34 mΩ'],
     ]);
     expect(table.textHalfPoints ?? 18).toBeGreaterThanOrEqual(16);

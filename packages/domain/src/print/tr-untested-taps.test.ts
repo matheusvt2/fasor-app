@@ -6,7 +6,7 @@ import type { BlockRow, Cell } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { EMPTY_DEFINITION_CONTEXT, getDefinition, SEED_VERSION } from '../seed/definitions.ts';
 import { evaluateSheetReadings } from '../relatorio/readings.ts';
-import { printedTapRows } from '../relatorio/tap-rows.ts';
+import { printedMeasurementRows, printedTapRows } from '../relatorio/tap-rows.ts';
 import { newEquipmentBlock } from '../relatorio/tree.ts';
 import { TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
 import { section9Layout, type LayoutSectionSheets, type PrintTable, type SheetPart } from './section-9.ts';
@@ -137,5 +137,34 @@ describe('fix-tr-untested-taps: the TTR prints only its tested taps', () => {
     const tested = withTest(tp, 'relacao_transformacao', { [`${first.row}/${capture.address.col}`]: measured('120', null) });
     const printed = tablesOf(snapshotWith(tested)).filter((table) => table.rows.some((row) => row.cells.some((one) => one.text === 'VAL CALCULADO')));
     expect(printed.flatMap(dataRows)).toHaveLength(seeded.length);
+  });
+});
+
+describe('e31f-UNIT-007 a tap with any filled cell counts as tested; the winding resistance leaves out its empty optional taps', () => {
+  it('a tap whose only filled cell is a typed V SECUNDÁRIO prints; a marked tap with nothing filled stays out', () => {
+    const block = withTest(fiveTaps(SEED_VERSION), 'relacao_transformacao', { ...captures(13800, measured('62.9', null)), '13200/1': measured('380', 'V') });
+    // Tap 3 is the plate's TAP ATUAL (marked Atual) and holds nothing: it is left out.
+    expect(ttrRows(block).map((row) => row[0])).toEqual(['1', '2']);
+  });
+
+  const windingRows = (block: BlockRow) =>
+    dataRows(tablesOf(snapshotWith(block)).find((table) => table.rows.some((row) => row.cells[0]?.text === 'AT, TAP ATUAL'))!)
+      .map((row) => row[0]!)
+      .filter((label) => /^(AT|BT)\b/.test(label));
+
+  it('empty "AT, primeiro tap" and "AT, último tap" are left out of the print; filled, each prints in its place', () => {
+    const empty = withTest(fiveTaps(SEED_VERSION), 'resistencia_enrolamento', { '0/0': measured('1.2', 'Ω'), '3/0': measured('3.1', 'mΩ') });
+    expect(windingRows(empty)).toEqual(['AT, TAP ATUAL', 'BT']);
+    const first = withTest(fiveTaps(SEED_VERSION), 'resistencia_enrolamento', { '0/0': measured('1.2', 'Ω'), '1/1': measured('1.3', 'Ω') });
+    expect(windingRows(first)).toEqual(['AT, TAP ATUAL', 'AT, PRIMEIRO TAP', 'BT']);
+    const last = withTest(fiveTaps(SEED_VERSION), 'resistencia_enrolamento', { '2/2': notMeasured });
+    expect(windingRows(last)).toEqual(['AT, TAP ATUAL', 'AT, ÚLTIMO TAP', 'BT']);
+  });
+
+  it('only the winding resistance omits its empty optional rows', () => {
+    const rows = [{ cells: [{ optional: true, state: 'empty', fixed: null }] }, { cells: [{ optional: false, state: 'empty', fixed: null }] }];
+    expect(printedMeasurementRows('resistencia_enrolamento', rows)).toEqual([rows[1]]);
+    expect(printedMeasurementRows('termografia', rows)).toEqual(rows);
+    expect(printedMeasurementRows('continuidade_malha', rows)).toEqual(rows);
   });
 });

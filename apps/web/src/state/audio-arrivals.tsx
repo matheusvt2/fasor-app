@@ -1,4 +1,4 @@
-import { audioFileRowSchema, audioTargetPath, audiosTranscritosText, audioWrittenTarget, type AudioFileRow, type AudioTarget } from '@app/domain';
+import { audioFileRowSchema, audiosTranscritosText, audioTextInField, audioWrittenTarget, isTranscribedAudio, type AudioFileRow, type AudioTarget } from '@app/domain';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ui } from '../copy/ui.ts';
@@ -24,7 +24,8 @@ async function doneAudios(db: AppDatabase): Promise<AudioFileRow[]> {
   for (const record of records) {
     if ((record.row as { kind?: unknown }).kind !== 'audio') continue;
     const parsed = audioFileRowSchema.safeParse(record.row);
-    if (parsed.success && parsed.data.audio_status === 'done' && parsed.data.removed_at === null) rows.push(parsed.data);
+    // e31f: which rows count as transcribed is the kernel's rule.
+    if (parsed.success && isTranscribedAudio(parsed.data)) rows.push(parsed.data);
   }
   return rows;
 }
@@ -118,9 +119,9 @@ export function AudioArrivals() {
     const synced = running ? syncedAtStart.current : hadSynced;
     const step = audioArrivalStep(memory.current?.db === db ? memory.current.state : null, observed.rows, { running, synced });
     memory.current = { db, state: step.state };
-    // A table's spoken reading is suggested on its cell (Story 31.5), never written into a field: it is not this toast's.
-    // Its speech that was no reading went to OBSERVAÇÕES (`audioWrittenTarget`) and is.
-    const arrived = step.arrived.filter((row) => audioTargetPath(audioWrittenTarget(row)) !== null);
+    // A table's spoken reading is suggested on its cell (Story 31.5), never written into a field: it is not this toast's
+    // (`audioTextInField`, the kernel's rule); its speech that was no reading went to OBSERVAÇÕES and is.
+    const arrived = step.arrived.filter((row) => audioTextInField(row));
     if (arrived.length === 0) return;
     const first = arrived[0]!;
     showToast(audiosTranscritosText(arrived.length), { action: { label: ui.audio.open, onPress: () => open(first) }, arrival: true });

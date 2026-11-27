@@ -161,7 +161,10 @@ overrides (they win over the workflow text):
   `ENGINE_SOCKET_GID`, default 0), so `node` reads it, and root runs no longer leave root-owned files in the
   `node_modules` volumes. Every command here is `podman compose --profile tools run --rm --user node tools ...`;
   `scripts/preflight.ts` fails at once naming any root-owned entry of the four volumes (`.vite-temp` first). Batch
-  e30a's own gate ran as `node`.)*. `flock` is absent: use `lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'`, started with `nohup`
+  e30a's own gate ran as `node`.)*.
+  *(2026-11-27, Epic 31 final gate: the coordinator ran a gate with `tools` and no `--user node`; the unit stage left a
+  root-owned `packages/domain/node_modules/.vite`, and the next gate's preflight refused every stage. Every gate command
+  is `podman compose --profile tools run --rm --user node tools ...`, with no exception for one stage.)* `flock` is absent: use `lockf -t 20000 /tmp/fasor-verify.lock sh -c '...'`, started with `nohup`
   so no tool time limit kills the wait, and poll the tagged log. ~~Run the gate stage by stage from one tagged
   `test-results/gate-<tag>/run.sh` that writes `summary.txt` lines `name exitcode` (PRs #103-#107 are the
   precedent).~~ *(2026-10-08: the 11.4 GB VM runs the plain `pnpm verify` without OOM (two runs); a batch runs

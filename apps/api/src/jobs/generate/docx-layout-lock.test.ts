@@ -51,6 +51,11 @@ import { placeholderPages } from './toc.ts';
  * `GOLDEN_UPDATE=1` on the batch's first commit, whose product code is de79700b's byte for byte (no file of an app's or
  * the kernel's `src` differs; the commit adds 'v18' to the two lists of the fixture and nothing else). They hold the
  * forms Story 30.3 changes on v19 (">400 MΩ", "<250 µΩ", "±0,5 %"). No older golden moved.
+ *
+ * Review-fix batch e31f, item 11 (Matheus, 2026-11-26, the rule of the TTR fix): the winding resistance's empty optional
+ * rows "AT, primeiro tap" and "AT, último tap" are left out of the print, so every v13 to v18 golden (and its epic25
+ * twin) loses those two rows, retaken with `GOLDEN_UPDATE=1`; the pages after them reflow (some relatórios end one
+ * page shorter). Nothing else of them moved.
  */
 
 /*

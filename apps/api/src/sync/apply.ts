@@ -696,6 +696,12 @@ export interface ServerBatchDeps {
    * the batch back and propagates as is.
    */
   before?: (tx: Tx) => Promise<void>;
+  /**
+   * e31f: ops built inside the transaction, after `before`, from what the company's rows hold under
+   * the lock (the transcription job's field write, rebuilt from a fresh read so a text typed meanwhile
+   * is kept); applied after the ops given up front, validated the same way. A refusal rolls back.
+   */
+  compose?: (tx: Tx) => Promise<readonly unknown[]>;
 }
 
 /**
@@ -729,17 +735,21 @@ export async function applyServerBatch(
   rawOps: readonly unknown[],
   deps: ServerBatchDeps,
 ): Promise<ApplyResult> {
-  const validated: PathedOp[] = [];
-  const rejected: { op_id: string; code: OpRejectCode }[] = [];
-  for (const raw of rawOps) {
-    const validation = validate(raw, companyId, { now: deps.now, origin: 'server' });
-    if (validation.ok) validated.push({ op: validation.op, path: validation.path });
-    else {
-      const rawId = (raw as { op_id?: unknown } | null)?.op_id;
-      rejected.push({ op_id: typeof rawId === 'string' ? rawId : '', code: validation.code });
+  const validateAll = (raws: readonly unknown[]): PathedOp[] => {
+    const validated: PathedOp[] = [];
+    const rejected: { op_id: string; code: OpRejectCode }[] = [];
+    for (const raw of raws) {
+      const validation = validate(raw, companyId, { now: deps.now, origin: 'server' });
+      if (validation.ok) validated.push({ op: validation.op, path: validation.path });
+      else {
+        const rawId = (raw as { op_id?: unknown } | null)?.op_id;
+        rejected.push({ op_id: typeof rawId === 'string' ? rawId : '', code: validation.code });
+      }
     }
-  }
-  if (rejected.length > 0) throw new ServerBatchRejectedError(rejected);
+    if (rejected.length > 0) throw new ServerBatchRejectedError(rejected);
+    return validated;
+  };
+  const validated = validateAll(rawOps);
   const receivedAt = toIso(deps.now());
   const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
   let applying: Op | null = null;
@@ -748,7 +758,8 @@ export async function applyServerBatch(
     await db.transaction(async (tx) => {
       await lockCompany(tx, companyId);
       if (deps.before !== undefined) await deps.before(tx);
-      for (const target of validated) {
+      const composed = deps.compose === undefined ? [] : validateAll(await deps.compose(tx));
+      for (const target of [...validated, ...composed]) {
         const op = target.op;
         applying = op;
         const { seq, supersededOver } = appliedServerOp(await applyOneIn(tx, companyId, target, receivedAt, { origin: 'server', now: deps.now }, cache));

@@ -9,8 +9,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Auth } from '../auth/auth.ts';
 import type { Db } from '../db/client.ts';
 import { AUTH_BODY_LIMIT_BYTES, createApp, type AppOptions } from './app.ts';
-import { clientAddress, FixedWindowLimiter } from './rate-limit.ts';
-import { BASE_SECURITY_HEADERS, htmlContentSecurityPolicy, inlineScriptHashes, securityHeaders } from './security-headers.ts';
+import { clientAddress, FixedWindowLimiter, PASSWORD_RESET_EMAIL_HOURLY_LIMIT, passwordResetRateLimit, PUSH_BYTES_RATE_LIMIT } from './rate-limit.ts';
+import { API_CONTENT_SECURITY_POLICY, BASE_SECURITY_HEADERS, htmlContentSecurityPolicy, inlineScriptHashes, securityHeaders } from './security-headers.ts';
 
 /*
  * Security review 2026-09-30 (E11-A5): the response headers, the HTML shell's CSP, the
@@ -62,6 +62,19 @@ describe('security headers', () => {
     const auth = await app.request('/api/auth/sign-in/email', signIn('a@review.test', '10.0.0.1'));
     expect(auth.status).toBe(401);
     expect(auth.headers.get('x-frame-options')).toBe('DENY');
+  });
+
+  it('answers every /api path with a policy that loads and frames nothing, and keeps the policy a route set itself', async () => {
+    const app = makeApp();
+    for (const path of ['/api/health', '/api/no-such-route']) {
+      expect((await app.request(path)).headers.get('content-security-policy'), path).toBe(API_CONTENT_SECURITY_POLICY);
+    }
+    const own = new Hono();
+    own.use('*', securityHeaders());
+    own.get('/api/own', (c) => c.text('ok', 200, { 'content-security-policy': "default-src 'self'" }));
+    own.get('/page', (c) => c.text('ok'));
+    expect((await own.request('/api/own')).headers.get('content-security-policy')).toBe("default-src 'self'");
+    expect((await own.request('/page')).headers.get('content-security-policy')).toBeNull();
   });
 
   it('sets the base headers on a 500 from a route that throws', async () => {
@@ -237,6 +250,74 @@ describe('rate limits', () => {
     const refused = await push();
     expect(refused.status).toBe(429);
     expect(await refused.json()).toMatchObject({ code: 'rate_limited' });
+  });
+
+  it('limits the bytes a signed-in user pushes in one window, by the declared length', async () => {
+    const app = makeApp({ rateLimits: { ...rateLimits, push: { max: 100, windowMs: 60_000 }, pushBytes: { max: 1000, windowMs: 3_600_000 } } }, true);
+    const push = (length: number | null) =>
+      app.request('/api/sync/ops', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-contract-version': '14', ...(length === null ? {} : { 'content-length': String(length) }) },
+        body: '{"ops":[]}',
+      });
+    expect((await push(600)).status).not.toBe(429);
+    expect((await push(400)).status).not.toBe(429);
+    const refused = await push(10);
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({ code: 'rate_limited' });
+    expect(Number(refused.headers.get('retry-after'))).toBeGreaterThan(0);
+  });
+
+  it('counts a push that declares no length as a whole push cap', async () => {
+    const pushBytes = { max: SYNC_PUSH_MAX_BYTES, windowMs: 3_600_000 };
+    const app = makeApp({ rateLimits: { ...rateLimits, push: { max: 100, windowMs: 60_000 }, pushBytes } }, true);
+    const push = () => app.request('/api/sync/ops', { method: 'POST', headers: { 'content-type': 'application/json', 'x-contract-version': '14' }, body: '{"ops":[]}' });
+    expect((await push()).status).not.toBe(429);
+    expect((await push()).status).toBe(429);
+  });
+
+  it('keeps the default push bytes above a day of field work and far below the request count alone', () => {
+    expect(PUSH_BYTES_RATE_LIMIT.max).toBeGreaterThanOrEqual(16 * SYNC_PUSH_MAX_BYTES);
+    expect(PUSH_BYTES_RATE_LIMIT.max).toBeLessThanOrEqual(64 * SYNC_PUSH_MAX_BYTES);
+  });
+
+  it('limits "Esqueci minha senha" per e-mail over the long window too, from any address', async () => {
+    let now = 0;
+    const app = new Hono();
+    app.use('/reset', passwordResetRateLimit({ address: { max: 100, windowMs: 60_000 }, email: { max: 2, windowMs: 60_000 }, emailLong: { max: 3, windowMs: 3_600_000 }, trustProxy: true, now: () => now }));
+    app.post('/reset', (c) => c.json({ status: true }));
+    const ask = (email: string, address: string) =>
+      app.request('/reset', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': address }, body: JSON.stringify({ email }) });
+    expect((await ask('victim@review.test', '10.0.5.1')).status).toBe(200);
+    expect((await ask('Victim@review.test', '10.0.5.2')).status).toBe(200);
+    // The short window refuses the third; that refusal spends nothing of the long one.
+    expect((await ask('victim@review.test', '10.0.5.3')).status).toBe(429);
+    now += 60_000;
+    expect((await ask('victim@review.test', '10.0.5.4')).status).toBe(200);
+    // Three were let through this hour: the long window now refuses, whatever the minute.
+    now += 60_000;
+    const refused = await ask('victim@review.test', '10.0.5.5');
+    expect(refused.status).toBe(429);
+    expect(Number(refused.headers.get('retry-after'))).toBeGreaterThan(60);
+    // Another address book entry is untouched, and the hour ends.
+    expect((await ask('other@review.test', '10.0.5.5')).status).toBe(200);
+    now += 3_600_000;
+    expect((await ask('victim@review.test', '10.0.5.6')).status).toBe(200);
+  });
+
+  it('applies the hourly e-mail rule only with the rate limits on', async () => {
+    const forgot = (app: ReturnType<typeof makeApp>, i: number) =>
+      app.request('/api/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': `10.0.6.${i}` },
+        body: JSON.stringify({ email: 'victim@review.test' }),
+      });
+    const emailLimits = { passwordResetEmail: { max: 100, windowMs: 60_000 }, passwordResetAddress: { max: 100, windowMs: 60_000 }, adminEmail: { max: 30, windowMs: 600_000 }, trustProxy: true };
+    const limited = makeApp({ rateLimits, emailLimits });
+    for (let i = 0; i < PASSWORD_RESET_EMAIL_HOURLY_LIMIT.max; i++) expect((await forgot(limited, i)).status).not.toBe(429);
+    expect((await forgot(limited, 99)).status).toBe(429);
+    const open = makeApp({ emailLimits });
+    for (let i = 0; i <= PASSWORD_RESET_EMAIL_HOURLY_LIMIT.max; i++) expect((await forgot(open, i)).status).not.toBe(429);
   });
 
   it('refuses a sign-in body that is not JSON with 415, so no e-mail escapes its key', async () => {

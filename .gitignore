@@ -62,3 +62,6 @@ tfplan
 
 # Empty link-probe files that pnpm 12.5.1 leaves in bind-mounted worktrees (E14-A13)
 _tmp_[0-9]*
+
+# sed -i backups (BSD sed writes `file-e` when `-e` is taken as the suffix)
+*.md-e

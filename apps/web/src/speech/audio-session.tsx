@@ -8,17 +8,19 @@ import {
   audioMarkOf,
   audioMovedStatus,
   audioQualityOf,
+  heldAudioActions,
   isAudioCountdown,
   permissionForPath,
   permissionRefusalText,
   audioPermissionPath,
+  aiRewriteFormer,
   aiRewriteRestore,
   aiRewriteSource,
   aiRewriteWrite,
   relatorioOpEnvelope,
   toIso,
+  type AiRewriteFormer,
   type AiWriteResponse,
-  type AudioProseWrite,
   type OpDraft,
   type AudioFieldStep,
   type AudioFileRow,
@@ -49,7 +51,8 @@ import { browserRecorderDeps, isMicRefusal, startRecording, type Recording, type
  * Stories 31.3 and 31.4 (AD-30): one recording app-wide and what every audio field reads.
  *
  * `AudioRecorderProvider` owns the recording: starting one stops (and saves) any other, going
- * offline does not stop it, a button that goes away mid-recording ends it and keeps nothing. The
+ * offline does not stop it, a button that goes away mid-recording ends it and (e31f) saves it to
+ * its target; only the provider going away (sign-out, no one to write the op) keeps nothing. The
  * running state (elapsed, meter, warning) lives in a small external store read with
  * `useSyncExternalStore`, so only the recording field re-renders, at most 8 times a second, and
  * typing is never slowed. A stop measures the samples once, takes the kernel's quality, and
@@ -79,8 +82,8 @@ interface LiveRecording {
   warning: AudioLiveWarning | null;
 }
 
-/** What a field says after a tap that kept nothing: the microphone refused or failed, or nothing heard. */
-export type AudioNotice = { key: string; kind: 'refused' | 'failed' | 'empty' };
+/** What a field says after a tap that kept nothing: the microphone refused or failed, nothing heard, or (e31f) a recording the device could not keep. */
+export type AudioNotice = { key: string; kind: 'refused' | 'failed' | 'empty' | 'unsaved' };
 
 interface StoreState {
   live: LiveRecording | null;
@@ -121,8 +124,8 @@ interface AudioContextValue {
   relatorioId: string | null;
   audio: AudioRows;
   toggle: (key: string, target: AudioTarget) => void;
-  /** A button that goes away: its recording, if any, ends and keeps nothing. */
-  discard: (key: string) => void;
+  /** e31f: a button that goes away: its recording, if any, ends and is saved to its target. */
+  release: (key: string) => void;
   announce: (text: string) => void;
   play: (row: AudioFileRow) => void;
   playing: string | null;
@@ -136,12 +139,12 @@ interface AudioContextValue {
   aiUndo: AiUndo | null;
 }
 
-/** Story 31.9: what one tap on the AI control ended with: the text written and how to put the former one back, or the field left unchanged. */
-export type AiWriteOutcome = { kind: 'written'; text: string; restore: AudioProseWrite['puts'] } | { kind: 'refused' };
+/** Story 31.9: what one tap on the AI control ended with: the text written and the text the field held before (e31f), or the field left unchanged. */
+export type AiWriteOutcome = { kind: 'written'; text: string; former: AiRewriteFormer } | { kind: 'refused' };
 /** Story 31.9: runs one tap on the AI control of a field (online); rejects on a call that failed. */
 export type AiWriteRun = (target: AudioTarget) => Promise<AiWriteOutcome>;
-/** Story 31.9: commits "Desfazer". */
-export type AiUndo = (puts: AudioProseWrite['puts']) => Promise<void>;
+/** Story 31.9: commits "Desfazer"; e31f: puts only the former text back, onto the field as it is now. */
+export type AiUndo = (target: AudioTarget, former: AiRewriteFormer) => Promise<void>;
 
 const AudioContext = createContext<AudioContextValue | null>(null);
 
@@ -237,10 +240,16 @@ export function AudioRecorderCore({
         return;
       }
       const { announce: say, author: who, commit: save } = latest.current;
+      // e31f: a recording that could not be kept says so on its field, never lost without a word.
+      const unsaved = () => {
+        store.set({ notice: { key: entry.key, kind: 'unsaved' } });
+        say(ui.audio.saveFailed);
+      };
       let result;
       try {
         result = await recording.stop();
       } catch {
+        unsaved();
         return;
       }
       const quality = audioQualityOf(result.measures);
@@ -249,8 +258,11 @@ export function AudioRecorderCore({
         say(audioEmptyText());
         return;
       }
+      if (who === null) {
+        unsaved();
+        return;
+      }
       say(ui.audio.ended(audioElapsedText(result.measures.duration_ms)));
-      if (who === null) return;
       try {
         await save({
           companyId: who.companyId,
@@ -263,7 +275,7 @@ export function AudioRecorderCore({
           mime: result.mime,
         });
       } catch {
-        say(ui.audio.saveFailed);
+        unsaved();
       }
     },
     [store],
@@ -331,10 +343,10 @@ export function AudioRecorderCore({
     [finish, start, relatorioId],
   );
 
-  const discard = useCallback(
+  const release = useCallback(
     (key: string) => {
       const entry = current.current;
-      if (entry !== null && entry.key === key) void finish(entry, 'discard');
+      if (entry !== null && entry.key === key) void finish(entry, 'save');
     },
     [finish],
   );
@@ -373,8 +385,8 @@ export function AudioRecorderCore({
   useEffect(() => () => stopPlaying.current?.(), []);
 
   const value = useMemo<AudioContextValue>(
-    () => ({ store, canRecord: deps !== null, online, relatorioId, audio, toggle, discard, announce, play, playing, retranscribe, dismiss, aiWrite: aiWrite ?? null, aiUndo: aiUndo ?? null }),
-    [store, deps, online, relatorioId, audio, toggle, discard, announce, play, playing, retranscribe, dismiss, aiWrite, aiUndo],
+    () => ({ store, canRecord: deps !== null, online, relatorioId, audio, toggle, release, announce, play, playing, retranscribe, dismiss, aiWrite: aiWrite ?? null, aiUndo: aiUndo ?? null }),
+    [store, deps, online, relatorioId, audio, toggle, release, announce, play, playing, retranscribe, dismiss, aiWrite, aiUndo],
   );
   return (
     <AudioContext value={value}>
@@ -485,21 +497,25 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
       if (answer.outcome !== 'written' || answer.source !== before.text) return { kind: 'refused' };
       const snapshot = await toSnapshot(db, relatorioId);
       if (aiRewriteSource(snapshot, target, options)?.text !== before.text) return { kind: 'refused' };
-      const restore = aiRewriteRestore(snapshot, target, options);
+      const former = aiRewriteFormer(snapshot, target, options);
       const write = aiRewriteWrite(snapshot, target, answer.text, options);
-      if (restore === null || write === null) return { kind: 'refused' };
+      if (former === null || write === null) return { kind: 'refused' };
       const author = { id: user.id, companyId: user.companyId };
       // An ordinary put by the user (AD-30), named as the AI control's.
       await commitBatch(db, write.puts.map((put): OpDraft => ({ ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: put.path, value: put.value, meta: { ai_written: true } })), { newId, now });
-      return { kind: 'written', text: answer.text, restore: restore.puts };
+      return { kind: 'written', text: answer.text, former };
     },
     [db, user, relatorioId, aiWriteRoute, syncNow],
   );
+  // e31f: "Desfazer" reads the field as it is now and puts only the former text back onto it, so a
+  // verdict, a Não ensaiado mark or a section's config changed after the write is never reverted.
   const aiUndo = useCallback<AiUndo>(
-    async (puts) => {
+    async (target, former) => {
       if (db === null || user === null || relatorioId === null) return;
+      const restore = aiRewriteRestore(await toSnapshot(db, relatorioId), target, former, { now: now() });
+      if (restore === null) return;
       const author = { id: user.id, companyId: user.companyId };
-      await commitBatch(db, puts.map((put): OpDraft => ({ ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: put.path, value: put.value })), { newId, now });
+      await commitBatch(db, restore.puts.map((put): OpDraft => ({ ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: put.path, value: put.value })), { newId, now });
     },
     [db, user, relatorioId],
   );
@@ -543,13 +559,13 @@ function useNotice(context: AudioContextValue | null, key: string): AudioNotice[
 }
 
 /** What the lines under a field read of its recording: the warning and the last tap's refusal or failure. */
-export function useAudioRecording(target: AudioTarget | null): { recording: boolean; warning: AudioLiveWarning | null; refused: boolean; failed: boolean } {
+export function useAudioRecording(target: AudioTarget | null): { recording: boolean; warning: AudioLiveWarning | null; refused: boolean; failed: boolean; unsaved: boolean } {
   const context = use(AudioContext);
   const key = target === null ? '' : audioTargetKey(target);
   const live = useLive(context, key);
   const notice = useNotice(context, key);
   const recording = live?.phase === 'recording' || live?.phase === 'countdown';
-  return { recording, warning: recording ? (live?.warning ?? null) : null, refused: notice === 'refused', failed: notice === 'failed' };
+  return { recording, warning: recording ? (live?.warning ?? null) : null, refused: notice === 'refused', failed: notice === 'failed', unsaved: notice === 'unsaved' };
 }
 
 export interface AudioButtonState {
@@ -582,9 +598,10 @@ export function useAudioButton(target: AudioTarget | null, options: { label: str
   const notice = useNotice(context, key);
   const need = target === null ? 'none' : permissionForPath(audioPermissionPath(target), { kind: 'put', value: null });
   const allowed = useCan(need);
-  const discard = context?.discard;
-  // A button that goes away (its surface left) ends its own recording and keeps nothing.
-  useEffect(() => () => discard?.(key), [discard, key]);
+  const release = context?.release;
+  // e31f: a button that goes away ("Concluir" on the point editor, a step change, a layout swap) ends
+  // its own recording and saves it to its target, as a tap would; nothing spoken is thrown away.
+  useEffect(() => () => release?.(key), [release, key]);
   const phase: AudioPhase = live?.phase ?? 'idle';
   const recording = phase === 'recording' || phase === 'countdown';
   const disabledReason = options.disabledReason ?? (target === null ? null : allowed || need === 'none' ? null : permissionRefusalText(need));
@@ -677,6 +694,66 @@ function heldState(context: AudioContextValue, row: AudioFileRow | null): HeldAu
   };
 }
 
+/** e31f: one action of a not-done audio where it is listed: why it is disabled (or null), whether it runs, and the tap. */
+export interface HeldAudioAction {
+  disabledReason: string | null;
+  busy: boolean;
+  run: () => void;
+}
+
+/** e31f: "Tentar de novo" and "Dispensar" of one listed audio; each null where it does not apply. */
+export interface HeldAudioControls {
+  retry: HeldAudioAction | null;
+  dismiss: HeldAudioAction | null;
+}
+
+const NO_CONTROLS: HeldAudioControls = { retry: null, dismiss: null };
+
+/**
+ * e31f (Matheus, 2026-11-26: "Dispensar na lista de pendências"): the actions of an audio that holds
+ * the ficha and the emission, wherever it is listed (the ficha's hold line, the Export dialog's
+ * rows), by the kernel's rule (`heldAudioActions`): "Dispensar" on every audio not done, "Tentar de
+ * novo" where it applies. Both follow the audio's field permission (AD-29), and "Tentar de novo"
+ * needs signal; each is disabled with its reason otherwise. Inert with no provider or no such row.
+ */
+export function useHeldAudioControls(audioId: string): HeldAudioControls {
+  const context = use(AudioContext);
+  const row = context?.audio.rows.find((one) => one.id === audioId) ?? null;
+  const need = row === null ? 'none' : permissionForPath(audioPermissionPath(row.audio_target), { kind: 'put', value: null });
+  const allowed = useCan(need);
+  const [busy, setBusy] = useState(false);
+  if (context === null || row === null) return NO_CONTROLS;
+  const actions = heldAudioActions(row);
+  const refusal = allowed || need === 'none' ? null : permissionRefusalText(need);
+  const retryReason = refusal ?? (context.online ? null : ui.audio.retryNeedsConnection);
+  return {
+    retry: !actions.retry
+      ? null
+      : {
+          disabledReason: retryReason,
+          busy,
+          run: () => {
+            if (retryReason !== null || busy) return;
+            setBusy(true);
+            context
+              .retranscribe(row)
+              .catch(() => context.announce(ui.audio.retryFailed))
+              .finally(() => setBusy(false));
+          },
+        },
+    dismiss: !actions.dismiss
+      ? null
+      : {
+          disabledReason: refusal,
+          busy: false,
+          run: () => {
+            if (refusal !== null || busy) return;
+            void context.dismiss(row).then(() => context.announce(ui.audio.dismissed));
+          },
+        },
+  };
+}
+
 /** Story 31.5: play of one audio by its id (a spoken reading's Suggestion); null when the device does not hold the row. */
 export function useAudioPlay(audioId: string | null): HeldAudioState | null {
   const context = use(AudioContext);
@@ -754,7 +831,7 @@ export function useAiWriteControl(target: AudioTarget | null, text: string | nul
   const need = target === null ? 'none' : permissionForPath(audioPermissionPath(target), { kind: 'put', value: null });
   const allowed = useCan(need);
   const [busy, setBusy] = useState(false);
-  const [written, setWritten] = useState<{ text: string; restore: AudioProseWrite['puts'] } | null>(null);
+  const [written, setWritten] = useState<{ text: string; target: AudioTarget; former: AiRewriteFormer } | null>(null);
   const [failedOn, setFailedOn] = useState<string | null>(null);
   const shown = shownText(text);
   const run = context?.aiWrite ?? null;
@@ -769,7 +846,7 @@ export function useAiWriteControl(target: AudioTarget | null, text: string | nul
     setFailedOn(null);
     run(target)
       .then((outcome) => {
-        if (outcome.kind === 'written') setWritten({ text: outcome.text, restore: outcome.restore });
+        if (outcome.kind === 'written') setWritten({ text: outcome.text, target, former: outcome.former });
         else setFailedOn(from);
       })
       .catch(() => setFailedOn(from))
@@ -777,9 +854,9 @@ export function useAiWriteControl(target: AudioTarget | null, text: string | nul
   };
   const undo = () => {
     if (written === null || undoRun === null) return;
-    const puts = written.restore;
+    const { target: of, former } = written;
     setWritten(null);
-    void undoRun(puts).catch(() => undefined);
+    void undoRun(of, former).catch(() => undefined);
   };
   return {
     shown: visible,
