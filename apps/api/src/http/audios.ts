@@ -44,6 +44,8 @@ export interface AudioRoutesDeps {
   /** e31f: the per-user limit; absent, `AUDIO_RETRANSCRIBE_RATE_LIMIT`. Always on. */
   limit?: RateLimitRule;
   limitNow?: () => number;
+  /** Security pass 2026-11-26 (A1): the company's daily ceiling of transcriptions started; at it the route answers `429 quota_exceeded`. */
+  dailyQuota?: number;
 }
 
 function fail(code: ErrorCode, message: string): ErrorResponse {
@@ -73,7 +75,8 @@ export function createAudioRoutes(db: Db, deps: AudioRoutesDeps): Hono<AppEnv> {
     const enqueue = deps.enqueueTranscription;
     if (enqueue === undefined) throw new Error('retranscribe: no transcription queue is wired');
 
-    const outcome = await startTranscription({ db, now: deps.now, newId: deps.newId, enqueue }, session.companyId, { id, relatorioId: record.relatorioId }, [audio.audio_status]);
+    const outcome = await startTranscription({ db, now: deps.now, newId: deps.newId, enqueue, ...(deps.dailyQuota === undefined ? {} : { dailyQuota: deps.dailyQuota }) }, session.companyId, { id, relatorioId: record.relatorioId }, [audio.audio_status]);
+    if (outcome === 'quota_exceeded') return c.json(fail('quota_exceeded', 'The daily transcription limit of this company is reached.'), 429);
     if (outcome === 'send_failed') throw new Error('retranscribe: the transcription job was not sent');
     // `moved`: the job was sent and wrote its own status first (a fast run); the audio is on its way all the same.
     const answer: AudioRetranscribeResponse = { audio_id: id, audio_status: 'transcribing' };

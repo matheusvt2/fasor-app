@@ -205,7 +205,9 @@ export const transcriptionRuns = pgTable(
 /*
  * Story 20.12 (security pass S6): the per-company daily counters of paid AI work, one row per
  * company, `America/Sao_Paulo` calendar day and kind (`reading`: every reading started, rereads
- * included; `audit`: every emission audit run created). `consumeDailyQuota`
+ * included; `audit`: every emission audit run created; since the 2026-11-26 security pass also
+ * `transcription`: every transcription started, and `ai_write`: every AI control tap that reaches
+ * the writing provider). `consumeDailyQuota`
  * (`db/repositories/ai-usage.ts`) is the only writer; never synced to a device.
  */
 export const aiUsageDaily = pgTable(
@@ -216,7 +218,7 @@ export const aiUsageDaily = pgTable(
     kind: text('kind').notNull(),
     count: integer('count').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.company_id, t.day, t.kind] }), check('ai_usage_daily_kind_check', sql`${t.kind} in ('reading', 'audit')`)],
+  (t) => [primaryKey({ columns: [t.company_id, t.day, t.kind] }), check('ai_usage_daily_kind_check', sql`${t.kind} in ('reading', 'audit', 'transcription', 'ai_write')`)],
 );
 
 /*

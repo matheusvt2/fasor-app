@@ -16,6 +16,7 @@ import {
   snapshotDefinitionContext,
   standardTemplate,
   suggestionRowSchema,
+  TEXT_CAPS,
   syncPushResponseSchema,
   type AudioFileRow,
   type AudioTarget,
@@ -36,7 +37,7 @@ import { createDb } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
 import { roleOfUser } from '../../db/roles.ts';
 import { seedRoleActor } from '../../db/roles.test-support.ts';
-import { entities, ops, transcriptionRuns } from '../../db/schema.ts';
+import { aiUsageDaily, entities, ops, transcriptionRuns } from '../../db/schema.ts';
 import { dropCompany } from '../../db/test-cleanup.ts';
 import { createAudioRoutes } from '../../http/audios.ts';
 import { createFileRoutes } from '../../http/files.ts';
@@ -126,7 +127,7 @@ const recording = (label: string) => new TextEncoder().encode(`synthetic-audio-$
 let session: { userId: string; companyId: CompanyId };
 const enqueued: TranscriptionPayload[] = [];
 
-function makeApp(options: { aiFeatures?: boolean; retranscribeLimit?: { max: number; windowMs: number } } = {}): Hono<AppEnv> {
+function makeApp(options: { aiFeatures?: boolean; retranscribeLimit?: { max: number; windowMs: number }; dailyQuota?: number } = {}): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   app.use('*', async (c, next) => {
     const { role } = await roleOfUser(db, session.companyId, session.userId);
@@ -141,7 +142,15 @@ function makeApp(options: { aiFeatures?: boolean; retranscribeLimit?: { max: num
     enqueued.push(payload);
   };
   app.route('/', createSyncRoutes(db, { now, newId }));
-  app.route('/', createFileRoutes(db, s3, bucket, { now, enqueueTranscription: enqueue, ...(options.aiFeatures === undefined ? {} : { aiFeatures: options.aiFeatures }) }));
+  app.route(
+    '/',
+    createFileRoutes(db, s3, bucket, {
+      now,
+      enqueueTranscription: enqueue,
+      ...(options.aiFeatures === undefined ? {} : { aiFeatures: options.aiFeatures }),
+      ...(options.dailyQuota === undefined ? {} : { transcriptionDailyQuota: options.dailyQuota }),
+    }),
+  );
   app.route(
     '/',
     createAudioRoutes(db, {
@@ -150,6 +159,7 @@ function makeApp(options: { aiFeatures?: boolean; retranscribeLimit?: { max: num
       enqueueTranscription: enqueue,
       ...(options.aiFeatures === undefined ? {} : { aiFeatures: options.aiFeatures }),
       ...(options.retranscribeLimit === undefined ? {} : { limit: options.retranscribeLimit }),
+      ...(options.dailyQuota === undefined ? {} : { dailyQuota: options.dailyQuota }),
     }),
   );
   return app;
@@ -780,6 +790,96 @@ describe('e31f-API-004 "Tentar de novo" of a queued audio, its limit, and the di
     const late = devicePut(`file/${doneId}/audio_status`, 'dismissed');
     expect((await push(ADMIN, [late])).rejected).toEqual([{ op_id: late.op_id, code: 'op_invalid' }]);
     expect((await audioOf(doneId)).audio_status).toBe('done');
+  });
+});
+
+/** The transcriptions the company started today, as `ai_usage_daily` counts them. */
+async function transcriptionsToday(): Promise<number> {
+  const rows = await db.select({ count: aiUsageDaily.count }).from(aiUsageDaily).where(and(eq(aiUsageDaily.company_id, companyId), eq(aiUsageDaily.kind, 'transcription')));
+  return rows.reduce((sum, row) => sum + row.count, 0);
+}
+
+describe('sec-A1-API-001 the daily ceiling of transcriptions started (security pass 2026-11-26)', () => {
+  it('each start spends one unit; at the ceiling the upload sends nothing and the audio stays queued, "Tentar de novo" answers 429 quota_exceeded, and under the ceiling it is queued again', async () => {
+    const used = await transcriptionsToday();
+    expect(used).toBeGreaterThan(0);
+    const capped = makeApp({ dailyQuota: used + 1 });
+
+    const first = recording('quota-first');
+    const one = audioCreate({ actor: ADMIN, relatorioId: main.relatorioId, target: item('contatos'), bytes: first });
+    expect((await push(ADMIN, [one.op])).rejected).toEqual([]);
+    expect((await upload(capped, one.id, first)).status).toBe(200);
+    expect((await audioOf(one.id)).audio_status).toBe('transcribing');
+    expect(await transcriptionsToday()).toBe(used + 1);
+
+    const second = recording('quota-second');
+    const two = audioCreate({ actor: ADMIN, relatorioId: main.relatorioId, target: item('contatos'), bytes: second });
+    expect((await push(ADMIN, [two.op])).rejected).toEqual([]);
+    const before = enqueued.length;
+    expect((await upload(capped, two.id, second)).status).toBe(200);
+    expect(enqueued.length).toBe(before);
+    expect(await audioOf(two.id)).toMatchObject({ audio_status: 'queued' });
+    expect((await audioOf(two.id)).uploaded_at).not.toBeNull();
+
+    as(ADMIN);
+    const refused = await request(capped, audioRetranscribePath(two.id), { method: 'POST' });
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({ code: 'quota_exceeded' });
+    expect(enqueued.length).toBe(before);
+    expect((await audioOf(two.id)).audio_status).toBe('queued');
+    // A refused start spends nothing.
+    expect(await transcriptionsToday()).toBe(used + 1);
+
+    const allowed = await request(app, audioRetranscribePath(two.id), { method: 'POST' });
+    expect(allowed.status, await allowed.clone().text()).toBe(202);
+    expect(enqueued.slice(before)).toEqual([{ company_id: companyId, audio_id: two.id }]);
+    expect(await transcriptionsToday()).toBe(used + 2);
+  });
+
+  it("the job's own attempts spend nothing", async () => {
+    const bytes = recording('quota-attempts');
+    hears(bytes, { text: 'isolador trincado' });
+    writes({ heard: 'isolador trincado', error: 'transient' });
+    const id = await recorded(item('contatos'), bytes);
+    const used = await transcriptionsToday();
+    await expect(run(id, 1, false)).rejects.toThrow(/transient/);
+    writes({ heard: 'isolador trincado', text: 'Isolador trincado.' });
+    await run(id, 2, false);
+    expect((await audioOf(id)).audio_status).toBe('done');
+    expect(await transcriptionsToday()).toBe(used);
+  });
+});
+
+describe('sec-A3-API-001 the job holds its text to the field cap (security pass 2026-11-26)', () => {
+  it('a text that would pass the cap of the field is not written: the audio fails, the field is unchanged, the text as heard stays on the audio', async () => {
+    const path = `sheet/${seccionadora.id}/observations`;
+    const typed = 'a'.repeat(TEXT_CAPS.long - 10);
+    expect((await push(ADMIN, [devicePut(path, typed)])).rejected).toEqual([]);
+    const bytes = recording('over-cap');
+    hears(bytes, { text: 'barramento com pontos de aquecimento' });
+    const id = await recorded({ type: 'sheet_field', block_id: seccionadora.id, field: 'observations' }, bytes);
+    await run(id);
+    expect(await audioOf(id)).toMatchObject({ audio_status: 'failed', transcript_heard: 'barramento com pontos de aquecimento' });
+    expect((await blockOf(seccionadora.id)).sheet.observations?.value).toBe(typed);
+    const rows = await runsOf(id);
+    expect(rows.at(-1)).toMatchObject({ outcome: 'error' });
+    expect(rows.at(-1)!.error).toMatch(/text_too_long/);
+  });
+
+  it('a text that fits to the last character is written', async () => {
+    const dj = blockOfType('disjuntor_mt');
+    const path = `sheet/${dj.id}/observations`;
+    // "Texto.": the fake writes the heard text with a capital and a full stop; the join adds two line breaks.
+    const typed = 'b'.repeat(TEXT_CAPS.long - 'Texto.'.length - 2);
+    expect((await push(ADMIN, [devicePut(path, typed)])).rejected).toEqual([]);
+    const bytes = recording('at-cap');
+    hears(bytes, { text: 'texto' });
+    const id = await recorded({ type: 'sheet_field', block_id: dj.id, field: 'observations' }, bytes);
+    await run(id);
+    expect((await audioOf(id)).audio_status).toBe('done');
+    const value = (await blockOf(dj.id)).sheet.observations?.value;
+    expect(value).toBe(`${typed}\n\nTexto.`);
+    expect(String(value)).toHaveLength(TEXT_CAPS.long);
   });
 });
 

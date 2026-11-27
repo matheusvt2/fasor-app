@@ -7,21 +7,43 @@ import type { CompanyId } from './company-id.ts';
  * Story 20.12 (security pass S6): the per-company daily ceiling of paid AI work. One counter row
  * per company, day and kind (`ai_usage_daily`); the day is the `America/Sao_Paulo` calendar day,
  * so the count starts again at local midnight.
+ *
+ * Security pass 2026-11-26 (A1): the two paid works of Epic 31 count too. `transcription`: every
+ * transcription started (file receipt and "Tentar de novo"); `ai_write`: every tap on the AI
+ * control that reaches the writing provider.
  */
 
-export type AiUsageKind = 'reading' | 'audit';
+export type AiUsageKind = 'reading' | 'audit' | 'transcription' | 'ai_write';
 
 /** The env defaults (`config.ts`): readings (rereads included) and audits per company per day. */
 export const DEFAULT_READING_DAILY_QUOTA = 400;
 export const DEFAULT_AUDIT_DAILY_QUOTA = 30;
+/**
+ * Security pass A1: transcriptions started and AI control taps per company per day. Decided by
+ * Matheus on 2026-11-27: the counting and the refusal ship now, the ceilings do not. Until he sets
+ * the numbers (`TRANSCRIPTION_DAILY_QUOTA`, `AI_WRITE_DAILY_QUOTA`), the default is a value no
+ * company reaches, so nothing is refused.
+ */
+export const UNSET_DAILY_QUOTA = 1_000_000;
+export const DEFAULT_TRANSCRIPTION_DAILY_QUOTA = UNSET_DAILY_QUOTA;
+export const DEFAULT_AI_WRITE_DAILY_QUOTA = UNSET_DAILY_QUOTA;
 
 /** The ceilings `createApp` applies; absent, the defaults above. */
 export interface DailyQuotas {
   readings: number;
   audits: number;
+  /** Absent, `DEFAULT_TRANSCRIPTION_DAILY_QUOTA`. */
+  transcriptions?: number;
+  /** Absent, `DEFAULT_AI_WRITE_DAILY_QUOTA`. */
+  aiWrites?: number;
 }
 
-export const DEFAULT_DAILY_QUOTAS: DailyQuotas = { readings: DEFAULT_READING_DAILY_QUOTA, audits: DEFAULT_AUDIT_DAILY_QUOTA };
+export const DEFAULT_DAILY_QUOTAS: DailyQuotas = {
+  readings: DEFAULT_READING_DAILY_QUOTA,
+  audits: DEFAULT_AUDIT_DAILY_QUOTA,
+  transcriptions: DEFAULT_TRANSCRIPTION_DAILY_QUOTA,
+  aiWrites: DEFAULT_AI_WRITE_DAILY_QUOTA,
+};
 
 /** The company is at its daily ceiling for this kind: nothing was spent, nothing may start. */
 export class QuotaExceededError extends Error {

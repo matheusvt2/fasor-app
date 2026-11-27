@@ -171,7 +171,9 @@ export interface AppOptions {
   telemetry?: { sink?: TelemetrySink; limit?: RateLimitRule; userLimit?: RateLimitRule; limitNow?: () => number };
   /**
    * Story 20.12 (security pass S6): the per-company daily ceilings of readings (rereads
-   * included) and audits; absent, `DEFAULT_DAILY_QUOTAS` (400 and 30).
+   * included) and audits; absent, `DEFAULT_DAILY_QUOTAS` (400 and 30). Since the 2026-11-26 security
+   * pass it also carries the transcriptions started and the AI control taps, with no
+   * effective ceiling by default (`UNSET_DAILY_QUOTA`) until Matheus sets the numbers.
    */
   quotas?: DailyQuotas;
   /**
@@ -432,6 +434,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       ...(sendTranscription === undefined ? {} : { enqueueTranscription: sendTranscription }),
       aiFeatures,
       readingDailyQuota: quotas.readings,
+      ...(quotas.transcriptions === undefined ? {} : { transcriptionDailyQuota: quotas.transcriptions }),
     }),
   );
   // Story 31.2: "Tentar de novo" of a failed audio, behind the same session middleware.
@@ -442,6 +445,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       newId: options.newId ?? mintId,
       ...(sendTranscription === undefined ? {} : { enqueueTranscription: sendTranscription }),
       aiFeatures,
+      ...(quotas.transcriptions === undefined ? {} : { dailyQuota: quotas.transcriptions }),
       ...(options.retranscribeLimit === undefined ? {} : { limit: options.retranscribeLimit }),
       ...(options.retranscribeLimitNow === undefined ? {} : { limitNow: options.retranscribeLimitNow }),
     }),
@@ -454,6 +458,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       newId: options.newId ?? mintId,
       writing: options.writing ?? { name: 'fake', provider: fakeWritingProvider() },
       aiFeatures,
+      ...(quotas.aiWrites === undefined ? {} : { dailyQuota: quotas.aiWrites }),
       ...(options.aiWriteLimit === undefined ? {} : { limit: options.aiWriteLimit }),
       ...(options.aiWriteLimitNow === undefined ? {} : { limitNow: options.aiWriteLimitNow }),
     }),

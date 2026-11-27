@@ -145,7 +145,7 @@ const app = createApp({
   bodyLimitBytes: config.API_BODY_LIMIT_BYTES,
   telemetry: { sink: telemetrySink, userLimit: { max: config.TELEMETRY_USER_RATE_LIMIT_MAX, windowMs: 60_000 } },
   // Story 20.12: the daily ceilings of paid AI work per company.
-  quotas: { readings: config.READING_DAILY_QUOTA, audits: config.AUDIT_DAILY_QUOTA },
+  quotas: { readings: config.READING_DAILY_QUOTA, audits: config.AUDIT_DAILY_QUOTA, transcriptions: config.TRANSCRIPTION_DAILY_QUOTA, aiWrites: config.AI_WRITE_DAILY_QUOTA },
   // Story 20.13: the origins better-auth trusts, its base URL's among them.
   originGuard: { trustedOrigins: [...trustedOrigins, ...(config.AUTH_BASE_URL === undefined ? [] : [new URL(config.AUTH_BASE_URL).origin])] },
   ...(rateLimits === undefined ? {} : { rateLimits }),

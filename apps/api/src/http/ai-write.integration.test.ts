@@ -31,7 +31,7 @@ import { createDb } from '../db/client.ts';
 import { asCompanyId, type CompanyId } from '../db/repositories/company-id.ts';
 import { roleOfUser } from '../db/roles.ts';
 import { seedRoleActor } from '../db/roles.test-support.ts';
-import { entities, transcriptionRuns } from '../db/schema.ts';
+import { aiUsageDaily, entities, transcriptionRuns } from '../db/schema.ts';
 import { dropCompany } from '../db/test-cleanup.ts';
 import { newId } from '../ids.ts';
 import { AI_WRITE_PROMPT_VERSION } from '../jobs/transcription/prompt.ts';
@@ -70,7 +70,7 @@ const calls: WritingInput[] = [];
 
 let session: { userId: string; companyId: CompanyId };
 
-function makeApp(options: { aiFeatures?: boolean; limit?: RateLimitRule; provider?: WritingProvider; name?: string } = {}): Hono<AppEnv> {
+function makeApp(options: { aiFeatures?: boolean; limit?: RateLimitRule; provider?: WritingProvider; name?: string; dailyQuota?: number } = {}): Hono<AppEnv> {
   const fake = fakeWritingProvider(writingPath);
   const provider = options.provider ?? fake;
   const app = new Hono<AppEnv>();
@@ -99,6 +99,7 @@ function makeApp(options: { aiFeatures?: boolean; limit?: RateLimitRule; provide
       },
       ...(options.aiFeatures === undefined ? {} : { aiFeatures: options.aiFeatures }),
       ...(options.limit === undefined ? {} : { limit: options.limit }),
+      ...(options.dailyQuota === undefined ? {} : { dailyQuota: options.dailyQuota }),
     }),
   );
   return app;
@@ -386,5 +387,39 @@ describe('31.9-API-005 the per-user limit', () => {
     expect(third.headers.get('retry-after')).not.toBeNull();
     as(FIELD);
     expect((await write(limited, main.relatorioId, { target: item('contatos'), last_op_id: null })).status).toBe(200);
+  });
+});
+
+/** The AI control taps the company spent today, as `ai_usage_daily` counts them. */
+async function aiWritesToday(): Promise<number> {
+  const rows = await db.select({ count: aiUsageDaily.count }).from(aiUsageDaily).where(and(eq(aiUsageDaily.company_id, companyId), eq(aiUsageDaily.kind, 'ai_write')));
+  return rows.reduce((sum, row) => sum + row.count, 0);
+}
+
+describe('sec-A1-API-002 the daily ceiling of AI control taps (security pass 2026-11-26)', () => {
+  it('a tap that reaches the provider spends one unit; at the ceiling the route answers 429 quota_exceeded, calls no model and stores no run', async () => {
+    const used = await aiWritesToday();
+    expect(used).toBeGreaterThan(0);
+    const capped = makeApp({ dailyQuota: used + 1 });
+    await observe('contatos', 'contato fase c aquecido oxidado');
+    as(ADMIN);
+    expect((await write(capped, main.relatorioId, { target: item('contatos'), last_op_id: null })).status).toBe(200);
+    expect(await aiWritesToday()).toBe(used + 1);
+
+    calls.length = 0;
+    const runsBefore = (await db.select({ id: transcriptionRuns.id }).from(transcriptionRuns).where(eq(transcriptionRuns.company_id, companyId))).length;
+    const refused = await write(capped, main.relatorioId, { target: item('contatos'), last_op_id: null });
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({ code: 'quota_exceeded' });
+    expect(calls).toEqual([]);
+    expect((await db.select({ id: transcriptionRuns.id }).from(transcriptionRuns).where(eq(transcriptionRuns.company_id, companyId))).length).toBe(runsBefore);
+    expect(await aiWritesToday()).toBe(used + 1);
+  });
+
+  it('a request refused before the provider (a bad body, an empty field) spends nothing', async () => {
+    const used = await aiWritesToday();
+    as(ADMIN);
+    expect((await write(app, main.relatorioId, { target: { type: 'nope' }, last_op_id: null })).status).toBe(400);
+    expect(await aiWritesToday()).toBe(used);
   });
 });

@@ -71,6 +71,13 @@
       "when": 1795740189894,
       "tag": "0009_ai_write_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795777352248,
+      "tag": "0010_ai_usage_kinds",
+      "breakpoints": true
     }
   ]
 }

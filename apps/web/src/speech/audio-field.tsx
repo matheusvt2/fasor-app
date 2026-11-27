@@ -1,8 +1,8 @@
-import { audioCountdownText, audioElapsedText, audioLiveWarningText, type AudioTarget } from '@app/domain';
+import { audioCountdownText, audioElapsedText, audioLiveWarningText, quotaExceededText, type AudioTarget } from '@app/domain';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ui } from '../copy/ui.ts';
 import { spriteHref } from '../styles/sprite.ts';
-import { useAiWriteControl, useAudioButton, useAudioRecording, useFieldAudio, useHeldAudioControls, type AiWriteControlState, type HeldAudioState } from './audio-session.tsx';
+import { isQuotaExceeded, useAiWriteControl, useAudioButton, useAudioRecording, useFieldAudio, useHeldAudioControls, type AiWriteControlState, type HeldAudioState } from './audio-session.tsx';
 
 /*
  * Stories 31.3 and 31.4 (AD-30; `components.css` "Audio button", `62-audio-estados.html`): the
@@ -137,7 +137,7 @@ export function AiWriteLine({ state, label }: { state: AiWriteControlState; labe
   if (state.failed) {
     return (
       <p className="ai-error" role="status">
-        {ui.aiWrite.failed}
+        {state.failedText}
       </p>
     );
   }
@@ -307,7 +307,7 @@ export function AudioFailedLine({ target, readOnly = false }: { target: AudioTar
     setBusy(true);
     audio
       .retranscribe(failed.row)
-      .catch(() => audio.announce(ui.audio.retryFailed))
+      .catch((error: unknown) => audio.announce(isQuotaExceeded(error) ? quotaExceededText('transcription') : ui.audio.retryFailed))
       .finally(() => setBusy(false));
   };
   const dismiss = () => {

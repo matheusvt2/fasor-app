@@ -113,6 +113,8 @@ export interface FileRoutesDeps {
   aiFeatures?: boolean;
   /** Story 20.12: the company's daily reading ceiling (`jobs/reading/send.ts`). */
   readingDailyQuota?: number;
+  /** Security pass 2026-11-26 (A1): the company's daily ceiling of transcriptions started; at it the audio stays `queued`. */
+  transcriptionDailyQuota?: number;
   /**
    * Story 31.2: sends an audio's transcription job on its first upload. Absent when the app runs
    * without a queue: the upload still succeeds and the audio stays `queued`.
@@ -339,7 +341,14 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     if (current !== undefined && current.kind === 'audio' && current.audio_status === 'queued') {
       try {
         await startTranscription(
-          { db, now: deps.now, newId, ...(deps.enqueueTranscription === undefined ? {} : { enqueue: deps.enqueueTranscription }), ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }) },
+          {
+            db,
+            now: deps.now,
+            newId,
+            ...(deps.enqueueTranscription === undefined ? {} : { enqueue: deps.enqueueTranscription }),
+            ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }),
+            ...(deps.transcriptionDailyQuota === undefined ? {} : { dailyQuota: deps.transcriptionDailyQuota }),
+          },
           session.companyId,
           { id, relatorioId: lookup.relatorioId },
           ['queued'],

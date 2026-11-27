@@ -14,9 +14,12 @@ import {
   fileFieldPath,
   formatPath,
   objectKey,
+  opValueIssue,
   permissionForPath,
   registryRowSchema,
+  safeParsePath,
   suggestionPath,
+  TEXT_CAPS,
   toIso,
   writtenTextGuard,
   type AudioFileRow,
@@ -279,6 +282,8 @@ export async function runTranscriptionJob(deps: TranscriptionJobDeps, payload: T
       // The provider's own duration, where it reports one: a longer audio is not written.
       if (audioTooLong(speech.audio_seconds * 1000)) throw new PermanentReadingError(`too_long: the provider heard ${speech.audio_seconds} s`);
       heard = speech.text.trim();
+      // Security pass 2026-11-26 (A3): a server op skips the push route's value caps, so the job holds its own text to them.
+      if (heard.length > TEXT_CAPS.long) throw new PermanentReadingError(`text_too_long: the text as heard has ${heard.length} characters`);
       await storeHeard(deps, companyId, { id: audio.id, relatorioId }, heard);
     }
 
@@ -354,6 +359,14 @@ export async function runTranscriptionJob(deps: TranscriptionJobDeps, payload: T
             const write = audioProseWrite(await toSnapshot(tx, companyId, relatorioId), target, fieldText, options);
             if (write === null) throw new PermanentReadingError('the target field is no longer in the relatorio');
             fieldPuts = write.puts;
+            // Security pass 2026-11-26 (A3): the field's own cap, as the push route holds a typed text to it
+            // (`opValueIssue`, Story 20.9). A text that does not fit is not written and the audio fails;
+            // nothing is cut. The text as heard stays stored on the audio.
+            for (const put of fieldPuts) {
+              const path = safeParsePath(put.path);
+              const issue = path === null ? null : opValueIssue(op('put', put.path, put.value), path);
+              if (issue !== null) throw new PermanentReadingError(`text_too_long: ${issue}`);
+            }
           }
           puts = fieldPuts.length;
           return [

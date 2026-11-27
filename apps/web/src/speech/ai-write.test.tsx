@@ -1,4 +1,4 @@
-import type { AudioTarget } from '@app/domain';
+import { quotaExceededText, type AudioTarget } from '@app/domain';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,6 +6,7 @@ import { ui } from '../copy/ui.ts';
 import { AiFeaturesContext } from '../state/ai-features.tsx';
 import { AudioField, AudioFieldLines } from './audio-field.tsx';
 import { AudioRecorderCore, type AiUndo, type AiWriteOutcome, type AiWriteRun } from './audio-session.tsx';
+import { SyncRequestError } from '../sync/client.ts';
 import { fakeRecorderWorld } from './recorder-fakes.ts';
 
 /*
@@ -201,4 +202,26 @@ describe('31.9-WEB-004 a refusal or a failed call leaves the field unchanged and
       expect(screen.queryByText(ui.aiWrite.failed)).toBeNull();
     });
   }
+});
+
+describe('sec-A1-WEB-001 the daily ceiling of the AI control (security pass 2026-11-26)', () => {
+  it('a tap the server refuses with 429 quota_exceeded says the ceiling sentence of the kernel, and the next failure the plain one', async () => {
+    const run = vi
+      .fn<AiWriteRun>()
+      .mockRejectedValueOnce(new SyncRequestError({ kind: 'http', status: 429, code: 'quota_exceeded' }))
+      .mockRejectedValueOnce(new Error('offline'));
+    render(
+      <Harness aiWrite={run}>
+        <AudioField target={TARGET} label={LABEL} text="folga no acionamento do mecanismo" />
+      </Harness>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: NAME }));
+    await flush();
+    expect(screen.getByText(quotaExceededText('ai_write'))).toHaveClass('ai-error');
+    expect(screen.queryByText(ui.aiWrite.failed)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: NAME }));
+    await flush();
+    expect(screen.getByText(ui.aiWrite.failed)).toHaveClass('ai-error');
+    expect(screen.queryByText(quotaExceededText('ai_write'))).toBeNull();
+  });
 });

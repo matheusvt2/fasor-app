@@ -1,6 +1,6 @@
 import { TELEMETRY_BATCH_MAX } from '@app/domain';
 import { z } from 'zod';
-import { DEFAULT_AUDIT_DAILY_QUOTA, DEFAULT_READING_DAILY_QUOTA } from './db/repositories/ai-usage.ts';
+import { DEFAULT_AI_WRITE_DAILY_QUOTA, DEFAULT_AUDIT_DAILY_QUOTA, DEFAULT_READING_DAILY_QUOTA, DEFAULT_TRANSCRIPTION_DAILY_QUOTA } from './db/repositories/ai-usage.ts';
 import { logError } from './log.ts';
 
 /**
@@ -141,6 +141,9 @@ export const configSchema = z
      */
     READING_DAILY_QUOTA: z.preprocess(unsetWhenEmpty, z.coerce.number().int().nonnegative().default(DEFAULT_READING_DAILY_QUOTA)),
     AUDIT_DAILY_QUOTA: z.preprocess(unsetWhenEmpty, z.coerce.number().int().nonnegative().default(DEFAULT_AUDIT_DAILY_QUOTA)),
+    // Security pass 2026-11-26 (A1): the daily ceilings of transcriptions started and of AI control taps, per company.
+    TRANSCRIPTION_DAILY_QUOTA: z.preprocess(unsetWhenEmpty, z.coerce.number().int().nonnegative().default(DEFAULT_TRANSCRIPTION_DAILY_QUOTA)),
+    AI_WRITE_DAILY_QUOTA: z.preprocess(unsetWhenEmpty, z.coerce.number().int().nonnegative().default(DEFAULT_AI_WRITE_DAILY_QUOTA)),
     /**
      * Story 26.6 (AD-9): where the two e-mails go. `fake` (the default: local, tests, every gate)
      * stores each message in the `fake_email` table the tests and the e2e helpers read; `ses`
