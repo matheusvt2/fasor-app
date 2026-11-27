@@ -544,3 +544,5 @@ Other changes made with them:
 - `prototype/index.html` was rebuilt with `build.py` (no warnings). No browser pass was made in this batch (documents only, no server); the markup was checked for balance. The first app batch that renders a frame checks it at 390, 768 and 1280 px.
 
 **Approval:** pending, Matheus in the PR.
+
+- 2026-11-26, batch e31d (Stories 31.7, 31.9): the mic on the remaining fields is built from `62-audio-estados.html`; `50-relatorio-setup`, `72-pontos`, `key-equipment-sheet` and `key-relatorio-setup` each carry a head comment saying their Dictation button is superseded by the Audio button, and `45-secao` draws none. The AI control is the `.ai-*` drawing of `62-audio-estados.html`; no mock draws it beside the other fields.

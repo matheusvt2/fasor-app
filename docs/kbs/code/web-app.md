@@ -25,3 +25,4 @@ sources: [apps/web/src]
 - `copy/pt-br.ts` static surface copy; `copy/ui.ts` component chrome. `styles/` holds `tokens.css`, `components.css` (byte-identical to the mocks) and `app.css` (translations).
 
 Screens are built from the mockups: [mockups-and-css](/ux/mockups-and-css.md). Rules: [ui-system](/architecture/ui-system.md), [ops-and-local-first](/architecture/ops-and-local-first.md).
+- *(2026-11-26, batch e31d, Stories 31.7 and 31.9)* the Audio button on six more prose fields (`audio-fields-remaining.test.tsx`), the AI control `AiWriteButton` and `AiWriteLine` in `speech/audio-field.tsx` with `useAiWriteControl` in `audio-session.tsx`; copy in `copy/ui.ts` `aiWrite`; `assignPhotoBatch` skips a photo whose caption changed since it was saved.
