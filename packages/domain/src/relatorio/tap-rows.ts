@@ -293,9 +293,27 @@ export function isTapTable(rows: readonly { tap: EvaluatedTap | null }[]): boole
   return rows.some((row) => row.tap !== null);
 }
 
-/** Whether a tap row of the plate was tested: one of its typed cells holds anything (a reading, "Não medido", N/A, a limit). */
+/**
+ * Whether a tap row of the plate was tested: one of its cells holds anything (a reading, "Não medido", N/A, a limit).
+ * e31f (Matheus, 2026-11-26): any filled cell counts, a typed V PRIMÁRIO or V SECUNDÁRIO (`input`) too, not only the
+ * captures; the TAP Nº (`index`) never does. A tap marked Atual or Extremo with nothing filled is not tested.
+ */
 function tapRowTested(row: { tap: EvaluatedTap | null; cells: readonly { role: 'capture' | 'input' | 'index'; state: string }[] }): boolean {
-  return row.cells.some((cell) => tapCellTyped(row, cell) && cell.state !== 'empty');
+  return row.cells.some((cell) => cell.role !== 'index' && cell.state !== 'empty');
+}
+
+/**
+ * e31f (Matheus, 2026-11-26, the same rule as the TTR's `printedTapRows`): the measurement tests whose optional rows
+ * are left out of the print while empty: the transformer's winding resistance (Story 23.15), whose "AT, primeiro tap"
+ * and "AT, último tap" print only when filled, never as a row of "-". The other tests with optional rows (the
+ * thermography's points, the grid continuity's) print every row as before (Coordinator's reading, open to Matheus).
+ */
+export const PRINT_OMITS_EMPTY_OPTIONAL_ROWS: ReadonlySet<string> = new Set(['resistencia_enrolamento']);
+
+/** e31f: the rows of a measurement test the relatório prints: every row, but an empty optional row of a test in `PRINT_OMITS_EMPTY_OPTIONAL_ROWS`. */
+export function printedMeasurementRows<R extends { cells: readonly { optional: boolean; state: string; fixed: string | null }[] }>(testKey: string, rows: readonly R[]): R[] {
+  if (!PRINT_OMITS_EMPTY_OPTIONAL_ROWS.has(testKey)) return [...rows];
+  return rows.filter((row) => !(row.cells.length > 0 && row.cells.every((cell) => cell.optional && cell.fixed === null && cell.state === 'empty')));
 }
 
 /**

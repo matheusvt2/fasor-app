@@ -1,5 +1,8 @@
 import {
+  audioFileRowSchema,
+  audioPermissionPath,
   can,
+  isHoldingAudioStatus,
   permissionForPath,
   attributionIssue,
   createProjectOf,
@@ -115,6 +118,9 @@ export async function checkClientOp(tx: Tx, companyId: CompanyId, target: Target
   // Story 26.4 (AD-29): the actor's role must hold the key the op needs, first of all.
   const forbidden = await roleIssue(tx, companyId, op, path, deps.state, deps.cache);
   if (forbidden !== null) return forbidden;
+  // e31f: a dismiss needs the key of the audio's own field, and an audio already transcribed is not dismissed.
+  const dismiss = await audioDismissIssue(tx, companyId, op, path, deps.state, deps.cache);
+  if (dismiss !== null) return dismiss;
   // Story 27.1 (F1, contract 56): beside the role's check, a company holds one live `empresa` row.
   const revived = revivedEmpresaId(op, path);
   if (revived !== null && (await holdsOtherEmpresa(tx, companyId, revived))) return 'op_forbidden';
@@ -175,6 +181,38 @@ async function roleIssue(
   // A status op moves the status: the next op of the push reads it again.
   if (path.family === 'relatorio/status') cache?.statuses?.delete(op.relatorio_id);
   return reopenNeed(op, status) === 'none' ? null : 'op_forbidden';
+}
+
+/**
+ * e31f (review of Epic 31): a device's "Dispensar" (`file/{id}/audio_status` put of `dismissed`, the
+ * only client value `clientReadingPutIsValid` lets through) is judged on the audio the server holds:
+ * it needs the key of the audio's own field (`audioPermissionPath`, as its create did), not only the
+ * `file/field` family's `relatorio.fill` (`op_forbidden`); and it is accepted from every status that
+ * holds or from `dismissed` again, never on an audio already `done` (`op_invalid`). A put on a row
+ * that is not an audio is the fold's no-op and passes.
+ */
+async function audioDismissIssue(
+  tx: Tx,
+  companyId: CompanyId,
+  op: Op,
+  path: OpPath,
+  state: ReadonlyMap<EntityKey, EntityRow>,
+  cache: ClientCheckCache | undefined,
+): Promise<OpRejectCode | null> {
+  if (op.kind !== 'put' || path.family !== 'file/field' || path.field !== 'audio_status') return null;
+  const parsed = audioFileRowSchema.safeParse(state.get(entityKey('file', path.id)));
+  if (!parsed.success) return null;
+  const audio = parsed.data;
+  const need = permissionForPath(audioPermissionPath(audio.audio_target), { kind: 'put', value: null });
+  if (need !== 'none') {
+    let role = cache?.roles.get(op.actor_id);
+    if (role === undefined) {
+      role = (await roleOfUser(tx, companyId, op.actor_id)).role;
+      cache?.roles.set(op.actor_id, role);
+    }
+    if (!can(role, need)) return 'op_forbidden';
+  }
+  return isHoldingAudioStatus(audio.audio_status) || audio.audio_status === 'dismissed' ? null : 'op_invalid';
 }
 
 /** e26r: the status of a relatório as the server holds it (null when it holds none). */

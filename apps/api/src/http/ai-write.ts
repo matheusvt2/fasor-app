@@ -1,5 +1,6 @@
 import {
   AI_WRITE_PATH,
+  aiRewriteJoin,
   aiRewriteSource,
   aiRewriteVerdict,
   aiWriteRequestSchema,
@@ -106,11 +107,21 @@ export function createAiWriteRoutes(db: Db, deps: AiWriteRouteDeps): Hono<AppEnv
     let fallback: string | null = null;
     let answer: AiWriteResponse;
     try {
-      result = await deps.writing.provider.write({ text: source.text, level: 'report', context: source.context, source: 'field' });
-      const verdict = aiRewriteVerdict(source, result.text);
+      // e31f: one call per piece (a section text block by block, so each block keeps its kind), the usage summed.
+      const written: string[] = [];
+      let summed: WritingResult | null = null;
+      for (const piece of source.pieces) {
+        const one: WritingResult = await deps.writing.provider.write({ text: piece, level: 'report', context: source.context, source: 'field' });
+        written.push(one.text);
+        const usage: WritingResult['usage'] = summed === null ? one.usage : { input_tokens: summed.usage.input_tokens + one.usage.input_tokens, output_tokens: summed.usage.output_tokens + one.usage.output_tokens, usd: summed.usage.usd + one.usage.usd };
+        summed = { ...one, usage };
+        result = summed;
+      }
+      const text = aiRewriteJoin(source, written);
+      const verdict = aiRewriteVerdict(source, text);
       if (verdict.ok) {
         guard = 'passed';
-        answer = { outcome: 'written', source: source.text, text: result.text.trim() };
+        answer = { outcome: 'written', source: source.text, text };
       } else {
         guard = 'failed';
         fallback = guardText(verdict.reasons);

@@ -122,7 +122,7 @@ test.describe('no altitude from the device', () => {
     await expect(page.getByText(HINT)).toBeVisible();
     await expect.poll(() => lastValue(page, NA_PATH)).toBe(false);
     await altitudeInput(page).fill('760');
-    await page.getByLabel('Justificativa').click();
+    await page.getByRole('textbox', { name: 'Justificativa' }).click();
     await expect.poll(() => lastValue(page, M_PATH)).toBe(760);
     await expect(page.getByText(HINT)).toHaveCount(0);
   });

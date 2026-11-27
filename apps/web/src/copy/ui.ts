@@ -226,6 +226,9 @@ export const ui = {
     retry: 'Tentar de novo',
     dismiss: 'Dispensar',
     retryNeedsConnection: 'Tentar de novo precisa de conexão',
+    // authored (e31f, listed for Bruno): the two actions of an audio listed with its place (the ficha's hold line, the Export dialog's rows).
+    retryNamed: (place: string) => `Tentar de novo: ${place}`,
+    dismissNamed: (place: string) => `Dispensar: ${place}`,
     // authored (Story 31.6, listed for Bruno): the server refused "Tentar de novo" (said by the live region).
     retryFailed: 'Não foi possível tentar de novo agora. Toque de novo em instantes.',
     // Verbatim from the mock (d) "Dispensado": the mark's tag, also what the live region says after "Dispensar".

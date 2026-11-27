@@ -2,7 +2,7 @@ import { audioCountdownText, audioElapsedText, audioLiveWarningText, type AudioT
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ui } from '../copy/ui.ts';
 import { spriteHref } from '../styles/sprite.ts';
-import { useAiWriteControl, useAudioButton, useAudioRecording, useFieldAudio, type AiWriteControlState, type HeldAudioState } from './audio-session.tsx';
+import { useAiWriteControl, useAudioButton, useAudioRecording, useFieldAudio, useHeldAudioControls, type AiWriteControlState, type HeldAudioState } from './audio-session.tsx';
 
 /*
  * Stories 31.3 and 31.4 (AD-30; `components.css` "Audio button", `62-audio-estados.html`): the
@@ -146,7 +146,7 @@ export function AiWriteLine({ state, label }: { state: AiWriteControlState; labe
 
 /** The live warning under the field while a condition holds (`.audio-warning`, a polite status). */
 export function AudioWarning({ target }: { target: AudioTarget | null }) {
-  const { warning, refused, failed } = useAudioRecording(target);
+  const { warning, refused, failed, unsaved } = useAudioRecording(target);
   return (
     <>
       {warning === null ? null : (
@@ -155,8 +155,8 @@ export function AudioWarning({ target }: { target: AudioTarget | null }) {
           {audioLiveWarningText(warning)}
         </p>
       )}
-      {/* The microphone refused (or failed): the button stays and this says how to allow it (announced by the provider). */}
-      {refused || failed ? <p className="camera-denied audio-refused">{refused ? ui.audio.refused : ui.audio.failed}</p> : null}
+      {/* The microphone refused (or failed): the button stays and this says how to allow it (announced by the provider). e31f: or the recording could not be kept. */}
+      {refused || failed || unsaved ? <p className="camera-denied audio-refused">{refused ? ui.audio.refused : failed ? ui.audio.failed : ui.audio.saveFailed}</p> : null}
     </>
   );
 }
@@ -344,6 +344,54 @@ export function AudioFailedLine({ target, readOnly = false }: { target: AudioTar
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * e31f (Matheus, 2026-11-26: "Dispensar na lista de pendências"): "Tentar de novo" (where it applies)
+ * and "Dispensar" of one audio that holds, beside its place in a list (the ficha's hold line, the
+ * Export dialog's rows). Each is named with the place, so two listed audios read apart; a disabled one
+ * says why. Nothing when the audio offers neither (no provider, or the device does not hold the row).
+ */
+export function HeldAudioButtons({ audioId, place }: { audioId: string; place: string }) {
+  const controls = useHeldAudioControls(audioId);
+  const reasonId = useId();
+  const { retry, dismiss } = controls;
+  if (retry === null && dismiss === null) return null;
+  const reasons = [...new Set([retry?.disabledReason ?? null, dismiss?.disabledReason ?? null].filter((reason): reason is string => reason !== null))];
+  return (
+    <span className="audio-held-actions" data-audio-actions={audioId}>
+      {retry === null ? null : (
+        <button
+          type="button"
+          className="btn btn-text"
+          aria-label={ui.audio.retryNamed(place)}
+          aria-disabled={retry.disabledReason !== null || retry.busy || undefined}
+          aria-describedby={retry.disabledReason === null ? undefined : reasonId}
+          aria-busy={retry.busy || undefined}
+          onClick={retry.run}
+        >
+          {ui.audio.retry}
+        </button>
+      )}
+      {dismiss === null ? null : (
+        <button
+          type="button"
+          className="btn btn-text"
+          aria-label={ui.audio.dismissNamed(place)}
+          aria-disabled={dismiss.disabledReason !== null || undefined}
+          aria-describedby={dismiss.disabledReason === null ? undefined : reasonId}
+          onClick={dismiss.run}
+        >
+          {ui.audio.dismiss}
+        </button>
+      )}
+      {reasons.length === 0 ? null : (
+        <span className="btn-reason" id={reasonId}>
+          {reasons.join(' ')}
+        </span>
+      )}
+    </span>
   );
 }
 

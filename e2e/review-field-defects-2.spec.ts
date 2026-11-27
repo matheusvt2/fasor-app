@@ -161,7 +161,7 @@ test('@p0 F-02 a typed altitude is written when the field is left and when "Conc
   const altitude = page.getByLabel('Altitude do local', { exact: true });
   await expect(altitude).toBeVisible({ timeout: 30_000 });
   await altitude.fill('760');
-  await page.getByLabel('Justificativa').click();
+  await page.getByRole('textbox', { name: 'Justificativa' }).click();
   await expect.poll(async () => (await altitudeOps()).map((row) => row.value)).toEqual([760]);
   await page.reload();
   await expect(page.getByLabel('Altitude do local', { exact: true })).toHaveValue('760', { timeout: 30_000 });
