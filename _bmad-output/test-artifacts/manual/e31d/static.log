@@ -1,0 +1,31 @@
+[4m>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+[0m Container fasor-e31d-minio-1 Running 
+ Container fasor-e31d-postgres-1 Running 
+ Container fasor-e31d-api-1 Running 
+ Container fasor-e31d-install-1 Starting 
+ Container fasor-e31d-install-1 Started 
+ Container fasor-e31d-minio-1 Waiting 
+ Container fasor-e31d-install-1 Waiting 
+ Container fasor-e31d-postgres-1 Waiting 
+ Container fasor-e31d-install-1 Exited 
+ Container fasor-e31d-postgres-1 Healthy 
+ Container fasor-e31d-minio-1 Healthy 
+ Container fasor-e31d-api-1 Waiting 
+ Container fasor-e31d-install-1 Waiting 
+ Container fasor-e31d-postgres-1 Waiting 
+ Container fasor-e31d-minio-1 Waiting 
+ Container fasor-e31d-postgres-1 Healthy 
+ Container fasor-e31d-api-1 Healthy 
+ Container fasor-e31d-minio-1 Healthy 
+ Container fasor-e31d-install-1 Exited 
+ Container fasor-e31d-tools-run-ecca26f5f401 Creating 
+ Container fasor-e31d-tools-run-ecca26f5f401 Created 
+$ tsx scripts/preflight.ts && pnpm -r --parallel run typecheck && tsc -p tsconfig.json
+Scope: 3 of 4 workspace projects
+packages/domain typecheck$ tsc -p tsconfig.json
+apps/api typecheck$ tsc -p tsconfig.json
+apps/web typecheck$ tsc -p tsconfig.json
+packages/domain typecheck: Done
+apps/api typecheck: Done
+apps/web typecheck: Done

@@ -1,0 +1,107 @@
+[4m>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+[0m Container fasor-e31d-postgres-1 Running 
+ Container fasor-e31d-minio-1 Running 
+ Container fasor-e31d-api-1 Running 
+ Container fasor-e31d-install-1 Starting 
+ Container fasor-e31d-install-1 Started 
+ Container fasor-e31d-minio-1 Waiting 
+ Container fasor-e31d-install-1 Waiting 
+ Container fasor-e31d-postgres-1 Waiting 
+ Container fasor-e31d-postgres-1 Healthy 
+ Container fasor-e31d-minio-1 Healthy 
+ Container fasor-e31d-install-1 Exited 
+ Container fasor-e31d-postgres-1 Waiting 
+ Container fasor-e31d-minio-1 Waiting 
+ Container fasor-e31d-api-1 Waiting 
+ Container fasor-e31d-install-1 Waiting 
+ Container fasor-e31d-install-1 Exited 
+ Container fasor-e31d-minio-1 Healthy 
+ Container fasor-e31d-postgres-1 Healthy 
+ Container fasor-e31d-api-1 Healthy 
+ Container fasor-e31d-tools-run-64d66ad16c62 Creating 
+ Container fasor-e31d-tools-run-64d66ad16c62 Created 
+[e2e] building the web bundle once for every group (build:e2e)
+$ NODE_ENV=development vite build --mode development
+vite v8.3.0 building client environment for development...
+transforming...
+✓ 2184 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                         2.36 kB │ gzip:   1.24 kB
+dist/assets/sprite-BVEURVVX.svg                         6.51 kB │ gzip:   1.88 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2     48.25 kB
+dist/assets/index-Bo2C6Qog.css                        257.67 kB │ gzip:  37.57 kB
+dist/assets/heic-to-CuP2Qlsw.js                     2,996.24 kB │ gzip: 751.35 kB
+dist/assets/index-C-FktmCB.js                       3,096.22 kB │ gzip: 862.78 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.26s
+
+[e2e] parallel group: playwright test --pass-with-no-tests e2e/ai-write.spec.ts e2e/audio-remaining-fields.spec.ts e2e/audio-recording.spec.ts e2e/audio-review.spec.ts --project desktop-chrome --project durability-desktop-chrome
+2026-11-27T01:48:19.423Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+
+Running 19 tests using 2 workers
+
+2026-11-27T01:48:24.321Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+2026-11-27T01:48:24.321Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   1 [desktop-chrome] › e2e/ai-write.spec.ts:97:1 › @p0 31.9-E2E-002 offline the control stays, disabled with "Precisa de conexão", and a tap queues nothing (4.0s)
+2026-11-27T01:48:28.239Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   2 [desktop-chrome] › e2e/ai-write.spec.ts:67:1 › @p0 31.9-E2E-001 a tap rewrites an NC observation by an ordinary op, and "Desfazer" puts the former text back (5.4s)
+2026-11-27T01:48:29.569Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   3 [desktop-chrome] › e2e/ai-write.spec.ts:115:1 › @p0 31.9-E2E-003 an answer the guard refuses leaves the field unchanged and says "Não foi possível melhorar o texto" (4.0s)
+2026-11-27T01:48:32.267Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   4 [desktop-chrome] › e2e/ai-write.spec.ts:128:1 › @p0 31.9-E2E-004 "Texto da conclusão" holding the composed text becomes the edited text; the result stays; "Desfazer" brings the composed text back (3.7s)
+2026-11-27T01:48:33.306Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   6 [desktop-chrome] › e2e/audio-recording.spec.ts:128:1 › @p0 31.3-E2E-002 a refused microphone: the button stays, the explanation is shown and said, and nothing is stored (2.6s)
+2026-11-27T01:48:35.967Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   5 [desktop-chrome] › e2e/audio-recording.spec.ts:94:1 › @p0 31.3-E2E-001 offline on an NC observation: the recording is kept on the device (row, Blob, create op) and the field says "Áudio guardado, aguardando sinal" (7.2s)
+2026-11-27T01:48:39.454Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   7 [desktop-chrome] › e2e/audio-recording.spec.ts:145:1 › @p1 31.3-E2E-003 quiet input warns "Fale mais perto do aparelho", then loud input "Muito alto, afaste um pouco", the meter amber (7.5s)
+2026-11-27T01:48:43.490Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   8 [desktop-chrome] › e2e/audio-recording.spec.ts:161:1 › @p1 31.3-E2E-004 a recording of silence saves nothing and the field says "Não ouvi nada, grave de novo" (5.4s)
+2026-11-27T01:48:44.921Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓   9 [desktop-chrome] › e2e/audio-recording.spec.ts:173:1 › @p0 31.4-E2E-001 recorded offline, synced online: the text is in the NC observation with the mark "Áudio" and the heard text; "1 áudio transcrito — Ver" opens the field (11.3s)
+2026-11-27T01:48:54.850Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  10 [desktop-chrome] › e2e/audio-recording.spec.ts:227:1 › @p1 31.4-E2E-002 the batch caption: an audio on the first photo replaces its automatic caption; the other keeps it (11.3s)
+2026-11-27T01:48:56.209Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  11 [desktop-chrome] › e2e/audio-recording.spec.ts:252:1 › @p1 31.4-E2E-003 text typed while the audio waited is kept, and the transcript is added after it (11.8s)
+2026-11-27T01:49:06.709Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  12 [desktop-chrome] › e2e/audio-recording.spec.ts:272:1 › @p1 31.4-E2E-004 an audio on the sheet's OBSERVAÇÕES and one on a point's text land the same way (15.2s)
+2026-11-27T01:49:11.420Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  13 [desktop-chrome] › e2e/audio-remaining-fields.spec.ts:62:1 › @p0 31.7-E2E-001 audio on "Texto da conclusão" adds the written text after the composed one, makes it the edited text, and leaves the picked result (8.3s)
+2026-11-27T01:49:15.044Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  14 [desktop-chrome] › e2e/audio-remaining-fields.spec.ts:95:1 › @p0 31.7-E2E-002 audio on a relatório section text adds a paragraph at the end and keeps the formatting (11.1s)
+2026-11-27T01:49:22.588Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  15 [desktop-chrome] › e2e/audio-remaining-fields.spec.ts:142:1 › @p1 31.7-E2E-003 online, the audio text on the first photo before "Adicionar 2 fotos" survives the tap; the other photo takes the caption (12.3s)
+2026-11-27T01:49:27.417Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  16 [desktop-chrome] › e2e/audio-review.spec.ts:126:1 › @p0 31.5-E2E-001 a spoken reading waits on its cell: play, "Confirmar" writes it, "Descartar" drops it, a filled cell reads "Sugerido: … Substituir", "Confirmar todos" takes the rest (9.6s)
+2026-11-27T01:49:32.159Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  17 [desktop-chrome] › e2e/audio-review.spec.ts:213:1 › @p0 31.5-E2E-002 speech on a table that is no reading: the real job sends it to OBSERVAÇÕES marked "Áudio", and the table says so (11.9s)
+2026-11-27T01:49:39.322Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+  ✓  18 [desktop-chrome] › e2e/audio-review.spec.ts:239:1 › @p0 31.6-E2E-001 an audio on its way holds the ficha (its line, a refused conclude) and Sync status counts it; the real job's text frees it and the ficha concludes (11.8s)
+  ✓  19 [desktop-chrome] › e2e/audio-review.spec.ts:276:1 › @p0 31.6-E2E-002 a pending and a failed audio block the issue, each with its place; "Tentar de novo" needs signal and is sent; "Dispensar" frees the ficha and keeps the audio (9.0s)
+2026-11-27T01:49:48.405Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+
+  19 passed (1.6m)
+
+[e2e] queue lane: playwright test --pass-with-no-tests e2e/ai-write.spec.ts e2e/audio-remaining-fields.spec.ts e2e/audio-recording.spec.ts e2e/audio-review.spec.ts --project desktop-chrome --project durability-desktop-chrome --workers=2
+2026-11-27T01:49:51.664Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+2026-11-27T01:49:52.557Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+
+
+[e2e] solo lane: playwright test --pass-with-no-tests e2e/ai-write.spec.ts e2e/audio-remaining-fields.spec.ts e2e/audio-recording.spec.ts e2e/audio-review.spec.ts --project desktop-chrome --project durability-desktop-chrome --workers=1
+2026-11-27T01:49:55.616Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+2026-11-27T01:49:56.422Z WARN [Better Auth]: [better-auth] Warning: your BETTER_AUTH_SECRET appears low-entropy. Use a randomly generated secret for production.
+
+
+[e2e] summary
+[e2e]   parallel: exit 0, 19 tests: 19 passed, 0 failed, 0 skipped, 0 flaky, 94.6 s
+[e2e]   queue: exit 0, 0 tests: 0 passed, 0 failed, 0 skipped, 0 flaky, 3.5 s
+[e2e]   solo: exit 0, 0 tests: 0 passed, 0 failed, 0 skipped, 0 flaky, 3.4 s
+[e2e]   total: 19 tests: 19 passed, 0 failed, 0 skipped, 0 flaky, 105.1 s (wall time, build included)
+[e2e]   report: /workspace/test-results/e2e-report/summary.json
