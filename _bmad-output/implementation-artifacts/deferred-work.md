@@ -1313,3 +1313,31 @@ All rows closed; see deferred-work-archive.md
   evidence: `apps/api/src/jobs/transcription/job.ts` (`compose`); `apps/web/src/db/commit.ts`; the device's pull fold in `apps/web/src/sync/`; `packages/domain/src/audio/write.ts` `appendAudioText`.
   class: bug
   state: open (owner: Matheus decides the rule, device rebase or server merge; the batch that builds it runs the durability specs on the matrix)
+
+## Deferred from: Epic 31 delivery and deploy (2026-11-27)
+
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Epic 31 delivery record (2026-11-27)
+  summary: Two tests failed in the final gate on `8aefd758` and passed alone, twice each: `files.spec.ts` 2.2-E2E-002 (a 15 s timeout on a 26 MB upload, `test:e2e:full`) and `company-type.durability.spec.ts` 14.8-E2E-001 on durability-android-chrome (a 30 s download timeout, `test:e2e:matrix`). Alone: 8 of 8 and 2 of 2 green. The machine was shared with another session's stacks, so both are recorded as load-induced; nothing was changed, and they are not fixed. Watch them on the next full gate on an idle machine.
+  evidence: the final gate logs of 2026-11-27 (`test-results/`, not tracked); the Epic 31 delivery line in `epics.md`.
+  class: test-gap
+  state: open (owner: the next wave gate; if either fails again on an idle machine, find its cause as Story 30.5 did)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.9 and e31f (the AI control keeps formatting on a section text)
+  summary: The AI control rewrites a section text block by block and keeps its block formatting, but inline marks (bold, italic, links) inside a block may be lost on a rewrite. "Desfazer" restores the text before the rewrite.
+  evidence: `packages/domain/src/audio/rewrite.ts`; `apps/web` `useAiWriteControl`.
+  class: debt
+  state: open (owner: Matheus decides whether Bruno's texts use inline marks; if so, a batch that rewrites at the inline level)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Epic 31 (strings and the trade vocabulary)
+  summary: The new pt-BR strings of Epic 31 (the Audio button and its states, the hold lines, "Dispensar", the AI control) and the trade vocabulary list sent to Amazon Transcribe (`fasor-production-trade-words`) were authored by the agents; Bruno has not read them. Which strings are still open is not recorded here beyond the `// authored:` marks in `apps/web/src/copy/pt-br.ts`.
+  evidence: `apps/web/src/copy/pt-br.ts` (`// authored:` lines of Epic 31); `infra/production/transcribe.tf`.
+  class: docs
+  state: open (owner: Matheus sends the strings and the word list to Bruno; a copy batch applies his answers)
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Story 31.8
+  summary: The production smoke (8 of 8) sends no audio, so Amazon Transcribe in production has not heard a real voice. A real-voice check is owed: record a short audio on a test company in production, see the text arrive and read the cost in `transcription_runs`.
+  evidence: deploy of 2026-11-27 as `8aefd758`; `stt_provider = "transcribe"` set; vocabulary `fasor-production-trade-words` READY.
+  class: test-gap
+  state: open (owner: Matheus, with a real recording, on his word for the spend)
+- source_spec: `_bmad-output/implementation-artifacts/reviews/code-review-2026-11-26.md` (security pass, PR #404)
+  summary: The security pass is merged to main (`ed9dcece`) but was merged after the tested commit, so it is not in the `8aefd758` deploy, and its Terraform (instance role deny, `compute.tf`) is not applied.
+  evidence: `git log` (`ed9dcece` after `8aefd758`); the 2026-11-27 deploy record.
+  class: debt
+  state: open (owner: the next deploy, on Matheus's word; Terraform by PR and apply only)

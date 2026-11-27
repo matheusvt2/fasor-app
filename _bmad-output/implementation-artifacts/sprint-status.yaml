@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 11-25-2026 19:00
+last_updated: 11-27-2026 18:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -385,16 +385,16 @@ development_status:
   30-5-the-unstable-tests-each-cause-found-and-fixed: done  # 2026-11-25: batch e30d, PR #390 (not merged yet when written); 16 items closed: 6 fixed (three causes in the product, one in a test), 9 recorded as not reproduced or cause not found (14.5 found in part, not fixed), 1 counted (21.1, fixed by e30f) | was backlog: wave 2, batch e30d, machine idle; E28-A6
   30-6-the-session-start-records-what-kind-of-device-it-is: done  # 2026-11-25: merged (PR #391), deployed as b209c0ea; the dashboard view device_kinds applied by that deploy | was review: 2026-11-25: batch e30g, added by Matheus's word ("é o tablet do Bruno, pode registrar o tipo do aparelho"); no contract number; PR open, not merged
   epic-30-retrospective: done
-  epic-31: backlog  # 2026-11-26: planned (sprint-change-proposal-2026-11-26.md, approved by Matheus); waits for AD-30 and the mocks
-  31-1-audio-is-a-file-with-a-target-a-status-and-its-measures: backlog
-  31-2-the-server-transcribes-an-audio-writes-the-text-and-fills-its-field: backlog
-  31-3-one-tap-records-measures-and-keeps-the-audio: backlog
-  31-4-the-text-lands-in-the-field-marked-audio: backlog
-  31-5-a-spoken-reading-waits-for-review: backlog
-  31-6-a-pending-audio-holds-the-ficha-and-the-emission: backlog
-  31-7-the-mic-on-the-fields-that-lack-it: backlog
-  31-8-amazon-transcribe-in-production: backlog
-  31-9-the-ai-control-rewrites-the-text-in-the-field: backlog
+  epic-31: done  # 2026-11-26: planned (sprint-change-proposal-2026-11-26.md, approved by Matheus); 2026-11-27: built, reviewed, gated and deployed as 8aefd758 (v0.16.0, smoke 8/8, contract 62); PRs #395-#401, #403, #405
+  31-1-audio-is-a-file-with-a-target-a-status-and-its-measures: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
+  31-2-the-server-transcribes-an-audio-writes-the-text-and-fills-its-field: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
+  31-3-one-tap-records-measures-and-keeps-the-audio: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
+  31-4-the-text-lands-in-the-field-marked-audio: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
+  31-5-a-spoken-reading-waits-for-review: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
+  31-6-a-pending-audio-holds-the-ficha-and-the-emission: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
+  31-7-the-mic-on-the-fields-that-lack-it: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
+  31-8-amazon-transcribe-in-production: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
+  31-9-the-ai-control-rewrites-the-text-in-the-field: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
   epic-31-retrospective: optional
 
   # Deferred or dropped stories (not tracked as keys). No script status means "deferred" or "dropped", so these two are
