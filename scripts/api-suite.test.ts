@@ -58,6 +58,7 @@ export function sharedResources(text: string): string[] {
   for (const call of text.matchAll(/removePortoSeguroSmall\(([^;]*?)\);/gs)) if (!/copyOf/.test(call[1] ?? '')) found.push('removes the fixed-id small fixture');
   if (/@app\/domain\/fixtures\/layout-lock/.test(text) && /\bapplyOps\(/.test(text)) found.push('applies a layout-lock relatório (fixed op ids)');
   if (/@app\/domain\/fixtures\/porto-seguro/.test(text) && /\.delete\(ops\)[\s\S]{0,80}inArray\(\s*ops\.op_id/.test(text)) found.push("deletes a fixture's fixed op ids in every company");
+  if (/portoSeguro(?:Small)?\.log\.map\([\s\S]{0,600}?\.\.\.op,/.test(text)) found.push('applies a Porto Seguro fixture under its fixed relatório and entity ids');
   if (/seed-users\.ts/.test(text) && /['"]--test['"]/.test(text)) found.push('runs the seed CLI on the fixed pair');
   if (/golden/.test(text) && /\/preview/.test(text)) found.push('compares a print with a golden');
   found.push(...soloResources(text));
@@ -110,6 +111,7 @@ describe('the api suite lanes (chore T4)', () => {
     expect(sharedResources("import { layoutLockEpic25Snapshot } from '@app/domain/fixtures/layout-lock';")).toEqual([]);
     expect(sharedResources("import { portoSeguro } from '@app/domain/fixtures/porto-seguro';\nawait db.delete(ops).where(\n  inArray(\n    ops.op_id,\n    log.map((op) => op.op_id),")).toEqual(["deletes a fixture's fixed op ids in every company"]);
     expect(sharedResources("import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';\nconst fixed = new Set(portoSeguroSmall.log.map((op) => op.op_id));")).toEqual([]);
+    expect(sharedResources('const remapped = portoSeguroSmall.log.map((op) => {\n  return { ...op, op_id: newId(), company_id: company };\n});')).toEqual(['applies a Porto Seguro fixture under its fixed relatório and entity ids']);
     expect(sharedResources("spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-users.ts', '--test'])")).toEqual(['runs the seed CLI on the fixed pair']);
     expect(sharedResources("spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-users.ts', '--company-id', id])")).toEqual([]);
     expect(soloResources('const first = await upgradeRolesAndUsers(db, { info });')).toEqual(['runs a boot upgrade over every company']);
