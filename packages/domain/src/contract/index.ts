@@ -18,6 +18,8 @@ export * from './prose.ts';
 // Stories 31.1 and 31.2 (AD-30): the speech and writing providers and the retranscribe route.
 export * from './transcription.ts';
 export * from './audit.ts';
+// Story 32.1 (2026-11-27): the device's report of an AI proposal it did not write.
+export * from './ai-answers.ts';
 export * from './telemetry.ts';
 export * from './telemetry-device.ts';
 // Story 26.8 (2026-11-21): the Admin's user routes.

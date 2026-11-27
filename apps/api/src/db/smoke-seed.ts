@@ -4,7 +4,7 @@ import type { Auth } from '../auth/auth.ts';
 import type { Db } from './client.ts';
 import { asCompanyId } from './repositories/company-id.ts';
 import { seedSampleRelatorio } from './sample-relatorio.ts';
-import { entities, ops, readingRuns, syncDevicePush, user } from './schema.ts';
+import { aiAnswers, entities, ops, readingRuns, syncDevicePush, user } from './schema.ts';
 import { seedStandardTemplate, seedUser } from './seed.ts';
 
 /*
@@ -98,6 +98,8 @@ export async function resetAndSeedSmokeCompany(db: Db, auth: Auth, input: SmokeS
     const entitiesRemoved = await tx.delete(entities).where(inArray(entities.company_id, ids)).returning({ id: entities.id });
     const pushRemoved = await tx.delete(syncDevicePush).where(inArray(syncDevicePush.company_id, ids)).returning({ id: syncDevicePush.device_id });
     const runsRemoved = await tx.delete(readingRuns).where(inArray(readingRuns.company_id, ids)).returning({ id: readingRuns.id });
+    // Story 32.1: the smoke's own AI answers never reach the quality report.
+    await tx.delete(aiAnswers).where(inArray(aiAnswers.company_id, ids));
     return { ops: opsRemoved.length, entities: entitiesRemoved.length, syncDevicePush: pushRemoved.length, readingRuns: runsRemoved.length };
   });
 

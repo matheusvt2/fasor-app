@@ -70,4 +70,4 @@ Open one story: `grep -n '### Story 5.3' _bmad-output/planning-artifacts/epics.m
    - wave 2, e31c: 31.4 the text lands in the field marked "Áudio"; 31.5 a spoken reading waits for review; 31.6 a pending audio holds the ficha and the emission;
    - wave 3, e31d: 31.7 the mic on the remaining fields; 31.9 the AI control (sparkles) rewrites a field. e31e: 31.8 Amazon Transcribe in production.
    - follow-up, not built (2026-11-27): 31.10 the audio and AI controls in the field's own bar, the AI proposes before it writes, a refusal says why.
-32. **Every AI answer recorded for evaluation** (Matheus, 2026-11-27; written, not built): 32.1 one record per AI answer with the user's correction joined to it; 32.2 the quality rubric and its read-only CLI.
+32. **Every AI answer recorded for evaluation** (Matheus, 2026-11-27; written, not built): 32.1 one record per AI answer with the user's correction joined to it; 32.2 the quality rubric and its read-only CLI. *(2026-11-27: Matheus's answers recorded under each Definition of Ready; built as batch e32a, both stories in review, the first report run with him still owed.)*

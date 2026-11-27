@@ -56,6 +56,11 @@ export interface ReadingKindRunResult {
    * billing). Absent on a kind of one call: the run row then reads `structuring` or `model` as before.
    */
   calls?: BilledCall[];
+  /**
+   * Story 32.1: the fields the model was asked for (the plate's), each with the path it lands on, so a
+   * field it left empty gets its own AI answer record. Absent on a kind that lists none.
+   */
+  asked?: { key: string; target_path: string }[];
 }
 
 /** A target that parsed and exists: the `fake` fixture key and the reading itself. */

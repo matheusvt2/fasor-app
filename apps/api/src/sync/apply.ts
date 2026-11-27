@@ -45,6 +45,7 @@ import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { log, logError, type LogFields } from '../log.ts';
+import { settleAppliedAnswers } from '../ai/answers.ts';
 import { checkClientOp, clientCheckCache, type ClientCheckCache } from './rules.ts';
 import { serverOp } from './server-op.ts';
 import { templateSeedDecision, templateSeedMoveOp } from './template-seed-step.ts';
@@ -295,6 +296,8 @@ interface Applied {
   seq: number;
   /** The latest op on the path before this one, when it differs from `prev_op_id`. */
   supersededOver: string | null;
+  /** Story 32.1: the op was applied before (a device re-sent it), so it settles no AI answer again. */
+  duplicate?: true;
 }
 
 /** Stories 20.7 to 20.10: a client op a rule that reads server state refused; nothing of it was written. */
@@ -622,7 +625,7 @@ async function applyOneIn(
       .from(ops)
       .where(and(eq(ops.op_id, op.op_id), eq(ops.company_id, companyId)));
     if (!existing) throw new ForeignOpIdError(op.op_id);
-    return { seq: existing.seq, supersededOver: null };
+    return { seq: existing.seq, supersededOver: null, duplicate: true };
   }
 
   let next: ReturnType<typeof applyOp>;
@@ -759,13 +762,18 @@ export async function applyServerBatch(
       await lockCompany(tx, companyId);
       if (deps.before !== undefined) await deps.before(tx);
       const composed = deps.compose === undefined ? [] : validateAll(await deps.compose(tx));
+      const settling: Op[] = [];
       for (const target of [...validated, ...composed]) {
         const op = target.op;
         applying = op;
-        const { seq, supersededOver } = appliedServerOp(await applyOneIn(tx, companyId, target, receivedAt, { origin: 'server', now: deps.now }, cache));
+        const { seq, supersededOver, duplicate } = appliedServerOp(await applyOneIn(tx, companyId, target, receivedAt, { origin: 'server', now: deps.now }, cache));
         result.applied.push({ op_id: op.op_id, seq });
         if (supersededOver !== null) result.superseded.push({ op_id: op.op_id, over_op_id: supersededOver });
+        if (duplicate !== true) settling.push(op);
       }
+      applying = null;
+      // Story 32.1: the AI answers this batch settles (a newer reading's discards, a revision's emission), in its transaction.
+      await settleAppliedAnswers(tx, companyId, settling);
     });
   } catch (error) {
     if (isPermanentRefusal(error)) {
@@ -859,6 +867,8 @@ export async function applyOps(
   };
 
   const cache: RegistryNames = new Map();
+  /** Story 32.1: the ops applied, in order, that may settle an AI answer (a duplicate a device re-sent is left out). */
+  const settling: Op[] = [];
 
   /**
    * One multi-op batch: all of it under one savepoint, or none of it; an op a business rule
@@ -871,6 +881,7 @@ export async function applyOps(
     }
     const applied: ApplyResult['applied'] = [];
     const superseded: ApplyResult['superseded'] = [];
+    const appliedOps: Op[] = [];
     const ruled = new Map<string, OpRejectCode>();
     try {
       await tx.transaction(async (savepoint) => {
@@ -888,6 +899,7 @@ export async function applyOps(
             }
             applied.push({ op_id: op.op_id, seq: one.seq });
             if (one.supersededOver !== null) superseded.push({ op_id: op.op_id, over_op_id: one.supersededOver });
+            if (one.duplicate !== true) appliedOps.push(op);
           } catch (error) {
             if (isPermanentRefusal(error)) throw new BatchRefusedError(op.op_id, { cause: error });
             throw error;
@@ -905,6 +917,7 @@ export async function applyOps(
     result.applied.push(...applied);
     for (const [op_id, code] of ruled) result.rejected.push({ op_id, code });
     result.superseded.push(...superseded);
+    settling.push(...appliedOps);
   };
 
   if (!steps.some((step) => step.ok) && deps.before === undefined) {
@@ -935,6 +948,7 @@ export async function applyOps(
         }
         result.applied.push({ op_id: step.op.op_id, seq: one.seq });
         if (one.supersededOver !== null) result.superseded.push({ op_id: step.op.op_id, over_op_id: one.supersededOver });
+        if (one.duplicate !== true) settling.push(step.op);
       } catch (error) {
         // Only a row-schema or seed-path refusal by applyOp or an op_id taken by another company is a
         // permanent rejection; anything else (connection, lock, pool) propagates so the caller retries
@@ -943,6 +957,8 @@ export async function applyOps(
         result.rejected.push({ op_id: step.op.op_id, code: 'op_invalid' });
       }
     }
+    // Story 32.1: the AI answers these ops settle (a confirm, an edit, a discard, an undo, an emission), in this transaction.
+    await settleAppliedAnswers(tx, companyId, settling);
     // Epic 14 QA Q-7: a template a device pushed (created, duplicated, restored or otherwise
     // written) on an older seed version reaches the current one in this same transaction.
     if (deps.origin === 'client') await upgradePushedTemplates(tx, companyId, steps, result, deps, cache);

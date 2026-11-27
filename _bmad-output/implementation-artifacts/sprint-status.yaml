@@ -397,9 +397,9 @@ development_status:
   31-9-the-ai-control-rewrites-the-text-in-the-field: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
   31-10-the-audio-and-ai-controls-sit-in-the-fields-own-bar-the-ai-proposes-before-it-writes-and-a-refusal-says-why: review  # 2026-11-27: written after the v0.16.1 deploy (Matheus chose the field bar, the comparison and the reasons); a follow-up, Epic 31 stays delivered. 2026-11-27: built in batch e31h (branch e31h-field-bar), tests written, the gate runs on the integrated branch
   epic-31-retrospective: optional
-  epic-32: backlog  # 2026-11-27: written on Matheus's request (every AI answer and the user's correction recorded, then a rubric); three questions open to him before the build
-  32-1-one-record-per-ai-answer-and-the-users-correction-joined-to-it: backlog
-  32-2-a-rubric-for-the-ais-quality-and-a-tool-that-reads-the-records-against-it: backlog
+  epic-32: in-progress  # 2026-11-27: written on Matheus's request (every AI answer and the user's correction recorded, then a rubric); his answers of 2026-11-27 recorded in epics.md; built as batch e32a (branch e32a-ai-records), gate by the coordinator
+  32-1-one-record-per-ai-answer-and-the-users-correction-joined-to-it: review  # 2026-11-27, batch e32a
+  32-2-a-rubric-for-the-ais-quality-and-a-tool-that-reads-the-records-against-it: review  # 2026-11-27, batch e32a; the first report run with Matheus still owed
   epic-32-retrospective: optional
 
   # Deferred or dropped stories (not tracked as keys). No script status means "deferred" or "dropped", so these two are

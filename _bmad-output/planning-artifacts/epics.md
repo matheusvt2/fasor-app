@@ -14092,6 +14092,8 @@ So that I can measure, later, how often the AI was right and where it was wrong.
 
 **Definition of Ready:** Matheus's request of 2026-11-27 (above). Open to Matheus before the build: (1) how long the records are kept (proposed: forever, as the audio is); (2) whether a record keeps the full input text (proposed: yes for text; for a photo or an audio only its file id, since the file itself is already kept); (3) what counts as the user's answer to a "Conferência por IA" finding (proposed: whether the field the finding names changed before the next emission, since a finding has no confirm action today).
 
+*(2026-11-27, Matheus's answers, built to: (1) the records are kept forever, with no purge, as the audio is; (2) a record keeps the full input text, and for a photo or an audio only the file id; (3) a "Conferência por IA" finding counts as acted on when the field it names changed before the next emission, otherwise it closes as unanswered.)*
+
 **Acceptance Criteria:**
 
 **Given** any AI use in scope
@@ -14132,6 +14134,8 @@ So that I can measure, later, how often the AI was right and where it was wrong.
 
 **Definition of Done:** one migration; kernel tests for the settle rule on every outcome; api integration tests for each AI use in scope (rows written, rows settled, the offline order); the smallest e2e that proves one full path end to end (a plate field read, edited, confirmed, and its row); the `fake` providers write the same rows; no contract bump unless the device must report a refused proposal, then it is additive and reported before the merge; `docs/kbs` updated.
 
+*(2026-11-27, built as batch e32a on branch `e32a-ai-records`, with Story 32.2; the gate is run once by the coordinator on the integrated branch. One table, `ai_answers` (migration `0011_ai_answers`), one row per answered item of every AI use (`plate`, `display`, `caption`, `nc_obs`, `panel`, `audio_text`, `audio_reading`, `ai_write`, `audit_finding`), written by the kernel's builders (`packages/domain/src/ai-answers/build.ts`) through `recordAiAnswers` in the transaction of the run row: the reading job's batch, the transcription job's batch (inside its `compose`), the AI control's run row (now one transaction with its record) and the audit's done batch. The kernel's `settleAiAnswers` settles the open records of the relatórios each push or server batch touches, in its transaction, under a savepoint whose fault is logged and never refuses an op; the emission of a revision closes them. A Suggestion settles by its confirm, its discard (`changed` when the user typed a value over it), its undo or a newer reading (`unanswered` / `superseded`); "Usar o texto da IA" is matched by `meta.ai_run_id`, else by the latest open proposal of the field; "Desfazer" is a user put that brings the field back to the user's text. The device's report of a proposal it did not write is the additive route `POST /api/relatorios/{id}/write-outcome` (`packages/domain/src/contract/ai-answers.ts`), with no contract version change. Readings of the build, open to Matheus: a value the model answered that the product dropped, a guard's refusal of the AI control and an audio with nothing heard are written already settled `refused` with the action `withheld` (the product's refusal, counted apart from the user's); a call that failed answered nothing and has no record; a text from audio left untouched is `kept` / `untouched` at the emission; "Dispensar" acts on an audio before any answer exists, so it settles nothing; the fields left empty are recorded for the plate only (the display reading asks the OCR for no list of fields); a section's AI control refusal keeps only the last block's text as the model's answer (the route keeps no joined text before the guard). The guard test is `scripts/ai-answers-guard.test.ts` (in `test:unit`).)*
+
 ### Story 32.2: A rubric for the AI's quality and a tool that reads the records against it
 
 **Dev model:** opus · **Effort:** medium · one document, one read-only CLI, no screen
@@ -14141,6 +14145,8 @@ I want a written rubric and one command that scores the recorded answers against
 So that the quality of each AI use is a number I can follow from one version of a prompt or model to the next.
 
 **Definition of Ready:** Story 32.1 in production for long enough to hold real answers (Matheus says when). Open to Matheus: whether the scoring is counts only, or also a model judging the texts (a judge costs money per run and needs his word each time, as the plate eval does).
+
+*(2026-11-27, Matheus's answer: counts only. A model judging the texts is left for later, as the work of an ML engineer ("vamos julgar a posteriori, vai ser trabalho de um MLE"); the rubric says so and names the columns that work will read. He said to build everything, so this story is built now, before Story 32.1 has held real answers; its first report run with him stays owed and is not part of batch e32a.)*
 
 **Acceptance Criteria:**
 
@@ -14157,6 +14163,8 @@ So that the quality of each AI use is a number I can follow from one version of 
 **Then** it writes the worst cases of one AI use to a local file outside the repository, for a person to read; that mode is refused without an explicit flag and is never the default
 
 **Definition of Done:** the rubric in `docs/`, the CLI with its tests on the `fake` rows, `infra/README.md` says how to run it in production, the first report run with Matheus and its counts recorded in the records PR.
+
+*(2026-11-27, built as batch e32a with Story 32.1: the rubric `docs/ai-quality-rubric.md`, the kernel's measures and report (`packages/domain/src/ai-answers/rubric.ts`), the read-only CLI `apps/api/src/db/ai-answers-read-cli.ts` with its tests on `fake` rows (`ai-answers-read.integration.test.ts`), and the runbook entry "Read the AI answer records" in `infra/README.md`. The examples mode is refused without `--examples`, `--company` and an `--out` outside the repository, never writes over a file, and is not run on the production migrate task (its disk is thrown away; the README says so). Still owed: the first report run with Matheus and its counts in the records PR.)*
 
 ## Backlog: deferred stories
 
