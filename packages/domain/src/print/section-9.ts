@@ -21,6 +21,7 @@ import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
 import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
+import { printedTapRows } from '../relatorio/tap-rows.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
 import { isReadingValue } from '../relatorio/over-range.ts';
 import type { ReadingVerdict } from '../relatorio/reading-cells.ts';
@@ -1050,6 +1051,7 @@ function measurementTable(
   const printed = printedEntries(definition, corrected);
   // Story 23.8 (seed v13): a `rows_from` table prints every evaluated row, one per tap (TAP Nº its position)
   // then each row off the plate (TAP Nº "-"), V PRIMÁRIO its tap; every other table its seeded rows, as before.
+  // Fix fix-tr-untested-taps (2026-11-26): `testParts` hands it the tested taps only (`printedTapRows`).
   const lines = definition.rows_from === undefined ? definition.rows.map((connection, r) => ({ connection, row: evaluated.rows[r]! })) : evaluated.rows.map((row) => ({ connection: row.connection, row }));
   lines.forEach(({ connection, row }) => {
     rows.push({
@@ -1264,7 +1266,9 @@ function previousReadingsOf(ctx: Context, block: BlockRow, definition: BlockDefi
   return readings.size === 0 ? null : { readings, header: previousHeaderText(entry, block.seed_version) };
 }
 
-function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<string>, previous: PreviousReadings, variations: SheetVariationNotes | null = null): SheetPart[] {
+function testParts(block: BlockRow, definition: BlockDefinition, judged: TestEvaluation, enabled: ReadonlySet<string>, previous: PreviousReadings, variations: SheetVariationNotes | null = null): SheetPart[] {
+  // Fix fix-tr-untested-taps (Bruno 2026-11-26): a tap table prints its tested taps only (`printedTapRows`); every other table its rows.
+  const evaluation: TestEvaluation = { ...judged, tables: judged.tables.map((table) => ({ ...table, rows: printedTapRows(table.rows) })) };
   const test = definition.tests.find((candidate) => candidate.key === evaluation.testKey);
   if (test === undefined) return [];
   // FO.SERV-03 prints the seccionadora's and the disjuntor's contato aberto and contato

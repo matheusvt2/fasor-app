@@ -387,15 +387,16 @@ describe('23.8-UNIT the TTR per tap in print, and v12 unchanged', () => {
   const ratioTable = (snapshot: RelatorioSnapshot) => tablesOf(section9Layout(snapshot, 9, 'RELATÓRIOS DOS ENSAIOS')!).find((table) => table.rows.some((row) => row.cells[0]?.text === 'TAP Nº'))!;
   const dataRows = (table: PrintTable) => table.rows.filter((row) => row.header !== true && row.band !== true).map((row) => row.cells.map((one) => one.text));
 
-  it('prints every evaluated row: TAP Nº the position or "-" off the plate, V PRIMÁRIO the tap, an unmeasured unmarked row "-"', () => {
+  // Fix fix-tr-untested-taps (Bruno 2026-11-26): an untested tap of the plate no longer prints (was: "an unmeasured
+  // unmarked row '-'", tap 2 printed as ['2', '13,2 kV', '380 V', '60,17', '-', '-', '-', '-']).
+  it('prints every tested row: TAP Nº the position or "-" off the plate, V PRIMÁRIO the tap; an untested tap of the plate is left out', () => {
     const block = withTest(fiveTaps(), 'relacao_transformacao', { ...captures(13800, '62.9'), ...captures(12600, '57.43'), ...captures(11400, '51.96') });
     block.sheet.test.relacao_transformacao!.cells['12000'] = { '3': cell(measured('54.7', null)), '4': cell(measured('54.7', null)), '5': cell(measured('54.7', null)) };
     block.sheet.nameplate.taps = cell(measured('13.8;13.2;12.6;11.4', 'kV'));
     const rows = dataRows(ratioTable(snapshotWith(block, 'v13')));
-    expect(rows.map((row) => row[0])).toEqual(['1', '2', '3', '4', '-']);
-    expect(rows.map((row) => row[1])).toEqual(['13,8 kV', '13,2 kV', '12,6 kV', '11,4 kV', '12 kV']);
-    expect(rows[1]).toEqual(['2', '13,2 kV', '380 V', '60,17', '-', '-', '-', '-']);
-    expect(rows[4]!.at(-1)).toBe('SATISFATÓRIO');
+    expect(rows.map((row) => row[0])).toEqual(['1', '3', '4', '-']);
+    expect(rows.map((row) => row[1])).toEqual(['13,8 kV', '12,6 kV', '11,4 kV', '12 kV']);
+    expect(rows[3]!.at(-1)).toBe('SATISFATÓRIO');
   });
 
   it('a v12 transformer prints its one typed row as before', () => {
