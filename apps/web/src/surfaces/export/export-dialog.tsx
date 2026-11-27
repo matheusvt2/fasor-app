@@ -551,9 +551,11 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                   <li className="is-blocking" key={row.id} data-audio-row={row.kind}>
                     <span className="pc-text">
                       <span className="pc-block">{row.text}</span>
-                      {(row.audios ?? []).map((audio) => (
-                        <span className="pc-meta" key={audio.audioId} data-audio-place="">
-                          {audio.place}
+                      {(row.audios ?? []).map((audio, index) => (
+                        <span className="pc-meta" key={audio.audioId}>
+                          {/* The parecer row's " — " before the first place, "; " between them. */}
+                          {index === 0 ? ' — ' : '; '}
+                          <span data-audio-place="">{audio.place}</span>
                         </span>
                       ))}
                     </span>
