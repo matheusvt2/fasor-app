@@ -31,6 +31,13 @@ export const BASE_SECURITY_HEADERS: Readonly<Record<string, string>> = {
  */
 const API_CACHE_CONTROL = 'no-store';
 
+/**
+ * Security pass 2026-11-26: an `/api/*` answer is data (JSON, a photo, a document), never a page.
+ * Opened directly in a tab it loads nothing, runs nothing and is never framed, whatever bytes a
+ * stored file holds. The HTML shell keeps its own policy (`htmlContentSecurityPolicy`).
+ */
+export const API_CONTENT_SECURITY_POLICY = "default-src 'none'; frame-ancestors 'none'";
+
 function isApiPath(path: string): boolean {
   return path === '/api' || path.startsWith('/api/');
 }
@@ -42,7 +49,9 @@ export function securityHeaders(): MiddlewareHandler {
     for (const [name, value] of Object.entries(BASE_SECURITY_HEADERS)) {
       if (!headers.has(name)) headers.set(name, value);
     }
-    if (isApiPath(c.req.path) && !headers.has('cache-control')) headers.set('cache-control', API_CACHE_CONTROL);
+    if (!isApiPath(c.req.path)) return;
+    if (!headers.has('cache-control')) headers.set('cache-control', API_CACHE_CONTROL);
+    if (!headers.has('content-security-policy')) headers.set('content-security-policy', API_CONTENT_SECURITY_POLICY);
   };
 }
 

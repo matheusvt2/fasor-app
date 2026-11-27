@@ -19,7 +19,8 @@ container_cli() {
 }
 CTR="$(container_cli)"
 
-AWS_CLI_IMAGE=amazon/aws-cli:2.37.6
+# Pinned by digest (the multi-arch index): this image receives the admin session.
+AWS_CLI_IMAGE=amazon/aws-cli:2.37.6@sha256:82905aa8fdab6e2403b40dceec12dc33aea2535a4c2a6f13d596d98501951105
 # shellcheck disable=SC2034 # read by the scripts that source this file
 AWS_REGION_DEFAULT=us-east-1
 

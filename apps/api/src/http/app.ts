@@ -36,7 +36,16 @@ import { createHealthRoutes, type HealthProbes } from './health.ts';
 import { originGuard, type OriginGuardOptions } from './origin-guard.ts';
 import { createReadingRoutes } from './reading.ts';
 import { createTelemetryRoutes } from './telemetry.ts';
-import { addressRateLimit, changePasswordRateLimit, passwordResetRateLimit, pushRateLimit, signInRateLimit, type RateLimitRule } from './rate-limit.ts';
+import {
+  addressRateLimit,
+  changePasswordRateLimit,
+  PASSWORD_RESET_EMAIL_HOURLY_LIMIT,
+  passwordResetRateLimit,
+  PUSH_BYTES_RATE_LIMIT,
+  pushRateLimit,
+  signInRateLimit,
+  type RateLimitRule,
+} from './rate-limit.ts';
 import { htmlContentSecurityPolicy, securityHeaders } from './security-headers.ts';
 import {
   type AppEnv,
@@ -147,8 +156,12 @@ export interface AppOptions {
   /**
    * Security review 2026-09-30 (E11-A5): the sign-in and push limits (`rate-limit.ts`);
    * absent, no request is limited (every existing test, and the gates outside production).
+   * Security pass 2026-11-26: with them come the push bytes per user (`pushBytes`; absent,
+   * `PUSH_BYTES_RATE_LIMIT`) and the hourly "Esqueci minha senha" rule per e-mail
+   * (`passwordResetEmailHourly`; absent, `PASSWORD_RESET_EMAIL_HOURLY_LIMIT`). Both stay off
+   * with the limits, as the gates ask for the same test address far more often than a person.
    */
-  rateLimits?: { signIn: RateLimitRule; push: RateLimitRule; trustProxy: boolean };
+  rateLimits?: { signIn: RateLimitRule; push: RateLimitRule; trustProxy: boolean; pushBytes?: RateLimitRule; passwordResetEmailHourly?: RateLimitRule };
   /** The body cap of the JSON routes; absent, `DEFAULT_API_BODY_LIMIT_BYTES`. */
   bodyLimitBytes?: number;
   /**
@@ -347,6 +360,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
     passwordResetRateLimit({
       address: emailLimits.passwordResetAddress,
       email: emailLimits.passwordResetEmail,
+      ...(limits === undefined ? {} : { emailLong: limits.passwordResetEmailHourly ?? PASSWORD_RESET_EMAIL_HOURLY_LIMIT }),
       trustProxy: emailLimits.trustProxy,
       ...(limitNow === undefined ? {} : { now: limitNow }),
     }),
@@ -385,7 +399,9 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   app.route('/', createHealthRoutes(options.probes));
 
   app.use('/api/*', sessionMiddleware(options.auth, options.db));
-  if (limits !== undefined) app.use('/api/sync/ops', pushRateLimit({ rule: limits.push }));
+  if (limits !== undefined) {
+    app.use('/api/sync/ops', pushRateLimit({ rule: limits.push, bytes: { rule: limits.pushBytes ?? PUSH_BYTES_RATE_LIMIT, undeclared: SYNC_PUSH_MAX_BYTES } }));
+  }
   const aiFeatures = options.aiFeatures ?? true;
   const quotas = options.quotas ?? DEFAULT_DAILY_QUOTAS;
   app.route('/', createAccountRoutes(options.db, { aiFeatures }));
