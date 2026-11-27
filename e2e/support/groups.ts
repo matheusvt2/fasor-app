@@ -281,6 +281,12 @@ export const SERIAL_SPECS: readonly { file: string; lane: SerialLane; why: strin
     lane: 'queue',
     why: 'uploads photos that the api reads on its one reading queue and worker, waiting for each job to land on the device',
   },
+  // Story 32.1: a plate field read by the real reading job, then its AI answer row settled.
+  {
+    file: 'ai-answers.spec.ts',
+    lane: 'queue',
+    why: 'uploads a plate photo the api reads on its one reading queue and worker, waiting for the job to land on the device',
+  },
   // Story 9.2: "Fotografar equipamento" through the real reading job.
   {
     file: 'panel-capture-pipeline.spec.ts',

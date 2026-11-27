@@ -203,6 +203,61 @@ export const transcriptionRuns = pgTable(
 );
 
 /*
+ * Story 32.1 (Matheus, 2026-11-27): one row per answer an AI gave, beside what the user did with it,
+ * for every AI use (the kernel's `AiAnswerDraft`, `packages/domain/src/ai-answers/`). Written by the
+ * job or route that called the provider, in the same transaction as its run row (`reading_runs`,
+ * `transcription_runs`, or the `audit_run` entity's done batch), and settled on the op apply path
+ * (`ai/answers.ts`, from `sync/apply.ts`) by the kernel's rule. Kept forever, as the audio is. It
+ * holds client text (the input, the answer, the final value), so it is read only by the report CLI
+ * (`db/ai-answers-read.ts`): never synced to a device, never in a log line or a usage event.
+ */
+export const aiAnswers = pgTable(
+  'ai_answers',
+  {
+    id: uuid('id').primaryKey(),
+    company_id: uuid('company_id').notNull(),
+    relatorio_id: uuid('relatorio_id').notNull(),
+    /** The kernel's `AI_ANSWER_USES`. */
+    use: text('use').notNull(),
+    /** `reading_runs`, `transcription_runs` or `audit_run` (the entity). */
+    run_table: text('run_table').notNull(),
+    run_id: uuid('run_id').notNull(),
+    target: json('target'),
+    target_path: text('target_path'),
+    item_key: text('item_key'),
+    suggestion_id: uuid('suggestion_id'),
+    watch_paths: json('watch_paths'),
+    input_text: text('input_text'),
+    input_file_id: uuid('input_file_id'),
+    answer: json('answer'),
+    shown: json('shown'),
+    shown_reason: text('shown_reason'),
+    confidence: doublePrecision('confidence'),
+    model: text('model'),
+    prompt_version: text('prompt_version'),
+    run_usd: doublePrecision('run_usd'),
+    created_at: timestamptz('created_at').notNull(),
+    /** The kernel's `AI_ANSWER_OUTCOMES`; null while open. */
+    outcome: text('outcome'),
+    /** The kernel's `AI_ANSWER_ACTIONS`. */
+    action: text('action'),
+    final_value: json('final_value'),
+    settled_by: text('settled_by'),
+    settled_at: timestamptz('settled_at'),
+    closed_at: timestamptz('closed_at'),
+  },
+  (t) => [
+    // The settle path's one read: the open records of the relatórios a push touches.
+    index('ai_answers_company_relatorio_open_idx').on(t.company_id, t.relatorio_id).where(sql`${t.closed_at} is null`),
+    index('ai_answers_company_created_idx').on(t.company_id, t.created_at),
+    index('ai_answers_company_run_idx').on(t.company_id, t.run_id),
+    check('ai_answers_use_check', sql`${t.use} in ('plate', 'display', 'caption', 'nc_obs', 'panel', 'audio_text', 'audio_reading', 'ai_write', 'audit_finding')`),
+    check('ai_answers_run_table_check', sql`${t.run_table} in ('reading_runs', 'transcription_runs', 'audit_run')`),
+    check('ai_answers_outcome_check', sql`${t.outcome} in ('kept', 'changed', 'refused', 'unanswered')`),
+  ],
+);
+
+/*
  * Story 20.12 (security pass S6): the per-company daily counters of paid AI work, one row per
  * company, `America/Sao_Paulo` calendar day and kind (`reading`: every reading started, rereads
  * included; `audit`: every emission audit run created; since the 2026-11-26 security pass also
@@ -350,4 +405,4 @@ export const fakeEmail = pgTable(
 );
 
 // `fakeEmail` stays out: better-auth's adapter reads only its own four models from here.
-export const schema = { ops, entities, syncDevicePush, readingRuns, transcriptionRuns, aiUsageDaily, company, user, session, account, verification };
+export const schema = { ops, entities, syncDevicePush, readingRuns, transcriptionRuns, aiAnswers, aiUsageDaily, company, user, session, account, verification };

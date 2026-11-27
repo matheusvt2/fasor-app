@@ -1,4 +1,5 @@
 import {
+  aiWriteAnswers,
   AI_WRITE_PATH,
   aiRewriteJoin,
   aiRewriteSource,
@@ -18,6 +19,7 @@ import {
   type WritingResult,
 } from '@app/domain';
 import { Hono } from 'hono';
+import { recordAiAnswers } from '../ai/answers.ts';
 import { billedCallOf } from '../ai/errors.ts';
 import type { Db } from '../db/client.ts';
 import { consumeDailyQuota, DEFAULT_AI_WRITE_DAILY_QUOTA } from '../db/repositories/ai-usage.ts';
@@ -147,7 +149,8 @@ export function createAiWriteRoutes(db: Db, deps: AiWriteRouteDeps): Hono<AppEnv
     const usage = result?.usage ?? billed?.usage ?? null;
     const fields = { company_id: session.companyId, relatorio_id: relatorioId, run_id: runId, target: target.type, outcome: answer.outcome };
     try {
-      await db.insert(transcriptionRuns).values({
+      await db.transaction(async (tx) => {
+      await tx.insert(transcriptionRuns).values({
         id: runId,
         company_id: session.companyId,
         kind: 'ai_write',
@@ -174,6 +177,9 @@ export function createAiWriteRoutes(db: Db, deps: AiWriteRouteDeps): Hono<AppEnv
         fallback_reason: fallback,
         not_a_reading: false,
         created_at: toIso(deps.now()),
+      });
+      // Story 32.1: the proposal (or the guard's refusal) recorded with its run row; the user's answer settles it later.
+      await recordAiAnswers(tx, aiWriteAnswers({ companyId: session.companyId, relatorioId, runId, target, source: source.text, answer, modelText: result?.text ?? null, guard: fallback, model: result?.model ?? null, promptVersion: result?.prompt_version ?? null, usd: usage === null ? null : usage.usd, at: toIso(deps.now()), newId: deps.newId }));
       });
     } catch (recordError) {
       // The answer still reaches the device; the missing row is logged.

@@ -23,7 +23,7 @@ import { applyServerBatch, ServerBatchRejectedError, type Tx } from '../sync/app
 import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
-import { account, aiUsageDaily, company, entities, ops, readingRuns, session, syncDevicePush, transcriptionRuns, user } from './schema.ts';
+import { account, aiAnswers, aiUsageDaily, company, entities, ops, readingRuns, session, syncDevicePush, transcriptionRuns, user } from './schema.ts';
 import { isE2eWorkerCompany, workerRoleUser, workerSeed, type SeedAccount, type WorkerRole } from './e2e-worker-seed.ts';
 import { ensureSystemRoles, identityOp, roleOp } from './roles.ts';
 import { LEGACY_TEST_COMPANY_IDS, TEST_SEED } from './test-seed.ts';
@@ -551,6 +551,8 @@ export async function resetTestCompanyData(
     await tx.delete(syncDevicePush).where(inArray(syncDevicePush.company_id, ids));
     await tx.delete(readingRuns).where(inArray(readingRuns.company_id, ids));
     await tx.delete(transcriptionRuns).where(inArray(transcriptionRuns.company_id, ids));
+    // Story 32.1: a reset company keeps no AI answer of the data it lost.
+    await tx.delete(aiAnswers).where(inArray(aiAnswers.company_id, ids));
     // Story 20.12: a reset company starts its day with no readings or audits spent.
     await tx.delete(aiUsageDaily).where(inArray(aiUsageDaily.company_id, ids));
   });

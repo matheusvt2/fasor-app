@@ -28,6 +28,7 @@ import { createAccountRoutes } from './account.ts';
 import { createAdminRolesRoutes } from './admin-roles.ts';
 import { createAdminUsersRoutes } from './admin-users.ts';
 import { createAiWriteRoutes } from './ai-write.ts';
+import { createAiWriteOutcomeRoutes } from './ai-write-outcome.ts';
 import { createAudioRoutes } from './audios.ts';
 import { createAuditRoutes } from './audit.ts';
 import { createFileRoutes } from './files.ts';
@@ -459,6 +460,15 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       writing: options.writing ?? { name: 'fake', provider: fakeWritingProvider() },
       aiFeatures,
       ...(quotas.aiWrites === undefined ? {} : { dailyQuota: quotas.aiWrites }),
+      ...(options.aiWriteLimit === undefined ? {} : { limit: options.aiWriteLimit }),
+      ...(options.aiWriteLimitNow === undefined ? {} : { limitNow: options.aiWriteLimitNow }),
+    }),
+  );
+  // Story 32.1: the device's report of an AI proposal it did not write, limited as the AI control is.
+  app.route(
+    '/',
+    createAiWriteOutcomeRoutes(options.db, {
+      now: options.now ?? clock,
       ...(options.aiWriteLimit === undefined ? {} : { limit: options.aiWriteLimit }),
       ...(options.aiWriteLimitNow === undefined ? {} : { limitNow: options.aiWriteLimitNow }),
     }),

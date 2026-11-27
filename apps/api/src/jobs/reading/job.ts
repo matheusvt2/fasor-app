@@ -3,6 +3,7 @@ import {
   normalizeBox,
   objectKey,
   photoFileRowSchema,
+  readingAnswers,
   readingNeedsAi,
   suggestionPath,
   suggestionRowSchema,
@@ -16,6 +17,7 @@ import {
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { and, eq, sql } from 'drizzle-orm';
+import { recordAiAnswers } from '../../ai/answers.ts';
 import type { Db } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
 import { entities, readingRuns } from '../../db/schema.ts';
@@ -253,6 +255,24 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
     facts.calls = built.calls ?? null;
     for (const drop of built.dropped) log('reading value dropped', { ...logFields(), key: drop.key, reason: drop.reason });
 
+    // Story 32.1: one record per value read, per value dropped and per field left empty, written with the run row.
+    const calls = facts.calls;
+    const answers = readingAnswers({
+      use: payload.reading_kind,
+      companyId,
+      relatorioId,
+      runId,
+      photoId: photo.id,
+      rows: built.rows,
+      dropped: built.dropped,
+      output: built.structuring?.output ?? null,
+      asked: built.asked ?? null,
+      model: facts.structuring?.model ?? facts.model?.model ?? calls?.[0]?.model ?? null,
+      promptVersion: facts.structuring?.prompt_version ?? facts.model?.prompt_version ?? calls?.[0]?.prompt_version ?? null,
+      usd: calls !== null ? totalUsage(calls).usd : (facts.structuring?.usage.usd ?? facts.model?.usage.usd ?? null),
+      at: toIso(deps.now()),
+      newId: deps.newId,
+    });
     const batchId = deps.newId();
     const op = (kind: 'create' | 'put', path: string, value: unknown) =>
       readingServerOp({ companyId, relatorioId, kind, path, value, batchId, now: deps.now, newId: deps.newId });
@@ -273,6 +293,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
           const current = await pendingOfPhoto(tx, companyId, relatorioId, photo.id);
           if (current.join() !== previous.join()) throw new PendingChangedError();
           await recordRun('ok', null, tx);
+          await recordAiAnswers(tx, answers);
         },
       });
     } catch (error) {

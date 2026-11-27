@@ -213,6 +213,12 @@ The total stays below USD 100 with Textract and a Bedrock allowance included; th
   ```sh
   infra/bin/aws ecs run-task --cluster fasor-production --launch-type EC2 --task-definition fasor-production-migrate --overrides '{"containerOverrides":[{"name":"migrate","command":["./node_modules/.bin/tsx","src/db/friction-read-cli.ts","--company","<id>"]}]}'
   ```
+
+- **Read the AI answer records (2026-11-27, Story 32.2):** `apps/api/src/db/ai-answers-read-cli.ts`, run as a command override on the migrate task (the image carries it once the Epic 32 PR is deployed and migration `0011_ai_answers` has run); read-only (`read only` transactions), it prints one JSON line per AI use, model and prompt version (answers, the share kept, changed, refused, withheld and unanswered, the rubric's kinds of error, the share of words changed, the guard's refusals by kind, the cost per kept answer) and a total, counts and shares only, never a text, to the log group `/fasor/production/migrate` (`infra/bin/aws logs tail /fasor/production/migrate --since 15m`). `--from YYYY-MM-DD` (inclusive) and `--to YYYY-MM-DD` (exclusive), by default the last 30 days; `--company <id>` for one company. The rubric that says what each count means is `docs/ai-quality-rubric.md`. The examples mode (`--examples <use> --company <id> --out <path>`) writes texts to a local file and is not run on the migrate task: its disk is thrown away with the task, and the records hold client text, so a file of them never goes to a log group or the repository.
+
+  ```sh
+  infra/bin/aws ecs run-task --cluster fasor-production --launch-type EC2 --task-definition fasor-production-migrate --overrides '{"containerOverrides":[{"name":"migrate","command":["./node_modules/.bin/tsx","src/db/ai-answers-read-cli.ts","--from","<YYYY-MM-DD>"]}]}'
+  ```
 - **Patch the AMI:** the instance ignores newer AMIs so an unrelated apply never replaces it (and its certificate storage); replace it on purpose with `infra/bin/tf production apply -replace=aws_instance.this` and redeploy.
 
 Known limits: the containers share the host network, so a compromised container could reach the instance metadata service and the instance role (ECS agent and Session Manager permissions only); a roll takes the app down for the seconds between the old task stopping and the new one passing its health check.

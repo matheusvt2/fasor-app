@@ -1,5 +1,6 @@
 import { buffer } from 'node:stream/consumers';
 import {
+  audioAnswers,
   audioContextText,
   audioFileRowSchema,
   audioPermissionPath,
@@ -38,6 +39,7 @@ import {
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { and, eq, sql } from 'drizzle-orm';
+import { recordAiAnswers } from '../../ai/answers.ts';
 import { AiFeaturesOffError, billedCallOf, isPermanentReadingError, PermanentReadingError } from '../../ai/errors.ts';
 import type { Db } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
@@ -369,6 +371,29 @@ export async function runTranscriptionJob(deps: TranscriptionJobDeps, payload: T
             }
           }
           puts = fieldPuts.length;
+          // Story 32.1: the reading spoken and the text written, recorded with the run row (`before` above).
+          const usage = facts.writing?.usage ?? facts.billed?.usage ?? null;
+          await recordAiAnswers(
+            tx,
+            audioAnswers({
+              companyId,
+              relatorioId,
+              runId,
+              audioId: audio.id,
+              target,
+              heard,
+              written: facts.writing?.text ?? null,
+              puts: fieldPuts,
+              fallback: facts.fallback,
+              notAReading: facts.notAReading,
+              suggestion,
+              model: facts.writing?.model ?? facts.billed?.model ?? facts.speech?.model ?? null,
+              promptVersion: facts.writing?.prompt_version ?? facts.billed?.prompt_version ?? null,
+              usd: facts.speech === null && usage === null ? null : Math.round(((facts.speech?.usd ?? 0) + (usage?.usd ?? 0)) * 1e6) / 1e6,
+              at: toIso(deps.now()),
+              newId: deps.newId,
+            }),
+          );
           return [
             ...(suggestion === null ? [] : [op('create', suggestionPath(suggestion.id), suggestion)]),
             ...fieldPuts.map((put) => op('put', put.path, put.value, { source_audio_id: audio.id })),
