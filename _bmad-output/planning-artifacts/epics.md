@@ -13888,6 +13888,8 @@ So that voice is the same everywhere.
 
 **Definition of Done:** web tests per field; E2E "31.7-E2E-001" (`@p0`, audio on the conclusion text adds to the composed text) and "-002" (section text paragraph); goldens byte-equal.
 
+*(Outcome, 2026-11-26, batch e31d: built, no contract change. The mic, status line, mark and play sit on: the utility's "Não ensaiado" justification (the stored mark's note; the dialog that picks the reason has no stored field yet, so no mic there), "Texto da conclusão" (an audio adds to the composed text and the field becomes the edited text), the section text surface (a new paragraph; the area redraws when the stored text moves while nobody types in it), the capa's "Informações adicionais", the next intervention's justification and the parecer summary (once a verdict is tapped). Kernel: `audioRichFieldText`; the Não ensaiado write adds to the utility's shown default when no note is stored. Narrowing, open to Matheus: the escopo `local` and exclusions and the additional items are not in the closed `audio_target` union, so they have no mic; a new target value would need a contract number. The deferred-work row of e31c is closed: `assignPhotoBatch` skips the caption of a photo whose caption moved since it was saved.)*
+
 ### Story 31.8: Amazon Transcribe in production
 
 **Dev model:** opus · **Effort:** medium · infra (Terraform) and api (the `transcribe` provider); the only story that touches AWS; batch e31e
@@ -13961,6 +13963,8 @@ So that the relatório reads well without me rewriting it.
 **Then** a run row stores model, prompt version, tokens and USD, and the route is rate-limited per user
 
 **Definition of Done:** kernel, api and web tests; E2E "31.9-E2E-001" (`@p0`, rewrite and undo on an NC observation), "-002" (offline, disabled with its reason), "-003" (the conclusion text); a role without the field's permission gets 403; strings listed for Bruno.
+
+*(Outcome, 2026-11-26, batch e31d: built, no contract change (the route and its body are additive; `meta.ai_written` rides the loose op meta). Kernel `audio/rewrite.ts`: `aiRewriteSource`, `aiRewriteVerdict` (`writtenTextGuard` with the field's text as the source), `aiRewriteWrite` (replaces, never adds), `aiRewriteRestore`. Route `POST /api/relatorios/{id}/write` (`apps/api/src/http/ai-write.ts`) with AD-15's barrier (`last_op_id`), the field's own key (`permissionForPath`, as the retranscribe route), 20 taps a minute per user, prompt version `transcription-write-field-1`, a `transcription_runs` row with `kind = 'ai_write'` (migration 0009: `kind`, `user_id`, `target`; `audio_id` and `speech_provider` nullable). E2E numbering: "-003" is the guard's refusal and "-004" the conclusion text. Narrowings, open to Matheus: no control on the batch caption (its text is not stored before "Adicionar N fotos") nor on a point not saved yet; a section text is rewritten as plain paragraphs (its formatting comes back with "Desfazer"); the sheet OBSERVAÇÕES shows no control while it only shows its suggestion; no usage event (none of Stories 31.3 to 31.7 added one).)*
 
 ## Backlog: deferred stories
 

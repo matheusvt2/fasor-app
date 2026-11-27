@@ -1,0 +1,99 @@
+[4m>>>> Executing external compose provider "/usr/local/bin/docker-compose". Please see podman-compose(1) for how to disable this message. <<<<
+
+[0m Container fasor-e31d-minio-1 Running 
+ Container fasor-e31d-postgres-1 Running 
+ Container fasor-e31d-api-1 Running 
+ Container fasor-e31d-install-1 Starting 
+ Container fasor-e31d-install-1 Started 
+ Container fasor-e31d-install-1 Waiting 
+ Container fasor-e31d-postgres-1 Waiting 
+ Container fasor-e31d-minio-1 Waiting 
+ Container fasor-e31d-install-1 Exited 
+ Container fasor-e31d-minio-1 Healthy 
+ Container fasor-e31d-postgres-1 Healthy 
+ Container fasor-e31d-api-1 Waiting 
+ Container fasor-e31d-install-1 Waiting 
+ Container fasor-e31d-postgres-1 Waiting 
+ Container fasor-e31d-minio-1 Waiting 
+ Container fasor-e31d-postgres-1 Healthy 
+ Container fasor-e31d-minio-1 Healthy 
+ Container fasor-e31d-install-1 Exited 
+ Container fasor-e31d-api-1 Healthy 
+ Container fasor-e31d-tools-run-69ede26442c8 Creating 
+ Container fasor-e31d-tools-run-69ede26442c8 Created 
+$ tsx scripts/preflight.ts && eslint .
+
+/workspace/e2e/audit-fixes-30-1.spec.ts
+  69:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/durability.spec.ts
+  363:9   warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  625:9   warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  628:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  794:15  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/e24y-tag-rename.spec.ts
+  106:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/ergonomics.spec.ts
+  118:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/ficha.durability.spec.ts
+   70:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  158:9   warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  318:9   warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/ficha.spec.ts
+   290:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  1368:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  1878:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/parecer-export.spec.ts
+  399:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/password-by-email.spec.ts
+  154:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/photo-zoom.durability.spec.ts
+  184:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  243:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/plate-shot-fallback.spec.ts
+  100:13  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/plate.spec.ts
+  150:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/points.spec.ts
+  522:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/review-field-defects-2.spec.ts
+  241:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/review-layout-copy-3.spec.ts
+  241:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+  624:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/sheet-photos.spec.ts
+  167:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/status-flow-2026-10-10.spec.ts
+  257:11  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/support/durability.ts
+  180:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/templates.spec.ts
+  363:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/typed-values-kept.spec.ts
+  313:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/ui-hygiene.spec.ts
+  235:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+/workspace/e2e/usage-events.spec.ts
+  238:9  warning  Unexpected use of page.waitForTimeout()  playwright/no-wait-for-timeout
+
+✖ 30 problems (0 errors, 30 warnings)
+

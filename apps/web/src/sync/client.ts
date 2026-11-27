@@ -24,6 +24,10 @@ import {
   type SyncRoute,
   readingRereadPath,
   audioRetranscribePath,
+  aiWritePath,
+  aiWriteResponseSchema,
+  type AiWriteRequest,
+  type AiWriteResponse,
   type AuditRequest,
   type AuditResponse,
 } from '@app/domain';
@@ -109,6 +113,11 @@ export interface SyncClient {
    * the test doubles built before it existed still type-check.
    */
   retranscribeAudio?(audioId: string): Promise<void>;
+  /**
+   * Story 31.9: the AI control, `POST /api/relatorios/{id}/write`. Optional in the type only so the test doubles
+   * built before it existed still type-check.
+   */
+  aiWrite?(relatorioId: string, body: AiWriteRequest): Promise<AiWriteResponse>;
   /**
    * Story 14.10 lane B: whether the server answers at all, `GET /api/health` (public, no
    * session), aborted after `HEALTH_PROBE_TIMEOUT_MS`. True on any HTTP answer (a 503
@@ -397,6 +406,7 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
     async retranscribeAudio(audioId) {
       await send(audioRetranscribePath(audioId), 'POST', { headers: { accept: 'application/json' } }, SYNC_REQUEST_TIMEOUT_MS);
     },
+    aiWrite: (relatorioId, body) => request({ method: 'POST', path: aiWritePath(relatorioId) }, aiWriteResponseSchema, undefined, body),
     async health() {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), HEALTH_PROBE_TIMEOUT_MS);

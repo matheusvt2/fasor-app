@@ -13,6 +13,7 @@ import {
 } from '@app/domain';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
+import { localFileRow } from '../../db/file-store.ts';
 import type { AppDatabase } from '../../db/schema.ts';
 import { newId } from '../../ids.ts';
 import { aiFeaturesOn } from '../../state/ai-features.tsx';
@@ -105,6 +106,11 @@ export async function movePhoto(db: AppDatabase, author: Author, relatorioId: st
  * another block or "Geral" puts `block_id` (and `item_key: null` when it was on an item), a
  * changed caption is put, a cleared one as null, and a reading the batch was saved with (an NC
  * row's `nc_obs`) is put to null when the batch leaves, unless the caption reading replaces it.
+ *
+ * Story 31.7 (deferred-work row of batch e31c): the caption is put only on a photo whose caption,
+ * read in the commit, still equals the saved one. An audio's text that landed on a photo meanwhile
+ * (online, the transcript can arrive before the tap) is never written over, and that photo is not
+ * asked for a vision caption either.
  */
 export async function assignPhotoBatch(
   db: AppDatabase,
@@ -121,12 +127,20 @@ export async function assignPhotoBatch(
   // Story 11.8 follow-up: no caption reading while the server's AI features are off.
   const asksCaption = captionReadingOf({ block_id: blockId, caption: value, people_in_photo: peopleInPhoto }) !== null && aiFeaturesOn();
   const dropsReading = moved && (saved.readingKind ?? null) !== null && !asksCaption;
+  const savedCaption = captionValue(saved.caption);
+  const kept = new Set<string>();
+  if (value !== savedCaption) {
+    for (const id of fileIds) {
+      const current = await localFileRow(db, id);
+      if (current !== null && current.kind === 'photo' && captionValue(current.caption) !== savedCaption) kept.add(id);
+    }
+  }
   const drafts = fileIds.flatMap((id) => [
     ...(moved ? [put(author, relatorioId, id, 'block_id', blockId)] : []),
     ...(moved && saved.itemKey !== null ? [put(author, relatorioId, id, 'item_key', null)] : []),
-    ...(value === captionValue(saved.caption) ? [] : [put(author, relatorioId, id, 'caption', value)]),
+    ...(value === savedCaption || kept.has(id) ? [] : [put(author, relatorioId, id, 'caption', value)]),
     ...(peopleInPhoto ? [put(author, relatorioId, id, 'people_in_photo', true)] : []),
-    ...(asksCaption ? [put(author, relatorioId, id, 'reading_kind', 'caption')] : []),
+    ...(asksCaption && !kept.has(id) ? [put(author, relatorioId, id, 'reading_kind', 'caption')] : []),
     ...(dropsReading ? [put(author, relatorioId, id, 'reading_kind', null)] : []),
   ]);
   if (drafts.length > 0) await commitBatch(db, drafts, deps);

@@ -1291,4 +1291,12 @@ All rows closed; see deferred-work-archive.md
   summary: Online, the batch caption's "Adicionar N fotos" writes the typed caption on every photo of the batch (`assignPhotoBatch`), compared only against the caption the photos were saved with. When the first photo's audio was transcribed before the tap, its caption already holds the audio's text and the put overwrites it; the audio row still names the photo, so the mark reads "Áudio, editado". The fix reads each photo's current caption in the commit and skips a photo whose caption no longer equals the saved one; it lives in `surfaces/photos/photo-ops.ts` and `capture-sheet.tsx`, outside this batch's files.
   evidence: `apps/web/src/surfaces/photos/photo-ops.ts` `assignPhotoBatch`; `apps/web/src/surfaces/photos/capture-sheet.tsx` (the batch caption's audio on the first photo, Story 31.3).
   class: bug
-  state: open (owner: batch e31d, Story 31.7, which touches the photo caption surfaces; one e2e: record on the batch caption online, wait for the text, tap "Adicionar N fotos", the first photo keeps the audio's text)
+  state: ~~open (owner: batch e31d, Story 31.7, which touches the photo caption surfaces; one e2e: record on the batch caption online, wait for the text, tap "Adicionar N fotos", the first photo keeps the audio's text)~~ closed (2026-11-26, batch e31d, Story 31.7: `assignPhotoBatch` reads each photo's caption in the commit and puts the typed caption, and asks the vision caption, only where it still equals the saved one; `photo-ops.test.ts` 31.7-UNIT-007, `e2e/audio-remaining-fields.spec.ts` 31.7-E2E-003)
+
+## Deferred from: Stories 31.7 and 31.9, batch e31d (2026-11-26)
+
+- source_spec: `_bmad-output/planning-artifacts/epics.md` Stories 31.3 to 31.9 (usage events; Epic 18)
+  summary: Audio has no usage events: record, retry (`POST /api/audios/{id}/retranscribe`), dismiss, and the AI control's tap, its undo and its failure. Each needs new event values in the usage-event contract, which means a contract bump that no Epic 31 batch was allowed to take. One story adds the values, the emits in `apps/web` and the dashboard widgets, and keeps the count by device.
+  evidence: `packages/domain/src/contract/version.ts` (contract 62); the usage-event name list in `packages/domain/src/contract/`; `apps/web/src/db/audio-commit.ts` `commitAudioCapture`, `commitAudioDismiss`.
+  class: gap
+  state: open (owner: the next Epic 18-style usage batch; needs Matheus's word on the contract bump)

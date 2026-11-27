@@ -22,7 +22,8 @@ const author = { id: USER_ID, companyId: COMPANY_ID };
 const PHOTO_A = '019966b0-0000-7000-8000-0000000007a1';
 const PHOTO_B = '019966b0-0000-7000-8000-0000000007b2';
 
-async function batchDb(): Promise<AppDatabase> {
+/** The batch's photos as saved, each with `caption` (the sheet's context caption, or none). */
+async function batchDb(caption: string | null = null): Promise<AppDatabase> {
   const db = openDatabase(`photo-ops-${++counter}`);
   await db.open();
   for (const fileId of [PHOTO_A, PHOTO_B]) {
@@ -35,7 +36,7 @@ async function batchDb(): Promise<AppDatabase> {
         fileId,
         blockId: null,
         itemKey: null,
-        caption: null,
+        caption,
         reading: null,
         capturedAt: '2026-09-30T11:00:00.000Z',
         tzOffset: -180,
@@ -99,14 +100,14 @@ describe('11.11 assignPhotoBatch re-points a batch saved on a sheet', () => {
   const saved = { blockId: SHEET, itemKey: 'contatos', caption: 'Detalhe da chave seccionadora' };
 
   it('the sheet kept with its caption writes nothing', async () => {
-    const db = await batchDb();
+    const db = await batchDb(saved.caption);
     await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A, PHOTO_B], SHEET, ' Detalhe da chave seccionadora ', false, saved);
     expect(await puts(db)).toEqual([]);
     db.close();
   });
 
   it('another block puts block_id, item_key null and the new caption, in one batch', async () => {
-    const db = await batchDb();
+    const db = await batchDb(saved.caption);
     await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], BLOCK_1_ID, 'Outra legenda', false, saved);
     const written = await puts(db);
     expect(written.map(({ path, value }) => ({ path, value }))).toEqual([
@@ -119,7 +120,7 @@ describe('11.11 assignPhotoBatch re-points a batch saved on a sheet', () => {
   });
 
   it('"Geral" with the caption cleared puts block_id, item_key and caption null, then asks for the caption reading', async () => {
-    const db = await batchDb();
+    const db = await batchDb(saved.caption);
     await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], null, '', false, saved);
     expect((await puts(db)).map(({ path, value }) => ({ path, value }))).toEqual([
       { path: `file/${PHOTO_A}/block_id`, value: null },
@@ -132,7 +133,7 @@ describe('11.11 assignPhotoBatch re-points a batch saved on a sheet', () => {
 
   it('a batch saved from an NC row with its nc_obs reading drops that reading when it leaves the row, and keeps it on the row', async () => {
     const fromRow = { ...saved, readingKind: 'nc_obs' };
-    let db = await batchDb();
+    let db = await batchDb(saved.caption);
     await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], BLOCK_1_ID, 'Outra legenda', false, fromRow);
     expect((await puts(db)).map(({ path, value }) => ({ path, value }))).toEqual([
       { path: `file/${PHOTO_A}/block_id`, value: BLOCK_1_ID },
@@ -142,21 +143,35 @@ describe('11.11 assignPhotoBatch re-points a batch saved on a sheet', () => {
     ]);
     db.close();
     // "Geral" with no caption: the caption reading replaces it (one reading_kind put).
-    db = await batchDb();
+    db = await batchDb(saved.caption);
     await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], null, null, false, fromRow);
     expect((await puts(db)).filter((op) => op.path.endsWith('/reading_kind')).map((op) => op.value)).toEqual(['caption']);
     db.close();
     // Kept on the row: nothing.
-    db = await batchDb();
+    db = await batchDb(saved.caption);
     await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], SHEET, saved.caption, false, fromRow);
     expect(await puts(db)).toEqual([]);
     db.close();
   });
 
   it('"Pessoas na foto" on the kept sheet puts the mark only', async () => {
-    const db = await batchDb();
+    const db = await batchDb(saved.caption);
     await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], SHEET, saved.caption, true, saved);
     expect((await puts(db)).map(({ path, value }) => ({ path, value }))).toEqual([{ path: `file/${PHOTO_A}/people_in_photo`, value: true }]);
+    db.close();
+  });
+
+  // Story 31.7 (deferred-work row of batch e31c): an audio's text that landed on a photo before the tap is never written over.
+  it('31.7-UNIT-007 a photo whose caption moved since it was saved keeps it, and the others take the typed caption', async () => {
+    const db = await batchDb(saved.caption);
+    // The audio's text arrived on the first photo (the server's put, folded locally).
+    const first = (await db.entities.get(['file', PHOTO_A]))!;
+    await db.entities.put({ ...first, row: { ...(first.row as object), caption: 'Texto do áudio.' } as typeof first.row });
+    await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A, PHOTO_B], BLOCK_1_ID, 'Outra legenda', false, saved);
+    const written = (await puts(db)).map(({ path, value }) => ({ path, value }));
+    expect(written.filter((op) => op.path.endsWith('/caption'))).toEqual([{ path: `file/${PHOTO_B}/caption`, value: 'Outra legenda' }]);
+    // The sheet still moves for both photos.
+    expect(written.filter((op) => op.path.endsWith('/block_id')).map((op) => op.path)).toEqual([`file/${PHOTO_A}/block_id`, `file/${PHOTO_B}/block_id`]);
     db.close();
   });
 });

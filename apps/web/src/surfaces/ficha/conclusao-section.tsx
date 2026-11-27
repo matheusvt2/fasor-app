@@ -42,7 +42,7 @@ import { DRAFT_SURFACE, useTypedText } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
 import { useSheetReadOnly, useSheetReadOnlyCause, useSheetReadOnlyReason } from './sheet-read-only.tsx';
-import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioButton, AudioField, AudioFieldLines } from '../../speech/audio-field.tsx';
 import { spriteHref } from '../../styles/sprite.ts';
 
 /*
@@ -272,6 +272,8 @@ export function ConclusaoSection({
   const [typing, setTyping] = useState(false);
   // Story 31.3: the field an audio of the sheet's OBSERVAÇÕES fills.
   const observationAudio = useMemo(() => ({ type: 'sheet_field' as const, block_id: api.blockId, field: 'observations' as const }), [api.blockId]);
+  // Story 31.7: the conclusion text's audio adds the written text after the composed one and makes it the user's edited text.
+  const conclusionAudio = useMemo(() => ({ type: 'sheet_field' as const, block_id: api.blockId, field: 'conclusion_text' as const }), [api.blockId]);
   const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
   // Batch e24a (Story 24.3): what requires the observation (Com restrições; on seed v14 a Reprovado too), which its helper names.
   const requiredBy = observationRequiredBy(block, definition, visit);
@@ -566,6 +568,8 @@ export function ConclusaoSection({
                 presentation="text"
                 commitWhileTyping
               />
+              {/* Story 31.9: the AI control rewrites the text the field shows, the composed one while none is confirmed. */}
+              <AudioField target={conclusionAudio} label={t.audioTextField} text={storedText} readOnly={readOnly} aiText={textState === 'unconfirmed' ? composed.text : storedText} />
             </div>
           )}
         </section>
