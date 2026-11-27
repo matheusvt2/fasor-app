@@ -146,17 +146,17 @@ describe('the api suite lanes (chore T4)', () => {
 });
 
 describe('scripts/api-suite.ts phases (chore T4)', () => {
-  it('runs the parallel lane beside the queue run (serial, then print), then the solo lane alone', () => {
+  it('runs the solo lane alone first, then the parallel lane beside the queue run (serial, then print)', () => {
     const full = suitePlan(false, { run: false, reason: '' });
     expect(full).toEqual([
+      [{ name: 'solo', projects: ['api-solo'] }],
       [
         { name: 'parallel', projects: ['api'] },
         { name: 'queue', projects: ['api-serial', 'api-print'] },
       ],
-      [{ name: 'solo', projects: ['api-solo'] }],
     ]);
     expect(suitePlan(true, { run: true, reason: '' })).toEqual(full);
-    expect(suitePlan(true, { run: false, reason: '' })[0]?.[1]).toEqual({ name: 'queue', projects: ['api-serial'] });
+    expect(suitePlan(true, { run: false, reason: '' })[1]?.[1]).toEqual({ name: 'queue', projects: ['api-serial'] });
     expect(full.flat().flatMap((run) => run.projects).sort()).toEqual([...API_PROJECTS].sort());
   });
 
@@ -171,11 +171,11 @@ describe('scripts/api-suite.ts phases (chore T4)', () => {
       return { exitCode: run.name === 'queue' ? 1 : 0, output: ` Test Files  3 passed (3)\n` };
     };
     const results = await runPlan(suitePlan(false, { run: true, reason: '' }), runner, () => {}, () => clock);
-    expect(log).toEqual(['start parallel', 'start queue', 'end queue', 'end parallel', 'start solo alone', 'end solo']);
+    expect(log).toEqual(['start solo alone', 'end solo', 'start parallel', 'start queue', 'end queue', 'end parallel']);
     expect(results.map((result) => [result.name, result.exitCode, result.files])).toEqual([
+      ['solo', 0, 3],
       ['parallel', 0, 3],
       ['queue', 1, 3],
-      ['solo', 0, 3],
     ]);
     expect(suiteExit(results)).toBe(1);
     expect(suiteExit(results.map((result) => ({ ...result, exitCode: 0 })))).toBe(0);
@@ -230,11 +230,11 @@ describe('the batch gate\'s print lane (chore T4)', () => {
       'apps/web/src/screens/home.tsx e2e/home.spec.ts docs/kbs/log.md _bmad-output/planning-artifacts/epics.md apps/api/src/http/audios.ts apps/api/src/jobs/transcription/worker.ts AGENTS.md',
     );
     expect(printLaneDecision(changed)).toMatchObject({ run: false });
-    expect(suitePlan(true, printLaneDecision(changed)).flat().flatMap((run) => run.projects)).toEqual(['api', 'api-serial', 'api-solo']);
+    expect(suitePlan(true, printLaneDecision(changed)).flat().flatMap((run) => run.projects)).toEqual(['api-solo', 'api', 'api-serial']);
   });
 
   it('runs every lane outside the batch form, whatever changed', () => {
-    expect(suitePlan(false, { run: false, reason: '' }).flat().flatMap((run) => run.projects)).toEqual(['api', 'api-serial', 'api-print', 'api-solo']);
+    expect(suitePlan(false, { run: false, reason: '' }).flat().flatMap((run) => run.projects)).toEqual(['api-solo', 'api', 'api-serial', 'api-print']);
     expect(parseArgs(['--batch', 'src/x.test.ts'])).toEqual({ batch: true, extra: ['src/x.test.ts'] });
     expect(parseArgs([])).toEqual({ batch: false, extra: [] });
   });

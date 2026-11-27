@@ -9,13 +9,14 @@ import { PRINT_FILES } from '../apps/api/src/test-lanes.ts';
  * suite. `pnpm test:api` runs the four lanes of `apps/api/src/test-lanes.ts` as two phases of
  * Vitest runs (`suitePlan`):
  *
- * 1. two runs at the same time: `parallel` (project `api`, on `PARALLEL_WORKERS` workers, each on
+ * 1. `solo` (project `api-solo`), with nothing beside it, first, while the machine and the api's
+ *    log are quiet (its generation timing reads that log through the engine socket);
+ * 2. two runs at the same time: `parallel` (project `api`, on `PARALLEL_WORKERS` workers, each on
  *    its own test pair) and `queue` (projects `api-serial` then `api-print`, one file at a time on
- *    the fixed pair, which spends most of its time waiting on the api's one LibreOffice);
- * 2. `solo` (project `api-solo`), with nothing beside it.
+ *    the fixed pair, which spends most of its time waiting on the api's one LibreOffice).
  *
  * Both phases always run, and the command fails when any run failed or no run had a test file.
- * A run of the first phase keeps its output and prints it whole when it ends (never interleaved);
+ * A run of a shared phase keeps its output and prints it whole when it ends (never interleaved);
  * the solo run streams. Each run's output also lands in `test-results/api-suite/{run}.log`, and
  * the command ends with one line per run (verdict, test files, wall time) and the total. That is
  * the wave gate's form (`pnpm verify` calls it) and the default everywhere.
@@ -132,18 +133,20 @@ export interface SuiteRun {
 
 /**
  * The runs of one command, as phases: the runs of a phase start together, and a phase starts when
- * the one before has ended, whatever its result (every lane always runs). Phase 1 is the parallel
- * lane beside the `queue` run (`api-serial`, then `api-print` unless the batch form leaves it out);
- * phase 2 is the `api-solo` files with nothing beside them.
+ * the one before has ended, whatever its result (every lane always runs). Phase 1 is the `api-solo`
+ * files with nothing beside them; phase 2 the parallel lane beside the `queue` run (`api-serial`,
+ * then `api-print` unless the batch form leaves it out). Measured 2026-11-27: with the solo phase
+ * last, `generation-time.integration.test.ts` timed out reading the api's log after the busy phase
+ * (two runs of three).
  */
 export function suitePlan(batch: boolean, decision: PrintLaneDecision): SuiteRun[][] {
   const queue = !batch || decision.run ? ['api-serial', 'api-print'] : ['api-serial'];
   return [
+    [{ name: 'solo', projects: ['api-solo'] }],
     [
       { name: 'parallel', projects: ['api'] },
       { name: 'queue', projects: queue },
     ],
-    [{ name: 'solo', projects: ['api-solo'] }],
   ];
 }
 

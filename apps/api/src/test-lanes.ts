@@ -3,7 +3,9 @@
  * (`pnpm test:api`). `apps/api/vitest.config.ts` turns them into four Vitest projects, and
  * `scripts/api-suite.ts` runs them in two phases:
  *
- * 1. At the same time:
+ * 1. `api-solo`: the files that must have nothing beside them (a timing budget, a boot upgrade over
+ *    every company, the legacy companies every seed removes), one at a time, first.
+ * 2. At the same time:
  *    - `api` (parallel): every test file not listed below, on `PARALLEL_WORKERS` workers. Each
  *      worker seeds its own pair of test companies (`testSeedPair(slot + 1)`, `db/test-seed.ts`,
  *      `test-setup/test-pair.ts`), and every other id a file writes is minted per run, so files
@@ -14,8 +16,6 @@
  *      Seguro fixture's fixed ids); `api-print` the print locks and the LibreOffice print checks.
  *      `pnpm test:api` always runs `api-print`; `pnpm test:api:batch` runs it only when the batch
  *      changed a path of `PRINT_TRIGGERS` (or when it cannot tell).
- * 2. `api-solo`: the files that must have nothing beside them (a timing budget, a boot upgrade over
- *    every company, the legacy companies every seed removes), one at a time.
  *
  * Paths are relative to `apps/api`. `scripts/api-suite.test.ts` fails when a listed file is
  * missing, a file sits in two lanes, or a test file that reaches a shared resource (a preview or

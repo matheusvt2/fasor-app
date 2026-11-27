@@ -18,12 +18,12 @@ export default defineConfig({
     // because the files shared the two TEST_SEED companies and `resetTestCompanyData` or a re-seed
     // in one file wiped rows or revoked sessions another file was using. It had grown to 678 s
     // (166 files, gate of batch e31d). It now runs in four lanes (`src/test-lanes.ts`), started by
-    // `scripts/api-suite.ts`: `api` on PARALLEL_WORKERS workers, each worker on its own TEST_SEED
-    // pair (the setup file below), so a reset or a re-seed in one worker never reaches another's
-    // companies; beside it, in a second Vitest run, `api-serial` then `api-print`, one file at a
-    // time on the fixed pair, for the files that share the api's document queue or a fixed-id
-    // fixture; then `api-solo` alone. The group orders keep the lanes apart when one Vitest run
-    // is given several of them (a plain `vitest run`, or `--project api-serial --project api-print`).
+    // `scripts/api-suite.ts`: first `api-solo` alone; then `api` on PARALLEL_WORKERS workers, each
+    // worker on its own TEST_SEED pair (the setup file below), so a reset or a re-seed in one worker
+    // never reaches another's companies, and beside it, in a second Vitest run, `api-serial` then
+    // `api-print`, one file at a time on the fixed pair, for the files that share the api's document
+    // queue or a fixed-id fixture. The group orders keep the lanes apart when one Vitest run is given
+    // several of them (a plain `vitest run`, or `--project api-serial --project api-print`).
     // TST-V1 (review 2026-10-08): a focused `it.only` fails the run (Vitest allows it
     // outside CI by default).
     allowOnly: false,
