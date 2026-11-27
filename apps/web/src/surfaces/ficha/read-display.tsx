@@ -12,6 +12,8 @@ import {
   displayCellTarget,
   displayEnvTarget,
   displayMismatchText,
+  audioMismatchText,
+  suggestionAudioId,
   MISMATCH_LINE_SEP,
   displayEnvLineField,
   displayLineShown,
@@ -56,6 +58,7 @@ import {
 import { useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { SuggestionCropThumb } from '../../components/crop-thumb.tsx';
+import { useAudioPlay } from '../../speech/audio-session.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -158,15 +161,19 @@ export interface DisplayModel {
   /** The typed value over a suggestion: the put and this suggestion's discard, one batch. */
   type: (s: SuggestionRow, cell: EvaluatedCell, text: string, label: string) => Promise<boolean> | 'invalid';
   keepTyped: (s: SuggestionRow) => void;
-  /** E9-Q1: `exclude` names the cells that show a dictated reading (never confirmed in bulk, never counted). */
-  confirmAll: (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => void;
-  confirmable: (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => number;
+  /** Story 31.5: "Descartar" of a spoken reading: the suggestion's discard, nothing written to the cell. */
+  discard: (s: SuggestionRow) => void;
+  confirmAll: (testKey: string, tableKey: string) => void;
+  confirmable: (testKey: string, tableKey: string) => number;
   openCrop: (s: SuggestionRow) => void;
   viewer: ReactNode;
   photos: readonly DisplayPhoto[];
   /** CAPT-V1: the empty line's retake (the relatório and its photos). */
   retake: DisplayRetake;
 }
+
+/** No cell is left out of a table's "Confirmar todos" (Story 31.5 retired the held dictated reading). */
+const NO_CELLS: readonly CellAddress[] = [];
 
 export function useDisplaySuggestions({
   api,
@@ -245,17 +252,28 @@ export function useDisplaySuggestions({
     );
   };
 
-  const confirmAll = (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => {
+  // Story 31.5: a spoken reading's "Descartar" drops it; the cell stays as it was.
+  const discard = (s: SuggestionRow) => {
+    once(s, () =>
+      api
+        .edit((_blocks, by) => [discardSuggestionOp(by, s)])
+        .then((batch) => {
+          if (batch !== null) api.announce(copy.ficha.ensaios.readingDiscarded);
+        }),
+    );
+  };
+
+  const confirmAll = (testKey: string, tableKey: string) => {
     let done = 0;
     let skipped = 0;
     void api
       .edit((blocks, by) => {
-        // The freshest sheet decides: a cell typed a moment ago is no longer a fill; a cell
-        // showing a dictated reading is left out as the button's count left it out.
+        // The freshest sheet decides: a cell typed a moment ago is no longer a fill. Story 31.5: a spoken
+        // reading is a fill like a display one (no cell is left out).
         const fresh = blocks.find((row) => row.id === block.id) ?? block;
-        const picked = measurementConfirmAllCandidates(fresh, pending, testKey, tableKey, exclude, definitions);
+        const picked = measurementConfirmAllCandidates(fresh, pending, testKey, tableKey, NO_CELLS, definitions);
         done = picked.length;
-        skipped = measurementTableVerifyCount(fresh, pending, testKey, tableKey, exclude, definitions);
+        skipped = measurementTableVerifyCount(fresh, pending, testKey, tableKey, NO_CELLS, definitions);
         return picked.length === 0 ? null : picked.flatMap((s) => confirmSuggestionOps(by, s));
       })
       .then((batch) => {
@@ -264,10 +282,10 @@ export function useDisplaySuggestions({
       .catch(() => undefined);
   };
 
-  const confirmable = (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => measurementConfirmAllCandidates(block, pending, testKey, tableKey, exclude, definitions).length;
+  const confirmable = (testKey: string, tableKey: string) => measurementConfirmAllCandidates(block, pending, testKey, tableKey, NO_CELLS, definitions).length;
   const sourceOf = (id: string) => rows.find((row) => row.id === id) ?? snapshot.suggestions.find((row) => row.id === id) ?? null;
 
-  return { block, entries, queued, tiles, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, confirmAll, confirmable, openCrop, viewer, photos, retake };
+  return { block, entries, queued, tiles, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, discard, confirmAll, confirmable, openCrop, viewer, photos, retake };
 }
 
 /**
@@ -407,6 +425,8 @@ function tileOf(tiles: readonly PhotoTile[], photoId: string): PhotoTile | null 
  * one-line text.
  */
 export function MismatchLine({ value, suggestion, onVisor, onTyped }: { value: unknown; suggestion: SuggestionRow; onVisor: () => void; onTyped: () => void }) {
+  // Story 31.5 (`62-audio-estados.html` (g) "Célula já preenchida"): a spoken reading beside a typed value.
+  if (suggestionAudioId(suggestion) !== null) return <AudioMismatchLine suggestion={suggestion} label={copy.ficha.ensaios.audioMismatchLabel} onReplace={onVisor} />;
   const { lines } = displayMismatchText(value, suggestion);
   return (
     <span className="suggestion-alt" role="group" aria-label={copy.ficha.ensaios.mismatchLabel} data-suggestion-id={suggestion.id}>
@@ -426,6 +446,57 @@ export function MismatchLine({ value, suggestion, onVisor, onTyped }: { value: u
       ))}
     </span>
   );
+}
+
+/** Story 31.5 (`components.css` "Audio button", `.audio-src`): play of the audio a spoken reading was heard in, in place of the crop. */
+function AudioSourcePlay({ suggestion }: { suggestion: SuggestionRow }) {
+  const held = useAudioPlay(suggestionAudioId(suggestion));
+  const reasonId = useId();
+  if (held === null) return null;
+  const disabled = held.playDisabledReason !== null;
+  return (
+    <>
+      <button
+        type="button"
+        className="audio-src"
+        aria-label={ui.audio.playReading(held.duration)}
+        aria-pressed={held.playing}
+        aria-disabled={disabled || undefined}
+        aria-describedby={disabled ? reasonId : undefined}
+        onClick={held.play}
+      >
+        <svg className="ico" aria-hidden="true">
+          <use href={spriteHref('i-play')} />
+        </svg>
+      </button>
+      {disabled ? (
+        <span className="visually-hidden" id={reasonId}>
+          {held.playDisabledReason}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Story 31.5 (`62-audio-estados.html` (g) "Célula já preenchida"): "Sugerido: 147 GΩ", play, "Substituir"; the
+ * typed value stays until "Substituir" confirms the spoken one.
+ */
+function AudioMismatchLine({ suggestion, label, onReplace }: { suggestion: SuggestionRow; label: string; onReplace: () => void }) {
+  return (
+    <span className="suggestion-alt" role="group" aria-label={label} data-suggestion-id={suggestion.id}>
+      {audioMismatchText(suggestion)} <AudioSourcePlay suggestion={suggestion} />
+      <button type="button" className="btn btn-text" onClick={onReplace}>
+        {ui.audio.replace}
+      </button>
+    </span>
+  );
+}
+
+/** The picture beside a reading: the display crop, or (Story 31.5) play of the audio it was heard in. */
+function ReadingSource({ suggestion, label, model }: { suggestion: SuggestionRow; label: string; model: DisplayModel }) {
+  if (suggestionAudioId(suggestion) !== null) return <AudioSourcePlay suggestion={suggestion} />;
+  return <SuggestionCropThumb source="display" suggestion={suggestion} label={label} onPress={() => model.openCrop(suggestion)} />;
 }
 
 /**
@@ -459,8 +530,7 @@ export function ReadingCell({
   }
   const stored = storedTestCell(model.block, cell.address);
   const source = stored !== null && showsConfirmedGlyph(stored, model.relatorioStatus) ? model.sourceOf(stored.source_suggestion_id!) : null;
-  const crop =
-    source === null ? undefined : <SuggestionCropThumb source="display" suggestion={source} label={label} onPress={() => model.openCrop(source)} />;
+  const crop = source === null ? undefined : <ReadingSource suggestion={source} label={label} model={model} />;
   const mismatch =
     entry !== undefined && entry.view === 'replace' && stored !== null ? (
       <MismatchLine value={stored.value} suggestion={entry.suggestion} onVisor={() => model.confirm(entry.suggestion, label)} onTyped={() => model.keepTyped(entry.suggestion)} />
@@ -546,7 +616,7 @@ function SuggestedCell({
     <div className="ficha-cell" data-cell={key} data-suggestion-id={suggestion.id}>
       <div className="field suggestion-field" data-state={verify ? 'verify' : 'suggested'}>
         <div className="measurement-field">
-          <SuggestionCropThumb source="display" suggestion={suggestion} label={label} onPress={() => model.openCrop(suggestion)} />
+          <ReadingSource suggestion={suggestion} label={label} model={model} />
           <input
             data-telemetry="ficha.reading"
             className="mf-value"
@@ -589,6 +659,14 @@ function SuggestedCell({
         </div>
         <span className={verify ? 'verify-pill' : 'suggested-pill'}>{verify ? ui.suggestionField.verify : ui.suggestionField.suggested}</span>
       </div>
+      {/* Story 31.5 (`62-audio-estados.html` (g)): a spoken reading's "Descartar" under its field. */}
+      {suggestionAudioId(suggestion) === null ? null : (
+        <div className="audio-sug-actions">
+          <button type="button" className="btn btn-text" onClick={() => model.discard(suggestion)}>
+            {ui.audio.discard}
+          </button>
+        </div>
+      )}
       {invalid ? (
         <span className="helper" data-tone="red" id={helperId}>
           {t.invalid}
@@ -682,15 +760,12 @@ export function ReadDisplayButton({
   );
 }
 
-/**
- * A table's "Confirmar todos (N)" for its suggested fills, only while there is one. E9-Q1: the
- * cells in `exclude` show a dictated reading, so their display fill is neither counted nor confirmed.
- */
-export function ConfirmTableButton({ model, testKey, tableKey, exclude }: { model: DisplayModel; testKey: string; tableKey: string; exclude: readonly CellAddress[] }) {
-  const n = model.confirmable(testKey, tableKey, exclude);
+/** A table's "Confirmar todos (N)" for its suggested fills, display and spoken alike (Story 31.5), only while there is one. */
+export function ConfirmTableButton({ model, testKey, tableKey }: { model: DisplayModel; testKey: string; tableKey: string }) {
+  const n = model.confirmable(testKey, tableKey);
   if (n === 0) return null;
   return (
-    <button type="button" className="btn btn-secondary" onClick={() => model.confirmAll(testKey, tableKey, exclude)}>
+    <button type="button" className="btn btn-secondary" onClick={() => model.confirmAll(testKey, tableKey)}>
       <svg className="ico" aria-hidden="true">
         <use href={spriteHref('i-check-all')} />
       </svg>

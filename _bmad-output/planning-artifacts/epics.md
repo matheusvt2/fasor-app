@@ -13822,6 +13822,8 @@ So that a wrong digit never enters the relatório by itself.
 
 **Definition of Done:** kernel tests for the parser on written-out numbers a transcriber returns ("cento e quarenta e sete giga"); E2E "31.5-E2E-001" (`@p0`, spoken reading confirmed) and "-002" (not a reading); the durability specs it touches on the matrix projects.
 
+*(Outcome, 2026-11-26, batch e31c: built with 31.6, no contract change. The table's Audio button sits between "Ler visor" and "Confirmar todos", named "Gravar áudio: leituras de ⟨tabela⟩"; its status line, failed line and live warning go under the title row. A spoken reading is drawn by the display reading's own Suggestion field (play `.audio-src` in place of the crop, "Descartar" under it); an equal typed value confirms it by the existing sweep; a filled cell reads "Sugerido: 147 GΩ", play, "Substituir". The held dictated reading of Story 9.4 (`useTableDictation`, `DictatedMeasurementField`) is deleted. Coordinator's readings, open to Matheus: the "Não reconheci uma leitura" line stays on the table while its newest transcribed speech is that one (a newer reading takes it away); "Substituir" is the only action beside a filled cell, as the mock draws it. No durability spec touched, so no matrix run.)*
+
 ### Story 31.6: A pending audio holds the ficha and the emission
 
 **Dev model:** opus · **Effort:** medium · kernel (sheet state and pre-issue), web (ficha, Sumário, Export dialog, Sync status), api (the pre-issue check); batch e31c
@@ -13851,6 +13853,8 @@ So that the document never goes out with a hole I do not know of.
 **Then** it counts those to upload, those transcribing and those failed, with the kernel's sentences
 
 **Definition of Done:** kernel tests "31.6-UNIT-…", red first; api integration for the blocked issue; E2E "31.6-E2E-001" (`@p0`, a pending audio blocks concluding and issuing, then frees both on arrival) and "-002" (failed, dismissed); the sheets of seeds v1 to v19 without audio compute as before.
+
+*(Outcome, 2026-11-26, batch e31c: built, no contract change. Kernel `audio/hold.ts` (`heldAudios`, `heldAudiosText`, `audioPlaceText`, `audioSheetStep`, `audioSyncCounts`, `audioSyncLines`); `preIssue` gains two blocking rows on row 9, `audios_pending` and `audios_failed`, each listing its audios with their places, so the server's generate refuses them with `409 pre_issue_blocked` as the dialog does. Coordinator's readings, open to Matheus: a failed audio holds as the DoR says; the ficha keeps offering "Concluir ficha" and the tap refuses with the kernel's sentence and opens the first audio's field (no stepper count); the ficha's line is `.audio-pending` under the sheet header; a dismissed audio keeps its mark only until a newer audio's text lands in the field; Sync status counts "aguardando envio" (not uploaded), "aguardando transcrição" (uploaded and queued, or transcribing) and "não transcritos" over every relatório on the device. Usage events still skipped (they need new contract values, as in 31.3).)*
 
 ### Story 31.7: The mic on the fields that lack it
 

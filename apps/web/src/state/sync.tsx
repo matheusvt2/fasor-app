@@ -233,6 +233,8 @@ export interface SyncState {
    * type only so the test doubles built before it existed still type-check.
    */
   rereadPhoto?: (photoId: string) => Promise<void>;
+  /** Story 31.6: "Tentar de novo" of a failed audio (`POST /api/audios/{id}/retranscribe`), then a cycle for its status. */
+  retranscribeAudio?: (audioId: string) => Promise<void>;
   /**
    * Story 13.8: "Conferir antes de emitir" (`POST /api/relatorios/{id}/audit`), asked for by
    * the Export dialog once the outbox is drained. The engine's own client again (AD-1).
@@ -582,6 +584,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const retranscribeAudio = useCallback(async (audioId: string): Promise<void> => {
+    const client = clientRef.current;
+    if (client === null || client.retranscribeAudio === undefined) throw new Error('sync client is not running');
+    try {
+      await client.retranscribeAudio(audioId);
+    } catch (error) {
+      trackError(failureCode(error));
+      throw error;
+    }
+    // The server wrote `transcribing`: a cycle brings it, so the field's line moves on at once.
+    requestSyncCycle();
+  }, []);
+
   const audit = useCallback(async (relatorioId: string, body: AuditRequest): Promise<AuditResponse> => {
     const client = clientRef.current;
     if (client === null || client.audit === undefined) throw new Error('sync client is not running');
@@ -590,8 +605,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // W-8: the callbacks alone, stable for the session, for the components that only act.
   const actions = useMemo<SyncActions>(
-    () => ({ syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit }),
-    [syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    () => ({ syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio }),
+    [syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio],
   );
 
   const value = useMemo<SyncState>(
@@ -642,8 +657,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       preview,
       rereadPhoto,
       audit,
+      retranscribeAudio,
     }),
-    [pullCompany, counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
+    [pullCompany, counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio],
   );
 
   return (

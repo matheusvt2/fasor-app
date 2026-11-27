@@ -105,15 +105,24 @@ export function audioCountdownStartText(): string {
   return `Faltam ${plural(seconds, 'segundo', 'segundos')}`;
 }
 
-/** The step of a field's status line while its audio is on its way. */
-export type AudioFieldStep = 'saved' | 'sending' | 'transcribing';
+/**
+ * The step of a field's status line: while its audio is on its way, and (Story 31.5) `moved`, a
+ * measurement table whose newest transcribed speech was no reading and went to OBSERVAÇÕES.
+ */
+export type AudioFieldStep = 'saved' | 'sending' | 'transcribing' | 'moved';
 
-// Verbatim from `62-audio-estados.html` (c) and EXPERIENCE.md › Audio waiting.
+// Verbatim from `62-audio-estados.html` (c) and (g) and EXPERIENCE.md › Audio waiting.
 const STEP_TEXT: Readonly<Record<AudioFieldStep, string>> = {
   saved: 'Áudio guardado, aguardando sinal',
   sending: 'Enviando',
   transcribing: 'Transcrevendo',
+  moved: 'Não reconheci uma leitura. O texto foi para Observações.',
 };
+
+/** Story 31.5: the line a measurement table shows once its newest transcribed speech was no reading. */
+export function audioMovedStatus(): { step: 'moved'; text: string } {
+  return { step: 'moved', text: STEP_TEXT.moved };
+}
 
 /**
  * The status line of a field whose newest audio is on its way: `queued` reads "saved" offline
@@ -181,25 +190,59 @@ interface TargetedAudio {
   removed_at: string | null;
   audio_status: AudioStatus;
   audio_target: AudioTarget;
+  not_a_reading?: boolean | undefined;
 }
 
 /**
- * The audios of one field the field shows: the newest one still on its way (`queued`,
- * `transcribing`) for the status line, and the newest `done` one for the mark. A field can hold
- * several audios; ids are uuid v7, so the newest is the greatest id.
+ * Story 31.5 (AD-30): the field an audio's text was written into. A measurement table's speech that
+ * was no reading went to its ficha's OBSERVAÇÕES (`not_a_reading`), so that field shows its mark;
+ * every other audio's text is in the field it targets.
  */
-export function audioForTarget<T extends TargetedAudio>(files: readonly T[], target: AudioTarget): { pending: T | null; done: T | null } {
+export function audioWrittenTarget(audio: Pick<TargetedAudio, 'audio_target' | 'not_a_reading'>): AudioTarget {
+  const target = audio.audio_target;
+  if (target.type === 'table' && audio.not_a_reading === true) return { type: 'sheet_field', block_id: target.block_id, field: 'observations' };
+  return target;
+}
+
+export interface TargetAudios<T> {
+  /** The newest audio still on its way (`queued`, `transcribing`), for the status line. */
+  pending: T | null;
+  /** The newest `done` audio whose text was written into this field, for the mark. */
+  done: T | null;
+  /** Story 31.6: the newest `failed` audio of this field, for "Não foi possível transcrever". */
+  failed: T | null;
+  /** Story 31.6: the newest `dismissed` audio of this field, reachable from it. */
+  dismissed: T | null;
+  /** Story 31.5: on a measurement table, the newest transcribed speech when it was no reading; else null. */
+  moved: T | null;
+}
+
+/**
+ * The audios of one field the field shows. A field can hold several audios; ids are uuid v7, so the
+ * newest is the greatest id. `done` reads the field the text was written into (`audioWrittenTarget`,
+ * so OBSERVAÇÕES shows a table's speech that was no reading); the others read the audio's own target.
+ */
+export function audioForTarget<T extends TargetedAudio>(files: readonly T[], target: AudioTarget): TargetAudios<T> {
   let pending: T | null = null;
   let done: T | null = null;
+  let failed: T | null = null;
+  let dismissed: T | null = null;
+  let lastDone: T | null = null;
+  const newer = (held: T | null, file: T) => held === null || file.id > held.id;
   for (const file of files) {
-    if (file.kind !== 'audio' || file.removed_at !== null || !sameAudioTarget(file.audio_target, target)) continue;
+    if (file.kind !== 'audio' || file.removed_at !== null) continue;
+    if (file.audio_status === 'done' && sameAudioTarget(audioWrittenTarget(file), target) && newer(done, file)) done = file;
+    if (!sameAudioTarget(file.audio_target, target)) continue;
     if (file.audio_status === 'queued' || file.audio_status === 'transcribing') {
-      if (pending === null || file.id > pending.id) pending = file;
-    } else if (file.audio_status === 'done') {
-      if (done === null || file.id > done.id) done = file;
-    }
+      if (newer(pending, file)) pending = file;
+    } else if (file.audio_status === 'failed') {
+      if (newer(failed, file)) failed = file;
+    } else if (file.audio_status === 'dismissed') {
+      if (newer(dismissed, file)) dismissed = file;
+    } else if (newer(lastDone, file)) lastDone = file;
   }
-  return { pending, done };
+  const moved = target.type === 'table' && lastDone !== null && lastDone.not_a_reading === true ? lastDone : null;
+  return { pending, done, failed, dismissed, moved };
 }
 
 /** The arrival toast of a sync that brought audios to `done`: "1 áudio transcrito", "3 áudios transcritos". */

@@ -935,6 +935,11 @@ export function suggestionPhotoId(row: { source: SuggestionSource }): string | n
   return isPhotoSuggestionSource(row.source) ? row.source.photo_id : null;
 }
 
+/** Story 31.5: the audio a suggestion was heard in, or null for one read from a photo. */
+export function suggestionAudioId(row: { source: SuggestionSource }): string | null {
+  return isPhotoSuggestionSource(row.source) ? null : row.source.audio_id;
+}
+
 /** The photo source of a suggestion (its photo, box and tokens), or null for one spoken into an audio. */
 export function photoSourceOf(row: { source: SuggestionSource }): SuggestionPhotoSource | null {
   return isPhotoSuggestionSource(row.source) ? row.source : null;

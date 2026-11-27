@@ -23,6 +23,7 @@ import {
   type SyncPushResponse,
   type SyncRoute,
   readingRereadPath,
+  audioRetranscribePath,
   type AuditRequest,
   type AuditResponse,
 } from '@app/domain';
@@ -103,6 +104,11 @@ export interface SyncClient {
    * existed still type-check.
    */
   audit?(relatorioId: string, body: AuditRequest): Promise<AuditResponse>;
+  /**
+   * Story 31.6: "Tentar de novo" of a failed audio, `POST /api/audios/{id}/retranscribe`. Optional in the type only so
+   * the test doubles built before it existed still type-check.
+   */
+  retranscribeAudio?(audioId: string): Promise<void>;
   /**
    * Story 14.10 lane B: whether the server answers at all, `GET /api/health` (public, no
    * session), aborted after `HEALTH_PROBE_TIMEOUT_MS`. True on any HTTP answer (a 503
@@ -388,6 +394,9 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
       await send(readingRereadPath(photoId), 'POST', { headers: { accept: 'application/json' } }, SYNC_REQUEST_TIMEOUT_MS);
     },
     audit: (relatorioId, body) => request(auditRoute(relatorioId), auditResponseSchema, undefined, body),
+    async retranscribeAudio(audioId) {
+      await send(audioRetranscribePath(audioId), 'POST', { headers: { accept: 'application/json' } }, SYNC_REQUEST_TIMEOUT_MS);
+    },
     async health() {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), HEALTH_PROBE_TIMEOUT_MS);

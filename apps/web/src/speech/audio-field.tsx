@@ -2,7 +2,7 @@ import { audioCountdownText, audioElapsedText, audioLiveWarningText, type AudioT
 import { useEffect, useId, useRef, useState } from 'react';
 import { ui } from '../copy/ui.ts';
 import { spriteHref } from '../styles/sprite.ts';
-import { useAudioButton, useAudioRecording, useFieldAudio } from './audio-session.tsx';
+import { useAudioButton, useAudioRecording, useFieldAudio, type HeldAudioState } from './audio-session.tsx';
 
 /*
  * Stories 31.3 and 31.4 (AD-30; `components.css` "Audio button", `62-audio-estados.html`): the
@@ -13,7 +13,9 @@ import { useAudioButton, useAudioRecording, useFieldAudio } from './audio-sessio
  * the note of a poor recording). `AudioField` composes them under a field; a surface whose button
  * sits on its own row (the NC row's `.row-wrap`, the batch caption, a section head) draws
  * `AudioButton` there and `AudioFieldLines` under the field. The field itself stays typeable
- * throughout: no overlay, no lock.
+ * throughout: no overlay, no lock. Story 31.6: `AudioFailedLine` is the failed state after three
+ * attempts (`.audio-failed`: "Não foi possível transcrever", play, "Tentar de novo" with signal,
+ * "Dispensar"), and a dismissed audio keeps a mark of its own (`.audio-mark[data-state=dismissed]`).
  */
 
 function Icon({ id, className = 'ico' }: { id: string; className?: string }) {
@@ -100,10 +102,10 @@ export function AudioWarning({ target }: { target: AudioTarget | null }) {
 
 /** The field's status line (`.audio-status`): saved, sending, transcribing, or nothing heard. */
 export function AudioStatusLine({ target, text }: { target: AudioTarget | null; text: string | null | undefined }) {
-  const { status } = useFieldAudio(target, text);
+  const { status, statusAudioId } = useFieldAudio(target, text);
   if (status === null) return null;
   return (
-    <p className="audio-status" data-step={status.step}>
+    <p className="audio-status" data-step={status.step} data-audio-id={statusAudioId ?? undefined}>
       <Icon id="i-mic" />
       {status.text}
     </p>
@@ -130,6 +132,7 @@ export function AudioMark({ target, text, label }: { target: AudioTarget | null;
     }
     seenDone.current = doneId;
   }, [pendingId, doneId, announce, label]);
+  if (audio.dismissed !== null) return <DismissedMark held={audio.dismissed} />;
   if (audio.done === null) return null;
   const { mark, duration } = audio.done;
   const playLabel = audio.playing ? ui.audio.pause(duration) : ui.audio.play(duration);
@@ -173,12 +176,123 @@ export function AudioMark({ target, text, label }: { target: AudioTarget | null;
   );
 }
 
-/** Everything under a field but the button: the status line, the mark, the live warning. */
-export function AudioFieldLines({ target, text, label }: { target: AudioTarget | null; text: string | null | undefined; label: string }) {
+/** Story 31.6: play of an audio that failed or was dismissed (`.audio-play`), with its reason when it cannot play here. */
+function HeldPlay({ held }: { held: HeldAudioState }) {
+  const reasonId = useId();
+  const disabled = held.playDisabledReason !== null;
+  return (
+    <>
+      <button
+        type="button"
+        className="audio-play"
+        aria-label={held.playing ? ui.audio.pause(held.duration) : ui.audio.play(held.duration)}
+        aria-disabled={disabled || undefined}
+        aria-describedby={disabled ? reasonId : undefined}
+        onClick={held.play}
+      >
+        <Icon id="i-play" />
+        <span className="audio-dur">{held.duration}</span>
+      </button>
+      {disabled ? (
+        <span className="btn-reason" id={reasonId}>
+          {held.playDisabledReason}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/** Story 31.6 (`62-audio-estados.html` (d) "Dispensado"): a dismissed audio, still reachable from its field. */
+function DismissedMark({ held }: { held: HeldAudioState }) {
+  const heardId = useId();
+  const [open, setOpen] = useState(false);
+  const heard = held.row.transcript_heard;
+  return (
+    <div className="audio-mark" data-audio-id={held.row.id} data-state="dismissed">
+      <span className="audio-tag">
+        <Icon id="i-mic" />
+        {ui.audio.dismissedTag}
+      </span>
+      <HeldPlay held={held} />
+      {heard === null || heard.trim() === '' ? null : (
+        <>
+          <button type="button" className="btn btn-text audio-heard-toggle" aria-expanded={open} aria-controls={heardId} onClick={() => setOpen((was) => !was)}>
+            {ui.audio.heardToggle}
+          </button>
+          <p className="audio-heard" id={heardId} hidden={!open}>
+            <span className="audio-heard-label">{ui.audio.heardLabel}</span>
+            {heard}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Story 31.6 (`62-audio-estados.html` (e)): an audio whose transcription failed three times. It holds
+ * the ficha and the emission until "Tentar de novo" (signal needed; disabled with its reason without)
+ * or "Dispensar" (the audio stays stored). Read-only, the word and play only.
+ */
+export function AudioFailedLine({ target, readOnly = false }: { target: AudioTarget | null; readOnly?: boolean }) {
+  const audio = useFieldAudio(target, null);
+  const reasonId = useId();
+  const [busy, setBusy] = useState(false);
+  if (audio.failed === null) return null;
+  const failed = audio.failed;
+  const retryReason = audio.online ? null : ui.audio.retryNeedsConnection;
+  const retry = () => {
+    if (retryReason !== null || busy) return;
+    setBusy(true);
+    audio
+      .retranscribe(failed.row)
+      .catch(() => audio.announce(ui.audio.retryFailed))
+      .finally(() => setBusy(false));
+  };
+  const dismiss = () => {
+    if (busy) return;
+    void audio.dismiss(failed.row).then(() => audio.announce(ui.audio.dismissed));
+  };
+  return (
+    <div className="audio-failed" role="group" aria-label={ui.audio.failedGroup} data-audio-id={failed.row.id}>
+      <span className="audio-failed-word">
+        <Icon id="i-alert" />
+        {ui.audio.failedWord}
+      </span>
+      <HeldPlay held={failed} />
+      {readOnly ? null : (
+        <>
+          <button
+            type="button"
+            className="btn btn-text"
+            aria-disabled={retryReason !== null || busy || undefined}
+            aria-describedby={retryReason === null ? undefined : reasonId}
+            aria-busy={busy || undefined}
+            onClick={retry}
+          >
+            {ui.audio.retry}
+          </button>
+          <button type="button" className="btn btn-text" onClick={dismiss}>
+            {ui.audio.dismiss}
+          </button>
+          {retryReason === null ? null : (
+            <span className="btn-reason" id={reasonId}>
+              {retryReason}
+            </span>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Everything under a field but the button: the status line, the mark, the failed line, the live warning. */
+export function AudioFieldLines({ target, text, label, readOnly = false }: { target: AudioTarget | null; text: string | null | undefined; label: string; readOnly?: boolean }) {
   return (
     <>
       <AudioStatusLine target={target} text={text} />
       <AudioMark target={target} text={text} label={label} />
+      <AudioFailedLine target={target} readOnly={readOnly} />
       <AudioWarning target={target} />
     </>
   );
@@ -207,6 +321,7 @@ export function AudioField({
     <>
       <AudioStatusLine target={target} text={text} />
       <AudioMark target={target} text={text} label={label} />
+      <AudioFailedLine target={target} readOnly={readOnly} />
       {readOnly ? null : <AudioButton target={target} label={label} disabledReason={disabledReason} wrap="audio-tools" />}
       <AudioWarning target={target} />
     </>

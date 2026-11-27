@@ -1,6 +1,6 @@
-import { audioFileRowSchema, filePath, type AudioFileRow, type AudioQuality, type AudioTarget, type OpDraft } from '@app/domain';
+import { audioFileRowSchema, fileFieldPath, filePath, relatorioOpEnvelope, type AudioFileRow, type AudioQuality, type AudioTarget, type Author, type OpDraft } from '@app/domain';
 import { sha256Hex } from '../files/photo-encode.ts';
-import { commitFileBatch, type CommitDeps } from './commit.ts';
+import { commitBatch, commitFileBatch, type CommitDeps } from './commit.ts';
 import { useLiveQuery } from './live.ts';
 import type { AppDatabase } from './schema.ts';
 
@@ -70,6 +70,22 @@ export async function commitAudioCapture(
   return { batch_id };
 }
 
+/**
+ * Story 31.6 (AD-30): "Dispensar" of an audio whose transcription failed, the one status a device
+ * writes (`file/{id}/audio_status = dismissed`). The row, its bytes and its measures stay; it stops
+ * holding the ficha and the emission.
+ */
+export function audioDismissDraft(author: Author, audio: Pick<AudioFileRow, 'id' | 'relatorio_id'>): OpDraft {
+  // An audio is always relatório scope (`audioCreateDraft`); the type allows null for every file kind.
+  if (audio.relatorio_id === null) throw new Error('an audio with no relatório');
+  return { ...relatorioOpEnvelope(author, audio.relatorio_id), kind: 'put', path: fileFieldPath(audio.id, 'audio_status'), value: 'dismissed' };
+}
+
+/** Commits a dismiss, one op in its own batch. */
+export async function commitAudioDismiss(db: AppDatabase, author: Author, audio: Pick<AudioFileRow, 'id' | 'relatorio_id'>, deps: CommitDeps): Promise<void> {
+  await commitBatch(db, [audioDismissDraft(author, audio)], deps);
+}
+
 /** Every live audio row of a relatório on this device. */
 export async function audioRowsOf(db: AppDatabase, relatorioId: string): Promise<AudioFileRow[]> {
   const records = await db.entities.where('entity').equals('file').toArray();
@@ -77,6 +93,18 @@ export async function audioRowsOf(db: AppDatabase, relatorioId: string): Promise
   for (const record of records) {
     const row = record.row as { kind?: unknown; relatorio_id?: unknown };
     if (row.kind !== 'audio' || row.relatorio_id !== relatorioId) continue;
+    const parsed = audioFileRowSchema.safeParse(record.row);
+    if (parsed.success && parsed.data.removed_at === null) rows.push(parsed.data);
+  }
+  return rows;
+}
+
+/** Every live audio row on this device, of every relatório (Sync status's counts). */
+export async function allAudioRows(db: AppDatabase): Promise<AudioFileRow[]> {
+  const records = await db.entities.where('entity').equals('file').toArray();
+  const rows: AudioFileRow[] = [];
+  for (const record of records) {
+    if ((record.row as { kind?: unknown }).kind !== 'audio') continue;
     const parsed = audioFileRowSchema.safeParse(record.row);
     if (parsed.success && parsed.data.removed_at === null) rows.push(parsed.data);
   }

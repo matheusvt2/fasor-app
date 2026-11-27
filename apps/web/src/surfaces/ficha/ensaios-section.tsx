@@ -35,6 +35,7 @@ import {
   tapTableLine,
   testVoltageCheck,
   unitTapNeedsEdit,
+  type AudioTarget,
   type BlockDefinition,
   type BlockRow,
   type CellAddress,
@@ -64,10 +65,10 @@ import { CorrectedValue, TemperatureLine } from './corrected-value.tsx';
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { HeaderParameterField } from './header-parameter-field.tsx';
 import { ManufacturerValue } from './manufacturer-value.tsx';
-import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
+import { cellKey, ReadOnlyMeasurementField, SheetCellExtrasProvider, UnitTapGuardProvider, type FieldAddress, type RunDirection, type SheetCellExtras } from './measurement-field.tsx';
 import { MeasurementTests } from './measurement-test-section.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
-import { useTableDictation } from './sheet-observation-dictation.tsx';
+import { AudioButton, AudioFailedLine, AudioStatusLine, AudioWarning } from '../../speech/audio-field.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { IndexHelpAction, TestHelpAction } from './test-help-dialog.tsx';
@@ -85,10 +86,10 @@ import { spriteHref } from '../../styles/sprite.ts';
  * cell of what follows, and "Concluir ficha"/"Próxima ficha" after the last. Everything
  * shown is the kernel's one evaluation (`evaluateSheetReadings`). Story 9.1: each table's
  * title row carries "Ler visor" and, while it holds suggested readings, "Confirmar todos"
- * (`.mt-actions`); each cell shows its display reading (`read-display.tsx`). Story 9.4 drew the
- * table's Dictation button after them; Story 31.3 (batch e31c's Story 31.5 owns the table's
- * audio) removed it with the browser speech engine, and the held spoken reading
- * (`useTableDictation`, `DictatedMeasurementField`) stays unreached until then. On a sheet
+ * (`.mt-actions`); each cell shows its display reading (`read-display.tsx`). Story 31.5 (AD-30):
+ * the table's Audio button sits between them (`60-ficha.html`), its status line under the title
+ * row; a spoken reading arrives from the server as a pending Suggestion sourced by the audio, drawn
+ * on its cell by the same Suggestion field as a display reading (play in place of the crop). On a sheet
  * marked not tested (Story 5.9)
  * every section is `.is-readonly` with the reason line: the cells show their stored
  * readings as read-only text and the Instrument picker its stored instrument, unchangeable.
@@ -338,6 +339,11 @@ function applyRunEnterKeyHints(root: HTMLElement, hints: ReadonlyMap<string, 'ne
   }
 }
 
+/** Story 31.5 (AD-30): the audio target of one seeded measurement table. */
+function tableAudioTarget(block: Pick<BlockRow, 'id'>, testKey: string, tableKey: string): AudioTarget {
+  return { type: 'table', block_id: block.id, test_key: testKey, table_key: tableKey };
+}
+
 function sameAddress(a: CellAddress | null, b: CellAddress): boolean {
   return a !== null && a.testKey === b.testKey && a.row === b.row && a.col === b.col;
 }
@@ -409,11 +415,13 @@ function TestSection({
           </>
         ) : null
       }
-      actions={(dictated) =>
+      actions={
         readOnly ? null : (
           <>
             <ReadDisplayButton api={api} snapshot={snapshot} block={block} definition={definition} testKey={test.testKey} tableKey={table.key} targetFor={targetFor} />
-            <ConfirmTableButton model={display} testKey={test.testKey} tableKey={table.key} exclude={dictated === null ? [] : [dictated]} />
+            {/* Story 31.5 (`60-ficha.html` `.mt-actions`): the table's Audio button between "Ler visor" and "Confirmar todos". */}
+            <AudioButton target={tableAudioTarget(block, test.testKey, table.key)} label={copy.ficha.ensaios.audioLabel(screenLabel(table.title ?? test.title))} />
+            <ConfirmTableButton model={display} testKey={test.testKey} tableKey={table.key} />
           </>
         )
       }
@@ -494,8 +502,8 @@ function MeasurementTable({
   actions,
 }: {
   api: FichaApi;
-  /** Story 25.9: the sheet's block, whose seed says whether a row offers "Linha toda: não se aplica". */
-  block: Pick<BlockRow, 'seed_version'>;
+  /** Story 25.9: the sheet's block, whose seed says whether a row offers "Linha toda: não se aplica"; Story 31.5: its id names the table's audio. */
+  block: Pick<BlockRow, 'id' | 'seed_version'>;
   test: TestEvaluation;
   table: EvaluatedTable;
   /** Story 14.14: a line under the title row's criterion (the test-voltage check); null for none. */
@@ -506,17 +514,14 @@ function MeasurementTable({
   display: DisplayModel;
   /**
    * Story 9.1: the title row's `.mt-actions` ("Ler visor", "Confirmar todos"); null on a
-   * read-only sheet. Story 9.4 adds the Dictation button after them. E9-Q1: drawn from the cell
-   * that shows this table's dictated reading, which "Confirmar todos" leaves out.
+   * read-only sheet. Story 31.5 adds the Audio button between them.
    */
-  actions: (dictated: CellAddress | null) => ReactNode;
+  actions: ReactNode;
 }) {
   const t = copy.ficha.ensaios;
   const titleId = useId();
-  // Story 9.4: the reading dictated on this table, held until its cell's "Confirmar" (never a row).
-  const { dictated, setDictated } = useTableDictation(table, api.announce);
-  // The cell the dictated reading is drawn on (held only while that cell is empty).
-  const dictatedCell = dictated?.address ?? null;
+  // Story 31.5: the table's audio, for its status line, its failed line and its live warning.
+  const audioTarget = tableAudioTarget(block, test.testKey, table.key);
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
   // e22g (review N7): the row's name, its second connection joined where another row starts the same (the transformer's two PRIMÁRIO rows).
   const rowName = (row: EvaluatedRow) => screenLabel(readingRowLabel(table.rows, row));
@@ -525,15 +530,6 @@ function MeasurementTable({
     // Batch e23t (Story 23.16): an IP the kernel makes N/A (its row above the instrument's limit) is never typed.
     readOnly || !tapCellTyped(row, cell) || cell.index?.notApplicable === true ? (
       <ReadOnlyMeasurementField cell={cell} label={measurementCellName(rowName(row), screenLabel(cell.column))} />
-    ) : sameAddress(dictatedCell, cell.address) && dictated !== null ? (
-      <DictatedMeasurementField
-        api={api}
-        cell={cell}
-        label={measurementCellName(rowName(row), screenLabel(cell.column))}
-        reading={dictated}
-        onDone={() => setDictated(null)}
-        onRun={onRun}
-      />
     ) : (
       <ReadingCell
         model={display}
@@ -600,12 +596,12 @@ function MeasurementTable({
             ))
           )}
         </details>
-        {readOnly ? null : (
-          <div className="mt-actions">
-            {actions(dictatedCell)}
-          </div>
-        )}
+        {readOnly ? null : <div className="mt-actions">{actions}</div>}
       </div>
+      {/* Story 31.5 (`60-ficha.html`): the table's audio lines under its title row: on its way, failed, or speech that was no reading. */}
+      <AudioStatusLine target={audioTarget} text={null} />
+      {readOnly ? null : <AudioFailedLine target={audioTarget} />}
+      <AudioWarning target={audioTarget} />
       {/* Story 24.9 (F16): the kernel's fallback sentences under "Aceitável …", without opening "Fonte do critério". */}
       {(test.fallbackLines ?? []).map((text) => (
         <p key={text} className="helper" data-criterion-fallback="">

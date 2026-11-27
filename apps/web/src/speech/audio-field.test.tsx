@@ -23,9 +23,38 @@ const OBS: AudioTarget = { type: 'sheet_field', block_id: BLOCK, field: 'observa
 const AUTHOR = { companyId: '019966b0-0000-7000-8000-000000000303', actorId: '019966b0-0000-7000-8000-000000000304' };
 const speech = syllables(tone(0.3, 0.002), tone(0, 0.002));
 
-function Harness({ world, commit, children, audio, online = true, player }: { world: FakeRecorderWorld | null; commit: AudioCommit; children: ReactNode; audio?: { rows: AudioFileRow[]; local: Set<string> }; online?: boolean; player?: (row: AudioFileRow, onEnded: () => void) => Promise<(() => void) | null> }) {
+function Harness({
+  world,
+  commit,
+  children,
+  audio,
+  online = true,
+  player,
+  retranscribe,
+  dismiss,
+}: {
+  world: FakeRecorderWorld | null;
+  commit: AudioCommit;
+  children: ReactNode;
+  audio?: { rows: AudioFileRow[]; local: Set<string> };
+  online?: boolean;
+  player?: (row: AudioFileRow, onEnded: () => void) => Promise<(() => void) | null>;
+  retranscribe?: (row: AudioFileRow) => Promise<void>;
+  dismiss?: (row: AudioFileRow) => Promise<void>;
+}) {
   return (
-    <AudioRecorderCore deps={world?.deps ?? null} online={online} relatorioId={REL} author={AUTHOR} commit={commit} wakeLock={() => Promise.resolve(null)} {...(audio === undefined ? {} : { audio })} {...(player === undefined ? {} : { player })}>
+    <AudioRecorderCore
+      deps={world?.deps ?? null}
+      online={online}
+      relatorioId={REL}
+      author={AUTHOR}
+      commit={commit}
+      wakeLock={() => Promise.resolve(null)}
+      {...(audio === undefined ? {} : { audio })}
+      {...(player === undefined ? {} : { player })}
+      {...(retranscribe === undefined ? {} : { retranscribe })}
+      {...(dismiss === undefined ? {} : { dismiss })}
+    >
       {children}
     </AudioRecorderCore>
   );
@@ -204,10 +233,6 @@ describe('31.4-WEB-001 the field status line and mark', () => {
     expect(transcribing.container.querySelector('.audio-mark')).toBeNull();
   });
 
-  it('renders nothing for a failed or dismissed audio (Story 31.6 owns those lines)', () => {
-    const { container } = renderField([audioRow('failed'), audioRow('dismissed', { id: '019966b0-0000-7000-8000-0000000031a2' })], '');
-    expect(container.querySelector('.audio-status, .audio-mark, .audio-failed')).toBeNull();
-  });
 
   it('marks a transcribed text "Áudio" with play and the heard text behind its disclosure', async () => {
     const { container } = renderField([audioRow('done')], 'Contatos escurecidos. Equipamento verificado, sem anomalias aparentes.');
@@ -297,5 +322,70 @@ describe('31.4-WEB-003 axe on the audio states', () => {
     expect(marks.container.querySelector('.audio-status')).not.toBeNull();
     expect(marks.container.querySelector('.audio-mark[data-state="edited"][data-quality="poor"]')).not.toBeNull();
     expect(await axe(marks.container)).toHaveNoViolations();
+  });
+});
+
+describe('31.6-WEB-001 the failed state and the dismissed mark', () => {
+  const failed = audioRow('failed', { transcript_heard: null });
+  const renderFailed = (options: { online?: boolean; rows?: AudioFileRow[]; readOnly?: boolean } = {}) => {
+    const retranscribe = vi.fn(() => Promise.resolve());
+    const dismiss = vi.fn(() => Promise.resolve());
+    const view = render(
+      <Harness world={fakeRecorderWorld()} commit={vi.fn()} audio={{ rows: options.rows ?? [failed], local: new Set() }} online={options.online ?? true} retranscribe={retranscribe} dismiss={dismiss}>
+        <AudioField target={ITEM} label="observação do item 8" text="" readOnly={options.readOnly ?? false} />
+      </Harness>,
+    );
+    return { ...view, retranscribe, dismiss };
+  };
+
+  it('says "Não foi possível transcrever" with play, "Tentar de novo" and "Dispensar"; a tap retries', async () => {
+    const { container, retranscribe } = renderFailed();
+    const group = screen.getByRole('group', { name: 'Áudio não transcrito' });
+    expect(group).toHaveClass('audio-failed');
+    expect(container.querySelector('.audio-failed-word')).toHaveTextContent('Não foi possível transcrever');
+    expect(screen.getByRole('button', { name: 'Ouvir o áudio, 0:09' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(retranscribe).toHaveBeenCalledWith(failed);
+  });
+
+  it('without signal "Tentar de novo" is disabled with its reason and sends nothing; "Dispensar" still works and is said', async () => {
+    const { retranscribe, dismiss } = renderFailed({ online: false });
+    const retry = screen.getByRole('button', { name: 'Tentar de novo' });
+    expect(retry).toHaveAttribute('aria-disabled', 'true');
+    expect(retry).toHaveAccessibleDescription('Tentar de novo precisa de conexão');
+    await userEvent.click(retry);
+    expect(retranscribe).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Dispensar' }));
+    expect(dismiss).toHaveBeenCalledWith(failed);
+    await flush();
+    expect(announcer()).toHaveTextContent('Áudio dispensado');
+  });
+
+  it('a read-only field shows the word and play, no action', () => {
+    renderFailed({ readOnly: true });
+    expect(screen.getByRole('group', { name: 'Áudio não transcrito' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Dispensar' })).toBeNull();
+  });
+
+  it('a dismissed audio keeps its mark "Áudio dispensado" with play and the heard text, until a newer text lands', async () => {
+    const dismissed = audioRow('dismissed', { transcript_heard: 'contato fixo oxidado' });
+    const view = renderFailed({ rows: [dismissed] });
+    expect(view.container.querySelector('.audio-mark[data-state="dismissed"] .audio-tag')).toHaveTextContent('Áudio dispensado');
+    expect(screen.getByRole('button', { name: 'Ouvir o áudio, 0:09' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Ver texto como falado' }));
+    expect(view.container.querySelector('.audio-heard')).toHaveTextContent('contato fixo oxidado');
+    expect(await axe(view.container)).toHaveNoViolations();
+    view.unmount();
+    const newer = renderFailed({ rows: [dismissed, audioRow('done', { id: '019966b0-0000-7000-8000-0000000031b9' })] });
+    expect(newer.container.querySelector('.audio-mark[data-state="dismissed"]')).toBeNull();
+  });
+
+  it('the failed state has no axe violations, with and without signal', async () => {
+    const online = renderFailed();
+    expect(await axe(online.container)).toHaveNoViolations();
+    online.unmount();
+    const offline = renderFailed({ online: false });
+    expect(await axe(offline.container)).toHaveNoViolations();
   });
 });

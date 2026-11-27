@@ -1,4 +1,6 @@
 import {
+  heldAudios,
+  heldAudiosText,
   concludedByText,
   conclusionPairWrites,
   conclusionRestrictionOf,
@@ -40,6 +42,7 @@ import type { RelatorioEditor } from '../relatorio/relatorio-editor.ts';
 import { renameEquipmentOps } from '../relatorio/tag-rename-ops.ts';
 import { commitMove } from '../relatorio/tree-actions.ts';
 import type { FichaApi } from './ficha-api.ts';
+import { openHeldAudio } from './audio-hold-line.tsx';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 
 /**
@@ -156,6 +159,16 @@ export function useFichaActions({
       return;
     }
     setAttemptedOn(blockId);
+    // Story 31.6 (AD-30): an audio of this ficha on its way or failed holds the conclude; the kernel's sentence says
+    // why and the first one's field opens. Its status changes only by sync, so this render's snapshot decides.
+    const held = block.not_tested === null ? heldAudios(snapshot.files, { blockId }) : [];
+    const holdText = heldAudiosText(held);
+    if (holdText !== null && held[0] !== undefined) {
+      showToast(holdText);
+      editor.announce(holdText);
+      openHeldAudio(held[0], (step, missing) => goTo(step, missing));
+      return;
+    }
     let firstMissing: SheetJumpTarget | null = null;
     void api
       .edit((blocks, by, rows) => {

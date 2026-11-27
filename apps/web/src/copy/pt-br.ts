@@ -310,6 +310,8 @@ export const copy = {
     neverSynced: 'Ainda não sincronizado',
     // `85-sync.html` "Leituras" section heading (Story 8.2); its rows are the kernel's counts.
     readingsHeading: 'Leituras',
+    // authored (Story 31.6, listed for Bruno): the Sync status section of the audios still waiting.
+    audiosHeading: 'Áudios',
     // Story 10.4: the rest of `85-sync.html`, verbatim. Every count, row and state word is
     // the kernel's (`packages/domain/src/sync/status.ts`).
     how: {
@@ -1731,6 +1733,8 @@ export const copy = {
     ensaios: {
       // `.mt-criterion`: the criterion value alone after the word (EXPERIENCE.md › Measurement table).
       criterion: (text: string) => `Aceitável ${text}`,
+      // Story 31.5, verbatim from `60-ficha.html` ("Gravar áudio: leituras de Contato aberto"): the table's Audio button names its readings.
+      audioLabel: (table: string) => `leituras de ${table}`,
       // Batch e23a (Story 23.3): `60-ficha.html` `.v13-mfr`, the manufacturer's value entry, verbatim.
       manufacturerLabel: 'Valor do fabricante',
       manufacturerClear: 'Limpar',
@@ -1768,6 +1772,10 @@ export const copy = {
       mismatchLabel: 'Leitura do visor diferente do valor digitado',
       // authored: the toast after picking the typed value over the display's.
       typedKept: 'Valor digitado mantido',
+      // authored (Story 31.5, listed for Bruno): the group name of a spoken reading beside a different typed value.
+      audioMismatchLabel: 'Leitura falada diferente do valor digitado',
+      // authored (Story 31.5, listed for Bruno): what the live region says after a spoken reading's "Descartar".
+      readingDiscarded: 'Leitura falada descartada',
       // Story 23.8 (`60-ficha.html` #/ficha/TR1 TTR card): the separator of a tap card's line of
       // plate values ("V primário 13,8 kV · V secundário 380 V · Calculado 62,90"); the words are the kernel's.
       tapCardSeparator: ' · ',

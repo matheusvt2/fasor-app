@@ -11,16 +11,12 @@ import {
   parseMeasurementReadingPtBr,
   rangeInUnits,
   refusedMeasurementKind,
-  suggestionAnnouncement,
-  suggestionValueText,
-  type CellAddress,
   type EvaluatedCell,
   type InstrumentRange,
   type OverRangeAllowance,
 } from '@app/domain';
 import { createContext, useContext, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { OverflowMenu, TextButton } from '../../components/index.ts';
-import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { overRangeStoredRaw, useNumberInput } from '../../components/number-input.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -165,9 +161,6 @@ function PreviousLine({ text }: { text: string | null }) {
     </div>
   );
 }
-
-/** A dictated reading's value is a number cell (`suggestionValueText`). */
-const NUMBER_FIELD = { kind: 'number' } as const;
 
 /**
  * Review fixes 2026-10-08 (DB-2): whether a pointer tap on a cell's unit control only puts the
@@ -491,142 +484,6 @@ export function MeasurementField<Address extends FieldAddress>({
       {!number.focused && !number.invalid ? <RestrictedHelper cell={cell} id={cell.helperText === null && outlier === null ? helperId : undefined} /> : null}
       <PreviousLine text={previous} />
       {after}
-    </div>
-  );
-}
-
-/**
- * Story 9.4: a dictated reading on its empty target cell, drawn as the Story 8.1 measurement
- * Suggestion field (amber, "Sugerido", "Confirmar"), the value editable in place. Nothing is
- * written before "Confirmar", which writes the reading as heard; a different value typed
- * (committed on blur or Enter) is written instead and the dictation dropped; a field emptied
- * drops it with nothing written. E9-Q8: Enter confirms it as heard (or writes what was typed)
- * and runs on, Shift+Enter runs back, as on a display reading's suggested cell.
- */
-export function DictatedMeasurementField({
-  api,
-  cell,
-  label,
-  reading,
-  onDone,
-  onRun,
-}: {
-  api: FichaApi;
-  cell: EvaluatedCell & Pick<FieldCell, 'positiveOnlyText'>;
-  label: string;
-  reading: { raw: string; unit: string | null };
-  /** The dictation is over (written or dropped). */
-  onDone: () => void;
-  /** Moves the focus along the continuous run; false when there is nowhere to go. */
-  onRun: (from: CellAddress, direction: RunDirection) => boolean;
-}) {
-  const t = ui.measurementField;
-  const labelId = useId();
-  const helperId = useId();
-  const { address } = cell;
-  const initial = formatDecimalGroupedPtBr(reading.raw);
-  const [text, setText] = useState(initial);
-  const [invalid, setInvalid] = useState<string | null>(null);
-  const root = useRef<HTMLDivElement>(null);
-  /** While a value is being written, a second blur or tap writes nothing. */
-  const written = useRef(false);
-  const valueText = suggestionValueText(NUMBER_FIELD, { raw: reading.raw, unit: reading.unit, state: 'measured' });
-  // Story 22.10: a limit typed over the dictated reading ("OL", "> 2 TΩ") is written as one.
-  const range = useContext(SheetCellExtrasContext).rangeOf(address.testKey);
-
-  const write = (value: { raw: string; unit: string | null; state?: 'over_range' }) => {
-    if (api.author === null || written.current) return;
-    written.current = true;
-    const state = value.state === 'over_range' ? 'over_range' : 'measured';
-    void api.commit([testCellOp(api.author, api.relatorioId, api.blockId, address.testKey, address.row, address.col, { raw: value.raw, unit: value.unit, state })]).then(onDone, () => {
-      written.current = false;
-    });
-  };
-
-  /** A typed value: written when it differs from what was heard; an empty field drops the dictation. False when nothing could be decided (unchanged, invalid). */
-  const commitTyped = (): boolean => {
-    if (written.current) return true;
-    if (text === initial) return false;
-    const parsed = parseMeasurementReadingPtBr(text, cell, reading.unit, range);
-    if (parsed === 'invalid') {
-      setInvalid(measurementReadingRefusal(text, cell, reading.unit, range) ?? t.invalid);
-      trackInputRefused('ficha.measurement', refusedMeasurementKind(text, cell, reading.unit, range));
-      return false;
-    }
-    if (parsed === null) {
-      onDone();
-      return true;
-    }
-    write(parsed);
-    return true;
-  };
-
-  /** "Confirmar" and Enter: the reading as heard when unchanged, else what was typed. */
-  const confirm = (): boolean => {
-    if (text !== initial) return commitTyped();
-    // Epic 14 QA Q-3: a reading heard at or below zero on a positive-only cell is refused as a typed one is.
-    const refusal = measurementReadingRefusal(initial, cell, reading.unit);
-    if (refusal !== null) {
-      setInvalid(refusal);
-      trackInputRefused('ficha.measurement', refusedMeasurementKind(initial, cell, reading.unit));
-      return false;
-    }
-    write(reading);
-    return true;
-  };
-
-  return (
-    <div className="ficha-cell ficha-dictated" data-cell={cellKey(address)} ref={root}>
-      <SuggestionField
-        label={label}
-        labelId={labelId}
-        bare
-        valueClassName="measurement-field"
-        announcement={suggestionAnnouncement('suggested', valueText)}
-        onConfirm={() => void confirm()}
-        after={
-          invalid !== null ? (
-            <span className="helper" id={helperId}>
-              {invalid}
-            </span>
-          ) : null
-        }
-      >
-        <input
-          data-telemetry="ficha.measurement"
-          className="mf-value"
-          aria-labelledby={labelId}
-          aria-invalid={invalid !== null || undefined}
-          aria-describedby={invalid !== null ? helperId : undefined}
-          inputMode="decimal"
-          value={text}
-          data-cell-input={cellKey(address)}
-          onChange={(event) => {
-            setText(event.target.value);
-            if (invalid !== null) setInvalid(null);
-          }}
-          onBlur={(event) => {
-            // A tap on this field's "Confirmar" decides on its own, never twice.
-            const next = event.relatedTarget;
-            if (next instanceof HTMLElement && next.classList.contains('confirm-btn') && root.current?.contains(next)) return;
-            commitTyped();
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
-            if (event.shiftKey) {
-              onRun(address, 'previous');
-              return;
-            }
-            if (confirm()) onRun(address, 'next');
-          }}
-        />
-        {reading.unit === null ? null : (
-          <span className="mf-unit" aria-label={t.unitNames[reading.unit] ?? reading.unit}>
-            {reading.unit}
-          </span>
-        )}
-      </SuggestionField>
     </div>
   );
 }
