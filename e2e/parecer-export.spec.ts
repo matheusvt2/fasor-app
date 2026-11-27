@@ -111,7 +111,8 @@ test('@p0 7.4-E2E-001 22.6-E2E e22f a new relatório: nothing judged, so no verd
   await expect(field.locator('.generated-text')).toHaveText(/^Foram registradas 94 fichas de ensaio: 94 ainda não concluídas\./);
   await expect(field.locator('.criteria-line')).toContainText('Critérios usados');
   await expect(field.locator('.criteria-line')).toContainText('94 fichas');
-  await expect(field.getByRole('button')).toHaveCount(0);
+  // Story 31.10: the field's own bar (Áudio, the AI control) sits inside the box; no review action does.
+  await expect(field.getByRole('button', { name: /Confirmar|Editar|Substituir/ })).toHaveCount(0);
   await expect(field.locator('textarea')).toHaveCount(0);
 
   // The back link reopens the dialog.

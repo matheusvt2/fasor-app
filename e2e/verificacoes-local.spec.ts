@@ -952,7 +952,8 @@ test('@p0 14.3-E2E-008 2026-10-14 (Bruno): a site item answered NC counts in "NC
   await expect(field.locator('.generated-text')).toContainText(sentence);
   await expect(field.locator('.criteria-line')).toContainText(`verificações do local, item ${item.number} NC (1)`);
   // Story 22.6: the summary is the composed one, read-only (no Confirmar).
-  await expect(field.getByRole('button')).toHaveCount(0);
+  // Story 31.10: the field's own bar (Áudio, the AI control) sits inside the box; no review action does.
+  await expect(field.getByRole('button', { name: /Confirmar|Editar|Substituir/ })).toHaveCount(0);
 
   // The local removed: its site items count nowhere.
   await openSumario(page, relatorioId);
