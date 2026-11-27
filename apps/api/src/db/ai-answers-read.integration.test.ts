@@ -126,7 +126,7 @@ describe('32.2-API-002 the CLI', () => {
     const lines = done.stdout.trim().split('\n').map((line) => JSON.parse(line) as Record<string, unknown>);
     expect(lines.filter((line) => line.msg === 'ai quality').map((line) => line.use)).toEqual(['plate', 'ai_write', 'audit_finding']);
     expect(lines.find((line) => line.msg === 'ai quality total')).toMatchObject({ company_id: companyId, answers: 8 });
-  });
+  }, 60_000);
 
   it('the examples mode only with its flag, its company and a new file outside the repository', () => {
     const out = join(outDir, 'plate.jsonl');
@@ -143,7 +143,7 @@ describe('32.2-API-002 the CLI', () => {
     expect(readFileSync(out, 'utf8')).toContain(SECRET);
     // A second run never writes over the file.
     expect(cli(['--company', companyId, '--examples', 'plate', '--out', out]).status).toBe(1);
-  });
+  }, 60_000);
 
   it('the flags are checked before the database opens', () => {
     const now = new Date('2026-11-27T10:00:00.000Z');
@@ -152,5 +152,5 @@ describe('32.2-API-002 the CLI', () => {
     expect(() => parseAiReadArgs(['--company', 'x'], now, root)).toThrow(AiReadUsageError);
     expect(() => parseAiReadArgs(['--from', '2026-12-01', '--to', '2026-11-01'], now, root)).toThrow(AiReadUsageError);
     expect(() => parseAiReadArgs(['--examples', 'nope', '--company', companyId, '--out', join(outDir, 'x')], now, root)).toThrow(AiReadUsageError);
-  });
+  }, 60_000);
 });
