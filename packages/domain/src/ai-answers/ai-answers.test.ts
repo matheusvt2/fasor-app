@@ -310,7 +310,7 @@ describe('32.1-UNIT-004 a finding, the offline order and closed records', () => 
 
   it('an offline device: its ops, older than the server\'s, settle when they arrive, at their own time', () => {
     const { row, record } = plateField();
-    const offline = op({ path: row.target_path, value: 'Weg', meta: { source_suggestion_id: row.id }, client_ts: '2026-11-20T08:00:00.000Z' });
+    const offline = op({ path: row.target_path, value: 'WEG', meta: { source_suggestion_id: row.id }, client_ts: '2026-11-20T08:00:00.000Z' });
     expect(settleAiAnswers([state(record)], [offline]).get(record.id)).toMatchObject({ outcome: 'kept', settled_at: '2026-11-20T08:00:00.000Z' });
   });
 

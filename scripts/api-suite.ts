@@ -68,6 +68,7 @@ export const PRINT_TRIGGERS: readonly string[] = [
   'apps/api/src/auth/',
   'apps/api/src/email/',
   'apps/api/src/admin/password-links.ts',
+  'apps/api/src/ai/',
   'apps/api/src/clock.ts',
   'apps/api/src/config.ts',
   'apps/api/src/ids.ts',
