@@ -1,4 +1,5 @@
 import { safeParsePath } from '../ops/path.ts';
+import { canonicalJson as kernelCanonicalJson } from '../text/hash.ts';
 
 /*
  * Story 32.1: how an answer's value is compared with what the user left, and which key a field read
@@ -6,15 +7,9 @@ import { safeParsePath } from '../ops/path.ts';
  * value the same way.
  */
 
-/** JSON with its object keys sorted, so two equal values serialize to the same text. */
-export function canonicalJson(value: unknown): string {
-  if (value === undefined) return 'null';
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
+/** The kernel's canonical JSON (`text/hash.ts`), with a missing value read as null. */
+function canonicalJson(value: unknown): string {
+  return kernelCanonicalJson(value ?? null);
 }
 
 /** Whether two values are the same answer: equal JSON, whatever the key order. */
