@@ -1,5 +1,6 @@
 import { audioFileRowSchema, fileFieldPath, toIso, type AudioStatus, type Clock, type NewId, type Op } from '@app/domain';
 import type { Db } from '../../db/client.ts';
+import { consumeDailyQuota, DEFAULT_TRANSCRIPTION_DAILY_QUOTA } from '../../db/repositories/ai-usage.ts';
 import type { CompanyId } from '../../db/repositories/company-id.ts';
 import { log, logError } from '../../log.ts';
 import { applyServerBatch, ServerBatchRejectedError, type Tx } from '../../sync/apply.ts';
@@ -95,16 +96,23 @@ export interface StartTranscriptionDeps extends AudioStatusDeps {
   enqueue?: (payload: TranscriptionPayload) => Promise<void>;
   /** `false` when the server's `AI_FEATURES` is `off`: no job is started and the audio stays as it is. Absent reads as on. */
   aiFeatures?: boolean;
+  /** Security pass 2026-11-26 (A1): the company's daily ceiling of transcriptions started; absent, `DEFAULT_TRANSCRIPTION_DAILY_QUOTA`. */
+  dailyQuota?: number;
 }
 
 /** What became of a start: `sent` (and `transcribing` written), or why not. */
-export type StartTranscriptionOutcome = 'sent' | 'ai_off' | 'no_queue' | 'moved' | 'send_failed';
+export type StartTranscriptionOutcome = 'sent' | 'ai_off' | 'no_queue' | 'quota_exceeded' | 'moved' | 'send_failed';
 
 /**
  * Sends one transcription job for an audio whose status is still one of `from`, then writes
  * `transcribing` when the status has not moved meanwhile. File receipt starts a `queued` audio;
  * the retranscribe route a `failed` one. A failed send of a `queued` audio marks it `failed`, so the
  * device offers "Tentar de novo" instead of waiting forever. Never throws on a send failure.
+ *
+ * Security pass 2026-11-26 (A1): each start spends one unit of the company's daily `transcription`
+ * ceiling before the send. At the ceiling nothing is sent and the audio stays as it is (a `queued`
+ * audio the server holds, or a `failed` one: both offer "Tentar de novo", which the route answers
+ * `429 quota_exceeded` until the next day). The job's own retries spend nothing.
  */
 export async function startTranscription(
   deps: StartTranscriptionDeps,
@@ -120,6 +128,11 @@ export async function startTranscription(
   if (deps.enqueue === undefined) {
     log('transcription not started: no queue', fields);
     return 'no_queue';
+  }
+  if (!(await consumeDailyQuota(deps.db, companyId, 'transcription', deps.dailyQuota ?? DEFAULT_TRANSCRIPTION_DAILY_QUOTA))) {
+    // One line per start the ceiling refused (the `QuotaExceeded` metric filter reads `msg`, `company_id` and `kind`).
+    log('quota_exceeded', fields);
+    return 'quota_exceeded';
   }
   // One line per transcription started (a per-company count of paid speech work).
   log('transcription_started', fields);

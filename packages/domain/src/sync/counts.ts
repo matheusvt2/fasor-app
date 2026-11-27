@@ -228,13 +228,24 @@ export function signOutUnsentText(count: number): string {
 
 /**
  * Story 20.12: the sentence of a reading or an audit the server refused with `429
- * quota_exceeded` (the company's daily ceiling of paid AI work).
+ * quota_exceeded` (the company's daily ceiling of paid AI work). Security pass 2026-11-26 (A1):
+ * also of a transcription ("Tentar de novo") and of a tap on the AI control.
  */
-export function quotaExceededText(kind: 'reading' | 'audit'): string {
-  // authored: 2026-11-04, Story 20.12.
-  return kind === 'reading'
-    ? 'Limite diário de leituras atingido. Tente amanhã ou fale com o administrador.'
-    : 'Limite diário de conferências atingido. Tente amanhã ou fale com o administrador.';
+export function quotaExceededText(kind: 'reading' | 'audit' | 'transcription' | 'ai_write'): string {
+  switch (kind) {
+    case 'reading':
+      // authored: 2026-11-04, Story 20.12.
+      return 'Limite diário de leituras atingido. Tente amanhã ou fale com o administrador.';
+    case 'audit':
+      // authored: 2026-11-04, Story 20.12.
+      return 'Limite diário de conferências atingido. Tente amanhã ou fale com o administrador.';
+    case 'transcription':
+      // authored: 2026-11-27, security pass A1 (coordinator's reading, open to Bruno).
+      return 'Limite diário de áudios atingido. Tente amanhã ou fale com o administrador.';
+    case 'ai_write':
+      // authored: 2026-11-27, security pass A1 (coordinator's reading, open to Bruno).
+      return 'Limite diário de textos melhorados por IA atingido. Tente amanhã ou fale com o administrador.';
+  }
 }
 
 /** Sync status: "1 alteração rejeitada" / "3 alterações rejeitadas". */

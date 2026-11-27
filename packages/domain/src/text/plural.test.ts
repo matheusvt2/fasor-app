@@ -44,6 +44,8 @@ describe('plural and the count phrases', () => {
   it('says which daily ceiling a refused reading or audit met (Story 20.12)', () => {
     expect(quotaExceededText('reading')).toBe('Limite diário de leituras atingido. Tente amanhã ou fale com o administrador.');
     expect(quotaExceededText('audit')).toBe('Limite diário de conferências atingido. Tente amanhã ou fale com o administrador.');
+    expect(quotaExceededText('transcription')).toBe('Limite diário de áudios atingido. Tente amanhã ou fale com o administrador.');
+    expect(quotaExceededText('ai_write')).toBe('Limite diário de textos melhorados por IA atingido. Tente amanhã ou fale com o administrador.');
   });
 
   it('keeps the storage line on the shared helper', () => {

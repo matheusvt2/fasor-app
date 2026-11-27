@@ -20,6 +20,7 @@ import {
 import { Hono } from 'hono';
 import { billedCallOf } from '../ai/errors.ts';
 import type { Db } from '../db/client.ts';
+import { consumeDailyQuota, DEFAULT_AI_WRITE_DAILY_QUOTA } from '../db/repositories/ai-usage.ts';
 import { transcriptionRuns } from '../db/schema.ts';
 import { log, logError } from '../log.ts';
 import { toSnapshot } from '../sync/snapshot.ts';
@@ -56,6 +57,8 @@ export interface AiWriteRouteDeps {
   /** The per-user limit; absent, `AI_WRITE_RATE_LIMIT`. Always on. */
   limit?: RateLimitRule;
   limitNow?: () => number;
+  /** Security pass 2026-11-26 (A1): the company's daily ceiling of AI control taps; at it the route answers `429 quota_exceeded` and calls no model. */
+  dailyQuota?: number;
 }
 
 function fail(code: ErrorCode, message: string): ErrorResponse {
@@ -98,6 +101,12 @@ export function createAiWriteRoutes(db: Db, deps: AiWriteRouteDeps): Hono<AppEnv
     const snapshot = await toSnapshot(db, session.companyId, relatorioId);
     const source = aiRewriteSource(snapshot, target, { now: deps.now() });
     if (source === null) return c.json(fail('invalid_request', 'The field holds no text.'), 409);
+
+    // Security pass 2026-11-26 (A1): one unit of the company's day per tap that reaches the provider.
+    if (!(await consumeDailyQuota(db, session.companyId, 'ai_write', deps.dailyQuota ?? DEFAULT_AI_WRITE_DAILY_QUOTA))) {
+      log('quota_exceeded', { company_id: session.companyId, relatorio_id: relatorioId, kind: 'ai_write' });
+      return c.json(fail('quota_exceeded', 'The daily AI writing limit of this company is reached.'), 429);
+    }
 
     const startedAt = deps.now().getTime();
     let result: WritingResult | null = null;

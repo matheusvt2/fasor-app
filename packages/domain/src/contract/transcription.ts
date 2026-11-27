@@ -24,7 +24,9 @@ export function audioRetranscribePath(audioId: string): string {
  * `202` with the audio's new status. Only a `failed` audio is queued again (`409 invalid_request`
  * otherwise; `409 not_caught_up` when its bytes are not stored, `409 ai_features_off` while the
  * server's AI features are off); another company's audio answers exactly as an unknown id
- * (`404 not_found`); a role without the key of the audio's field answers `403 forbidden`.
+ * (`404 not_found`); a role without the key of the audio's field answers `403 forbidden`. Security
+ * pass 2026-11-26 (A1): at the company's daily ceiling of transcriptions `429 quota_exceeded`, the
+ * audio left as it was.
  */
 export const audioRetranscribeResponseSchema = z.object({
   audio_id: uuidV7Schema,
@@ -60,7 +62,8 @@ export type AiWriteRequest = z.infer<typeof aiWriteRequestSchema>;
  * answers: an unknown or another company's relatório `404 not_found`; AI features off
  * `409 ai_features_off`; a bad body `400 invalid_request`; a role without the field's key
  * `403 forbidden`; over the per-user limit `429 rate_limited`; the barrier `409 not_caught_up`; a
- * field that holds no text (or is gone) `409 invalid_request`.
+ * field that holds no text (or is gone) `409 invalid_request`. Security pass 2026-11-26 (A1): at the
+ * company's daily ceiling of AI control taps `429 quota_exceeded`, no model called.
  */
 export const aiWriteResponseSchema = z.discriminatedUnion('outcome', [
   z.object({ outcome: z.literal('written'), source: z.string(), text: z.string().min(1) }),

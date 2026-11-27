@@ -27,6 +27,7 @@ import {
   type AudioLiveWarning,
   type AudioMark,
   type AudioTarget,
+  quotaExceededText,
 } from '@app/domain';
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
@@ -141,6 +142,11 @@ interface AudioContextValue {
 
 /** Story 31.9: what one tap on the AI control ended with: the text written and the text the field held before (e31f), or the field left unchanged. */
 export type AiWriteOutcome = { kind: 'written'; text: string; former: AiRewriteFormer } | { kind: 'refused' };
+
+/** Security pass 2026-11-26 (A1): the server answered `429 quota_exceeded` (the company's daily ceiling of this paid work). */
+export function isQuotaExceeded(error: unknown): boolean {
+  return error instanceof SyncRequestError && error.failure.kind === 'http' && error.failure.code === 'quota_exceeded';
+}
 /** Story 31.9: runs one tap on the AI control of a field (online); rejects on a call that failed. */
 export type AiWriteRun = (target: AudioTarget) => Promise<AiWriteOutcome>;
 /** Story 31.9: commits "Desfazer"; e31f: puts only the former text back, onto the field as it is now. */
@@ -737,7 +743,7 @@ export function useHeldAudioControls(audioId: string): HeldAudioControls {
             setBusy(true);
             context
               .retranscribe(row)
-              .catch(() => context.announce(ui.audio.retryFailed))
+              .catch((error: unknown) => context.announce(isQuotaExceeded(error) ? quotaExceededText('transcription') : ui.audio.retryFailed))
               .finally(() => setBusy(false));
           },
         },
@@ -809,6 +815,8 @@ export interface AiWriteControlState {
   done: boolean;
   /** "Não foi possível melhorar o texto": the last tap left the field unchanged. */
   failed: boolean;
+  /** The sentence of that failure: the plain one, or the kernel's daily ceiling sentence (security pass A1). */
+  failedText: string;
   tap: () => void;
   undo: () => void;
 }
@@ -833,6 +841,7 @@ export function useAiWriteControl(target: AudioTarget | null, text: string | nul
   const [busy, setBusy] = useState(false);
   const [written, setWritten] = useState<{ text: string; target: AudioTarget; former: AiRewriteFormer } | null>(null);
   const [failedOn, setFailedOn] = useState<string | null>(null);
+  const [failedText, setFailedText] = useState<string>(ui.aiWrite.failed);
   const shown = shownText(text);
   const run = context?.aiWrite ?? null;
   const undoRun = context?.aiUndo ?? null;
@@ -844,12 +853,17 @@ export function useAiWriteControl(target: AudioTarget | null, text: string | nul
     const from = shown;
     setBusy(true);
     setFailedOn(null);
+    setFailedText(ui.aiWrite.failed);
     run(target)
       .then((outcome) => {
         if (outcome.kind === 'written') setWritten({ text: outcome.text, target, former: outcome.former });
         else setFailedOn(from);
       })
-      .catch(() => setFailedOn(from))
+      .catch((error: unknown) => {
+        // Security pass 2026-11-26 (A1): at the company's daily ceiling the line says so, with the kernel's sentence.
+        if (isQuotaExceeded(error)) setFailedText(quotaExceededText('ai_write'));
+        setFailedOn(from);
+      })
       .finally(() => setBusy(false));
   };
   const undo = () => {
@@ -865,6 +879,7 @@ export function useAiWriteControl(target: AudioTarget | null, text: string | nul
     done: visible && written !== null && shownText(written.text) === shown,
     // The failure line stays while the field holds the text the tap left unchanged.
     failed: visible && failedOn !== null && failedOn === shown,
+    failedText,
     tap,
     undo,
   };
