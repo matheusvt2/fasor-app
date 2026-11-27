@@ -27,6 +27,7 @@ import { createDb } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops } from '../db/schema.ts';
+import { dropRegistryRowsNamed } from '../db/test-cleanup.ts';
 import { newId } from '../ids.ts';
 import { applyOps } from './apply.ts';
 
@@ -210,6 +211,9 @@ afterAll(async () => {
   const entityIds = [...written.entityIds];
   if (opIds.length > 0) await db.delete(ops).where(inArray(ops.op_id, opIds));
   if (entityIds.length > 0) await db.delete(entities).where(inArray(entities.id, entityIds));
+  // Chore T4: confirming "Celtta" into FABRICANTE teaches the company that manufacturer (learned
+  // options); left behind, the reading test of the same pair no longer sees the name as new.
+  await dropRegistryRowsNamed(db, company.companyId, 'manufacturer', 'Celtta');
   await sql.end();
 });
 

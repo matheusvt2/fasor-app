@@ -1,14 +1,24 @@
-import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { PRINT_FILES } from '../apps/api/src/test-lanes.ts';
 
 /**
  * Chore T4 (2026-11-26, sprint-change-proposal-2026-11-04.md § 4.5): the one entry of the api
- * suite. `pnpm test:api` runs its three lanes (`apps/api/src/test-lanes.ts`) in one Vitest run:
- * `api` (parallel), then `api-serial`, then `api-print`. That is the wave gate's form (`pnpm
- * verify` calls it) and the default everywhere.
+ * suite. `pnpm test:api` runs the four lanes of `apps/api/src/test-lanes.ts` as two phases of
+ * Vitest runs (`suitePlan`):
+ *
+ * 1. two runs at the same time: `parallel` (project `api`, on `PARALLEL_WORKERS` workers, each on
+ *    its own test pair) and `queue` (projects `api-serial` then `api-print`, one file at a time on
+ *    the fixed pair, which spends most of its time waiting on the api's one LibreOffice);
+ * 2. `solo` (project `api-solo`), with nothing beside it.
+ *
+ * Both phases always run, and the command fails when any run failed or no run had a test file.
+ * A run of the first phase keeps its output and prints it whole when it ends (never interleaved);
+ * the solo run streams. Each run's output also lands in `test-results/api-suite/{run}.log`, and
+ * the command ends with one line per run (verdict, test files, wall time) and the total. That is
+ * the wave gate's form (`pnpm verify` calls it) and the default everywhere.
  *
  * `pnpm test:api:batch` is the batch gate's form: it leaves the print lane out when the batch
  * changed no path the print can depend on (`PRINT_TRIGGERS`). It reads the batch's changed files
@@ -21,15 +31,17 @@ import { PRINT_FILES } from '../apps/api/src/test-lanes.ts';
  *     tools pnpm test:api:batch
  *
  * When in doubt the print lane runs: no `API_CHANGED_FILES`, an empty list, or any path under a
- * trigger. Every other argument goes to Vitest unchanged. The `@slow` name filter of the old
+ * trigger. Every other argument goes to each Vitest run unchanged (a file path narrows every run;
+ * runs it matches nothing in pass, `--passWithNoTests`). The `@slow` name filter of the old
  * `test:fast` script stays (R-011: "the api tests except `@slow`"; no test carries the tag).
  */
 
 const root = resolve(import.meta.dirname, '..');
 const API_DIR = resolve(root, 'apps/api');
+const LOG_DIR = resolve(root, 'test-results/api-suite');
 
-/** The api suite's projects, in run order (their `sequence.groupOrder`). */
-export const API_PROJECTS = ['api', 'api-serial', 'api-print'] as const;
+/** The api suite's projects (`apps/api/vitest.config.ts`). */
+export const API_PROJECTS = ['api', 'api-serial', 'api-print', 'api-solo'] as const;
 
 /**
  * The paths a print can depend on, relative to the repository root: a path ending in `/` covers
@@ -106,21 +118,93 @@ export function printLaneDecision(changed: readonly string[] | undefined, trigge
   return { run: false, reason: `none of the ${changed.length} changed paths is under a print trigger` };
 }
 
-/** The Vitest arguments of one run: the projects, the `@slow` filter, then the caller's own. */
-export function vitestArgs(projects: readonly string[], extra: readonly string[]): string[] {
-  return ['exec', 'vitest', 'run', ...projects.flatMap((project) => ['--project', project]), '-t', '^(?!.*@slow)', ...extra];
-}
-
 /** The command line split into `--batch` and what goes to Vitest. */
 export function parseArgs(argv: readonly string[]): { batch: boolean; extra: string[] } {
   const extra = argv.filter((arg) => arg !== '--batch');
   return { batch: extra.length !== argv.length, extra };
 }
 
-/** The projects one command runs. */
-export function projectsFor(batch: boolean, decision: PrintLaneDecision): string[] {
-  if (!batch || decision.run) return [...API_PROJECTS];
-  return API_PROJECTS.filter((project) => project !== 'api-print');
+/** One Vitest run of the suite: its name (for the log and the summary) and its projects. */
+export interface SuiteRun {
+  name: string;
+  projects: string[];
+}
+
+/**
+ * The runs of one command, as phases: the runs of a phase start together, and a phase starts when
+ * the one before has ended, whatever its result (every lane always runs). Phase 1 is the parallel
+ * lane beside the `queue` run (`api-serial`, then `api-print` unless the batch form leaves it out);
+ * phase 2 is the `api-solo` files with nothing beside them.
+ */
+export function suitePlan(batch: boolean, decision: PrintLaneDecision): SuiteRun[][] {
+  const queue = !batch || decision.run ? ['api-serial', 'api-print'] : ['api-serial'];
+  return [
+    [
+      { name: 'parallel', projects: ['api'] },
+      { name: 'queue', projects: queue },
+    ],
+    [{ name: 'solo', projects: ['api-solo'] }],
+  ];
+}
+
+/** The Vitest arguments of one run: the projects, the `@slow` filter, no failure on an empty run, then the caller's own. */
+export function vitestArgs(projects: readonly string[], extra: readonly string[]): string[] {
+  return ['exec', 'vitest', 'run', ...projects.flatMap((project) => ['--project', project]), '-t', '^(?!.*@slow)', '--passWithNoTests', ...extra];
+}
+
+/** How many test files a Vitest run reports on its `Test Files` line; 0 when it ran none. */
+export function testFileCount(output: string): number {
+  // eslint-disable-next-line no-control-regex -- the colour codes Vitest writes around its counts
+  const match = /Test Files\s+[^\n]*\((\d+)\)/.exec(output.replace(/\u001b\[[0-9;]*m/g, ''));
+  return match === null ? 0 : Number(match[1]);
+}
+
+export interface RunResult {
+  name: string;
+  exitCode: number;
+  durationMs: number;
+  files: number;
+}
+
+/** The command's exit: 1 when any run failed or no run had a test file, else 0. */
+export function suiteExit(results: readonly RunResult[]): number {
+  if (results.some((result) => result.exitCode !== 0)) return 1;
+  return results.reduce((sum, result) => sum + result.files, 0) > 0 ? 0 : 1;
+}
+
+/** Runs one Vitest run; `alone` says it has its phase to itself (so it may stream its output). */
+export type RunVitest = (run: SuiteRun, alone: boolean) => Promise<{ exitCode: number; output: string }>;
+
+/** Runs the plan's phases in order, every run of a phase at once, every phase whatever the one before gave; `report` gets each run as it ends. */
+export async function runPlan(
+  plan: readonly (readonly SuiteRun[])[],
+  runVitest: RunVitest,
+  report: (result: RunResult, output: string) => void = () => {},
+  now: () => number = Date.now,
+): Promise<RunResult[]> {
+  const results: RunResult[] = [];
+  for (const phase of plan) {
+    const ended = await Promise.all(
+      phase.map(async (run) => {
+        const started = now();
+        const { exitCode, output } = await runVitest(run, phase.length === 1);
+        const result: RunResult = { name: run.name, exitCode, durationMs: now() - started, files: testFileCount(output) };
+        report(result, output);
+        return result;
+      }),
+    );
+    results.push(...ended);
+  }
+  return results;
+}
+
+/** One line per run and the total, for the end of the log. */
+export function summaryLines(results: readonly RunResult[], totalMs: number): string[] {
+  const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+  return [
+    ...results.map((result) => `[test:api]   ${result.name.padEnd(9)} ${(result.exitCode === 0 ? 'passed' : `failed (exit ${result.exitCode})`).padEnd(16)} ${String(result.files).padStart(4)} files  ${seconds(result.durationMs)}`),
+    `[test:api]   total     ${seconds(totalMs)}`,
+  ];
 }
 
 /* ------------------------------------------------------------------------------------------ */
@@ -251,18 +335,64 @@ export function printClosureRoots(): string[] {
 
 /* ------------------------------------------------------------------------------------------ */
 
-function main(argv: readonly string[]): number {
+function killTree(child: ChildProcess): void {
+  if (child.pid === undefined) return;
+  try {
+    process.kill(-child.pid, 'SIGTERM');
+  } catch {
+    child.kill('SIGTERM');
+  }
+}
+
+function vitestRunner(extra: readonly string[]): RunVitest {
+  return (run, alone) =>
+    new Promise((done) => {
+      const child = spawn('pnpm', vitestArgs(run.projects, extra), { cwd: API_DIR, env: { ...process.env, FORCE_COLOR: '0' }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+      const chunks: Buffer[] = [];
+      const take = (chunk: Buffer) => {
+        chunks.push(chunk);
+        if (alone) process.stdout.write(chunk);
+      };
+      child.stdout.on('data', take);
+      child.stderr.on('data', take);
+      const stop = () => killTree(child);
+      process.once('SIGINT', stop);
+      process.once('SIGTERM', stop);
+      if (alone) console.log(`\n[test:api] ===== ${run.name}: ${run.projects.join(', ')} =====`);
+      child.on('close', (code) => {
+        process.off('SIGINT', stop);
+        process.off('SIGTERM', stop);
+        done({ exitCode: code ?? 1, output: Buffer.concat(chunks).toString('utf8') });
+      });
+    });
+}
+
+async function main(argv: readonly string[]): Promise<number> {
+  const started = Date.now();
   const { batch, extra } = parseArgs(argv);
   const decision = printLaneDecision(parseChangedFiles(process.env.API_CHANGED_FILES));
-  const projects = projectsFor(batch, decision);
+  const plan = suitePlan(batch, decision);
   if (batch) console.log(`[test:api] batch gate: the print lane ${decision.run ? 'runs' : 'is left out'} (${decision.reason})`);
-  console.log(`[test:api] lanes: ${projects.join(', ')}`);
-  const started = Date.now();
-  const result = spawnSync('pnpm', vitestArgs(projects, extra), { cwd: API_DIR, stdio: 'inherit' });
-  console.log(`[test:api] ${result.status === 0 ? 'passed' : 'FAILED'} in ${((Date.now() - started) / 1000).toFixed(1)} s (lanes: ${projects.join(', ')})`);
-  return result.status ?? 1;
+  plan.forEach((phase, n) => console.log(`[test:api] phase ${n + 1}: ${phase.map((run) => `${run.name} (${run.projects.join(', ')})`).join(' + ')}`));
+  mkdirSync(LOG_DIR, { recursive: true });
+  const streamed = new Set(plan.filter((phase) => phase.length === 1).flatMap((phase) => phase.map((run) => run.name)));
+  const results = await runPlan(plan, vitestRunner(extra), (result, output) => {
+    writeFileSync(resolve(LOG_DIR, `${result.name}.log`), output);
+    const head = `[test:api] ===== ${result.name}: ${result.exitCode === 0 ? 'passed' : 'FAILED'} in ${(result.durationMs / 1000).toFixed(1)} s =====`;
+    if (streamed.has(result.name)) {
+      console.log(head);
+      return;
+    }
+    console.log(`\n${head}`);
+    process.stdout.write(output.endsWith('\n') ? output : `${output}\n`);
+  });
+  const code = suiteExit(results);
+  console.log('\n[test:api] summary');
+  for (const line of summaryLines(results, Date.now() - started)) console.log(line);
+  console.log(`[test:api] ${code === 0 ? 'PASSED' : 'FAILED'}`);
+  return code;
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exit(main(process.argv.slice(2)));
+  void main(process.argv.slice(2)).then((code) => process.exit(code));
 }

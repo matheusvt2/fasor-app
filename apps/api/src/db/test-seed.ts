@@ -69,8 +69,9 @@ const MAX_PAIR = 0xff;
 
 /**
  * Chore T4 (2026-11-26): the test pair of one api suite worker. Pair 1 (and no pair at all)
- * is `BASE_TEST_SEED`, so a one-file run, the serial lanes and every caller outside Vitest
- * see the fixed companies they always saw. Pair `p` from 2 on is the same shape (names,
+ * is `BASE_TEST_SEED`, so the one-file-at-a-time lanes (`api-serial`, `api-print`, `api-solo`)
+ * and every caller outside Vitest see the fixed companies they always saw; the parallel lane's
+ * worker in slot `k` takes pair `k + 1`. Pair `p` from 2 on is the same shape (names,
  * councils, registrations, template flags, password) with its own ids and e-mails, so two
  * workers never share a company, a user or a session: re-seeding a user revokes that user's
  * sessions (`seedUser`), which on one shared pair signed out every other file's cookies.
