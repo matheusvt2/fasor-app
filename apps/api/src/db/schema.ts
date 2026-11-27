@@ -153,14 +153,23 @@ export const readingRuns = pgTable(
  * passed the guard (`guard_outcome`) and, when the field received the text as heard instead, why
  * (`fallback_reason`), and whether a table's speech was no reading (`not_a_reading`). An audio's
  * `transcription_run_id` names the row of the run that wrote it. Written only by the job; never
- * synced to a device.
+ * synced to a device. Story 31.9: a tap on the AI control (`POST /api/relatorios/{id}/write`) stores
+ * one row too, `kind = 'ai_write'`, with no audio and no speech step, the user who tapped it and the
+ * field's target; its `guard_outcome` says whether the answer reached the device.
  */
 export const transcriptionRuns = pgTable(
   'transcription_runs',
   {
     id: uuid('id').primaryKey(),
     company_id: uuid('company_id').notNull(),
-    audio_id: uuid('audio_id').notNull(),
+    /** Story 31.9: `transcription` (a job's attempt) or `ai_write` (a tap on the AI control). */
+    kind: text('kind').notNull().default('transcription'),
+    /** The audio a transcription run heard; null on an `ai_write` row. */
+    audio_id: uuid('audio_id'),
+    /** Story 31.9: the user who tapped the AI control; null on a transcription row. */
+    user_id: text('user_id'),
+    /** Story 31.9: the field an `ai_write` row rewrote (its `audio_target`); null on a transcription row. */
+    target: json('target'),
     relatorio_id: uuid('relatorio_id'),
     /** The pg-boss job id. */
     job_id: text('job_id'),
@@ -169,7 +178,8 @@ export const transcriptionRuns = pgTable(
     error: text('error'),
     /** The writing level of the target (`polish`, `report`, `reading`), once the target was read. */
     level: text('level'),
-    speech_provider: text('speech_provider').notNull(),
+    /** Null on an `ai_write` row (no speech step). */
+    speech_provider: text('speech_provider'),
     speech_model: text('speech_model'),
     writing_provider: text('writing_provider'),
     model: text('model'),
@@ -188,6 +198,7 @@ export const transcriptionRuns = pgTable(
   (t) => [
     index('transcription_runs_company_audio_idx').on(t.company_id, t.audio_id),
     check('transcription_runs_outcome_check', sql`${t.outcome} in ('ok', 'error')`),
+    check('transcription_runs_kind_check', sql`${t.kind} in ('transcription', 'ai_write')`),
   ],
 );
 

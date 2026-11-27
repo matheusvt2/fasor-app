@@ -1,8 +1,8 @@
 import { audioCountdownText, audioElapsedText, audioLiveWarningText, type AudioTarget } from '@app/domain';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ui } from '../copy/ui.ts';
 import { spriteHref } from '../styles/sprite.ts';
-import { useAudioButton, useAudioRecording, useFieldAudio, type HeldAudioState } from './audio-session.tsx';
+import { useAiWriteControl, useAudioButton, useAudioRecording, useFieldAudio, type AiWriteControlState, type HeldAudioState } from './audio-session.tsx';
 
 /*
  * Stories 31.3 and 31.4 (AD-30; `components.css` "Audio button", `62-audio-estados.html`): the
@@ -16,6 +16,8 @@ import { useAudioButton, useAudioRecording, useFieldAudio, type HeldAudioState }
  * throughout: no overlay, no lock. Story 31.6: `AudioFailedLine` is the failed state after three
  * attempts (`.audio-failed`: "Não foi possível transcrever", play, "Tentar de novo" with signal,
  * "Dispensar"), and a dismissed audio keeps a mark of its own (`.audio-mark[data-state=dismissed]`).
+ * Story 31.9: the AI control (`.ai-write` beside the Audio button in `.audio-tools`, the mock's (f))
+ * and its line above the tools (`.ai-done` with "Desfazer", `.ai-error`), on every field that holds text.
  */
 
 function Icon({ id, className = 'ico' }: { id: string; className?: string }) {
@@ -32,16 +34,22 @@ export function AudioButton({
   label,
   disabledReason = null,
   wrap,
+  after,
 }: {
   target: AudioTarget | null;
   label: string;
   disabledReason?: string | null;
   /** The class of a `div` around the button, drawn only with it (`audio-tools` under a field, `row-wrap` on a row). */
   wrap?: string;
+  /** Story 31.9: what follows the button inside the wrap (the AI control); drawn even when the button is not. */
+  after?: ReactNode;
 }) {
   const state = useAudioButton(target, { label, disabledReason });
   const reasonId = useId();
-  if (!state.available) return null;
+  if (!state.available) {
+    if (after === undefined || after === null || after === false) return null;
+    return wrap === undefined ? <>{after}</> : <div className={wrap}>{after}</div>;
+  }
   const recording = state.phase === 'recording' || state.phase === 'countdown';
   const countdown = state.phase === 'countdown';
   const disabled = state.disabledReason !== null;
@@ -78,9 +86,62 @@ export function AudioButton({
           {state.disabledReason}
         </span>
       ) : null}
+      {after}
     </>
   );
   return wrap === undefined ? body : <div className={wrap}>{body}</div>;
+}
+
+/** Story 31.9: the AI control's button (`.ai-write > .ai-btn`, 48 px, the sparkles glyph and its label); nothing when not shown. */
+export function AiWriteButton({ state, label }: { state: AiWriteControlState; label: string }) {
+  const reasonId = useId();
+  if (!state.shown) return null;
+  const disabled = state.disabledReason !== null;
+  return (
+    <span className="ai-write">
+      <button
+        type="button"
+        className="ai-btn"
+        aria-label={ui.aiWrite.name(label)}
+        aria-busy={state.busy || undefined}
+        aria-disabled={disabled || undefined}
+        aria-describedby={disabled ? reasonId : undefined}
+        onClick={state.tap}
+      >
+        <Icon id="i-sparkles" />
+        <span className="ai-word">{ui.aiWrite.label}</span>
+        <span className="ai-busy-word">{ui.aiWrite.busy}</span>
+      </button>
+      {disabled ? (
+        <span className="btn-reason" id={reasonId}>
+          {state.disabledReason}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** Story 31.9: the AI control's line above the tools: "Texto melhorado por IA" with "Desfazer", or the failure. */
+export function AiWriteLine({ state, label }: { state: AiWriteControlState; label: string }) {
+  if (state.done) {
+    return (
+      <p className="ai-done" role="status">
+        <Icon id="i-sparkles" />
+        {ui.aiWrite.done}
+        <button type="button" className="btn btn-text" aria-label={ui.aiWrite.undoName(label)} onClick={state.undo}>
+          {ui.aiWrite.undo}
+        </button>
+      </p>
+    );
+  }
+  if (state.failed) {
+    return (
+      <p className="ai-error" role="status">
+        {ui.aiWrite.failed}
+      </p>
+    );
+  }
+  return null;
 }
 
 /** The live warning under the field while a condition holds (`.audio-warning`, a polite status). */
@@ -286,13 +347,43 @@ export function AudioFailedLine({ target, readOnly = false }: { target: AudioTar
   );
 }
 
-/** Everything under a field but the button: the status line, the mark, the failed line, the live warning. */
-export function AudioFieldLines({ target, text, label, readOnly = false }: { target: AudioTarget | null; text: string | null | undefined; label: string; readOnly?: boolean }) {
+/**
+ * Everything under a field but the Audio button: the status line, the mark, the failed line, the
+ * live warning. Story 31.9: and the AI control, its line and its button in a `.audio-tools` row of
+ * its own (the Audio button of these fields sits elsewhere: a row, a section head).
+ */
+export function AudioFieldLines({
+  target,
+  text,
+  label,
+  readOnly = false,
+  aiText,
+  ai: aiWanted = true,
+}: {
+  target: AudioTarget | null;
+  text: string | null | undefined;
+  label: string;
+  readOnly?: boolean;
+  /** Story 31.9: the text the field shows when it is not `text` (a suggested or composed text); absent, `text`. */
+  aiText?: string | null;
+  /**
+   * Story 31.9: false where the field's text is not yet stored (the batch caption before "Adicionar N fotos", a point
+   * not saved yet): the AI control rewrites what the server holds, so it is not drawn there.
+   */
+  ai?: boolean;
+}) {
+  const ai = useAiWriteControl(target, aiText === undefined ? text : aiText, { readOnly: readOnly || !aiWanted });
   return (
     <>
       <AudioStatusLine target={target} text={text} />
       <AudioMark target={target} text={text} label={label} />
       <AudioFailedLine target={target} readOnly={readOnly} />
+      <AiWriteLine state={ai} label={label} />
+      {ai.shown ? (
+        <div className="audio-tools">
+          <AiWriteButton state={ai} label={label} />
+        </div>
+      ) : null}
       <AudioWarning target={target} />
     </>
   );
@@ -308,6 +399,7 @@ export function AudioField({
   text,
   readOnly = false,
   disabledReason = null,
+  aiText,
 }: {
   target: AudioTarget | null;
   /** The field as the button names it ("observação do item 8"). */
@@ -316,13 +408,17 @@ export function AudioField({
   text: string | null | undefined;
   readOnly?: boolean;
   disabledReason?: string | null;
+  /** Story 31.9: the text the field shows when it is not `text` (the composed conclusion text, the composed parecer); absent, `text`. */
+  aiText?: string | null;
 }) {
+  const ai = useAiWriteControl(target, aiText === undefined ? text : aiText, { readOnly, disabledReason });
   return (
     <>
       <AudioStatusLine target={target} text={text} />
       <AudioMark target={target} text={text} label={label} />
       <AudioFailedLine target={target} readOnly={readOnly} />
-      {readOnly ? null : <AudioButton target={target} label={label} disabledReason={disabledReason} wrap="audio-tools" />}
+      <AiWriteLine state={ai} label={label} />
+      {readOnly ? null : <AudioButton target={target} label={label} disabledReason={disabledReason} wrap="audio-tools" after={ai.shown ? <AiWriteButton state={ai} label={label} /> : null} />}
       <AudioWarning target={target} />
     </>
   );

@@ -12,7 +12,14 @@ import {
   permissionForPath,
   permissionRefusalText,
   audioPermissionPath,
+  aiRewriteRestore,
+  aiRewriteSource,
+  aiRewriteWrite,
+  relatorioOpEnvelope,
   toIso,
+  type AiWriteResponse,
+  type AudioProseWrite,
+  type OpDraft,
   type AudioFieldStep,
   type AudioFileRow,
   type AudioLiveWarning,
@@ -24,6 +31,9 @@ import { useLocation } from 'react-router';
 import { now } from '../clock.ts';
 import { ui } from '../copy/ui.ts';
 import { audioRowsOf, commitAudioCapture, commitAudioDismiss, type AudioCaptureInput } from '../db/audio-commit.ts';
+import { commitBatch } from '../db/commit.ts';
+import { lastOpIdFor } from '../db/generate-store.ts';
+import { toSnapshot } from '../db/snapshot.ts';
 import { ensureLocalBlob, readLocalBlob } from '../db/file-store.ts';
 import { useLiveQuery } from '../db/live.ts';
 import type { AppDatabase } from '../db/schema.ts';
@@ -32,6 +42,7 @@ import { useAiFeatures } from '../state/ai-features.tsx';
 import { relatorioIdOfPath, useCan } from '../state/permissions.tsx';
 import { useSession } from '../state/session.tsx';
 import { useSyncActions } from '../state/sync-actions.ts';
+import { SyncRequestError } from '../sync/client.ts';
 import { browserRecorderDeps, isMicRefusal, startRecording, type Recording, type RecorderDeps } from './recorder.ts';
 
 /*
@@ -119,7 +130,18 @@ interface AudioContextValue {
   retranscribe: (row: AudioFileRow) => Promise<void>;
   /** Story 31.6: "Dispensar" of a failed audio (the device's one status write). */
   dismiss: (row: AudioFileRow) => Promise<void>;
+  /** Story 31.9: a tap on the AI control of a field; absent, the control is not drawn. */
+  aiWrite: AiWriteRun | null;
+  /** Story 31.9: "Desfazer" of the AI control: puts the field's former values back. */
+  aiUndo: AiUndo | null;
 }
+
+/** Story 31.9: what one tap on the AI control ended with: the text written and how to put the former one back, or the field left unchanged. */
+export type AiWriteOutcome = { kind: 'written'; text: string; restore: AudioProseWrite['puts'] } | { kind: 'refused' };
+/** Story 31.9: runs one tap on the AI control of a field (online); rejects on a call that failed. */
+export type AiWriteRun = (target: AudioTarget) => Promise<AiWriteOutcome>;
+/** Story 31.9: commits "Desfazer". */
+export type AiUndo = (puts: AudioProseWrite['puts']) => Promise<void>;
 
 const AudioContext = createContext<AudioContextValue | null>(null);
 
@@ -144,9 +166,16 @@ export interface AudioRecorderCoreProps {
   retranscribe?: (row: AudioFileRow) => Promise<void>;
   /** Story 31.6: commits "Dispensar"; absent, the tap does nothing. */
   dismiss?: (row: AudioFileRow) => Promise<void>;
+  /** Story 31.9: runs a tap on the AI control; absent, no field draws the control. */
+  aiWrite?: AiWriteRun;
+  /** Story 31.9: commits the AI control's "Desfazer". */
+  aiUndo?: AiUndo;
 }
 
 const NO_ACTION = () => Promise.resolve();
+
+/** Story 31.9: how many times a tap on the AI control syncs again after a `409 not_caught_up`. */
+const AI_WRITE_ROUNDS = 2;
 
 interface Current {
   key: string;
@@ -183,6 +212,8 @@ export function AudioRecorderCore({
   wakeLock = browserWakeLock,
   retranscribe = NO_ACTION,
   dismiss = NO_ACTION,
+  aiWrite,
+  aiUndo,
 }: AudioRecorderCoreProps) {
   const store = useMemo(createStore, []);
   const current = useRef<Current | null>(null);
@@ -342,8 +373,8 @@ export function AudioRecorderCore({
   useEffect(() => () => stopPlaying.current?.(), []);
 
   const value = useMemo<AudioContextValue>(
-    () => ({ store, canRecord: deps !== null, online, relatorioId, audio, toggle, discard, announce, play, playing, retranscribe, dismiss }),
-    [store, deps, online, relatorioId, audio, toggle, discard, announce, play, playing, retranscribe, dismiss],
+    () => ({ store, canRecord: deps !== null, online, relatorioId, audio, toggle, discard, announce, play, playing, retranscribe, dismiss, aiWrite: aiWrite ?? null, aiUndo: aiUndo ?? null }),
+    [store, deps, online, relatorioId, audio, toggle, discard, announce, play, playing, retranscribe, dismiss, aiWrite, aiUndo],
   );
   return (
     <AudioContext value={value}>
@@ -374,7 +405,7 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
   const user = session.user;
   const { pathname } = useLocation();
   const relatorioId = relatorioIdOfPath(pathname);
-  const { fetchFile, retranscribeAudio } = useSyncActions();
+  const { fetchFile, retranscribeAudio, syncNow, aiWrite: aiWriteRoute } = useSyncActions();
   const resolved = useMemo(() => {
     if (deps !== undefined) return deps;
     recorderDeps ??= browserRecorderDeps();
@@ -431,6 +462,47 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
     },
     [db, user],
   );
+  // Story 31.9: a tap on the AI control. The server reads the field from its own store, so this
+  // device first sends what it holds (AD-15's barrier, retried after a sync); the answer is written
+  // only when the server rewrote the very text this device shows, and still shows.
+  const aiWrite = useCallback<AiWriteRun>(
+    async (target) => {
+      if (db === null || user === null || relatorioId === null || aiWriteRoute === undefined || target.type === 'table') return { kind: 'refused' };
+      const options = { now: now() };
+      await syncNow().catch(() => undefined);
+      const before = aiRewriteSource(await toSnapshot(db, relatorioId), target, options);
+      if (before === null) return { kind: 'refused' };
+      let answer: AiWriteResponse | null = null;
+      for (let attempt = 0; answer === null; attempt++) {
+        try {
+          answer = await aiWriteRoute(relatorioId, { target, last_op_id: await lastOpIdFor(db, relatorioId) });
+        } catch (error) {
+          const failure = error instanceof SyncRequestError && error.failure.kind === 'http' ? error.failure : null;
+          if (failure?.code !== 'not_caught_up' || attempt >= AI_WRITE_ROUNDS) throw error;
+          await syncNow().catch(() => undefined);
+        }
+      }
+      if (answer.outcome !== 'written' || answer.source !== before.text) return { kind: 'refused' };
+      const snapshot = await toSnapshot(db, relatorioId);
+      if (aiRewriteSource(snapshot, target, options)?.text !== before.text) return { kind: 'refused' };
+      const restore = aiRewriteRestore(snapshot, target, options);
+      const write = aiRewriteWrite(snapshot, target, answer.text, options);
+      if (restore === null || write === null) return { kind: 'refused' };
+      const author = { id: user.id, companyId: user.companyId };
+      // An ordinary put by the user (AD-30), named as the AI control's.
+      await commitBatch(db, write.puts.map((put): OpDraft => ({ ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: put.path, value: put.value, meta: { ai_written: true } })), { newId, now });
+      return { kind: 'written', text: answer.text, restore: restore.puts };
+    },
+    [db, user, relatorioId, aiWriteRoute, syncNow],
+  );
+  const aiUndo = useCallback<AiUndo>(
+    async (puts) => {
+      if (db === null || user === null || relatorioId === null) return;
+      const author = { id: user.id, companyId: user.companyId };
+      await commitBatch(db, puts.map((put): OpDraft => ({ ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: put.path, value: put.value })), { newId, now });
+    },
+    [db, user, relatorioId],
+  );
   return (
     <AudioRecorderCore
       deps={resolved}
@@ -442,6 +514,7 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
       player={player}
       retranscribe={retranscribe}
       dismiss={dismiss}
+      {...(aiWriteRoute === undefined ? {} : { aiWrite, aiUndo })}
     >
       {children}
     </AudioRecorderCore>
@@ -644,5 +717,78 @@ export function useFieldAudio(target: AudioTarget | null, currentText: string | 
       if (done !== null && playDisabledReason === null) context.play(done);
     },
     announce: context.announce,
+  };
+}
+
+/** Story 31.9: the AI control of one field ("Melhorar o texto com IA"), its line and its button. */
+export interface AiWriteControlState {
+  /** Whether the button is drawn: a runner is mounted, AI features are on, the field holds text and may be written here. */
+  shown: boolean;
+  /** "Escrevendo": the request runs; the field stays as it was. */
+  busy: boolean;
+  /** Why the button is disabled ("Precisa de conexão", the role's missing key), or null. */
+  disabledReason: string | null;
+  /** "Texto melhorado por IA" with "Desfazer": the field still holds the text the control wrote. */
+  done: boolean;
+  /** "Não foi possível melhorar o texto": the last tap left the field unchanged. */
+  failed: boolean;
+  tap: () => void;
+  undo: () => void;
+}
+
+/** The characters a field shows, compared without spacing (a section text arrives as its plain lines, `audioRichFieldText`). */
+function shownText(text: string | null | undefined): string {
+  return (text ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Story 31.9 (FR-79): one field's AI control. Absent with no runner (no provider), with AI features
+ * off, read-only, or on an empty field; offline it stays, disabled, "Precisa de conexão", and nothing
+ * is queued. A tap shows "Escrevendo" until the answer: a written text replaces the field's (by an
+ * ordinary op of the user's) and the line offers "Desfazer" while the field still holds it; a refused
+ * answer or a failed call leaves the field as it was and says so, until the field changes.
+ */
+export function useAiWriteControl(target: AudioTarget | null, text: string | null | undefined, options: { readOnly?: boolean; disabledReason?: string | null } = {}): AiWriteControlState {
+  const context = use(AudioContext);
+  const aiOn = useAiFeatures();
+  const need = target === null ? 'none' : permissionForPath(audioPermissionPath(target), { kind: 'put', value: null });
+  const allowed = useCan(need);
+  const [busy, setBusy] = useState(false);
+  const [written, setWritten] = useState<{ text: string; restore: AudioProseWrite['puts'] } | null>(null);
+  const [failedOn, setFailedOn] = useState<string | null>(null);
+  const shown = shownText(text);
+  const run = context?.aiWrite ?? null;
+  const undoRun = context?.aiUndo ?? null;
+  const online = context?.online ?? false;
+  const visible = context !== null && run !== null && aiOn && options.readOnly !== true && target !== null && shown !== '';
+  const disabledReason = options.disabledReason ?? (!allowed && need !== 'none' ? permissionRefusalText(need) : online ? null : ui.aiWrite.needsConnection);
+  const tap = () => {
+    if (!visible || busy || disabledReason !== null || target === null || run === null) return;
+    const from = shown;
+    setBusy(true);
+    setFailedOn(null);
+    run(target)
+      .then((outcome) => {
+        if (outcome.kind === 'written') setWritten({ text: outcome.text, restore: outcome.restore });
+        else setFailedOn(from);
+      })
+      .catch(() => setFailedOn(from))
+      .finally(() => setBusy(false));
+  };
+  const undo = () => {
+    if (written === null || undoRun === null) return;
+    const puts = written.restore;
+    setWritten(null);
+    void undoRun(puts).catch(() => undefined);
+  };
+  return {
+    shown: visible,
+    busy,
+    disabledReason,
+    done: visible && written !== null && shownText(written.text) === shown,
+    // The failure line stays while the field holds the text the tap left unchanged.
+    failed: visible && failedOn !== null && failedOn === shown,
+    tap,
+    undo,
   };
 }

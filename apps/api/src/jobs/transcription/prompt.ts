@@ -11,6 +11,13 @@ import type { WritingStepLevel } from '@app/domain';
 
 export const TRANSCRIPTION_PROMPT_VERSION = 'transcription-write-1';
 
+/**
+ * Story 31.9: the same family on a tap on the AI control, where the text is one a field already
+ * holds (typed, spoken earlier, or composed by the app) rather than a dictation; only the request
+ * text differs (`writingPrompt` with `source: 'field'`), so it carries a version of its own.
+ */
+export const AI_WRITE_PROMPT_VERSION = 'transcription-write-field-1';
+
 export const WRITING_TOOL = 'record_text';
 
 /** One field's text: a paragraph or two at most. */
@@ -32,8 +39,15 @@ export const WRITING_SYSTEM = [
   'Write numbers the Brazilian way (13,8 kV; 1.500 kVA) and units by their symbols (kV, A, MΩ, GΩ, °C, %).',
 ].join('\n');
 
-/** The request text: the level's rule, the context lines and the dictated text. */
-export function writingPrompt(input: { level: WritingStepLevel; context: string; text: string }): string {
+/** Story 31.9: what the request says of a field's own text (the AI control). */
+export const FIELD_TEXT_RULE =
+  'The text below is what the field holds now (typed, dictated earlier or composed by the app), not a dictation: improve it as report prose, keeping every fact, number, unit and TAG it states.';
+
+/** The request text: the level's rule, the context lines and the dictated text (or, Story 31.9, the field's text). */
+export function writingPrompt(input: { level: WritingStepLevel; context: string; text: string; source?: 'audio' | 'field' }): string {
+  if (input.source === 'field') {
+    return [`Level: ${input.level}. ${LEVEL_RULES[input.level]}`, FIELD_TEXT_RULE, '', 'Context:', input.context, '', 'Field text:', input.text].join('\n');
+  }
   return [`Level: ${input.level}. ${LEVEL_RULES[input.level]}`, '', 'Context:', input.context, '', 'Dictated text:', input.text].join('\n');
 }
 

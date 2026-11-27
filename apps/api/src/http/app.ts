@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
-import { activeUser, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type AdminRoleEvent, type AdminUserEvent, type Clock, type ErrorResponse, type NewId } from '@app/domain';
+import { activeUser, SYNC_PUSH_MAX_BYTES, SYNC_ROUTES, TELEMETRY_ROUTE, type AdminRoleEvent, type AdminUserEvent, type Clock, type ErrorResponse, type NewId, type WritingProvider } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { type Context, Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
@@ -18,6 +18,7 @@ import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { enqueueReading } from '../jobs/reading/worker.ts';
 import type { TranscriptionPayload } from '../jobs/transcription/payload.ts';
 import { enqueueTranscription } from '../jobs/transcription/worker.ts';
+import { fakeWritingProvider } from '../jobs/transcription/providers/writing-fake.ts';
 import { createFakeEmailProvider } from '../email/fake.ts';
 import type { EmailProvider } from '../email/types.ts';
 import { log, logError } from '../log.ts';
@@ -26,6 +27,7 @@ import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
 import { createAdminRolesRoutes } from './admin-roles.ts';
 import { createAdminUsersRoutes } from './admin-users.ts';
+import { createAiWriteRoutes } from './ai-write.ts';
 import { createAudioRoutes } from './audios.ts';
 import { createAuditRoutes } from './audit.ts';
 import { createFileRoutes } from './files.ts';
@@ -127,6 +129,14 @@ export interface AppOptions {
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
   /** Story 31.2: test override of the send to the `transcription` queue; wins over `boss`. With neither, an audio stays `queued` at receipt and the retranscribe route answers 500. */
   enqueueTranscription?: (payload: TranscriptionPayload) => Promise<void>;
+  /**
+   * Story 31.9: the prose (writing) provider of the AI control's route and its name for the run row
+   * (`main.ts` passes the one `LLM_PROVIDER` names); absent, the `fake` one on its committed fixture.
+   * `aiWriteLimit` is the route's per-user limit (absent, `AI_WRITE_RATE_LIMIT`; always on).
+   */
+  writing?: { name: string; provider: WritingProvider };
+  aiWriteLimit?: RateLimitRule;
+  aiWriteLimitNow?: () => number;
   /** Story 13.8: test override of the send to the `audit` queue; wins over `boss`. With neither, the audit route answers 500 after failing its run. */
   enqueueAudit?: (payload: AuditPayload) => Promise<void>;
   /** Story 11.8 follow-up: `config.AI_FEATURES === 'on'`; absent reads as on (every existing test). */
@@ -413,6 +423,18 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       newId: options.newId ?? mintId,
       ...(sendTranscription === undefined ? {} : { enqueueTranscription: sendTranscription }),
       aiFeatures,
+    }),
+  );
+  // Story 31.9: the AI control's write route, behind the same session middleware.
+  app.route(
+    '/',
+    createAiWriteRoutes(options.db, {
+      now: options.now ?? clock,
+      newId: options.newId ?? mintId,
+      writing: options.writing ?? { name: 'fake', provider: fakeWritingProvider() },
+      aiFeatures,
+      ...(options.aiWriteLimit === undefined ? {} : { limit: options.aiWriteLimit }),
+      ...(options.aiWriteLimitNow === undefined ? {} : { limitNow: options.aiWriteLimitNow }),
     }),
   );
   // Story 8.4: the reread route, behind the same session middleware.

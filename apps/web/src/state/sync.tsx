@@ -22,6 +22,8 @@ import {
   type QueuedReadingRow,
   type SyncDecisionRow,
   type SyncSummaryBadge,
+  type AiWriteRequest,
+  type AiWriteResponse,
   type AuditRequest,
   type AuditResponse,
   type GenerateRequest,
@@ -241,6 +243,8 @@ export interface SyncState {
    * Optional in the type only so the test doubles built before it existed still type-check.
    */
   audit?: (relatorioId: string, body: AuditRequest) => Promise<AuditResponse>;
+  /** Story 31.9: the AI control (`POST /api/relatorios/{id}/write`), online only; the engine's own client (AD-1). */
+  aiWrite?: (relatorioId: string, body: AiWriteRequest) => Promise<AiWriteResponse>;
 }
 
 export const SyncContext = createContext<SyncState | null>(null);
@@ -603,10 +607,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return client.audit(relatorioId, body);
   }, []);
 
+  const aiWrite = useCallback(async (relatorioId: string, body: AiWriteRequest): Promise<AiWriteResponse> => {
+    const client = clientRef.current;
+    if (client === null || client.aiWrite === undefined) throw new Error('sync client is not running');
+    return client.aiWrite(relatorioId, body);
+  }, []);
+
   // W-8: the callbacks alone, stable for the session, for the components that only act.
   const actions = useMemo<SyncActions>(
-    () => ({ syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio }),
-    [syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio],
+    () => ({ syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite }),
+    [syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite],
   );
 
   const value = useMemo<SyncState>(
@@ -658,8 +668,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       rereadPhoto,
       audit,
       retranscribeAudio,
+      aiWrite,
     }),
-    [pullCompany, counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio],
+    [pullCompany, counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite],
   );
 
   return (

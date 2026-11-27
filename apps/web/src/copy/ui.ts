@@ -237,6 +237,20 @@ export const ui = {
     discard: 'Descartar',
     replace: 'Substituir',
   },
+  // Story 31.9: the AI control (`62-audio-estados.html` (f), `.ai-*`), the chrome of every prose field that holds text.
+  aiWrite: {
+    // Verbatim from the mock (f): the label, its word while the request runs, the offline reason, the two lines and the undo.
+    label: 'Melhorar o texto com IA',
+    busy: 'Escrevendo',
+    needsConnection: 'Precisa de conexão',
+    done: 'Texto melhorado por IA',
+    undo: 'Desfazer',
+    failed: 'Não foi possível melhorar o texto',
+    // authored (Story 31.9, listed for Bruno): the button's name, which names the field as the Audio button's does.
+    name: (field: string) => `Melhorar o texto com IA: ${field}`,
+    // authored (Story 31.9, listed for Bruno): the name of "Desfazer", which names the field.
+    undoName: (field: string) => `Desfazer o texto melhorado por IA: ${field}`,
+  },
   dateField: {
     // authored: Story 13.4 INP-3, the chip under an empty service date that fills today.
     today: 'Hoje',

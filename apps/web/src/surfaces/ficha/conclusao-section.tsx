@@ -568,7 +568,8 @@ export function ConclusaoSection({
                 presentation="text"
                 commitWhileTyping
               />
-              <AudioField target={conclusionAudio} label={t.audioTextField} text={storedText} readOnly={readOnly} />
+              {/* Story 31.9: the AI control rewrites the text the field shows, the composed one while none is confirmed. */}
+              <AudioField target={conclusionAudio} label={t.audioTextField} text={storedText} readOnly={readOnly} aiText={textState === 'unconfirmed' ? composed.text : storedText} />
             </div>
           )}
         </section>

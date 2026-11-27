@@ -60,6 +60,12 @@ log('roles upgraded', { ...(await withRetry('roles', () => upgradeRolesAndUsers(
 await withRetry('storage', () => prepareStorage(config, s3));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
 
+// Review 2026-10-08 (API-3): one Bedrock client per process, built on the first call. Story 31.9:
+// the writing step (LLM_PROVIDER, `fake` by default) serves the transcription worker and the AI
+// control's route alike.
+const bedrock = { source: bedrockClientSource({ region: config.BEDROCK_REGION }) };
+const writing = createWritingProvider(config, { bedrock });
+
 // AD-15: the generate worker runs in this process (`WORKER=1`, the compose default). The
 // TC-3 fault flag is honoured only outside production.
 if (config.WORKER === '1') {
@@ -75,9 +81,8 @@ if (config.WORKER === '1') {
   // Story 8.4: the plate reading worker, on the providers the env names (both `fake` by default);
   // Story 11.7: `OCR_PROVIDER=textract` reads through TEXTRACT_REGION. Story 11.6:
   // `LLM_PROVIDER=bedrock` structures and writes prose through Converse in BEDROCK_REGION.
-  // Review 2026-10-08 (API-3): one Bedrock client per process, built on the first call, shared
-  // by the reading providers and the emission audit (neither builds one while it is unused).
-  const bedrock = { source: bedrockClientSource({ region: config.BEDROCK_REGION }) };
+  // Review 2026-10-08 (API-3): one Bedrock client per process (`bedrock` above), built on the first call,
+  // shared by the reading providers and the emission audit (neither builds one while it is unused).
   await registerReadingWorker(boss, {
     db,
     s3,
@@ -108,7 +113,6 @@ if (config.WORKER === '1') {
   log('audit worker registered', { llm_provider: config.LLM_PROVIDER, ai_features: config.AI_FEATURES });
   // Story 31.2 (AD-30): the transcription worker, the speech step by STT_PROVIDER and the writing
   // step by LLM_PROVIDER (both `fake` by default); nothing runs while AI_FEATURES is off.
-  const writing = createWritingProvider(config, { bedrock });
   await registerTranscriptionWorker(boss, { db, s3, bucket: config.S3_BUCKET, now, newId, speech, writing: writing.provider, writingName: writing.name, aiFeatures: config.AI_FEATURES === 'on' });
   log('transcription worker registered', { stt_provider: config.STT_PROVIDER, llm_provider: config.LLM_PROVIDER, ai_features: config.AI_FEATURES });
 }
@@ -136,6 +140,8 @@ const app = createApp({
   bucket: config.S3_BUCKET,
   boss,
   aiFeatures: config.AI_FEATURES === 'on',
+  // Story 31.9: the AI control's route writes on the same prose provider.
+  writing,
   bodyLimitBytes: config.API_BODY_LIMIT_BYTES,
   telemetry: { sink: telemetrySink, userLimit: { max: config.TELEMETRY_USER_RATE_LIMIT_MAX, windowMs: 60_000 } },
   // Story 20.12: the daily ceilings of paid AI work per company.

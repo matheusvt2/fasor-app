@@ -605,7 +605,8 @@ export function EquipmentStep({
             </div>
             <CharCount length={caption.length} cap={CAPTION_CAP} />
           </div>
-          <AudioFieldLines target={audioTarget} text={caption} label={t.audioField} />
+          {/* Story 31.9: the batch caption is not stored before "Adicionar N fotos", so it has no AI control. */}
+          <AudioFieldLines target={audioTarget} text={caption} label={t.audioField} ai={false} />
           <p className="capture-reason" id={noteId}>
             {batchCaptionNote(n)}
           </p>

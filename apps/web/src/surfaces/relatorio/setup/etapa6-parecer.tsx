@@ -201,8 +201,8 @@ export function Etapa6Parecer({
           readOnly
         />
 
-        {/* Story 31.7: the summary's audio adds the written text after the composed one and makes it the relatório's own text; no verdict tapped (no stored parecer), no field to write. */}
-        {snapshot.relatorio.setup.parecer === null ? null : <AudioField target={PARECER_AUDIO} label={t.audioParecer} text={ownText} />}
+        {/* Story 31.9: its AI control rewrites the own text, else the composed one. Story 31.7: the summary's audio adds the written text after the composed one and makes it the relatório's own text; no verdict tapped (no stored parecer), no field to write. */}
+        {snapshot.relatorio.setup.parecer === null ? null : <AudioField target={PARECER_AUDIO} label={t.audioParecer} text={ownText} aiText={ownText ?? composed.text} />}
 
         {ownText === null ? null : (
           <div className="field">

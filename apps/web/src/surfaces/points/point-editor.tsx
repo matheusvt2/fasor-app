@@ -720,7 +720,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         )}
         <div {...area.areaProps} className="observation-field poa-text-area" aria-labelledby={textLabelId} aria-describedby={helperId} />
         <CharCount length={text.length} cap={POINT_TEXT_CAP} />
-        <AudioFieldLines target={audioTarget} text={text} label={t.audioField} />
+        {/* Story 31.9: the AI control rewrites the stored point's text, so a point not saved yet has none. */}
+        <AudioFieldLines target={audioTarget} text={text} label={t.audioField} ai={liveRow !== null} />
         <span className="helper" id={helperId}>
           {t.textHelper}
         </span>
