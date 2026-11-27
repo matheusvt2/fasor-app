@@ -167,23 +167,46 @@ export function signInRateLimit(options: SignInLimitOptions): MiddlewareHandler 
   };
 }
 
+/**
+ * Security pass 2026-11-26 (A2): the bytes of pushes one user may send in an hour. Every op is
+ * kept whole in the append-only log, and a put that replaces a value with one of the same size
+ * costs the relatório budget nothing, so the request count alone let one user write about
+ * 480 MiB a minute (120 pushes of 4 MiB). A whole relatório is at most 4 MiB of ops, so a day
+ * of field work stays far below this.
+ */
+export const PUSH_BYTES_RATE_LIMIT: RateLimitRule = { max: 128 * 1024 * 1024, windowMs: 3_600_000 };
+
 export interface PushLimitOptions {
   rule: RateLimitRule;
+  /**
+   * The bytes of push bodies per user in one window (`rule.max` in bytes), counted from the
+   * declared `content-length`; a push that declares none spends `undeclared` (the push cap).
+   * Absent, only the request count is limited.
+   */
+  bytes?: { rule: RateLimitRule; undeclared: number };
   now?: () => number;
 }
 
 /**
- * Limits `POST /api/sync/ops` per signed-in user. Runs after the session middleware; a
- * request with no session passes through to the route, which answers 401.
+ * Limits `POST /api/sync/ops` per signed-in user, by requests and by bytes. Runs after the
+ * session middleware; a request with no session passes through to the route, which answers 401.
  */
 export function pushRateLimit(options: PushLimitOptions): MiddlewareHandler<AppEnv> {
   const byUser = new FixedWindowLimiter(options.rule, options.now);
+  const bytes = options.bytes;
+  const bytesByUser = bytes === undefined ? null : new FixedWindowLimiter(bytes.rule, options.now);
   return async (c, next) => {
     if (c.req.method !== 'POST') return next();
     const session = c.get('session');
     if (session === null || session === undefined) return next();
     const decision = byUser.consume(session.userId);
     if (!decision.allowed) return tooMany(c, decision.retryAfterSeconds);
+    if (bytes !== undefined && bytesByUser !== null) {
+      const declared = Number(c.req.header('content-length') ?? '');
+      const cost = Number.isFinite(declared) && declared > 0 ? declared : bytes.undeclared;
+      const spent = bytesByUser.consume(session.userId, cost);
+      if (!spent.allowed) return tooMany(c, spent.retryAfterSeconds);
+    }
     return next();
   };
 }
@@ -193,19 +216,30 @@ export interface PasswordResetLimitOptions {
   address: RateLimitRule;
   /** Requests per e-mail address the body names (sha256 of the trimmed, lower-cased address). */
   email: RateLimitRule;
+  /** A second, longer window per e-mail address (`PASSWORD_RESET_EMAIL_HOURLY_LIMIT`); absent, none. */
+  emailLong?: RateLimitRule;
   trustProxy: boolean;
   now?: () => number;
 }
 
 /**
+ * Security pass 2026-11-26 (A5): "Esqueci minha senha" per e-mail address in one hour. The
+ * per-minute rule alone let a script send one address 7,200 real e-mails a day, each one
+ * replacing the link the person had just received.
+ */
+export const PASSWORD_RESET_EMAIL_HOURLY_LIMIT: RateLimitRule = { max: 6, windowMs: 3_600_000 };
+
+/**
  * Story 26.6: limits `POST /api/auth/request-password-reset` ("Esqueci minha senha") as the sign-in
  * is limited: per client address, then per the e-mail the body names, either one over its rule
  * answering `429 rate_limited` before better-auth looks the address up; a body that is not JSON
- * answers `415`. Always on.
+ * answers `415`. Always on. With `emailLong`, the e-mail also meets that longer window; a request
+ * the short window refused is not counted against it.
  */
 export function passwordResetRateLimit(options: PasswordResetLimitOptions): MiddlewareHandler {
   const byAddress = new FixedWindowLimiter(options.address, options.now);
   const byEmail = new FixedWindowLimiter(options.email, options.now);
+  const byEmailLong = options.emailLong === undefined ? null : new FixedWindowLimiter(options.emailLong, options.now);
   return async (c, next) => {
     if (c.req.method !== 'POST') return next();
     if (!isJson(c)) return c.json(notJsonBody, 415);
@@ -214,6 +248,8 @@ export function passwordResetRateLimit(options: PasswordResetLimitOptions): Midd
     const email = await bodyEmailKey(c);
     const account = email === null ? null : byEmail.consume(email);
     if (account !== null && !account.allowed) return tooMany(c, account.retryAfterSeconds);
+    const long = email === null || byEmailLong === null ? null : byEmailLong.consume(email);
+    if (long !== null && !long.allowed) return tooMany(c, long.retryAfterSeconds);
     return next();
   };
 }

@@ -187,6 +187,12 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
     const fileId = instrument?.certificate_file_id ?? null;
     if (db === null || fileId === null) return;
     const opened = window.open('', '_blank');
+    // The certificate's tab never gets a handle on this one (as the export preview's tab).
+    try {
+      if (opened !== null) opened.opener = null;
+    } catch {
+      // A tab whose opener cannot be reset stays as it is.
+    }
     const blob = await ensureLocalBlob(db, fileId, 'original', { fetchFile, nowIso: toIso(now()) });
     if (blob === null) {
       opened?.close();
@@ -194,7 +200,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
       return;
     }
     const url = URL.createObjectURL(blob);
-    if (opened === null) window.open(url, '_blank');
+    if (opened === null) window.open(url, '_blank', 'noopener');
     else opened.location.href = url;
     // The new tab has loaded the bytes by then; the URL only has to outlive that.
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);

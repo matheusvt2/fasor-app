@@ -39,6 +39,33 @@ resource "aws_iam_role_policy_attachment" "instance_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# Security pass 2026-11-26 (B1): every task runs in host network mode, so any container can
+# reach the instance metadata service and act as this role, and AmazonSSMManagedInstanceCore
+# allows ssm:GetParameter(s) on every parameter. The secrets are injected by the task execution
+# role, a different role, so the instance never needs to read them: deny it outright. The ocr,
+# Caddy and api containers then cannot read the database URL or the session secret this way.
+resource "aws_iam_role_policy" "instance_no_secrets" {
+  name = "${local.name}-instance-no-secrets"
+  role = aws_iam_role.instance.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "NoApplicationParameters"
+        Effect   = "Deny"
+        Action   = ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath", "ssm:GetParameterHistory"]
+        Resource = "arn:aws:ssm:${local.region}:${var.account_id}:parameter${local.ssm_prefix}/*"
+      },
+      {
+        Sid      = "NoSmokeSecret"
+        Effect   = "Deny"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.smoke_user_password.arn
+      },
+    ]
+  })
+}
+
 resource "aws_iam_instance_profile" "instance" {
   name = "${local.name}-instance"
   role = aws_iam_role.instance.name

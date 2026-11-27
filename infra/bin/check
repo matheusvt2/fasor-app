@@ -37,7 +37,7 @@ done
 # Review fixes 2026-09-30 (I-8): the production Caddyfile parses, and its CloudFront fallback
 # site proxies only a request carrying the origin secret (403 without it, 502 with it, as no
 # upstream runs in the check). The container has no network, so it never reaches ACME.
-caddy_image=caddy:2.11.4-alpine
+caddy_image=caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
 caddy_env=(-e PUBLIC_IP=203.0.113.10 -e ACME_EMAIL=ops@example.com -e FALLBACK_HOST=fallback.example -e FALLBACK_ORIGIN_SECRET=check-secret)
 check "caddy validate" "$CTR" run --rm "${caddy_env[@]}" -v "$root/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
   "$caddy_image" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

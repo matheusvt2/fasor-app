@@ -25,6 +25,8 @@ fi
 tty=(); [ -t 0 ] && [ -t 1 ] && tty=(-it)
 data_dir=""
 [ -n "${INFRA_TF_DATA_DIR:-}" ] && data_dir="TF_DATA_DIR=$INFRA_TF_DATA_DIR"
+# Pinned by digest (the multi-arch index): this image receives the admin session.
+TERRAFORM_IMAGE=hashicorp/terraform:1.16.4@sha256:985cdc6c1d9b0a65b83377f666efd2f740b47f02ac55be1ced3d18f7d3b0e829
 exec "$CTR" run --rm ${tty[@]+"${tty[@]}"} --user "$(id -u):$(id -g)" -e HOME=/tmp \
   --env-file <(printf '%s\nAWS_REGION=%s\n%s\n' "$creds" "$AWS_REGION_DEFAULT" "$data_dir") \
-  -v "$root:/infra" -w "/infra/$dir" hashicorp/terraform:1.16.4 "$@"
+  -v "$root:/infra" -w "/infra/$dir" "$TERRAFORM_IMAGE" "$@"
