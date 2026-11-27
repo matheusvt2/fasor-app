@@ -1,6 +1,7 @@
 import type { AudioFileRow, AudioStatus, AudioTarget } from '../schemas/entities.ts';
 import { plural } from '../text/plural.ts';
 import { AUDIO_QUALITY_THRESHOLDS, audioQualityNote } from './quality.ts';
+import { audioTargetPath } from './target.ts';
 
 /*
  * Stories 31.3 and 31.4 (AD-30): the rules of a recording and of the field it fills, once. The
@@ -15,6 +16,19 @@ export const AUDIO_RECORDING_LIMITS = {
   countdown_from_ms: 170_000,
   warning_hold_ms: 1_500,
 } as const;
+
+/**
+ * e31f: the server's own cap (the device's is `max_ms`): an audio whose duration, as its quality
+ * carries it or as the speech provider reports it, is past the limit plus this margin is never
+ * transcribed (or never written) and fails with its reason. The margin covers a recorder's last
+ * buffer and a container's rounding.
+ */
+export const AUDIO_SERVER_MARGIN_MS = 10_000;
+
+/** e31f: whether an audio of this duration is past the server's cap (`max_ms` plus `AUDIO_SERVER_MARGIN_MS`). */
+export function audioTooLong(durationMs: number): boolean {
+  return durationMs > AUDIO_RECORDING_LIMITS.max_ms + AUDIO_SERVER_MARGIN_MS;
+}
 
 /** A condition said while recording, in the order it wins when several hold. */
 export type AudioLiveWarning = 'clipping' | 'low_level' | 'noisy';
@@ -243,6 +257,20 @@ export function audioForTarget<T extends TargetedAudio>(files: readonly T[], tar
   }
   const moved = target.type === 'table' && lastDone !== null && lastDone.not_a_reading === true ? lastDone : null;
   return { pending, done, failed, dismissed, moved };
+}
+
+/** e31f: whether an audio row counts as transcribed for the arrival toast: `done` and not removed. */
+export function isTranscribedAudio(audio: { audio_status: AudioStatus; removed_at: string | null }): boolean {
+  return audio.audio_status === 'done' && audio.removed_at === null;
+}
+
+/**
+ * e31f: whether a transcribed audio's text was written into a field (the arrival toast's audios): a
+ * table's spoken reading is suggested on its cell (Story 31.5) and is not; its speech that was no
+ * reading went to OBSERVAÇÕES (`audioWrittenTarget`) and is.
+ */
+export function audioTextInField(audio: Pick<TargetedAudio, 'audio_target' | 'not_a_reading'>): boolean {
+  return audioTargetPath(audioWrittenTarget(audio)) !== null;
 }
 
 /** The arrival toast of a sync that brought audios to `done`: "1 áudio transcrito", "3 áudios transcritos". */

@@ -21,7 +21,7 @@ import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { enabledSubBlocksOf, isCellFilled } from '../relatorio/sheet-state.ts';
 import { siteAltitudeValue } from '../relatorio/setup-complete.ts';
 import { SITE_CHECKLIST_LABEL, siteObservationOf, siteResultOf } from '../relatorio/site-checklist.ts';
-import { printedTapRows } from '../relatorio/tap-rows.ts';
+import { printedMeasurementRows, printedTapRows } from '../relatorio/tap-rows.ts';
 import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
 import { isReadingValue } from '../relatorio/over-range.ts';
 import type { ReadingVerdict } from '../relatorio/reading-cells.ts';
@@ -1457,7 +1457,10 @@ export function notPerformedPrintLine(performance: Extract<NonNullable<Measureme
  * one marked not run (`skipped`, E5's método "Não realizado"): neither prints a title, a
  * method or a criterion line. The other tests keep their numbers ("E6 · …").
  */
-function measurementTestPart(block: BlockRow, definition: BlockDefinition, test: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart | null {
+function measurementTestPart(block: BlockRow, definition: BlockDefinition, judged: MeasurementTestEvaluation, previous: PreviousReadings): SheetPart | null {
+  // e31f (Matheus, 2026-11-26, the rule of the TTR fix): the winding resistance's empty "AT, primeiro tap" and "AT,
+  // último tap" are left out of the print (`printedMeasurementRows`); every other row and test prints as before.
+  const test: MeasurementTestEvaluation = { ...judged, rows: printedMeasurementRows(judged.testKey, judged.rows) };
   // Story 23.9: a test the nameplate makes not applicable is omitted, as a switched-off one is (FR-11).
   if (!test.enabled || test.applicability.state === 'na') return null;
   // Story 25.15 (seed v16 `performed`): a test answered "Não realizada" prints one line in its place; unanswered, nothing.

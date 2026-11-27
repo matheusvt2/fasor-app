@@ -57,6 +57,31 @@ export function heldAudios(files: readonly HoldFile[], scope: { blockId?: string
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
+/**
+ * e31f (Matheus, 2026-11-26: "Dispensar na lista de pendências"): the statuses "Tentar de novo" may
+ * queue again: a `failed` audio, and a `queued` one (on the server it waits for a job that may never
+ * come: sent while AI features were off, or a send lost). The server queues it only once it holds the
+ * bytes (`audioRetryAllowed`).
+ */
+export function isRetryableAudioStatus(status: AudioStatus): boolean {
+  return status === 'failed' || status === 'queued';
+}
+
+/** e31f: whether "Tentar de novo" applies to an audio: a retryable status and the server holds its bytes. */
+export function audioRetryAllowed(audio: { audio_status: AudioStatus; uploaded_at: string | null }): boolean {
+  return isRetryableAudioStatus(audio.audio_status) && audio.uploaded_at !== null;
+}
+
+/**
+ * e31f: what a not-done audio offers wherever it is listed (the field, the ficha's hold line, the
+ * Export dialog's rows): "Dispensar" on every audio that holds (queued, transcribing, failed, its
+ * field removed or not), "Tentar de novo" where `audioRetryAllowed`. The audio stays stored either way.
+ */
+export function heldAudioActions(audio: { audio_status: AudioStatus; uploaded_at: string | null }): { retry: boolean; dismiss: boolean } {
+  const holding = isHoldingAudioStatus(audio.audio_status);
+  return { retry: holding && audioRetryAllowed(audio), dismiss: holding };
+}
+
 /** How many of the held audios are on their way and how many failed. */
 export function heldAudioCounts(held: readonly Pick<HeldAudio, 'status'>[]): { pending: number; failed: number } {
   const failed = held.filter((audio) => audio.status === 'failed').length;

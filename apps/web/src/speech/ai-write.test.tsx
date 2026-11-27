@@ -22,7 +22,7 @@ const AUTHOR = { companyId: '019966b0-0000-7000-8000-000000000903', actorId: '01
 const TARGET: AudioTarget = { type: 'item', block_id: BLOCK, item_key: 'contatos' };
 const LABEL = 'observação do item 8';
 const NAME = ui.aiWrite.name(LABEL);
-const RESTORE = [{ path: `sheet/${BLOCK}/checklist/contatos/observation`, value: 'contato fase b aquecido oxidado' }];
+const FORMER = { text: 'contato fase b aquecido oxidado' };
 
 function Harness({ online = true, aiWrite, aiUndo, children, ai = true }: { online?: boolean; aiWrite?: AiWriteRun; aiUndo?: AiUndo; children: React.ReactNode; ai?: boolean }) {
   const world = fakeRecorderWorld();
@@ -138,7 +138,7 @@ describe('31.9-WEB-003 a tap: "Escrevendo", then the written text with "Desfazer
     // A second tap while it runs runs nothing more.
     await userEvent.click(button);
     expect(run).toHaveBeenCalledTimes(1);
-    await act(async () => finish({ kind: 'written', text: 'Contatos da fase B com sinais de aquecimento e oxidação.', restore: RESTORE }));
+    await act(async () => finish({ kind: 'written', text: 'Contatos da fase B com sinais de aquecimento e oxidação.', former: FORMER }));
     expect(screen.getByRole('button', { name: NAME })).not.toHaveAttribute('aria-busy');
     // The field still shows the former text until the op lands: no line yet.
     expect(screen.queryByText(ui.aiWrite.done)).toBeNull();
@@ -150,12 +150,12 @@ describe('31.9-WEB-003 a tap: "Escrevendo", then the written text with "Desfazer
     const line = screen.getByText(ui.aiWrite.done).closest('.ai-done');
     expect(line).toHaveAttribute('role', 'status');
     await userEvent.click(screen.getByRole('button', { name: ui.aiWrite.undoName(LABEL) }));
-    expect(undo).toHaveBeenCalledWith(RESTORE);
+    expect(undo).toHaveBeenCalledWith(TARGET, FORMER);
     expect(screen.queryByText(ui.aiWrite.done)).toBeNull();
   });
 
   it('the line goes once the user types over the written text', async () => {
-    const run = vi.fn<AiWriteRun>(() => Promise.resolve({ kind: 'written', text: 'Texto melhor.', restore: RESTORE }));
+    const run = vi.fn<AiWriteRun>(() => Promise.resolve({ kind: 'written', text: 'Texto melhor.', former: FORMER }));
     const { rerender } = render(
       <Harness aiWrite={run}>
         <AudioField target={TARGET} label={LABEL} text="texto" />

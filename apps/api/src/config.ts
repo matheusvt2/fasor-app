@@ -185,6 +185,16 @@ export const configSchema = z
         message: 'is fake; production sends the invitation and the password reset through ses',
       });
     }
+    // 2026-11-26 (e31f, review of Epic 31): with AI features on, a production process transcribes
+    // the users' audios for real. The `fake` speech provider replays a fixture, so every audio would
+    // land in its field as a canned sentence nobody said.
+    if (config.NODE_ENV === 'production' && config.AI_FEATURES === 'on' && config.STT_PROVIDER === 'fake') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['STT_PROVIDER'],
+        message: 'is fake; production with AI_FEATURES on transcribes audios through transcribe',
+      });
+    }
     if (config.NODE_ENV === 'production' && config.EMAIL_PROVIDER === 'ses' && config.EMAIL_FROM === DEFAULT_EMAIL_FROM) {
       ctx.addIssue({
         code: 'custom',

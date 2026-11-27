@@ -306,6 +306,80 @@ describe('31.1-UNIT-006 the guard of a written text', () => {
   });
 });
 
+describe('e31f-UNIT-002 the guard reads numbers in order, with their unit', () => {
+  it('refuses two values swapped between phases', () => {
+    expect(writtenTextGuard('fase A 120 giga, fase B 130 giga', '', 'Fase A com 130 GΩ e fase B com 120 GΩ.')).toEqual({
+      ok: false,
+      reasons: [{ kind: 'number', value: '120', problem: 'reordered' }],
+    });
+    expect(writtenTextGuard('fase A 120 giga, fase B 130 giga', '', 'Fase A com 120 GΩ e fase B com 130 GΩ.')).toEqual({ ok: true });
+  });
+
+  it('refuses two units swapped between two numbers', () => {
+    expect(writtenTextGuard('isolacao 147 giga, temperatura 23 graus', '', 'Isolação de 147 °C, temperatura de 23 GΩ.')).toEqual({
+      ok: false,
+      reasons: [
+        { kind: 'unit', value: 'GΩ', problem: 'reordered' },
+        { kind: 'unit', value: '°C', problem: 'reordered' },
+      ],
+    });
+  });
+
+  it('a unit said once after two numbers covers both', () => {
+    expect(writtenTextGuard('147 giga e 150 giga', '', '147 e 150 GΩ.')).toEqual({ ok: true });
+  });
+});
+
+describe('e31f-UNIT-003 the guard reads a sign', () => {
+  it('refuses an added minus or plus-minus', () => {
+    expect(writtenTextGuard('temperatura de 12 graus', '', 'Temperatura de -12 °C.')).toEqual({
+      ok: false,
+      reasons: [
+        { kind: 'number', value: '-12', problem: 'added' },
+        { kind: 'number', value: '12', problem: 'dropped' },
+      ],
+    });
+    expect(writtenTextGuard('tolerancia de 5 por cento', '', 'Tolerância de ±5%.').ok).toBe(false);
+    expect(writtenTextGuard('tolerancia de 5 por cento', '', 'Tolerância de ± 5 %.').ok).toBe(false);
+    expect(writtenTextGuard('relacao dentro do esperado', '', 'Relação com erro de ±5%.')).toMatchObject({ ok: false, reasons: [{ kind: 'number', value: '±5', problem: 'added' }, { kind: 'unit', value: '%', problem: 'added' }] });
+  });
+
+  it('passes a faithful sign, spoken or written', () => {
+    expect(writtenTextGuard('menos cinco graus', '', '-5 °C.')).toEqual({ ok: true });
+    expect(writtenTextGuard('menos 5 graus', '', '−5 °C.')).toEqual({ ok: true });
+    expect(writtenTextGuard('erro de ±5%', '', 'Erro de ±5 %.')).toEqual({ ok: true });
+    expect(writtenTextGuard('menos de cinco graus', '', 'Menos de 5 °C.')).toEqual({ ok: true });
+  });
+
+  it('refuses a dropped sign', () => {
+    expect(writtenTextGuard('menos cinco graus', '', '5 °C.').ok).toBe(false);
+  });
+
+  it('a list dash is no sign', () => {
+    expect(writtenTextGuard('12 graus', '', '- 12 °C')).toEqual({ ok: true });
+  });
+});
+
+describe('e31f-UNIT-004 the guard refuses a result word the source does not carry', () => {
+  it('refuses an added result word, in any inflection', () => {
+    expect(writtenTextGuard('contato oxidado', '', 'Contato oxidado; item reprovado.')).toEqual({ ok: false, reasons: [{ kind: 'result', value: 'reprovado', problem: 'added' }] });
+    expect(writtenTextGuard('pintura boa', '', 'Pintura aprovada.').ok).toBe(false);
+    expect(writtenTextGuard('pintura boa', '', 'Equipamentos aptos.').ok).toBe(false);
+    expect(writtenTextGuard('pintura boa', '', 'Equipamento inapto.').ok).toBe(false);
+    expect(writtenTextGuard('pintura boa', '', 'Item conforme.').ok).toBe(false);
+  });
+
+  it('a negation added is a different word', () => {
+    expect(writtenTextGuard('item conforme', '', 'Item não conforme.')).toEqual({ ok: false, reasons: [{ kind: 'result', value: 'nao_conforme', problem: 'added' }] });
+    expect(writtenTextGuard('item nao conforme', '', 'Item não-conforme.')).toEqual({ ok: true });
+  });
+
+  it('a result word the heard text carries may be written; the context is no licence', () => {
+    expect(writtenTextGuard('ficou aprovado com ressalva', '', 'Aprovado com ressalvas.')).toEqual({ ok: true });
+    expect(writtenTextGuard('contato oxidado', 'Resposta do item: Não conforme', 'Contato oxidado, não conforme.').ok).toBe(false);
+  });
+});
+
 describe('31.1-UNIT-007 the write of a prose field: added after the text already there', () => {
   it('appends a plain text after the value, as a new paragraph, and fills an empty one', () => {
     expect(appendAudioText(null, 'Contato oxidado.')).toBe('Contato oxidado.');

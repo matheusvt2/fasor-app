@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { AiFeaturesContext } from '../state/ai-features.tsx';
 import { axe } from '../test-axe.ts';
-import { AudioButton, AudioField } from './audio-field.tsx';
+import { PermissionsFixture } from '../state/permissions.tsx';
+import { AudioButton, AudioField, HeldAudioButtons } from './audio-field.tsx';
 import { AudioRecorderCore, type AudioCommit } from './audio-session.tsx';
 import { fakeRecorderWorld, silence, syllables, tone, type FakeRecorderWorld } from './recorder-fakes.ts';
 
@@ -32,6 +33,7 @@ function Harness({
   player,
   retranscribe,
   dismiss,
+  author = AUTHOR,
 }: {
   world: FakeRecorderWorld | null;
   commit: AudioCommit;
@@ -41,13 +43,14 @@ function Harness({
   player?: (row: AudioFileRow, onEnded: () => void) => Promise<(() => void) | null>;
   retranscribe?: (row: AudioFileRow) => Promise<void>;
   dismiss?: (row: AudioFileRow) => Promise<void>;
+  author?: { companyId: string; actorId: string } | null;
 }) {
   return (
     <AudioRecorderCore
       deps={world?.deps ?? null}
       online={online}
       relatorioId={REL}
-      author={AUTHOR}
+      author={author}
       commit={commit}
       wakeLock={() => Promise.resolve(null)}
       {...(audio === undefined ? {} : { audio })}
@@ -167,7 +170,7 @@ describe('31.3-WEB-005 the Audio button', () => {
     expect(screen.getByRole('button', { name: 'Gravar áudio: observação do item 8' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('a button that goes away mid-recording keeps nothing', async () => {
+  it('e31f-WEB-001: a button that goes away mid-recording ("Concluir", a step change, a layout swap) stops and saves it to its target', async () => {
     const world = fakeRecorderWorld();
     world.setSource(speech);
     const commit = vi.fn<AudioCommit>(() => Promise.resolve());
@@ -176,8 +179,49 @@ describe('31.3-WEB-005 the Audio button', () => {
     act(() => world.advance(3000));
     rerender(<Harness world={world} commit={commit}>{null}</Harness>);
     await flush();
-    expect(commit).not.toHaveBeenCalled();
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(commit.mock.calls[0]![0]).toMatchObject({ relatorioId: REL, target: ITEM, quality: { verdict: 'good' } });
     expect(world.tracks[0]!.stopped).toBe(true);
+    expect(announcer()).toHaveTextContent('Gravação terminada, 0:03');
+  });
+
+  it('e31f-WEB-002: a stop that throws shows the error line instead of losing the recording without a word', async () => {
+    const world = fakeRecorderWorld({ stopThrows: true });
+    world.setSource(speech);
+    const commit = vi.fn<AudioCommit>(() => Promise.resolve());
+    const { container } = render(<Harness world={world} commit={commit}><AudioField target={ITEM} label="observação do item 8" text="" /></Harness>);
+    await userEvent.click(screen.getByRole('button', { name: 'Gravar áudio: observação do item 8' }));
+    act(() => world.advance(3000));
+    await userEvent.click(screen.getByRole('button', { name: 'Parar a gravação: observação do item 8' }));
+    await flush();
+    expect(commit).not.toHaveBeenCalled();
+    expect(container.querySelector('.audio-refused')).toHaveTextContent('Não foi possível guardar o áudio. Grave de novo.');
+    expect(announcer()).toHaveTextContent('Não foi possível guardar o áudio. Grave de novo.');
+  });
+
+  it('e31f-WEB-003: with no user signed in, the stop shows the error line and commits nothing', async () => {
+    const world = fakeRecorderWorld();
+    world.setSource(speech);
+    const commit = vi.fn<AudioCommit>(() => Promise.resolve());
+    const { container } = render(<Harness world={world} commit={commit} author={null}><AudioField target={ITEM} label="observação do item 8" text="" /></Harness>);
+    await userEvent.click(screen.getByRole('button', { name: 'Gravar áudio: observação do item 8' }));
+    act(() => world.advance(3000));
+    await userEvent.click(screen.getByRole('button', { name: 'Parar a gravação: observação do item 8' }));
+    await flush();
+    expect(commit).not.toHaveBeenCalled();
+    expect(container.querySelector('.audio-refused')).toHaveTextContent('Não foi possível guardar o áudio. Grave de novo.');
+  });
+
+  it('e31f-WEB-004: a commit that fails shows the error line too', async () => {
+    const world = fakeRecorderWorld();
+    world.setSource(speech);
+    const commit = vi.fn<AudioCommit>(() => Promise.reject(new Error('quota')));
+    const { container } = render(<Harness world={world} commit={commit}><AudioField target={ITEM} label="observação do item 8" text="" /></Harness>);
+    await userEvent.click(screen.getByRole('button', { name: 'Gravar áudio: observação do item 8' }));
+    act(() => world.advance(3000));
+    await userEvent.click(screen.getByRole('button', { name: 'Parar a gravação: observação do item 8' }));
+    await flush();
+    expect(container.querySelector('.audio-refused')).toHaveTextContent('Não foi possível guardar o áudio. Grave de novo.');
   });
 
   it('a disabled button says why and records nothing', async () => {
@@ -387,5 +431,78 @@ describe('31.6-WEB-001 the failed state and the dismissed mark', () => {
     online.unmount();
     const offline = renderFailed({ online: false });
     expect(await axe(offline.container)).toHaveNoViolations();
+  });
+});
+
+describe('e31f-WEB-005 a listed audio that holds offers "Dispensar", and "Tentar de novo" where it applies', () => {
+  const PLACE = 'SEC-01 · Observação do item';
+  const UPLOADED = '2026-11-26T12:00:00.000Z';
+  const renderHeld = (row: AudioFileRow, options: { online?: boolean; retranscribe?: (row: AudioFileRow) => Promise<void>; dismiss?: (row: AudioFileRow) => Promise<void>; noRole?: boolean } = {}) => {
+    const tree = (
+      <Harness
+        world={fakeRecorderWorld()}
+        commit={vi.fn()}
+        audio={{ rows: [row], local: new Set() }}
+        online={options.online ?? true}
+        {...(options.retranscribe === undefined ? {} : { retranscribe: options.retranscribe })}
+        {...(options.dismiss === undefined ? {} : { dismiss: options.dismiss })}
+      >
+        <HeldAudioButtons audioId={row.id} place={PLACE} />
+      </Harness>
+    );
+    return render(options.noRole === true ? <PermissionsFixture role={null}>{tree}</PermissionsFixture> : tree);
+  };
+  const retry = () => screen.queryByRole('button', { name: `Tentar de novo: ${PLACE}` });
+  const dismiss = () => screen.queryByRole('button', { name: `Dispensar: ${PLACE}` });
+
+  it('queued and not uploaded, or transcribing: "Dispensar" only', () => {
+    const queued = renderHeld(audioRow('queued'));
+    expect(dismiss()).toBeInTheDocument();
+    expect(retry()).toBeNull();
+    queued.unmount();
+    renderHeld(audioRow('transcribing', { uploaded_at: UPLOADED }));
+    expect(dismiss()).toBeInTheDocument();
+    expect(retry()).toBeNull();
+  });
+
+  it('queued on the server (uploaded, no job) or failed: both; a done or dismissed audio: neither', () => {
+    const queued = renderHeld(audioRow('queued', { uploaded_at: UPLOADED }));
+    expect(retry()).toBeInTheDocument();
+    expect(dismiss()).toBeInTheDocument();
+    queued.unmount();
+    const failed = renderHeld(audioRow('failed', { uploaded_at: UPLOADED }));
+    expect(retry()).toBeInTheDocument();
+    failed.unmount();
+    const done = renderHeld(audioRow('done', { uploaded_at: UPLOADED }));
+    expect(done.container.querySelector('.audio-held-actions')).toBeNull();
+    done.unmount();
+    const dismissed = renderHeld(audioRow('dismissed'));
+    expect(dismissed.container.querySelector('.audio-held-actions')).toBeNull();
+  });
+
+  it('a tap on each runs its action; "Tentar de novo" needs signal; a role without the field key has both disabled', async () => {
+    const run = vi.fn<(row: AudioFileRow) => Promise<void>>(() => Promise.resolve());
+    const drop = vi.fn<(row: AudioFileRow) => Promise<void>>(() => Promise.resolve());
+    const row = audioRow('failed', { uploaded_at: UPLOADED });
+    const online = renderHeld(row, { retranscribe: run, dismiss: drop });
+    await userEvent.click(retry()!);
+    await userEvent.click(dismiss()!);
+    expect(run).toHaveBeenCalledWith(row);
+    expect(drop).toHaveBeenCalledWith(row);
+    await flush();
+    expect(announcer()).toHaveTextContent('Áudio dispensado');
+    online.unmount();
+    const offline = renderHeld(row, { online: false, retranscribe: run });
+    expect(retry()).toHaveAttribute('aria-disabled', 'true');
+    expect(retry()).toHaveAccessibleDescription('Tentar de novo precisa de conexão');
+    expect(dismiss()).not.toHaveAttribute('aria-disabled');
+    await userEvent.click(retry()!);
+    expect(run).toHaveBeenCalledTimes(1);
+    offline.unmount();
+    renderHeld(row, { noRole: true, dismiss: drop });
+    expect(dismiss()).toHaveAttribute('aria-disabled', 'true');
+    expect(retry()).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(dismiss()!);
+    expect(drop).toHaveBeenCalledTimes(1);
   });
 });
