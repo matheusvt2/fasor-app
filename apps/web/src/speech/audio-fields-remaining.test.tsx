@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { AudioFileRow, AudioTarget } from '@app/domain';
 import { audioRichFieldText, audioQualityOf } from '@app/domain';
 import { act, render, screen } from '@testing-library/react';
@@ -87,6 +89,63 @@ describe('31.7-WEB-001 the Audio button on each remaining prose field', () => {
   });
 });
 
+describe('31.10-WEB-007 the field bar on every prose field', () => {
+  const ALL: { name: string; target: AudioTarget; label: string }[] = [
+    { name: 'an NC observation', target: { type: 'item', block_id: BLOCK, item_key: 'contatos' }, label: copy.ficha.checklist.audioField(8) },
+    { name: 'the conclusion observations', target: { type: 'sheet_field', block_id: BLOCK, field: 'observations' }, label: copy.ficha.conclusao.audioField },
+    { name: "a measurement test's reason", target: { type: 'test_value', block_id: BLOCK, test_key: 't', value_key: 'v' }, label: copy.ficha.measurement.audioField },
+    { name: 'a photo caption', target: { type: 'photo_caption', file_id: BLOCK }, label: copy.captionComposer.audioField },
+    { name: 'a point text', target: { type: 'point', point_id: BLOCK, field: 'text' }, label: copy.points.audioField },
+    ...FIELDS,
+  ];
+
+  for (const field of ALL) {
+    it(`${field.name}: the tray follows the input, "Gravar áudio" at the bar's start and the AI control at its end`, () => {
+      const { container } = render(
+        <AudioRecorderCore deps={fakeRecorderWorld().deps} online relatorioId={REL} author={AUTHOR} commit={vi.fn()} wakeLock={() => Promise.resolve(null)} aiPropose={vi.fn()}>
+          <div className="field">
+            <textarea className="observation-field" aria-label="campo" defaultValue="texto do campo" />
+            <AudioField target={field.target} label={field.label} text="texto do campo" />
+            <span className="helper">linha do campo</span>
+          </div>
+        </AudioRecorderCore>,
+      );
+      const tray = container.querySelector('textarea + .field-tray')!;
+      expect(tray).not.toBeNull();
+      // The field's own lines follow the box.
+      expect(tray.nextElementSibling).toHaveClass('helper');
+      const bar = tray.querySelector(':scope > .field-bar')!;
+      expect(bar.firstElementChild).toHaveClass('audio-rec');
+      expect(bar.lastElementChild).toHaveClass('ai-write');
+      expect(screen.getByRole('button', { name: `Gravar áudio: ${field.label}` })).toHaveTextContent('Gravar áudio');
+      expect(screen.getByRole('button', { name: `Melhorar o texto com IA: ${field.label}` })).toBeInTheDocument();
+      expect(container.querySelector('.audio-tools')).toBeNull();
+    });
+  }
+
+  it('no prose surface draws the round Audio button or the old lines: only the Measurement table keeps the round button', () => {
+    const surfaces = [
+      'surfaces/ficha/checklist-section.tsx',
+      'surfaces/ficha/conclusao-section.tsx',
+      'surfaces/ficha/measurement-test-section.tsx',
+      'surfaces/ficha/not-tested-band.tsx',
+      'surfaces/photos/caption-composer.tsx',
+      'surfaces/photos/capture-sheet.tsx',
+      'surfaces/points/point-editor.tsx',
+      'surfaces/relatorio/section-text-surface.tsx',
+      'surfaces/relatorio/setup/etapa1-capa.tsx',
+      'surfaces/relatorio/setup/etapa5-local.tsx',
+      'surfaces/relatorio/setup/etapa6-parecer.tsx',
+    ];
+    for (const path of surfaces) {
+      const source = readFileSync(resolve(__dirname, '..', path), 'utf8');
+      expect(source, path).toMatch(/<AudioField\b/);
+      expect(source, path).not.toMatch(/<AudioButton\b|AudioFieldLines/);
+    }
+    expect(readFileSync(resolve(__dirname, '..', 'surfaces/ficha/ensaios-section.tsx'), 'utf8')).toMatch(/<AudioButton\b/);
+  });
+});
+
 describe('31.7-WEB-002 the conclusion text and the marks', () => {
   const target: AudioTarget = { type: 'sheet_field', block_id: BLOCK, field: 'conclusion_text' };
 
@@ -106,13 +165,17 @@ describe('31.7-WEB-002 the conclusion text and the marks', () => {
             onReplace={() => undefined}
             onEdit={() => undefined}
             draft={{ surface: 'test', entityId: BLOCK, field: 'conclusion-text' }}
+            // Story 31.10: the field bar is the text's next sibling, before the criteria line and the actions.
+            tray={<AudioField target={target} label="texto da conclusão" text={text} />}
           />
-          <AudioField target={target} label="texto da conclusão" text={text} />
         </div>
       </Harness>
       </ToastProvider>,
     );
-    expect(screen.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveValue(text);
+    const box = screen.getByRole('textbox', { name: 'Texto da conclusão' });
+    expect(box).toHaveValue(text);
+    expect(box.nextElementSibling).toHaveClass('field-tray');
+    expect(box.nextElementSibling?.querySelector('.field-bar .audio-btn')).not.toBeNull();
     const mark = document.querySelector('.audio-mark')!;
     expect(mark.querySelector('.audio-tag')).toHaveTextContent('Áudio');
     expect(mark).not.toHaveAttribute('data-state', 'edited');

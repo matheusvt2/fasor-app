@@ -27,7 +27,7 @@ import { readLastSheet } from '../../db/prefs.ts';
 import { importPhotoFiles, PHOTO_ACCEPT, splitImportable, type ImportResult, type ImportTarget } from '../../files/photo-import.ts';
 import { encodePhoto } from '../../files/photo-encode.ts';
 import { newId } from '../../ids.ts';
-import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioField } from '../../speech/audio-field.tsx';
 import { useSession } from '../../state/session.tsx';
 import { requestStorageCheck } from '../../state/storage-reading.ts';
 import { requestSyncCycle } from '../../state/sync.tsx';
@@ -592,21 +592,18 @@ export function EquipmentStep({
             {batchCaptionLabel(n)}
           </label>
           <div className="field">
-            <div className="row-wrap">
-              <textarea
-                id={fieldId}
-                className="observation-field"
-                value={caption}
-                maxLength={CAPTION_CAP ?? undefined}
-                aria-describedby={noteId}
-                onChange={(event) => setCaption(event.target.value)}
-              />
-              <AudioButton target={audioTarget} label={t.audioField} disabledReason={firstPhoto === null ? t.audioNeedsPhotos : null} />
-            </div>
+            <textarea
+              id={fieldId}
+              className="observation-field"
+              value={caption}
+              maxLength={CAPTION_CAP ?? undefined}
+              aria-describedby={noteId}
+              onChange={(event) => setCaption(event.target.value)}
+            />
+            {/* Story 31.10: the field bar inside the field's box. Story 31.9: the batch caption is not stored before "Adicionar N fotos", so it has no AI control. */}
+            <AudioField target={audioTarget} text={caption} label={t.audioField} disabledReason={firstPhoto === null ? t.audioNeedsPhotos : null} ai={false} />
             <CharCount length={caption.length} cap={CAPTION_CAP} />
           </div>
-          {/* Story 31.9: the batch caption is not stored before "Adicionar N fotos", so it has no AI control. */}
-          <AudioFieldLines target={audioTarget} text={caption} label={t.audioField} ai={false} />
           <p className="capture-reason" id={noteId}>
             {batchCaptionNote(n)}
           </p>

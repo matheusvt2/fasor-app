@@ -206,3 +206,5 @@ export * from './types/test-base-update.ts';
 export * from './relatorio/tag-rename.ts';
 // Story 31.1 (AD-30): the voice input rules; last, as they read the sheet, the parecer and the captions.
 export * from './audio/index.ts';
+// Story 32.1: the records of every AI answer and the rule an op settles them by; last, as it reads the audio, the audit and the reading.
+export * from './ai-answers/index.ts';

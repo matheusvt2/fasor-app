@@ -27,7 +27,7 @@ import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { blockRowsOf, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
-import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioField } from '../../speech/audio-field.tsx';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { RichTextField } from '../../input/rich-text-field.tsx';
 import { useRichTextArea } from '../../input/use-rich-text-area.ts';
@@ -231,10 +231,10 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, temp
             <p className="field-label" id="secao-lbl">
               {t.fieldLabel}
             </p>
-            {canFill ? <AudioButton target={audio} label={t.audioField} /> : null}
           </div>
           <RichTextField editor={editor} focused={focused} labelledBy="secao-lbl" areaClassName="secao-text" readOnly={!canFill} />
-          <AudioFieldLines target={audio} text={audioRichFieldText(storedText)} label={t.audioField} readOnly={!canFill} />
+          {/* Story 31.10: the field bar under the editor, inside the field. */}
+          <AudioField target={audio} text={audioRichFieldText(storedText)} label={t.audioField} readOnly={!canFill} />
         </div>
 
         {canFill ? (

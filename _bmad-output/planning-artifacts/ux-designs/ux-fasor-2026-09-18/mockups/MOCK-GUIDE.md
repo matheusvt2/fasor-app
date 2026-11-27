@@ -546,3 +546,7 @@ Other changes made with them:
 **Approval:** pending, Matheus in the PR.
 
 - 2026-11-26, batch e31d (Stories 31.7, 31.9): the mic on the remaining fields is built from `62-audio-estados.html`; `50-relatorio-setup`, `72-pontos`, `key-equipment-sheet` and `key-relatorio-setup` each carry a head comment saying their Dictation button is superseded by the Audio button, and `45-secao` draws none. The AI control is the `.ai-*` drawing of `62-audio-estados.html`; no mock draws it beside the other fields.
+
+## 2026-11-27 — The field bar (Story 31.10, batch e31h)
+
+Matheus, 2026-11-27, after using v0.16.1 in production, chose the bar inside the field ("Opcao A ficou a melhor"). `components.css` gains the section "Field bar" (`.field-tray`, `.field-bar`, `.audio-glyph`, `.audio-word`, `.audio-stop-word`, `.ai-compare`, `.ai-side*`, `.ai-changed`, `.ai-reason*`), with two `.frame-phone` rules (the comparison stacks, each control of the bar takes its own line). `62-audio-estados.html` gains group (h): the bar at rest, recording, comparing, refused, and the daily limit, in both themes; groups (a) and (f) stay as Story 31.9 drew them, and on a prose field the bar supersedes them. Only the Measurement table keeps the round Audio button (`.audio-tools` in `.mt-actions`). No new token and no new color. `prototype/index.html` rebuilt with `build.py`. `DESIGN.md` rows "Audio button" and "AI control" amended the same day.

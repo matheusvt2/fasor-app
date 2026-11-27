@@ -20,7 +20,7 @@ import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { CaptionRecents } from '../../db/photo-store.ts';
-import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioField } from '../../speech/audio-field.tsx';
 import './photos.css';
 import { spriteHref } from '../../styles/sprite.ts';
 
@@ -254,14 +254,15 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
                 aria-describedby={reasonId}
                 onChange={(event) => setText(event.target.value)}
               />
-              <CharCount length={text.length} cap={CAPTION_CAP} />
             </>
           ) : (
             <p className="caption-preview" role="status">
               {generated ?? ''}
             </p>
           )}
-          <AudioFieldLines target={audioTarget} text={stored} label={t.audioField} />
+          {/* Story 31.10: the field bar right under the caption (a single-line field gets the same bar). */}
+          <AudioField target={audioTarget} text={stored} label={t.audioField} />
+          {editing ? <CharCount length={text.length} cap={CAPTION_CAP} /> : null}
           <div className="caption-actions">
             <ToggleButton className="btn btn-text caption-edit-toggle" isSelected={editing} onChange={toggleEditing}>
               <svg className="ico" aria-hidden="true">
@@ -269,7 +270,6 @@ function ComposerBody({ prefill, stored, prefillText = null, sources, onSave, on
               </svg>
               {t.editText}
             </ToggleButton>
-            <AudioButton target={audioTarget} label={t.audioField} wrap="audio-tools" />
             <span className="btn-reason" id={reasonId}>
               {t.editReason}
             </span>

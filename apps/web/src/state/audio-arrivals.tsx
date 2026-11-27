@@ -85,7 +85,9 @@ export function focusAudioField(audioId: string, attempts = 40): void {
     if (attempts > 0) window.setTimeout(() => focusAudioField(audioId, attempts - 1), 150);
     return;
   }
-  const field = mark.parentElement?.querySelector<HTMLElement>(FIELD) ?? mark.querySelector<HTMLElement>('button');
+  // Story 31.10: the mark sits in the field bar's tray, the input's sibling, so the field is found beside the tray.
+  const around = mark.closest('.field-tray')?.parentElement ?? mark.parentElement;
+  const field = around?.querySelector<HTMLElement>(FIELD) ?? mark.querySelector<HTMLElement>('button');
   mark.scrollIntoView({ block: 'center' });
   field?.focus({ preventScroll: true });
 }

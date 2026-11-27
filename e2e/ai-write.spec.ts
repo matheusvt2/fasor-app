@@ -1,6 +1,7 @@
 import { parseRichText, type BlockRow } from '@app/domain';
 import type { BrowserContext, Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { GUARD_LINE, useProposal } from './support/ai-write.ts';
 import { readStore } from './support/outbox.ts';
 import { openChaveSheet } from './support/photos.ts';
 
@@ -12,6 +13,8 @@ import { openChaveSheet } from './support/photos.ts';
  * the control stays, disabled, "Precisa de conexão", and nothing is queued; an answer the guard
  * refuses leaves the field as it was and says so; "Texto da conclusão" holding the composed text
  * becomes the user's edited text and the picked result stays. Waits poll; no fixed sleep.
+ * Story 31.10: a tap now opens a proposal beside the field's text, and "Usar o texto da IA" writes
+ * it; a refusal says why (`.ai-reason`). The field bar's own specs are `ai-field-bar.spec.ts`.
  */
 
 let account: SeedAccount;
@@ -77,6 +80,8 @@ test('@p0 31.9-E2E-001 a tap rewrites an NC observation by an ordinary op, and "
   // 48 px, the touch minimum.
   expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(48);
   await control.click();
+  // Story 31.10: the answer is a proposal, compared before anything is written.
+  await useProposal(contatos);
 
   await expect(field).toHaveValue(REWRITTEN, { timeout: 30_000 });
   const done = contatos.locator('.ai-done');
@@ -107,19 +112,19 @@ test('@p0 31.9-E2E-002 offline the control stays, disabled with "Precisa de cone
   await expect(control).not.toHaveAttribute('aria-busy', 'true');
   await expect(field).toHaveValue(ROUGH);
   expect(await aiOps(page)).toEqual([]);
-  await expect(contatos.locator('.ai-done, .ai-error')).toHaveCount(0);
+  await expect(contatos.locator('.ai-done, .ai-reason')).toHaveCount(0);
   await context.setOffline(false);
   await expect(control).not.toHaveAttribute('aria-disabled', 'true');
 });
 
-test('@p0 31.9-E2E-003 an answer the guard refuses leaves the field unchanged and says "Não foi possível melhorar o texto"', async ({ page }) => {
+test('@p0 31.9-E2E-003 an answer the guard refuses leaves the field unchanged and says why (Story 31.10)', async ({ page }) => {
   test.setTimeout(150_000);
   const { blockId } = await openChaveSheet(page, account, database);
   const contatos = await ncObservation(page, REFUSED);
   const field = contatos.getByRole('textbox', { name: /^Observação do item \d+$/ });
   await expect.poll(async () => (await storedBlock(page, blockId)).sheet.checklist.contatos?.observation?.value).toBe(REFUSED);
   await contatos.getByRole('button', { name: OBSERVATION_CONTROL }).click();
-  await expect(contatos.locator('.ai-error')).toHaveText('Não foi possível melhorar o texto', { timeout: 30_000 });
+  await expect(contatos.locator('.ai-reason')).toHaveText(GUARD_LINE, { timeout: 30_000 });
   await expect(field).toHaveValue(REFUSED);
   expect((await storedBlock(page, blockId)).sheet.checklist.contatos?.observation?.value).toBe(REFUSED);
   expect(await aiOps(page)).toEqual([]);
@@ -145,6 +150,7 @@ test('@p0 e31f-E2E-003 a section text rewritten by the AI control keeps its bloc
   const shape = (text: string) => parseRichText(text).map((block) => block.kind);
 
   await page.locator('.secao-content').getByRole('button', { name: 'Melhorar o texto com IA: texto da seção' }).click();
+  await useProposal(page.locator('.secao-content'));
   await expect.poll(async () => (await aiOps(page)).length, { timeout: 30_000 }).toBeGreaterThan(0);
   const written = await sectionText();
   expect(written).not.toBe(before);
@@ -170,6 +176,7 @@ test('@p0 31.9-E2E-004 "Texto da conclusão" holding the composed text becomes t
   expect((await storedBlock(page, blockId)).sheet.conclusion.text?.value ?? null).toBeNull();
 
   await conclusion.getByRole('button', { name: 'Melhorar o texto com IA: texto da conclusão' }).click();
+  await useProposal(conclusion);
   await expect.poll(async () => (await storedBlock(page, blockId)).sheet.conclusion.text_status?.value ?? null, { timeout: 30_000 }).toBe('edited');
   const block = await storedBlock(page, blockId);
   const text = String(block.sheet.conclusion.text?.value ?? '');

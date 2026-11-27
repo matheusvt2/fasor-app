@@ -3,7 +3,7 @@ import { useId, useMemo, useRef, useState } from 'react';
 import { ConfirmDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { notTestedSynced } from '../../db/sync-store.ts';
-import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioField } from '../../speech/audio-field.tsx';
 import { useSession } from '../../state/session.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { useTypedText } from './ficha-fields.tsx';
@@ -161,7 +161,6 @@ function UtilityJustification({ api, block, tag }: { api: FichaApi; block: Pick<
             <label className="field-label" htmlFor={textId}>
               {t.textLabel}
             </label>
-            <AudioButton target={audio} label={t.audioField} />
           </div>
           <textarea
             id={textId}
@@ -171,7 +170,8 @@ function UtilityJustification({ api, block, tag }: { api: FichaApi; block: Pick<
             onChange={(event) => text.change(event.target.value)}
             onBlur={() => text.blur()}
           />
-          <AudioFieldLines target={audio} text={text.text} label={t.audioField} />
+          {/* Story 31.10: the field bar inside the field's box; the helper follows it. */}
+          <AudioField target={audio} text={text.text} label={t.audioField} />
           <span className="helper">{t.textHelper}</span>
         </div>
       </div>

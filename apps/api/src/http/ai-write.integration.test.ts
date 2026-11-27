@@ -25,6 +25,7 @@ import {
 import { and, desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { now } from '../clock.ts';
 import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
@@ -223,11 +224,13 @@ describe('31.9-API-001 the rewrite at the report level, with the field context, 
     calls.length = 0;
     const res = await write(app, main.relatorioId, { target: item('contatos'), last_op_id: lastOpId });
     expect(res.status, await res.clone().text()).toBe(200);
-    expect(aiWriteResponseSchema.parse(await res.json())).toEqual({ outcome: 'written', source: 'contato fase b aquecido oxidado', text: 'Contatos da fase B com sinais de aquecimento e oxidação.' });
+    const answer = aiWriteResponseSchema.parse(await res.json());
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ text: 'contato fase b aquecido oxidado', level: 'report', source: 'field', context: { field: 'Observação do item' } });
     expect(await storedObservation('contatos')).toBe('contato fase b aquecido oxidado');
     const run = await lastRun();
+    // Story 31.10: the answer names its run row.
+    expect(answer).toEqual({ outcome: 'written', source: 'contato fase b aquecido oxidado', text: 'Contatos da fase B com sinais de aquecimento e oxidação.', run_id: run!.id });
     expect(run).toMatchObject({
       kind: 'ai_write',
       audio_id: null,
@@ -257,7 +260,7 @@ describe('31.9-API-001 the rewrite at the report level, with the field context, 
     const lastOpId = await observe('simultaneidade', 'mecanismo verificado');
     as(ADMIN);
     const res = await write(billed, main.relatorioId, { target: item('simultaneidade'), last_op_id: lastOpId });
-    expect(await res.json()).toEqual({ outcome: 'written', source: 'mecanismo verificado', text: 'mecanismo foi verificado' });
+    expect(await res.json()).toEqual({ outcome: 'written', source: 'mecanismo verificado', text: 'mecanismo foi verificado', run_id: (await lastRun())!.id });
     expect(await lastRun()).toMatchObject({ writing_provider: 'bedrock', model: 'stand-in-model', prompt_version: 'transcription-write-field-1', input_tokens: 412, output_tokens: 37, usd: 0.001235 });
   });
 });
@@ -268,7 +271,8 @@ describe('31.9-API-002 a guard that fails or a call that fails leaves the field 
     as(ADMIN);
     const res = await write(app, main.relatorioId, { target: item('intertravamento_mecanico'), last_op_id: lastOpId });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ outcome: 'refused', reason: 'guard' });
+    // Story 31.10: the kinds the guard named (never a value of the text) and the run row's id.
+    expect(await res.json()).toEqual({ outcome: 'refused', reason: 'guard', guard_kinds: ['number'], run_id: (await lastRun())!.id });
     expect(await lastRun()).toMatchObject({ outcome: 'ok', guard_outcome: 'failed', fallback_reason: 'guard: added number 3' });
     expect(await storedObservation('intertravamento_mecanico')).toBe('folga no acionamento do mecanismo');
   });
@@ -282,8 +286,54 @@ describe('31.9-API-002 a guard that fails or a call that fails leaves the field 
     const lastOpId = await observe('contatos', 'contato fase b aquecido oxidado');
     as(ADMIN);
     const res = await write(broken, main.relatorioId, { target: item('contatos'), last_op_id: lastOpId });
-    expect(await res.json()).toEqual({ outcome: 'refused', reason: 'failed' });
+    expect(await res.json()).toEqual({ outcome: 'refused', reason: 'failed', run_id: (await lastRun())!.id });
     expect(await lastRun()).toMatchObject({ outcome: 'error', error: 'Error: the provider is down', guard_outcome: null });
+  });
+});
+
+describe('31.10-API-001 a guard refusal names the kinds, never a value; the run row keeps the full reason', () => {
+  it('a TAG and a result word added: guard_kinds [tag, result], once each, no value of the text in the answer', async () => {
+    const adding = makeApp({
+      name: 'bedrock',
+      provider: {
+        write: async (input) => ({ text: `${input.text} no TR-99, aprovado e aprovada`, model: 'stand-in-model', prompt_version: AI_WRITE_PROMPT_VERSION, usage: { input_tokens: 1, output_tokens: 1, usd: 0 } }),
+      },
+    });
+    const lastOpId = await observe('contatos', 'contato fase b aquecido oxidado');
+    as(ADMIN);
+    const res = await write(adding, main.relatorioId, { target: item('contatos'), last_op_id: lastOpId });
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    const run = await lastRun();
+    expect(JSON.parse(body)).toEqual({ outcome: 'refused', reason: 'guard', guard_kinds: ['tag', 'result'], run_id: run!.id });
+    expect(body).not.toMatch(/TR-?99|aprovad|contato/i);
+    expect(run).toMatchObject({ guard_outcome: 'failed' });
+    expect(run!.fallback_reason).toContain('added tag TR99');
+    expect(run!.fallback_reason).toContain('added result aprovado');
+    expect(await storedObservation('contatos')).toBe('contato fase b aquecido oxidado');
+  });
+
+  it('an empty answer is a guard refusal naming no kind', async () => {
+    const empty = makeApp({
+      name: 'bedrock',
+      provider: { write: async () => ({ text: '   ', model: 'stand-in-model', prompt_version: AI_WRITE_PROMPT_VERSION, usage: { input_tokens: 1, output_tokens: 0, usd: 0 } }) },
+    });
+    const lastOpId = await observe('contatos', 'contato fase b aquecido oxidado');
+    as(ADMIN);
+    const res = await write(empty, main.relatorioId, { target: item('contatos'), last_op_id: lastOpId });
+    expect(await res.json()).toEqual({ outcome: 'refused', reason: 'guard', guard_kinds: [], run_id: (await lastRun())!.id });
+  });
+
+  it('a device on the older build still reads the answer: the schema without the new fields parses it', async () => {
+    // The answer schema of Story 31.9, as a device on that build parses it (unknown keys stripped).
+    const older = z.discriminatedUnion('outcome', [
+      z.object({ outcome: z.literal('written'), source: z.string(), text: z.string().min(1) }),
+      z.object({ outcome: z.literal('refused'), reason: z.enum(['guard', 'failed']) }),
+    ]);
+    const lastOpId = await observe('intertravamento_mecanico', 'folga no acionamento do mecanismo');
+    as(ADMIN);
+    const answer: unknown = await (await write(app, main.relatorioId, { target: item('intertravamento_mecanico'), last_op_id: lastOpId })).json();
+    expect(older.parse(answer)).toEqual({ outcome: 'refused', reason: 'guard' });
   });
 });
 
@@ -329,7 +379,7 @@ describe('e31f-API-001 a section text is rewritten block by block, keeping its f
     const res = await write(app, main.relatorioId, { target, last_op_id: op.op_id });
     const answer = aiWriteResponseSchema.parse(await res.json());
     expect(calls.map((call) => call.text)).toEqual(['Inspeção da cabine primária realizada.', 'item um verificado', 'item dois verificado']);
-    expect(answer).toEqual({ outcome: 'written', source: 'Inspeção da cabine primária realizada.\nitem um verificado\nitem dois verificado', text: 'Inspeção da cabine primária realizada.\nItem um verificado.\nItem dois verificado.' });
+    expect(answer).toEqual({ outcome: 'written', source: 'Inspeção da cabine primária realizada.\nitem um verificado\nitem dois verificado', text: 'Inspeção da cabine primária realizada.\nItem um verificado.\nItem dois verificado.', run_id: (await lastRun())!.id });
     const write2 = aiRewriteWrite(await toSnapshot(db, company, main.relatorioId), target, answer.outcome === 'written' ? answer.text : '', { now: now() })!;
     expect((write2.puts[0]!.value as { section_text: string }).section_text).toBe('Inspeção da **cabine primária** realizada.\n- Item um verificado.\n- Item dois verificado.');
   });

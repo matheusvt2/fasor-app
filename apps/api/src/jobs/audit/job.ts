@@ -1,4 +1,5 @@
-import { auditInput, layoutSpec, toIso, validateAuditFindings, type AuditFinding, type Clock, type NewId, type Op } from '@app/domain';
+import { auditAnswers, auditInput, layoutSpec, toIso, validateAuditFindings, type AuditFinding, type Clock, type NewId, type Op } from '@app/domain';
+import { recordAiAnswers } from '../../ai/answers.ts';
 import type { Db } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
 import { log, logError } from '../../log.ts';
@@ -92,6 +93,22 @@ export async function runAuditJob(deps: AuditJobDeps, payload: AuditPayload): Pr
     const { kept, dropped } = validateAuditFindings(answer.findings, input.refs);
 
     const finishedAt = stamp();
+    // Story 32.1: one record per finding kept or dropped, written with the run's done batch.
+    const answers = auditAnswers({
+      companyId: payload.company_id,
+      relatorioId: payload.relatorio_id,
+      runId: payload.run_id,
+      inputText: input.text,
+      raw: answer.findings,
+      kept,
+      dropped,
+      snapshot,
+      model: answer.model,
+      promptVersion: answer.prompt_version,
+      usd: answer.usage.usd,
+      at: finishedAt,
+      newId: deps.newId,
+    });
     await applyServerBatch(
       deps.db,
       companyId,
@@ -103,7 +120,7 @@ export async function runAuditJob(deps: AuditJobDeps, payload: AuditPayload): Pr
         put('finished_at', finishedAt, finishedAt),
         put('status', 'done', finishedAt),
       ],
-      { now: deps.now },
+      { now: deps.now, before: (tx) => recordAiAnswers(tx, answers) },
     );
     log('audit run', {
       ...fields,

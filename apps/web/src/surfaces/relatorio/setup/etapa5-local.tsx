@@ -5,7 +5,7 @@ import { useNumberInput, type ParsedNumber } from '../../../components/number-in
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
-import { AudioButton, AudioFieldLines } from '../../../speech/audio-field.tsx';
+import { AudioField } from '../../../speech/audio-field.tsx';
 import { trackInputRefused } from '../../../telemetry/hooks.ts';
 import { keptAltitudeAnswer, siteAltitudeReading } from './altitude-reading.ts';
 import { useDateField, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
@@ -196,7 +196,6 @@ export function Etapa5Local({
               <label className="field-label" htmlFor={justificationId}>
                 {t.nextInterventionJustificationLabel}
               </label>
-              <AudioButton target={JUSTIFICATION_AUDIO} label={t.audioJustification} />
             </div>
             <input
               id={justificationId}
@@ -206,8 +205,9 @@ export function Etapa5Local({
               onChange={(event) => justification.change(event.target.value)}
               onBlur={justification.blur}
             />
+            {/* Story 31.10: the field bar under the input; the count follows it. */}
+            <AudioField target={JUSTIFICATION_AUDIO} text={justification.text} label={t.audioJustification} />
             <CharCount length={justification.text.length} cap={JUSTIFICATION_CAP} />
-            <AudioFieldLines target={JUSTIFICATION_AUDIO} text={justification.text} label={t.audioJustification} />
           </div>
         </div>
       </div>

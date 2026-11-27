@@ -97,8 +97,11 @@ test('@p0 31.3-E2E-001 offline on an NC observation: the recording is kept on th
   const { blockId } = await openChaveSheet(page, account, database);
   const contatos = await contatosNc(page);
   const button = contatos.getByRole('button', { name: /^Gravar áudio: observação do item \d+$/ });
+  // Story 31.10: the field bar's audio control, Text-button-shaped with its word, 48 px tall.
   const box = (await button.boundingBox())!;
-  expect([Math.round(box.width), Math.round(box.height)]).toEqual([48, 48]);
+  expect(Math.round(box.height)).toBeGreaterThanOrEqual(48);
+  expect(Math.round(box.width)).toBeGreaterThan(48);
+  await expect(button).toContainText('Gravar áudio');
   await offline(context, page);
 
   await button.click();

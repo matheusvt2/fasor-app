@@ -13,13 +13,18 @@ import {
   permissionForPath,
   permissionRefusalText,
   audioPermissionPath,
+  aiRewriteComparison,
   aiRewriteFormer,
+  aiRewriteRefusalText,
   aiRewriteRestore,
   aiRewriteSource,
   aiRewriteWrite,
   relatorioOpEnvelope,
   toIso,
+  type AiComparison,
   type AiRewriteFormer,
+  type AiRewriteRefusal,
+  type AiRewriteRefusalText,
   type AiWriteResponse,
   type OpDraft,
   type AudioFieldStep,
@@ -134,21 +139,57 @@ interface AudioContextValue {
   retranscribe: (row: AudioFileRow) => Promise<void>;
   /** Story 31.6: "Dispensar" of a failed audio (the device's one status write). */
   dismiss: (row: AudioFileRow) => Promise<void>;
-  /** Story 31.9: a tap on the AI control of a field; absent, the control is not drawn. */
-  aiWrite: AiWriteRun | null;
+  /** Story 31.9: a tap on the AI control of a field; absent, the control is not drawn. Story 31.10: it proposes, it never writes. */
+  aiPropose: AiProposeRun | null;
+  /** Story 31.10: "Usar o texto da IA": writes the proposal by an ordinary op (works offline). */
+  aiUse: AiUse | null;
   /** Story 31.9: "Desfazer" of the AI control: puts the field's former values back. */
   aiUndo: AiUndo | null;
+  /** Story 31.10: what the user did with a proposal that was not used, reported fire and forget, only online (Epic 32). */
+  aiReport: (runId: string | null, action: AiReportAction) => void;
 }
 
-/** Story 31.9: what one tap on the AI control ended with: the text written and the text the field held before (e31f), or the field left unchanged. */
-export type AiWriteOutcome = { kind: 'written'; text: string; former: AiRewriteFormer } | { kind: 'refused' };
+/** Story 31.10: a proposal of the AI control, held in memory only until it is used or dropped. */
+export interface AiProposal {
+  target: AudioTarget;
+  /** The field's text the server rewrote (the device's own, checked before the proposal was shown). */
+  source: string;
+  text: string;
+  /** The `transcription_runs` row of the call (`run_id`), or null from an older server. */
+  runId: string | null;
+  comparison: AiComparison;
+}
+
+/** Story 31.10: what one tap on the AI control ended with: a proposal to compare, or why there is none. */
+export type AiProposeOutcome = { kind: 'proposed'; proposal: AiProposal } | { kind: 'refused'; refusal: AiRewriteRefusal; runId: string | null };
+
+/** Story 31.10: what "Usar o texto da IA" ended with: the text the field held before (e31f), or the text changed meanwhile. */
+export type AiUseOutcome = { kind: 'written'; former: AiRewriteFormer } | { kind: 'refused'; refusal: AiRewriteRefusal };
+
+/** Story 31.10: what the user did with a proposal that was not used (`POST /api/relatorios/{id}/write-outcome`, Epic 32). */
+export type AiReportAction = 'keep_mine' | 'text_changed';
 
 /** Security pass 2026-11-26 (A1): the server answered `429 quota_exceeded` (the company's daily ceiling of this paid work). */
 export function isQuotaExceeded(error: unknown): boolean {
   return error instanceof SyncRequestError && error.failure.kind === 'http' && error.failure.code === 'quota_exceeded';
 }
-/** Story 31.9: runs one tap on the AI control of a field (online); rejects on a call that failed. */
-export type AiWriteRun = (target: AudioTarget) => Promise<AiWriteOutcome>;
+/**
+ * Story 31.10: the refusal of a call to the AI control's route that did not answer `200`: the
+ * company's daily ceiling, the per-user limit, the barrier, or anything else (the service failed).
+ */
+export function aiRouteRefusal(error: unknown): AiRewriteRefusal {
+  if (isQuotaExceeded(error)) return { kind: 'daily_limit' };
+  const failure = error instanceof SyncRequestError && error.failure.kind === 'http' ? error.failure : null;
+  if (failure?.code === 'rate_limited') return { kind: 'rate_limited' };
+  if (failure?.code === 'not_caught_up') return { kind: 'not_caught_up' };
+  return { kind: 'failed' };
+}
+/** Story 31.9: runs one tap on the AI control of a field (online). Story 31.10: answers a proposal or the refusal, never writes. */
+export type AiProposeRun = (target: AudioTarget) => Promise<AiProposeOutcome>;
+/** Story 31.10: commits "Usar o texto da IA". */
+export type AiUse = (proposal: AiProposal) => Promise<AiUseOutcome>;
+/** Story 31.10: sends what the user did with a refused proposal; its failure is the caller's to ignore. */
+export type AiReport = (body: { run_id: string; outcome: 'refused'; action: AiReportAction }) => Promise<void>;
 /** Story 31.9: commits "Desfazer"; e31f: puts only the former text back, onto the field as it is now. */
 export type AiUndo = (target: AudioTarget, former: AiRewriteFormer) => Promise<void>;
 
@@ -175,10 +216,14 @@ export interface AudioRecorderCoreProps {
   retranscribe?: (row: AudioFileRow) => Promise<void>;
   /** Story 31.6: commits "Dispensar"; absent, the tap does nothing. */
   dismiss?: (row: AudioFileRow) => Promise<void>;
-  /** Story 31.9: runs a tap on the AI control; absent, no field draws the control. */
-  aiWrite?: AiWriteRun;
+  /** Story 31.9: runs a tap on the AI control; absent, no field draws the control. Story 31.10: a proposal, never a write. */
+  aiPropose?: AiProposeRun;
+  /** Story 31.10: commits "Usar o texto da IA". */
+  aiUse?: AiUse;
   /** Story 31.9: commits the AI control's "Desfazer". */
   aiUndo?: AiUndo;
+  /** Story 31.10: sends what the user did with a proposal that was not used; called only online, its failure ignored. */
+  aiReport?: AiReport;
 }
 
 const NO_ACTION = () => Promise.resolve();
@@ -221,8 +266,10 @@ export function AudioRecorderCore({
   wakeLock = browserWakeLock,
   retranscribe = NO_ACTION,
   dismiss = NO_ACTION,
-  aiWrite,
+  aiPropose,
+  aiUse,
   aiUndo,
+  aiReport,
 }: AudioRecorderCoreProps) {
   const store = useMemo(createStore, []);
   const current = useRef<Current | null>(null);
@@ -390,9 +437,35 @@ export function AudioRecorderCore({
   );
   useEffect(() => () => stopPlaying.current?.(), []);
 
+  // Story 31.10: fire and forget, only with signal; a refusal (a 404 before Epic 32's route exists) changes nothing here.
+  const report = useCallback(
+    (runId: string | null, action: AiReportAction) => {
+      if (runId === null || !online || aiReport === undefined) return;
+      void aiReport({ run_id: runId, outcome: 'refused', action }).catch(() => undefined);
+    },
+    [online, aiReport],
+  );
+
   const value = useMemo<AudioContextValue>(
-    () => ({ store, canRecord: deps !== null, online, relatorioId, audio, toggle, release, announce, play, playing, retranscribe, dismiss, aiWrite: aiWrite ?? null, aiUndo: aiUndo ?? null }),
-    [store, deps, online, relatorioId, audio, toggle, release, announce, play, playing, retranscribe, dismiss, aiWrite, aiUndo],
+    () => ({
+      store,
+      canRecord: deps !== null,
+      online,
+      relatorioId,
+      audio,
+      toggle,
+      release,
+      announce,
+      play,
+      playing,
+      retranscribe,
+      dismiss,
+      aiPropose: aiPropose ?? null,
+      aiUse: aiUse ?? null,
+      aiUndo: aiUndo ?? null,
+      aiReport: report,
+    }),
+    [store, deps, online, relatorioId, audio, toggle, release, announce, play, playing, retranscribe, dismiss, aiPropose, aiUse, aiUndo, report],
   );
   return (
     <AudioContext value={value}>
@@ -423,7 +496,7 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
   const user = session.user;
   const { pathname } = useLocation();
   const relatorioId = relatorioIdOfPath(pathname);
-  const { fetchFile, retranscribeAudio, syncNow, aiWrite: aiWriteRoute } = useSyncActions();
+  const { fetchFile, retranscribeAudio, syncNow, aiWrite: aiWriteRoute, aiWriteOutcome } = useSyncActions();
   const resolved = useMemo(() => {
     if (deps !== undefined) return deps;
     recorderDeps ??= browserRecorderDeps();
@@ -481,37 +554,71 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
     [db, user],
   );
   // Story 31.9: a tap on the AI control. The server reads the field from its own store, so this
-  // device first sends what it holds (AD-15's barrier, retried after a sync); the answer is written
-  // only when the server rewrote the very text this device shows, and still shows.
-  const aiWrite = useCallback<AiWriteRun>(
+  // device first sends what it holds (AD-15's barrier, retried after a sync). Story 31.10: the answer
+  // is a proposal, shown beside the field's text, only when the server rewrote the very text this
+  // device shows, and still shows; nothing is written until "Usar o texto da IA". A refused answer or
+  // a refused call is named by its kind, so the field says why.
+  const aiPropose = useCallback<AiProposeRun>(
     async (target) => {
-      if (db === null || user === null || relatorioId === null || aiWriteRoute === undefined || target.type === 'table') return { kind: 'refused' };
+      const failed: AiProposeOutcome = { kind: 'refused', refusal: { kind: 'failed' }, runId: null };
+      if (db === null || user === null || relatorioId === null || aiWriteRoute === undefined || target.type === 'table') return failed;
       const options = { now: now() };
       await syncNow().catch(() => undefined);
       const before = aiRewriteSource(await toSnapshot(db, relatorioId), target, options);
-      if (before === null) return { kind: 'refused' };
+      if (before === null) return failed;
       let answer: AiWriteResponse | null = null;
       for (let attempt = 0; answer === null; attempt++) {
         try {
           answer = await aiWriteRoute(relatorioId, { target, last_op_id: await lastOpIdFor(db, relatorioId) });
         } catch (error) {
-          const failure = error instanceof SyncRequestError && error.failure.kind === 'http' ? error.failure : null;
-          if (failure?.code !== 'not_caught_up' || attempt >= AI_WRITE_ROUNDS) throw error;
+          const refusal = aiRouteRefusal(error);
+          if (refusal.kind !== 'not_caught_up' || attempt >= AI_WRITE_ROUNDS) return { kind: 'refused', refusal, runId: null };
           await syncNow().catch(() => undefined);
         }
       }
-      if (answer.outcome !== 'written' || answer.source !== before.text) return { kind: 'refused' };
+      const runId = answer.run_id ?? null;
+      if (answer.outcome === 'refused') {
+        const refusal: AiRewriteRefusal = answer.reason === 'guard' ? (answer.guard_kinds === undefined ? { kind: 'guard' } : { kind: 'guard', guard_kinds: answer.guard_kinds }) : { kind: 'failed' };
+        return { kind: 'refused', refusal, runId };
+      }
       const snapshot = await toSnapshot(db, relatorioId);
-      if (aiRewriteSource(snapshot, target, options)?.text !== before.text) return { kind: 'refused' };
-      const former = aiRewriteFormer(snapshot, target, options);
-      const write = aiRewriteWrite(snapshot, target, answer.text, options);
-      if (former === null || write === null) return { kind: 'refused' };
-      const author = { id: user.id, companyId: user.companyId };
-      // An ordinary put by the user (AD-30), named as the AI control's.
-      await commitBatch(db, write.puts.map((put): OpDraft => ({ ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: put.path, value: put.value, meta: { ai_written: true } })), { newId, now });
-      return { kind: 'written', text: answer.text, former };
+      if (answer.source !== before.text || aiRewriteSource(snapshot, target, options)?.text !== before.text) return { kind: 'refused', refusal: { kind: 'text_changed' }, runId };
+      const comparison = aiRewriteComparison(snapshot, target, answer.text, options);
+      // A section text's answer with another count of blocks is no proposal (the guard refuses it too).
+      if (comparison === null) return { kind: 'refused', refusal: { kind: 'guard', guard_kinds: [] }, runId };
+      return { kind: 'proposed', proposal: { target, source: before.text, text: answer.text, runId, comparison } };
     },
     [db, user, relatorioId, aiWriteRoute, syncNow],
+  );
+  // Story 31.10: "Usar o texto da IA", on the device alone (it works without signal): the proposal
+  // replaces the field's text by the ordinary op of Story 31.9 only while the field still holds the
+  // text the AI rewrote; the op names the call's run row (`meta.ai_run_id`) beside `meta.ai_written`.
+  const aiUse = useCallback<AiUse>(
+    async (proposal) => {
+      const changed: AiUseOutcome = { kind: 'refused', refusal: { kind: 'text_changed' } };
+      if (db === null || user === null || relatorioId === null) return changed;
+      const options = { now: now() };
+      const { target } = proposal;
+      const snapshot = await toSnapshot(db, relatorioId);
+      if (aiRewriteSource(snapshot, target, options)?.text !== proposal.source) return changed;
+      const former = aiRewriteFormer(snapshot, target, options);
+      const write = aiRewriteWrite(snapshot, target, proposal.text, options);
+      if (former === null || write === null) return changed;
+      const author = { id: user.id, companyId: user.companyId };
+      const meta = proposal.runId === null ? { ai_written: true } : { ai_written: true, ai_run_id: proposal.runId };
+      // An ordinary put by the user (AD-30), named as the AI control's.
+      await commitBatch(db, write.puts.map((put): OpDraft => ({ ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: put.path, value: put.value, meta })), { newId, now });
+      return { kind: 'written', former };
+    },
+    [db, user, relatorioId],
+  );
+  // Story 31.10: what the user did with a refused proposal (Epic 32's route, built by its own batch).
+  const aiReport = useCallback<AiReport>(
+    async (body) => {
+      if (relatorioId === null || aiWriteOutcome === undefined) return;
+      await aiWriteOutcome(relatorioId, body);
+    },
+    [relatorioId, aiWriteOutcome],
   );
   // e31f: "Desfazer" reads the field as it is now and puts only the former text back onto it, so a
   // verdict, a Não ensaiado mark or a section's config changed after the write is never reverted.
@@ -536,7 +643,7 @@ export function AudioRecorderProvider({ children, deps }: { children: ReactNode;
       player={player}
       retranscribe={retranscribe}
       dismiss={dismiss}
-      {...(aiWriteRoute === undefined ? {} : { aiWrite, aiUndo })}
+      {...(aiWriteRoute === undefined ? {} : { aiPropose, aiUse, aiUndo, aiReport })}
     >
       {children}
     </AudioRecorderCore>
@@ -803,22 +910,28 @@ export function useFieldAudio(target: AudioTarget | null, currentText: string | 
   };
 }
 
-/** Story 31.9: the AI control of one field ("Melhorar o texto com IA"), its line and its button. */
+/** Story 31.9: the AI control of one field ("Melhorar o texto com IA"), its line and its button; Story 31.10: its proposal and its reasons. */
 export interface AiWriteControlState {
   /** Whether the button is drawn: a runner is mounted, AI features are on, the field holds text and may be written here. */
   shown: boolean;
   /** "Escrevendo": the request runs; the field stays as it was. */
   busy: boolean;
-  /** Why the button is disabled ("Precisa de conexão", the role's missing key), or null. */
+  /** Why the button is disabled ("Precisa de conexão", the role's missing key, a recording on the field, the daily limit), or null. */
   disabledReason: string | null;
   /** "Texto melhorado por IA" with "Desfazer": the field still holds the text the control wrote. */
   done: boolean;
-  /** "Não foi possível melhorar o texto": the last tap left the field unchanged. */
-  failed: boolean;
-  /** The sentence of that failure: the plain one, or the kernel's daily ceiling sentence (security pass A1). */
-  failedText: string;
+  /** Story 31.10: the two sides to compare while a proposal waits for "Usar o texto da IA" or "Manter o meu texto"; else null. */
+  comparison: AiComparison | null;
+  /** Story 31.10: the line of the last tap that left the field unchanged (what, then why), while the field holds that text; else null. */
+  refusal: AiRewriteRefusalText | null;
+  /** Story 31.10: the control reads "Tentar de novo" (a refusal a new tap can help). */
+  retry: boolean;
   tap: () => void;
   undo: () => void;
+  /** Story 31.10: "Usar o texto da IA". */
+  use: () => void;
+  /** Story 31.10: "Manter o meu texto". */
+  keep: () => void;
 }
 
 /** The characters a field shows, compared without spacing (a section text arrives as its plain lines, `audioRichFieldText`). */
@@ -829,42 +942,89 @@ function shownText(text: string | null | undefined): string {
 /**
  * Story 31.9 (FR-79): one field's AI control. Absent with no runner (no provider), with AI features
  * off, read-only, or on an empty field; offline it stays, disabled, "Precisa de conexão", and nothing
- * is queued. A tap shows "Escrevendo" until the answer: a written text replaces the field's (by an
- * ordinary op of the user's) and the line offers "Desfazer" while the field still holds it; a refused
- * answer or a failed call leaves the field as it was and says so, until the field changes.
+ * is queued. A tap shows "Escrevendo" until the answer.
+ *
+ * Story 31.10 (Matheus, 2026-11-27): the answer is a proposal, kept in memory only, shown beside the
+ * field's text; "Usar o texto da IA" writes it (by an ordinary op of the user's, offline too) and the
+ * line offers "Desfazer" while the field still holds it; "Manter o meu texto", leaving the screen or
+ * the field's text changing drops it, and nothing is written. A refused answer or call leaves the
+ * field as it was and says why (the kernel's `aiRewriteRefusalText`) until the field changes; the
+ * control then reads "Tentar de novo", or is disabled with the reason where a tap cannot help (the
+ * daily limit). A recording on the field disables the control until it ends. A proposal not used is
+ * reported to the server (fire and forget, online only) with what the user did.
  */
 export function useAiWriteControl(target: AudioTarget | null, text: string | null | undefined, options: { readOnly?: boolean; disabledReason?: string | null } = {}): AiWriteControlState {
   const context = use(AudioContext);
   const aiOn = useAiFeatures();
   const need = target === null ? 'none' : permissionForPath(audioPermissionPath(target), { kind: 'put', value: null });
   const allowed = useCan(need);
+  const live = useLive(context, target === null ? '' : audioTargetKey(target));
   const [busy, setBusy] = useState(false);
   const [written, setWritten] = useState<{ text: string; target: AudioTarget; former: AiRewriteFormer } | null>(null);
-  const [failedOn, setFailedOn] = useState<string | null>(null);
-  const [failedText, setFailedText] = useState<string>(ui.aiWrite.failed);
+  // The proposal and the refusal are each tied to the text the field showed at the tap (`on`).
+  const [proposal, setProposal] = useState<{ proposal: AiProposal; on: string } | null>(null);
+  const [refused, setRefused] = useState<{ refusal: AiRewriteRefusal; on: string } | null>(null);
   const shown = shownText(text);
-  const run = context?.aiWrite ?? null;
+  const propose = context?.aiPropose ?? null;
+  const applyRun = context?.aiUse ?? null;
   const undoRun = context?.aiUndo ?? null;
+  const report = context?.aiReport;
   const online = context?.online ?? false;
-  const visible = context !== null && run !== null && aiOn && options.readOnly !== true && target !== null && shown !== '';
-  const disabledReason = options.disabledReason ?? (!allowed && need !== 'none' ? permissionRefusalText(need) : online ? null : ui.aiWrite.needsConnection);
+  const visible = context !== null && propose !== null && aiOn && options.readOnly !== true && target !== null && shown !== '';
+  // The field's text changed while a proposal waited (typed here, or arrived from another device): it is dropped and the line says so.
+  useEffect(() => {
+    if (proposal === null || proposal.on === shown) return;
+    setProposal(null);
+    setRefused({ refusal: { kind: 'text_changed' }, on: shown });
+    report?.(proposal.proposal.runId, 'text_changed');
+  }, [proposal, shown, report]);
+  const refusal = visible && refused !== null && refused.on === shown ? aiRewriteRefusalText(refused.refusal) : null;
+  const disabledReason =
+    options.disabledReason ??
+    (!allowed && need !== 'none'
+      ? permissionRefusalText(need)
+      : live !== null
+        ? ui.aiWrite.recordingReason
+        : !online
+          ? ui.aiWrite.needsConnection
+          : refusal !== null && !refusal.retry
+            ? refusal.why
+            : null);
+  const comparing = visible && proposal !== null && proposal.on === shown;
   const tap = () => {
-    if (!visible || busy || disabledReason !== null || target === null || run === null) return;
+    if (!visible || busy || comparing || disabledReason !== null || target === null || propose === null) return;
     const from = shown;
     setBusy(true);
-    setFailedOn(null);
-    setFailedText(ui.aiWrite.failed);
-    run(target)
+    setRefused(null);
+    setWritten(null);
+    propose(target)
       .then((outcome) => {
-        if (outcome.kind === 'written') setWritten({ text: outcome.text, target, former: outcome.former });
-        else setFailedOn(from);
+        if (outcome.kind === 'proposed') {
+          setProposal({ proposal: outcome.proposal, on: from });
+          context?.announce(ui.aiWrite.proposedAnnounce);
+        } else setRefused({ refusal: outcome.refusal, on: from });
       })
-      .catch((error: unknown) => {
-        // Security pass 2026-11-26 (A1): at the company's daily ceiling the line says so, with the kernel's sentence.
-        if (isQuotaExceeded(error)) setFailedText(quotaExceededText('ai_write'));
-        setFailedOn(from);
-      })
+      .catch(() => setRefused({ refusal: { kind: 'failed' }, on: from }))
       .finally(() => setBusy(false));
+  };
+  const accept = () => {
+    if (proposal === null || applyRun === null) return;
+    const held = proposal;
+    setProposal(null);
+    applyRun(held.proposal)
+      .then((outcome) => {
+        if (outcome.kind === 'written') setWritten({ text: held.proposal.text, target: held.proposal.target, former: outcome.former });
+        else {
+          setRefused({ refusal: outcome.refusal, on: held.on });
+          report?.(held.proposal.runId, 'text_changed');
+        }
+      })
+      .catch(() => setRefused({ refusal: { kind: 'text_changed' }, on: held.on }));
+  };
+  const keep = () => {
+    if (proposal === null) return;
+    setProposal(null);
+    report?.(proposal.proposal.runId, 'keep_mine');
   };
   const undo = () => {
     if (written === null || undoRun === null) return;
@@ -877,10 +1037,12 @@ export function useAiWriteControl(target: AudioTarget | null, text: string | nul
     busy,
     disabledReason,
     done: visible && written !== null && shownText(written.text) === shown,
-    // The failure line stays while the field holds the text the tap left unchanged.
-    failed: visible && failedOn !== null && failedOn === shown,
-    failedText,
+    comparison: comparing && proposal !== null ? proposal.proposal.comparison : null,
+    refusal,
+    retry: refusal !== null && refusal.retry,
     tap,
     undo,
+    use: accept,
+    keep,
   };
 }

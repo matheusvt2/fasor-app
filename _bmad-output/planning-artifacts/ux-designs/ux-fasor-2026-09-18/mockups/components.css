@@ -371,6 +371,73 @@
 .ai-error { margin: 0; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
 @media (prefers-reduced-motion: reduce) { .ai-btn[aria-busy="true"] .ico { animation: none; } }
 
+/* ---------- Field bar: the audio and AI controls inside a prose field's box (2026-11-27, Epic 31, Story 31.10) ----------
+   Matheus, 2026-11-27 ("Opcao A ficou a melhor"): on a prose field the two controls leave the section head and the row under the
+   field and sit in one bar inside the field's box, under a hairline: "Gravar áudio" at its start, "Melhorar o texto com IA" at its
+   end, both Text-button-shaped, 48px tall. The tray is the input's next sibling, so the rules already on the input (the required
+   border, `.suggestion-field > .observation-field`) still apply; after a boxed input (`.observation-field`) it closes the box. The
+   field's own lines (count, helper, "Critérios usados", a suggestion's actions) follow the tray. Recording: the glyph sits on a
+   `primary` round and the word reads "Parar", then "Gravando", the time and the meter as the Audio button above. The AI control
+   proposes before it writes: the tray shows the user's text and the proposal side by side (stacked on the phone), the changed words
+   marked by weight and an underline, and the bar holds "Manter o meu texto" and the primary "Usar o texto da IA". A refusal is one
+   line in two parts above the bar, and the AI control reads "Tentar de novo". The Measurement table keeps the round `.audio-btn` in
+   `.audio-tools`. No new token and no new color.
+   Markup:
+   <textarea class="observation-field">…</textarea>
+   <div class="field-tray" [data-state="comparing|refused"]>
+     <div class="ai-compare">                                                    (comparing only)
+       <section class="ai-side" aria-label="Seu texto"><p class="ai-side-title">Seu texto</p><div class="ai-side-text"><p>…</p></div></section>
+       <section class="ai-side" data-side="ai" aria-label="Texto proposto pela IA"><p class="ai-side-title">Texto proposto pela IA</p>
+         <div class="ai-side-text"><p>Contatos da <mark class="ai-changed">fase</mark> B…</p><ul><li>…</li></ul></div></section></div>
+     …the field's audio lines (.audio-status, .audio-mark, .audio-failed, .audio-warning) and .ai-done…
+     <p class="ai-reason" role="status"><span class="ai-reason-what">O texto foi mantido como estava.</span> <span class="ai-reason-why">…</span></p>
+     <div class="field-bar">
+       <span class="audio-rec"><button class="audio-btn" aria-pressed="false" aria-label="Gravar áudio: observação do item 8">
+           <span class="audio-glyph"><svg class="ico ico-mic">…</svg><svg class="ico ico-stop">…</svg></span>
+           <span class="audio-word">Gravar áudio</span><span class="audio-stop-word">Parar</span></button>
+         <span class="audio-live" aria-hidden="true">…as the Audio button…</span></span>
+       <span class="ai-write">…the AI control…</span>
+       [disabled] <span class="btn-reason" id="…">Disponível quando a gravação terminar</span>   (a control's reason, on its own line under the bar's row)
+       comparing, in place of both: <button class="btn btn-text">Manter o meu texto</button><button class="btn btn-primary">Usar o texto da IA</button>
+     </div>
+   </div> */
+.field-tray { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; padding-top: var(--sp-1); border-top: 1px solid var(--border-hairline); }
+.field > .field-tray { margin-top: calc(-1 * var(--field-gap)); }
+.observation-field:has(+ .field-tray) { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.observation-field + .field-tray { padding: var(--sp-1) var(--sp-2); border: 2px solid var(--border-strong); border-top: 1px solid var(--border-hairline); border-radius: 0 0 var(--r-sm) var(--r-sm); background: var(--surface-raised); }
+.observation-field[data-required] + .field-tray { border-color: var(--nao-conforme); border-top-color: var(--border-hairline); }
+.suggestion-field[data-state="suggested"] > .observation-field + .field-tray { border: var(--suggestion-field-suggested-border); border-top: 1px solid var(--border-hairline); }
+.input + .field-tray { border-top: 0; }
+.field-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--sp-3); }
+.field-bar > .ai-write { margin-left: auto; }
+.field-bar > .btn-reason { order: 9; flex-basis: 100%; }
+.field-bar .audio-btn { width: auto; height: auto; min-height: var(--touch-min); gap: var(--sp-2); padding: 0 var(--sp-3) 0 var(--sp-1); border: 0; border-radius: var(--r-btn); background: transparent; color: var(--primary); font-size: var(--t-body-size); font-weight: 600; white-space: nowrap; }
+.field-bar .audio-btn[aria-pressed="true"] { background: transparent; color: var(--primary); }
+.field-bar .audio-btn[aria-pressed="true"]::after { content: none; }
+.audio-glyph { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; border-radius: 50%; }
+.field-bar .audio-btn[aria-pressed="true"] .audio-glyph { background: var(--primary); color: var(--primary-foreground); }
+.field-bar .audio-btn[aria-pressed="true"] .audio-glyph::after { content: ""; position: absolute; inset: -4px; border: 2px solid var(--primary); border-radius: 50%; animation: audio-ring 1.6s ease-out infinite; }
+.field-bar .audio-btn[aria-pressed="true"] .ico-stop { width: 18px; height: 18px; }
+.audio-stop-word { display: none; }
+.field-bar .audio-btn[aria-pressed="true"] .audio-word { display: none; }
+.field-bar .audio-btn[aria-pressed="true"] .audio-stop-word { display: inline; }
+.field-bar > .btn { flex: none; }
+.ai-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.ai-side { min-width: 0; margin: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--surface-sunken); }
+.ai-side[data-side="ai"] { border-left: 3px solid var(--primary); }
+.ai-side-title { margin: 0 0 var(--sp-1); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.ai-side-text { font-size: var(--t-body-size); line-height: var(--t-body-lh); color: var(--ink-primary); overflow-wrap: anywhere; }
+.ai-side-text p, .ai-side-text li { margin: 0; white-space: pre-wrap; }
+.ai-side-text ul, .ai-side-text ol { margin: 0; padding-left: var(--sp-5); }
+.ai-side-text > * + * { margin-top: var(--sp-2); }
+.ai-changed { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.ai-reason { margin: 0; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.ai-reason-what { font-weight: 600; color: var(--ink-primary); }
+/* Phone (390): the comparison stacks, the user's text first, and each control of the bar takes its own line */
+.frame-phone .ai-compare { grid-template-columns: 1fr; }
+.frame-phone .field-bar > .audio-rec, .frame-phone .field-bar > .ai-write, .frame-phone .field-bar > .btn { flex-basis: 100%; margin-left: 0; }
+@media (prefers-reduced-motion: reduce) { .field-bar .audio-btn[aria-pressed="true"] .audio-glyph::after { animation: none; opacity: .6; } }
+
 /* ---------- Section stepper (48px row at the top of the sheet's Sticky action bar): v0.9 names on one row, a progress rule under each ---------- */
 .section-stepper { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; min-height: var(--section-stepper-height); background: var(--section-stepper-background); margin: calc(-1 * var(--sp-3)) calc(-1 * var(--sp-4)) 0; border-bottom: 1px solid var(--border-hairline); }
 .section-stepper .step { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: var(--section-stepper-height); padding: var(--sp-1) var(--sp-2) 0; font: var(--section-stepper-step-typography); color: var(--section-stepper-step-foreground); border-bottom: 0; white-space: nowrap; }

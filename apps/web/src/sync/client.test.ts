@@ -416,3 +416,27 @@ describe('25.3-WEB a file transfer whose answer never comes', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 });
+
+describe('31.10-WEB-006 the AI control: the optional answer fields and the outcome report', () => {
+  const REL = '019966b0-0000-7000-8000-000000000a01';
+  const TARGET = { type: 'item' as const, block_id: '019966b0-0000-7000-8000-000000000a02', item_key: 'contatos' };
+
+  it('reads run_id and guard_kinds when the server sends them, and an answer without them as before', async () => {
+    const refused = capturing(() => json({ outcome: 'refused', reason: 'guard', guard_kinds: ['number', 'tag'], run_id: 'r1' }));
+    await expect(createSyncClient({ fetch: refused.fetch }).aiWrite!(REL, { target: TARGET, last_op_id: null })).resolves.toEqual({ outcome: 'refused', reason: 'guard', guard_kinds: ['number', 'tag'], run_id: 'r1' });
+    const older = capturing(() => json({ outcome: 'written', source: 'a', text: 'A.' }));
+    await expect(createSyncClient({ fetch: older.fetch }).aiWrite!(REL, { target: TARGET, last_op_id: null })).resolves.toEqual({ outcome: 'written', source: 'a', text: 'A.' });
+  });
+
+  it('posts what the user did with a refused proposal to the write-outcome route, as JSON; a refusal reaches the caller to ignore', async () => {
+    const ok = capturing(() => new Response(null, { status: 204 }));
+    await createSyncClient({ fetch: ok.fetch }).aiWriteOutcome!(REL, { run_id: 'r1', outcome: 'refused', action: 'keep_mine' });
+    expect(ok.calls).toHaveLength(1);
+    expect(ok.calls[0]!.input).toBe(`/api/relatorios/${REL}/write-outcome`);
+    expect(ok.calls[0]!.init.method).toBe('POST');
+    expect(JSON.parse(String(ok.calls[0]!.init.body))).toEqual({ run_id: 'r1', outcome: 'refused', action: 'keep_mine' });
+    expect((ok.calls[0]!.init.headers as Record<string, string>)['content-type']).toBe('application/json');
+    const missing = capturing(() => json({ code: 'not_found', message: 'No route.' }, 404));
+    await expect(createSyncClient({ fetch: missing.fetch }).aiWriteOutcome!(REL, { run_id: 'r1', outcome: 'refused', action: 'text_changed' })).rejects.toBeInstanceOf(SyncRequestError);
+  });
+});

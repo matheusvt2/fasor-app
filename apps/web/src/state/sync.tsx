@@ -66,7 +66,7 @@ import { storageHeadroom } from '../device/storage-estimate.ts';
 import { clockOffsetMs, elapsedNowMs, now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { createBrowserSyncClient, type SyncClient } from '../sync/client.ts';
-import type { SyncFailure } from '../sync/client.ts';
+import type { AiWriteOutcomeBody, SyncFailure } from '../sync/client.ts';
 import { unreachableCause } from '../sync/policy.ts';
 import { createSyncEngine, type CycleResult, type EngineStatus, type SyncEngine } from '../sync/engine.ts';
 import { followOnlineEvents } from '../sync/online.ts';
@@ -245,6 +245,8 @@ export interface SyncState {
   audit?: (relatorioId: string, body: AuditRequest) => Promise<AuditResponse>;
   /** Story 31.9: the AI control (`POST /api/relatorios/{id}/write`), online only; the engine's own client (AD-1). */
   aiWrite?: (relatorioId: string, body: AiWriteRequest) => Promise<AiWriteResponse>;
+  /** Story 31.10: what the user did with a proposal not used (`POST /api/relatorios/{id}/write-outcome`, Epic 32); the caller ignores a refusal. */
+  aiWriteOutcome?: (relatorioId: string, body: AiWriteOutcomeBody) => Promise<void>;
 }
 
 export const SyncContext = createContext<SyncState | null>(null);
@@ -613,10 +615,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return client.aiWrite(relatorioId, body);
   }, []);
 
+  const aiWriteOutcome = useCallback(async (relatorioId: string, body: AiWriteOutcomeBody): Promise<void> => {
+    const client = clientRef.current;
+    if (client === null || client.aiWriteOutcome === undefined) return;
+    await client.aiWriteOutcome(relatorioId, body);
+  }, []);
+
   // W-8: the callbacks alone, stable for the session, for the components that only act.
   const actions = useMemo<SyncActions>(
-    () => ({ syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite }),
-    [syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite],
+    () => ({ syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite, aiWriteOutcome }),
+    [syncNow, pullCompany, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite, aiWriteOutcome],
   );
 
   const value = useMemo<SyncState>(
@@ -669,8 +677,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       audit,
       retranscribeAudio,
       aiWrite,
+      aiWriteOutcome,
     }),
-    [pullCompany, counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite],
+    [pullCompany, counts, lateCount, outboxRead, rejectedCodes, summaryRead, session.online, unreachable, serverAnswers, status, engineReady, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit, retranscribeAudio, aiWrite, aiWriteOutcome],
   );
 
   return (

@@ -42,7 +42,7 @@ import { DRAFT_SURFACE, useTypedText } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
 import { useSheetReadOnly, useSheetReadOnlyCause, useSheetReadOnlyReason } from './sheet-read-only.tsx';
-import { AudioButton, AudioField, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioField } from '../../speech/audio-field.tsx';
 import { spriteHref } from '../../styles/sprite.ts';
 
 /*
@@ -417,7 +417,6 @@ export function ConclusaoSection({
         <section className={roleReadOnly ? 'section is-readonly' : 'section'} aria-labelledby={obsHeading}>
           <div className="section-head">
             <h2 id={obsHeading}>{t.observationTitle}</h2>
-            {roleReadOnly ? null : <AudioButton target={observationAudio} label={t.audioField} />}
           </div>
           {/* The textarea keeps its place among the children, so the focus survives the switch between suggested and typed. */}
           <div className={observationSuggested ? 'field suggestion-field' : 'field'} data-state={observationSuggested ? 'suggested' : undefined}>
@@ -450,6 +449,8 @@ export function ConclusaoSection({
                 if (observation.text.trim() === '') setTyping(false);
               }}
             />
+            {/* Story 31.10: the field bar, inside the field's box; the field's own lines follow it. */}
+            <AudioField target={observationAudio} text={observation.text} label={t.audioField} readOnly={roleReadOnly} />
             {observationSuggested || readOnly ? null : <CharCount length={observation.text.length} cap={observationCap} />}
             {observationSuggested ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
             {observationSuggested && !readOnly ? (
@@ -476,7 +477,6 @@ export function ConclusaoSection({
               </span>
             ) : null}
           </div>
-          <AudioFieldLines target={observationAudio} text={observation.text} label={t.audioField} />
         </section>
       ) : null}
       {enabled.has('conclusion') ? (
@@ -567,9 +567,10 @@ export function ConclusaoSection({
                 // Story 25.2 (M02): the text reads as text before "Editar", and what is typed is saved while typing and on leaving.
                 presentation="text"
                 commitWhileTyping
+                // Story 31.9: the AI control rewrites the text the field shows, the composed one while none is confirmed.
+                // Story 31.10: the field bar sits under the text, before "Critérios usados" and the helper.
+                tray={<AudioField target={conclusionAudio} label={t.audioTextField} text={storedText} readOnly={readOnly} aiText={textState === 'unconfirmed' ? composed.text : storedText} />}
               />
-              {/* Story 31.9: the AI control rewrites the text the field shows, the composed one while none is confirmed. */}
-              <AudioField target={conclusionAudio} label={t.audioTextField} text={storedText} readOnly={readOnly} aiText={textState === 'unconfirmed' ? composed.text : storedText} />
             </div>
           )}
         </section>

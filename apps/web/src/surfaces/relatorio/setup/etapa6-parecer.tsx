@@ -199,10 +199,10 @@ export function Etapa6Parecer({
           draft={{ surface: 'setup', entityId: relatorioId, field: 'parecer-text' }}
           confirmedHelper={absent?.confirmedHelper ?? t.parecerComposed(sectionRefText(snapshot, 10))}
           readOnly
+          // Story 31.9: its AI control rewrites the own text, else the composed one. Story 31.7: the summary's audio adds the written text after the composed one and makes it the relatório's own text; no verdict tapped (no stored parecer), no field to write.
+          // Story 31.10: the field bar under the summary, before its helper.
+          tray={snapshot.relatorio.setup.parecer === null ? undefined : <AudioField target={PARECER_AUDIO} label={t.audioParecer} text={ownText} aiText={ownText ?? composed.text} />}
         />
-
-        {/* Story 31.9: its AI control rewrites the own text, else the composed one. Story 31.7: the summary's audio adds the written text after the composed one and makes it the relatório's own text; no verdict tapped (no stored parecer), no field to write. */}
-        {snapshot.relatorio.setup.parecer === null ? null : <AudioField target={PARECER_AUDIO} label={t.audioParecer} text={ownText} aiText={ownText ?? composed.text} />}
 
         {ownText === null ? null : (
           <div className="field">

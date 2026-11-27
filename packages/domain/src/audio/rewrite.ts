@@ -8,10 +8,11 @@ import { isSectionBlockType } from '../schemas/block-config.ts';
 import type { AudioTarget, BlockRow, JsonValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { blockDefinitionIn, snapshotDefinitionContext } from '../seed/definitions.ts';
-import { parseRichText, richRunsText, serializeRichText, type RichBlock, type RichRun } from '../templates/rich-text.ts';
+import { parseRichText, richRunsText, serializeRichText, type RichBlock, type RichBlockKind, type RichRun } from '../templates/rich-text.ts';
 import { defaultSectionText } from '../templates/section-text.ts';
 import { audioContextText, audioWritingContext, type AudioWritingContext } from './context.ts';
 import { writtenTextGuard, type GuardReason, type GuardVerdict } from './guard.ts';
+import { aiRewriteDiff, type AiDiffSegment } from './proposal.ts';
 import { type AudioProseWrite } from './write.ts';
 
 /*
@@ -321,6 +322,40 @@ export function aiRewriteWrite(snapshot: RelatorioSnapshot, target: AudioTarget,
   const field = fieldOf(snapshot, target, options.now);
   if (field === null || field.text === null || field.text.trim() === '') return null;
   return field.replace(text.trim());
+}
+
+/** Story 31.10: one block of a side of the comparison: its kind (a plain field is one paragraph) and its runs. */
+export interface AiCompareBlock {
+  kind: RichBlockKind;
+  segments: AiDiffSegment[];
+}
+
+/** Story 31.10: the two sides the field shows before anything is written: the user's text and the AI's proposal, changed words marked. */
+export interface AiComparison {
+  mine: AiCompareBlock[];
+  proposed: AiCompareBlock[];
+}
+
+/**
+ * Story 31.10: the comparison of the field's text with a proposal. A plain field is one block each
+ * side (its line breaks kept); a section text keeps its blocks and their kinds on both sides, each
+ * proposed line diffed against its own block (the block-by-block rewrite of e31f). Null when the
+ * field holds no text, or a section text's proposal does not hold one line per block.
+ */
+export function aiRewriteComparison(snapshot: RelatorioSnapshot, target: AudioTarget, proposal: string, options: { now: Date }): AiComparison | null {
+  const field = fieldOf(snapshot, target, options.now);
+  if (field === null || field.text === null || field.text.trim() === '') return null;
+  const plain = (text: string): AiDiffSegment[] => [{ text, changed: false }];
+  if (field.blocks === null) {
+    return { mine: [{ kind: 'paragraph', segments: plain(field.text) }], proposed: [{ kind: 'paragraph', segments: aiRewriteDiff(field.text, proposal.trim()) }] };
+  }
+  const blocks = field.blocks;
+  const lines = linesOf(proposal);
+  if (lines.length !== blocks.length) return null;
+  return {
+    mine: blocks.map((one) => ({ kind: one.kind, segments: plain(richRunsText(one.runs)) })),
+    proposed: blocks.map((one, at) => ({ kind: one.kind, segments: aiRewriteDiff(richRunsText(one.runs), lines[at]!) })),
+  };
 }
 
 /** e31f: what the field holds before the write ("Desfazer" puts its text back); null when the field holds no text. */

@@ -119,6 +119,12 @@ export interface SyncClient {
    */
   aiWrite?(relatorioId: string, body: AiWriteRequest): Promise<AiWriteResponse>;
   /**
+   * Story 31.10: what the user did with a proposal of the AI control that was not used,
+   * `POST /api/relatorios/{id}/write-outcome` (Epic 32 builds the route; until then it answers 404). Fire and forget:
+   * the caller ignores a refusal. Optional in the type only so the test doubles built before it existed still type-check.
+   */
+  aiWriteOutcome?(relatorioId: string, body: AiWriteOutcomeBody): Promise<void>;
+  /**
    * Story 14.10 lane B: whether the server answers at all, `GET /api/health` (public, no
    * session), aborted after `HEALTH_PROBE_TIMEOUT_MS`. True on any HTTP answer (a 503
    * "degraded" is the server answering too); false on a network failure or the abort. Never throws. The engine asks it after a cycle
@@ -174,6 +180,22 @@ export function fileBodyTimeoutMs(contentLength: string | null): number {
 
 /** Story 14.10 lane B: the probe's route (`apps/api/src/http/health.ts`). */
 export const HEALTH_PATH = '/api/health';
+
+/**
+ * Story 31.10: the body the device sends when a proposal of the AI control is not used ("Manter o meu texto", or the
+ * text changed while the AI wrote), with the answer's `run_id`. The route and its contract belong to Epic 32 (batch
+ * e32a); the path is kept here until that contract lands, then this reads it from `@app/domain`.
+ */
+export interface AiWriteOutcomeBody {
+  run_id: string;
+  outcome: 'refused';
+  action: 'keep_mine' | 'text_changed';
+}
+
+/** Story 31.10: `POST /api/relatorios/{id}/write-outcome` (Epic 32's route). */
+export function aiWriteOutcomePath(relatorioId: string): string {
+  return `/api/relatorios/${encodeURIComponent(relatorioId)}/write-outcome`;
+}
 
 /** Story 7.5: where the preview tab opens the relatório's latest RASCUNHO PDF; the file id only busts a cached earlier one. */
 export function previewPdfUrl(relatorioId: string, fileId: string): string {
@@ -407,6 +429,9 @@ export function createSyncClient(deps: SyncClientDeps): SyncClient {
       await send(audioRetranscribePath(audioId), 'POST', { headers: { accept: 'application/json' } }, SYNC_REQUEST_TIMEOUT_MS);
     },
     aiWrite: (relatorioId, body) => request({ method: 'POST', path: aiWritePath(relatorioId) }, aiWriteResponseSchema, undefined, body),
+    async aiWriteOutcome(relatorioId, body) {
+      await send(aiWriteOutcomePath(relatorioId), 'POST', { headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify(body) }, SYNC_REQUEST_TIMEOUT_MS);
+    },
     async health() {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), HEALTH_PROBE_TIMEOUT_MS);

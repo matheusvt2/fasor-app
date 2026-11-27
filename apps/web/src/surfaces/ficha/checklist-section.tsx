@@ -51,7 +51,7 @@ import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
 import { CreatePointAction } from '../points/create-point-action.tsx';
 import type { PointSeed } from '../points/point-editor.tsx';
 import type { Author } from '../relatorio/relatorio-ops.ts';
-import { AudioButton, AudioFieldLines } from '../../speech/audio-field.tsx';
+import { AudioField } from '../../speech/audio-field.tsx';
 import { useSheetReadOnly, useSheetReadOnlyReason } from './sheet-read-only.tsx';
 import { KEPT_KEY_PREFIX, LEGEND_KEY } from '../../state/user-storage.ts';
 import { spriteHref } from '../../styles/sprite.ts';
@@ -604,9 +604,6 @@ export function ChecklistRow({
     });
   };
 
-  // Story 31.3: the row's Audio button, first on its buttons' row; its lines go under the field.
-  const audioButton = readOnly || target.audioTarget === null ? null : <AudioButton target={target.audioTarget} label={t.audioField(number)} />;
-
   const menu: OverflowMenuAction[] = [];
   if (result !== null) menu.push({ id: 'clear', label: t.clear, onAction: () => choose(null) });
   menu.push({ id: 'observation', label: t.observation, onAction: openObservation });
@@ -680,6 +677,8 @@ export function ChecklistRow({
                 setJustMarked(false);
               }}
             />
+            {/* Story 31.10: the field bar (audio and AI) inside the field's box; the count and the required line follow it. */}
+            {target.audioTarget === null ? null : <AudioField target={target.audioTarget} text={typed.text} label={t.audioField(number)} readOnly={readOnly} />}
             {readOnly ? null : <CharCount length={typed.text.length} cap={target.observationCap} />}
             {requiredShown ? (
               <span className="helper" data-tone="red" id={reasonId}>
@@ -693,17 +692,13 @@ export function ChecklistRow({
               <TextButton onPress={clearKept}>{t.keptClear}</TextButton>
             </p>
           ) : null}
-          {target.audioTarget === null ? null : <AudioFieldLines target={target.audioTarget} text={typed.text} label={t.audioField(number)} />}
           {nc && !readOnly && photos !== undefined ? (
             <RowPhotoAction
               relatorioId={api.relatorioId}
               target={() => photos.target(item.key)}
               {...(photos.addPhotos === undefined ? {} : { onAddPhotos: () => photos.addPhotos?.(item.key) })}
-              before={audioButton}
             />
-          ) : readOnly || target.audioTarget === null ? null : (
-            <AudioButton target={target.audioTarget} label={t.audioField(number)} wrap="row-wrap" />
-          )}
+          ) : null}
           {nc && (!readOnly || rowPoints !== null) ? (
             <div className="row-wrap">
               {readOnly ? null : <CreatePointAction

@@ -4,6 +4,7 @@ import {
   isVectorGroupField,
   plateReadingTargetSchema,
   registryRowSchema,
+  sheetNameplatePath,
   shouldEscalate,
   type StructuringResult,
   type WordRow,
@@ -111,6 +112,8 @@ export const plateHandler: ReadingKindHandler = {
     if (definition === null) throw new PermanentReadingError('the target block has no nameplate definition');
     const fields = definition.nameplate;
     const registry = await liveRegistry(db, companyId);
+    // Story 32.1: every field the model is asked for, so one it leaves empty is recorded too.
+    const asked = fields.map((field) => ({ key: field.key, target_path: sheetNameplatePath(block.id, field.key) }));
 
     return {
       fixture: { block_type: block.block_type, table_key: null },
@@ -136,7 +139,7 @@ export const plateHandler: ReadingKindHandler = {
         const first = await providers.structuring.structure(input);
         const built = build(first);
         if (providers.escalation === undefined || !shouldEscalate(built.rows, ocr.tokens.length)) {
-          return { ocr, structuring: first, rows: built.rows, dropped: built.dropped };
+          return { ocr, structuring: first, rows: built.rows, dropped: built.dropped, asked };
         }
 
         // A failed escalation (throttled, denied, an answer the schema refuses) keeps the first
@@ -151,13 +154,13 @@ export const plateHandler: ReadingKindHandler = {
           log('reading escalation failed', { photo_id: photo.id, run_id: runId, error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) });
           const billed = billedCallOf(error);
           const calls = billed === null ? [firstCall] : [firstCall, billed];
-          return { ocr, structuring: { ...first, usage: totalUsage(calls) }, rows: built.rows, dropped: built.dropped, calls };
+          return { ocr, structuring: { ...first, usage: totalUsage(calls) }, rows: built.rows, dropped: built.dropped, calls, asked };
         }
         const escalated = build(second);
         const keptSecond = betterReading(built.rows, escalated.rows) === escalated.rows;
         const kept = keptSecond ? { structuring: second, built: escalated } : { structuring: first, built };
         const calls = [firstCall, callOf(second)];
-        return { ocr, structuring: { ...kept.structuring, usage: totalUsage(calls) }, rows: kept.built.rows, dropped: kept.built.dropped, calls };
+        return { ocr, structuring: { ...kept.structuring, usage: totalUsage(calls) }, rows: kept.built.rows, dropped: kept.built.dropped, calls, asked };
       },
     };
   },
