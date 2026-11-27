@@ -13990,6 +13990,172 @@ So that the relatório reads well without me rewriting it.
 
 *(2026-11-26, review-fix batch e31f, items 4 and 12, no contract change. Item 4: "Desfazer" puts back only the former text (`aiRewriteFormer`, taken before the write) onto the field as it is at the tap (`aiRewriteRestore` on a fresh snapshot), never a whole former object, so a parecer verdict, a Não ensaiado reason or a section's config changed after the write stays. Item 12, decided by Matheus the same day: ~~a section text is rewritten as plain paragraphs (its formatting comes back with "Desfazer")~~ a section text keeps its formatting: the server rewrites it block by block (one writing call per paragraph or list item, the usage summed on one run row), the answer holds one line per block, and the write gives each block back its kind (a list item is never written back as a paragraph) and keeps bold and italic on the words the model left verbatim (`remarkRuns`); an answer with another block count is no write. The guards run per block. Coordinator's reading, open to Matheus: a mark on words the model changed is lost (the block structure is always kept).)*
 
+### Story 31.10: The audio and AI controls sit in the field's own bar, the AI proposes before it writes, and a refusal says why
+
+**Dev model:** opus · **Effort:** medium · mock and DESIGN.md (the field bar), kernel (the word diff, the refusal text), api (the guard's kinds on the answer), web (the bar, the comparison, the reasons); one batch
+
+*(Added 2026-11-27, Matheus, after using v0.16.1 in production. Three findings on the Conclusão of a ficha: the two controls sit under "Critérios usados" and the "Confirmado" line, far from the text they act on; "Não foi possível melhorar o texto" gives no reason (the production log shows the guard refused the model's text twice on a conclusion text full of readings, and accepted an observation with none); "Desfazer" alone does not let the user compare the two texts. A UX review drew three placements; Matheus chose the bar inside the field ("Opcao A ficou a melhor") and approved the comparison and the reasons. He also decided the AI control stays on "Texto da conclusão".)*
+
+As a user who speaks or improves a text,
+I want the two controls on the field itself, to see the AI's text beside mine before it replaces anything, and to be told why when it cannot,
+So that I know which text I am changing, choose the better one, and am never left with a failure I cannot read.
+
+**Definition of Ready:** Matheus's choice of 2026-11-27 (above). Part A of this story draws the mock before any screen work: `mockups/components.css` gains the field bar, `prototype/screens/62-audio-estados.html` shows it at rest, recording, comparing and refused, and `DESIGN.md` rows "Audio button" and "AI control" are amended with the old text struck through. No new token and no new color. Every new string is authored and listed for Bruno.
+
+**Acceptance Criteria:**
+
+*The bar*
+
+**Given** a prose field that has the Audio button today (an NC observation, the conclusion observations, a measurement test's reason, a photo caption, a point text, "Texto da conclusão", the parecer, a section text, a setup text, the "Não ensaiado" reason band)
+**When** it renders
+**Then** the field's box holds the text and, under a hairline, one bar: at its start a Text-button-shaped "Gravar áudio" (the `i-mic` glyph 24 px and the word, 48 px tall, `aria-label` "Gravar áudio: ⟨campo⟩" as today), at its end "Melhorar o texto com IA" in the same shape; no control stays at a section head or under the lines below the field
+
+**Given** such a field with lines under it ("Critérios usados", the confirmed helper, a suggestion's actions)
+**When** it renders
+**Then** those lines follow the box, in the order they have today, with no control between them
+
+**Given** a recording on that field
+**When** it runs
+**Then** the first control reads "Parar" with the stop glyph on a `primary` round, followed by "Gravando", the elapsed time and the level meter (the countdown and the live warning as today), and the AI control is disabled until the recording ends
+
+**Given** an empty field, no signal, or a browser that cannot record
+**When** the bar renders
+**Then** the rules of Stories 31.3 and 31.9 hold unchanged: the AI control is absent on an empty field and disabled with "Precisa de conexão" offline; with no way to record the audio control is absent, and a bar with no control is not drawn
+
+**Given** a Measurement table
+**When** it renders
+**Then** its action row keeps the round Audio button beside "Ler visor"; this story does not touch it
+
+**Given** a width of 390 px
+**When** the bar renders
+**Then** the two controls wrap onto two lines inside the box, each 48 px tall, and nothing is clipped
+
+*The comparison*
+
+**Given** a tap on "Melhorar o texto com IA" and an answer that passes the guard
+**When** it arrives
+**Then** nothing is written: the box shows "Seu texto" and "Texto proposto pela IA" side by side (stacked on the phone, the user's first), the words the proposal changed marked in it by weight and an underline (never by color alone), and the bar holds "Manter o meu texto" and the primary "Usar o texto da IA"
+
+**Given** the comparison is open
+**When** the user taps "Usar o texto da IA"
+**Then** the text replaces the old one by the ordinary op of Story 31.9 (with `meta.ai_written`), the line "Texto melhorado por IA" and "Desfazer" show as today, and the tap works without signal
+
+**Given** the comparison is open
+**When** the user taps "Manter o meu texto", or leaves the screen
+**Then** the proposal is dropped, no op is written and the field is as it was
+
+**Given** the comparison is open
+**When** the field's text changes (typed here, or arrived from another device)
+**Then** the proposal is dropped and one line says the text changed while the AI wrote
+
+**Given** a section text
+**When** the comparison shows
+**Then** each side keeps its paragraphs, lists and headings, as the block-by-block rewrite of batch e31f gives them
+
+*The reasons*
+
+**Given** an answer that is not a new text
+**When** it arrives
+**Then** the field is unchanged and one line inside the box, above the bar, says which case it was, in two parts (what happened to the text, then why): the guard refused a number, a unit or a TAG; the guard refused an added result word; the provider failed; the company's daily limit is reached; the per-user rate limit is reached; the server has not applied every op yet; the text changed meanwhile. The AI control then reads "Tentar de novo" where a new tap can help, and is disabled with the reason where it cannot (the daily limit)
+
+**Given** a guard refusal
+**When** the server answers
+**Then** the answer carries the kinds the guard named (`number`, `unit`, `tag`, `result`) as an optional field beside `reason: 'guard'`; no value of the text travels in it, the run row keeps the full reason as today, and a device on the older build still reads the answer
+
+**Given** "Texto da conclusão" or the parecer summary
+**When** the guard refuses
+**Then** the AI control stays on the field (Matheus, 2026-11-27) and the line says why
+
+**Definition of Done:** the mock and `DESIGN.md` amended first, `components.css` copied byte-identical and its `.frame-*` rules translated in `app.css`; kernel tests for the word diff (numbers, units and TAGs never marked as changed, since the guard keeps them) and for each refusal text; api tests for the optional kinds; web tests for the bar on every field named above; E2E "31.10-E2E-001" (`@p0`: the bar on an NC observation, propose, compare, use, undo), "-002" (keep mine: no op written), "-003" (a guard refusal on the conclusion text names the reason), "-004" (the daily limit disables the control with its reason), "-005" (390, 768 and 1280 px, recording state included); the specs of Stories 31.3, 31.4, 31.7 and 31.9 that locate the old controls updated; no contract bump unless the build finds one is needed, then it is reported before the merge; the strings listed for Bruno.
+
+**Coordinator's readings, open to Matheus:** a proposal is kept in memory only, so a reload drops it and the call is still counted in the daily usage; a single-line field (a photo caption) gets the same bar under its input; "Desfazer" stays after "Usar o texto da IA" as it is today; the three escopo texts and the "Marcar não ensaiado" dialog, which have no Audio button yet, stay out (their deferred row is unchanged).
+
+## Epic 32: Every AI answer and what the user did with it is recorded, so the AI's quality can be judged (Matheus, 2026-11-27)
+
+*(Asked by Matheus on 2026-11-27, after the first day of voice and AI writing in production: "Precisamos registrar os textos, as correcoes e salvar tudo em uma tabela para que seja avaliado depois e criado uma rubrica para testar a qualidade da IA. Isso deve ser feito com TUDO que usar IA, inclusive extracao de campos de imagens." Not built. What exists today: `reading_runs` and `transcription_runs` keep the model, the prompt version, the cost and the outcome of each call, and `reading_runs` keeps the OCR result; neither keeps the text the model wrote beside what the user finally kept, and a correction lives only as an ordinary op in the log, not tied to the answer it corrects.)*
+
+**Goal:** one table that holds, for every answer an AI gave, what went in, what came out and what the user did with it (kept, changed to what, thrown away), across every AI use of the product; then a rubric and a way to read the table against it.
+
+**Scope:** every call through `LLM_PROVIDER`, `OCR_PROVIDER` and `STT_PROVIDER`: the plate reading (each field read from a nameplate photo), "Ler visor" (each reading from a display photo), the transcription of an audio (the text as heard, the text as written, each spoken reading), the AI control of Stories 31.9 and 31.10 (the proposal), and "Conferência por IA" (each finding). A new AI use added later is in scope by rule (Story 32.1's guard test).
+
+**Constraints:** the records hold client text, so they live only in the product's database, per company, never in a tracked file, a log line or a usage event; the public repository gets the rubric and the tools, never a record. Storage is PostgreSQL rows, with no new AWS service, so the monthly ceiling is not touched. No user-visible change in this epic.
+
+### Story 32.1: One record per AI answer, and the user's correction joined to it
+
+**Dev model:** opus · **Effort:** high · kernel (what an answer is, how a later op settles it), api (the table, the writes at each provider call, the settle on the op path), no web change expected; one batch
+
+As the person responsible for the product's quality,
+I want every AI answer stored beside what the user finally kept,
+So that I can measure, later, how often the AI was right and where it was wrong.
+
+**Definition of Ready:** Matheus's request of 2026-11-27 (above). Open to Matheus before the build: (1) how long the records are kept (proposed: forever, as the audio is); (2) whether a record keeps the full input text (proposed: yes for text; for a photo or an audio only its file id, since the file itself is already kept); (3) what counts as the user's answer to a "Conferência por IA" finding (proposed: whether the field the finding names changed before the next emission, since a finding has no confirm action today).
+
+**Acceptance Criteria:**
+
+**Given** any AI use in scope
+**When** the provider answers
+**Then** one row per answered item is written in the same transaction as the run row: the company, the relatório, the kind of use, the run it came from, the target (the field, the cell, the photo, the audio, by id and path), the input (the source text, or the file id), the answer as the model gave it, and, where the product changed it before showing it (a guard's fallback, a normalization), the text shown and why
+
+**Given** a plate or display reading
+**When** it is recorded
+**Then** each field read is its own row (the field's key, the value read, the confidence when the provider gives one), and so is a field the model was asked for and left empty
+
+**Given** an answer the user confirms as it is (a Suggestion confirmed, "Usar o texto da IA", a text from audio left untouched)
+**When** the op that settles it is applied on the server
+**Then** the row gets the outcome "kept", the final value, who and when
+
+**Given** an answer the user changes (a Suggestion edited before confirming, a text from audio or from the AI control edited afterwards)
+**When** the op is applied
+**Then** the row gets the outcome "changed" and the value the user wrote; later edits of the same field update the final value until the relatório's revision is emitted, when the row is closed
+
+**Given** an answer the user refuses ("Descartar", "Manter o meu texto", "Desfazer", "Dispensar")
+**When** it is applied or, for a proposal that writes no op, reported by the device
+**Then** the row gets the outcome "refused" with which action it was
+
+**Given** an answer nobody settled
+**When** the revision is emitted
+**Then** the row is closed as "unanswered"
+
+**Given** a device that was offline
+**When** its ops arrive later
+**Then** the rows are settled then, with the op's own time; nothing on the device changes and no status or count on any screen is derived from this table (AD-1 to AD-3 unchanged)
+
+**Given** the guard of an audio or of the AI control refuses the model's text
+**When** it is recorded
+**Then** the row keeps the model's text, the guard's reasons and what the user was given instead
+
+**Given** a new call site of a provider added in a later story
+**When** `test:unit` runs
+**Then** a guard test fails unless that call site writes its rows (it lists the provider seams and the recorder calls)
+
+**Definition of Done:** one migration; kernel tests for the settle rule on every outcome; api integration tests for each AI use in scope (rows written, rows settled, the offline order); the smallest e2e that proves one full path end to end (a plate field read, edited, confirmed, and its row); the `fake` providers write the same rows; no contract bump unless the device must report a refused proposal, then it is additive and reported before the merge; `docs/kbs` updated.
+
+### Story 32.2: A rubric for the AI's quality and a tool that reads the records against it
+
+**Dev model:** opus · **Effort:** medium · one document, one read-only CLI, no screen
+
+As the person responsible for the product's quality,
+I want a written rubric and one command that scores the recorded answers against it,
+So that the quality of each AI use is a number I can follow from one version of a prompt or model to the next.
+
+**Definition of Ready:** Story 32.1 in production for long enough to hold real answers (Matheus says when). Open to Matheus: whether the scoring is counts only, or also a model judging the texts (a judge costs money per run and needs his word each time, as the plate eval does).
+
+**Acceptance Criteria:**
+
+**Given** the rubric document
+**When** it is read
+**Then** it defines, for each AI use, what "right" means and how it is measured: for a field read from a photo, exact match with the final value, then kinds of error (a wrong digit, a wrong unit, a field left empty, a field invented); for a spoken reading, the same; for a text from audio or from the AI control, kept, changed (by how much: the share of words changed) or refused, and the guard's refusals by kind; for a finding, acted on or not. It holds no client text
+
+**Given** the CLI, run as the read-only task the production reads already use
+**When** it runs for a period
+**Then** it prints, per AI use, per model and per prompt version: how many answers, the share kept, changed, refused and unanswered, the rubric's error kinds, and the cost per kept answer; counts and shares only, never a text
+
+**Given** the same command with a company's own operator asking for examples
+**When** it runs
+**Then** it writes the worst cases of one AI use to a local file outside the repository, for a person to read; that mode is refused without an explicit flag and is never the default
+
+**Definition of Done:** the rubric in `docs/`, the CLI with its tests on the `fake` rows, `infra/README.md` says how to run it in production, the first report run with Matheus and its counts recorded in the records PR.
+
 ## Backlog: deferred stories
 
 Stories moved out of their epic with a dated decision, so the epic can close. Each keeps its text, number and Definition of Ready where it was written; this list is where they wait. A story leaves this list when a dated line schedules it into an epic.
