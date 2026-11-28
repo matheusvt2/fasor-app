@@ -49,7 +49,7 @@ Stop it with `docker compose down`; add `-v` to drop the database, the files and
 
 ## Users and sample data
 
-There is no sign-up route and no outbound e-mail. `scripts/seed-users.ts` provisions companies and users and resets passwords.
+There is no sign-up route. Locally no e-mail leaves the machine: `EMAIL_PROVIDER` defaults to `fake`, so an invitation or a password reset is stored in the `fake_email` table, not sent (production sends both through SES). `scripts/seed-users.ts` provisions companies and users and resets passwords.
 
 Test users, the ones every automated suite seeds:
 
@@ -104,7 +104,7 @@ docker compose --profile ocr build ocr
 docker compose --profile ocr up -d ocr
 ```
 
-Then set `OCR_PROVIDER=ocr-svc` in `.env` and recreate the api. The image downloads its models at build time (several GB) and needs about 6 GB of memory while testing. See [services/ocr/README.md](../services/ocr/README.md).
+Then set `OCR_PROVIDER=ocr-svc` in `.env` and recreate the api. The image downloads its models at build time (several GB) and its full test run peaked at 1.69 GiB of memory (measured 2026-10-29; the compose limit of 8 GB is only a bound on a runaway). See [services/ocr/README.md](../services/ocr/README.md).
 
 ## Code ownership
 
