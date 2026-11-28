@@ -37,7 +37,7 @@ Bruno meant it as the source the app reads. The technician fills in the equipmen
 
 | Sheet | Shape | Product counterpart |
 | --- | --- | --- |
-| LEIA-ME | Purpose, validation-status legend, five general software rules | The rules map to [kernel-and-seed](/architecture/kernel-and-seed.md) (see "Rules" below). |
+| LEIA-ME | Purpose, validation-status legend, five general software rules | The rules map to [kernel-rules](/architecture/kernel-rules.md) and [criteria-and-judgments](/architecture/criteria-and-judgments.md) (see "Rules" below). |
 | Ensaios | 42 rows, one per test *(2026-11-08, rev08: 44)*. 19 columns: ID, equipment, test, mandatory, "Aplica-se quando", objective, instrument, voltage or current, points, procedure, quantity, unit, three verdict columns, standard, validation status, recommendation, and a JSON "Regra (software)". | A seed `TestDef` plus `seed/criteria.ts`. The procedure and recommendation have no counterpart yet. |
 | Características | Common fields plus per-type fields, each with key, app label, kind (text, number, list, yes/no), options or unit, mandatory flag and what it feeds. | Nameplate `FieldDef`s of a definition. Some fields drive test choice or criteria. |
 | Tabelas de referência | Insulation minimums by voltage (equipment and windings, oil vs dry), polarization index classes, cable VLF voltages, thermography ΔT actions, breaker pole simultaneity, temperature-correction and TTR formulas. | Partly in the kernel: the TTR group formula is `relatorio/vector-group.ts`. The rest is not built. |
@@ -104,7 +104,7 @@ Matheus decided groups A to N on 2026-11-08 (`docs/context/epic-23/decisoes-epic
 - decision I's wave 1 tests;
 - a Malha de aterramento type.
 
-The stories are `epics.md` § Epic 23 (23.1 to 23.21). The batch plan is `_bmad-output/implementation-artifacts/epic-23/epic-23-context.md`, the plan and its open items for Bruno (B-1 to B-11) and Matheus (M-1 to M-6) are in `_bmad-output/planning-artifacts/sprint-change-proposals/sprint-change-proposal-2026-11-08.md`, and the overrides are the `source-deltas.md` rows of 2026-11-08.
+The stories are `_bmad-output/planning-artifacts/epics-archive.md` § Epic 23 (23.1 to 23.21). The batch plan is `_bmad-output/implementation-artifacts/epic-23/epic-23-context.md`, the plan and its open items for Bruno (B-1 to B-11) and Matheus (M-1 to M-6) are in `_bmad-output/planning-artifacts/sprint-change-proposals/sprint-change-proposal-2026-11-08.md`, and the overrides are the `source-deltas.md` rows of 2026-11-08.
 
 The base's procedure and recommendation texts enter the product only after Matheus's decision M-1, on a waiver like R-023 or through a private load path (Story 23.12). Values reach the seed only through the story that names their row.
 

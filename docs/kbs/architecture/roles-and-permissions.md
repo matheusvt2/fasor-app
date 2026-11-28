@@ -4,7 +4,7 @@ title: Roles and permissions
 description: AD-29, Epic 26 Stories 26.2 to 26.4, 26.8 and 26.10. Open for anything that asks what a user may do, a role, a user's status, a 403 forbidden, a 401 user_inactive, or the roles editor (Papéis e permissões).
 tags: [architecture, roles, permissions, users, ad-29, epic-26, roles-editor]
 timestamp: 2026-11-22T00:00:00Z
-sources: [ARCHITECTURE-SPINE.md#ad-29, epics.md#epic-26, source-deltas.md]
+sources: [ARCHITECTURE-SPINE.md#ad-29, epics-archive.md#epic-26, source-deltas.md]
 ---
 # Roles and permissions
 
@@ -19,4 +19,4 @@ sources: [ARCHITECTURE-SPINE.md#ad-29, epics.md#epic-26, source-deltas.md]
 - **Tests and seeds**: every existing test user is Admin. The e2e role users (one per seeded role but Admin) are `workerRoleUser(index, role)` in each worker's Empresa B. They are seeded on demand by `seedRoleUser`, never at the global setup (see [api-app](/code/api-app.md)). `scripts/seed-users.ts --role <system id>`.
 - **Open readings (Matheus)**: `suggestion/status` needs `relatorio.fill`, and no op needs `suggestion.review` yet. The ficha-created `manufacturer` and `voltage_class` need `relatorio.fill` on create only. The `relatorio/setup` creation-form fields need `relatorio.create` and the field ones `relatorio.fill`. `relatorio/export/scheme` needs `relatorio.issue`. A role change takes effect on the next request.
 
-Canonical: AD-29 in `ARCHITECTURE-SPINE.md` (`grep -n '### AD-29'`); Stories 26.2 to 26.4, 26.8 and 26.10 in `epics.md`.
+Canonical: AD-29 in `ARCHITECTURE-SPINE.md` (`grep -n '### AD-29'`); Stories 26.2 to 26.4, 26.8 and 26.10 in `_bmad-output/planning-artifacts/epics-archive.md`.

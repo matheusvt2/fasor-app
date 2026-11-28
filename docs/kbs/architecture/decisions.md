@@ -11,7 +11,7 @@ sources: [_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-0
 | AD | One line | File |
 | --- | --- | --- |
 | 1 | UI reads only IndexedDB; writes are ops in the outbox | [ops](/architecture/ops-and-local-first.md) |
-| 2 | Status, count, text, order, verdict computed once in the kernel | [kernel](/architecture/kernel-and-seed.md) |
+| 2 | Status, count, text, order, verdict computed once in the kernel | [kernel-rules](/architecture/kernel-rules.md) |
 | 3 | Typed op log; applyOp is the only reducer | [ops](/architecture/ops-and-local-first.md) |
 | 4 | Client-generated UUIDv7 ids | [ops](/architecture/ops-and-local-first.md) |
 | 5 | Ownership: Company, Project, Relatório, Cabine | [data](/architecture/data-model.md) |
@@ -20,9 +20,9 @@ sources: [_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-0
 | 8 | Service worker shell, sync only while tab open, Safari envelope | [sync](/architecture/sync.md) |
 | 9 | Same-origin session, per-user Dexie database | [sync](/architecture/sync.md) |
 | 10 | company_id explicit on every read | [sync](/architecture/sync.md) |
-| 11 | Field kinds and value shapes; pt-BR parse/format only in kernel | [kernel](/architecture/kernel-and-seed.md) |
+| 11 | Field kinds and value shapes; pt-BR parse/format only in kernel | [kernel-rules](/architecture/kernel-rules.md) |
 | 12 | Suggestion entity, lifecycle as ops, provenance column | [suggestions](/architecture/suggestions-and-reading.md) |
-| 13 | Dependency direction, typed API contract, error envelope | [kernel](/architecture/kernel-and-seed.md) |
+| 13 | Dependency direction, typed API contract, error envelope | [kernel-rules](/architecture/kernel-rules.md) |
 | 14 | Reading pipeline: OcrProvider plus LLM, LLM never emits coordinates | [suggestions](/architecture/suggestions-and-reading.md) |
 | 15 | One server renderer over a frozen snapshot | [rendering](/architecture/rendering.md) |
 | 16 | Capture order is not print order; scheme is typed | [rendering](/architecture/rendering.md) |
@@ -30,8 +30,8 @@ sources: [_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-0
 | 18 | Sheet state precedence and attribution | [data](/architecture/data-model.md) |
 | 19 | Registry refs: Instruments and Clients by id, rest by value | [data](/architecture/data-model.md) |
 | 20 | Soft delete with tombstones | [ops](/architecture/ops-and-local-first.md) |
-| 21 | Seed is versioned code; BlockConfig only thing copied | [kernel](/architecture/kernel-and-seed.md); seed v5 and its grammar (2026-10-13): [measurement-table](/architecture/measurement-table.md) |
-| 22 | Status table has one home in the kernel | [kernel](/architecture/kernel-and-seed.md) |
+| 21 | Seed is versioned code; BlockConfig only thing copied | [seed-versions](/architecture/seed-versions.md) (the table there routes v11 to v19); company types: [company-types](/architecture/company-types.md); seed v5 and its grammar (2026-10-13): [measurement-table](/architecture/measurement-table.md) |
+| 22 | Status table has one home in the kernel | [kernel-rules](/architecture/kernel-rules.md) |
 | 23 | Mockup CSS is the design system; React Aria behavior | [ui](/architecture/ui-system.md) |
 | 24 | Sync cycle, rebase, rejection semantics | [sync](/architecture/sync.md) |
 | 25 | Equipment is project scope; last_nameplate projection; last_results, the second projection (2026-11-06, Story 22.12); a last_results entry keeps the plate temperatures its visit typed, `plate_measured` (2026-11-11, fix batch e25r, contract 49) | [data](/architecture/data-model.md) |
@@ -39,4 +39,4 @@ sources: [_bmad-output/planning-artifacts/architecture/architecture-fasor-2026-0
 | 27 | Containers, AWS, Terraform | [infra](/architecture/infra-aws.md) |
 | 28 | Usage events outside the op log (device queue, `POST /api/telemetry`, CloudWatch group) | [ops](/architecture/ops-and-local-first.md), [infra](/architecture/infra-aws.md) |
 | 29 | Roles and permissions: the keys, the seeded roles and the one verdict in the kernel; roles as server-only company ops (2026-11-21, Epic 26) | [roles-and-permissions](/architecture/roles-and-permissions.md) |
-| 30 | Voice input: audio as a file, the transcription job, prose written and readings suggested, the guard, the AI control (2026-11-26, Epic 31, planned) | [suggestions](/architecture/suggestions-and-reading.md), [files](/architecture/files-and-photos.md) |
+| 30 | Voice input: audio as a file, the transcription job, prose written and readings suggested, the guard, the AI control (2026-11-26, Epic 31, built and deployed 2026-11-27) | [suggestions](/architecture/suggestions-and-reading.md), [files](/architecture/files-and-photos.md) |

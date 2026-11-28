@@ -3,12 +3,12 @@ type: Directory Index
 title: Project
 description: What the product is, the hard rules, the vocabulary and the delivery order.
 tags: [project, index]
-timestamp: 2026-09-30T00:00:00Z
+timestamp: 2026-11-28T00:00:00Z
 ---
 # Project
 
-- [overview](/project/overview.md) what Releng does, the stack, the layers in one paragraph. Open first when you know nothing.
+- [overview](/project/overview.md) what the product (Conforme, codename fasor) does, the stack, the layers in one paragraph. Open first when you know nothing.
 - [rules](/project/rules.md) policy that binds every change: public repo, no emoji, naming, AWS ceiling, no paid keys. Open before writing any file.
 - [vocabulary](/project/vocabulary.md) fixed domain words (relatório, cabine, ficha, parecer, TAG, Suggestion...). Open when a term is unclear.
-- [delivery-slice](/project/delivery-slice.md) what ships by 2026-10-03, what waits, dated post-MVP items.
+- [delivery-slice](/project/delivery-slice.md) history: what the first slice of 2026-10-03 held and what waited, plus the dated post-MVP items still ahead.
 - [test-base](/project/test-base.md) Bruno's spreadsheet of tests, characteristics and criteria per MV equipment type (gitignored source), its sheets and where it differs from the product. Open before planning tests, criteria, equipment types or field help.
