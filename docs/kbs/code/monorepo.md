@@ -18,7 +18,7 @@ sources: [package.json, pnpm-workspace.yaml, docker-compose.yml]
 | `scripts/` | `verify.ts`, `e2e.ts`, `regen-goldens.ts`, `seed-users.ts`, `test-reset.ts`, `export-ocr-schema.ts`, `render-skeleton.ts`, deploy helpers |
 | `infra/` | Terraform: [infra-aws](/architecture/infra-aws.md) |
 | `docker/` | `caddy`, `mkcert` for tablet HTTPS (`docs/tablet-https-setup.md`) |
-| `docs/` | `kbs/` (this KB), `tablet-https-setup.md`, `display-reading-spike.md`, `nc-chip-phrases.md`; `concorrentes/`, `context/`, `media/` see [rules](/project/rules.md) |
+| `docs/` | `kbs/` (this KB), `DEVELOPMENT.md`, `TESTING.md`, `tablet-https-setup.md`, `observability.md`, `ai-quality-rubric.md`, `nc-chip-phrases.md`, `archive/` (the display-reading spike); `concorrentes/`, `context/`, `media/` see [rules](/project/rules.md) |
 | `_bmad/`, `_bmad-output/` | BMAD installer output and all planning: [planning](/planning/index.md) |
 
 Root scripts (`package.json`): `lint`, `static`, `test:unit`, `test:api`, `test:api:batch` (2026-11-26, chore T4: the api suite without its print lane when the batch touched no print path), `test:e2e`, `test:e2e:full`, `test:e2e:matrix`, `test:reset`, `schema:ocr`, `db:generate`, `seed:users`, `verify`. All run inside the tools container: [running-the-stack](/workflow/running-the-stack.md).

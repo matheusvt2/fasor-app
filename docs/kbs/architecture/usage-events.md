@@ -4,7 +4,7 @@ title: Usage events (telemetry) outside the op log
 description: AD-28, Epic 18 Stories 18.1 and 18.2. Open for anything that records how the app is used, the ux_events store, POST /api/telemetry or the ux-events log group.
 tags: [architecture, telemetry, usage-events, ad-28, epic-18]
 timestamp: 2026-11-25T00:00:00Z
-sources: [ARCHITECTURE-SPINE.md#ad-28, epics.md#epic-18]
+sources: [ARCHITECTURE-SPINE.md#ad-28, epics-archive.md#epic-18]
 ---
 # Usage events
 
