@@ -20,7 +20,7 @@ import type { FieldDef, FieldKind } from '../seed/schema.ts';
 export const OCR_SERVICE_ROUTES = {
   read: { method: 'POST', path: '/read' },
   // Story 9.1: an instrument display (seven-segment or character LCD), read as whole lines
-  // (`services/ocr/app/display.py`, chosen by the spike in `docs/display-reading-spike.md`).
+  // (`services/ocr/app/display.py`, chosen by the spike in `docs/archive/display-reading-spike.md`).
   // Same body, limits and answer as `read`.
   readDisplay: { method: 'POST', path: '/read/display' },
   health: { method: 'GET', path: '/health' },

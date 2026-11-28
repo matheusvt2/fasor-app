@@ -2,7 +2,7 @@
 
 - Date: 2026-09-24
 - Branch: `fix/epic-4-qa`
-- Spec: `_bmad-output/implementation-artifacts/spec-epic-4-fix-qa.md`
+- Spec: `_bmad-output/implementation-artifacts/epic-04/spec-epic-4-fix-qa.md`
 - Source: the integrated QA review `reviews/epic-4-review-qa.md`, on branch `qa/epic-4`.
 - Stack: compose project `fasor-e4f`. The pass ran in the `tools` container against the production web bundle (`pnpm --filter @app/web build`, served by `vite preview` on :5200, with `/api` proxied to the compose api).
 - Account: a fresh company per run ("QA F Engenharia Ltda", standard template). Its one user is CREA, so the `--test` resets never touch it.

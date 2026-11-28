@@ -80,7 +80,7 @@ CM, AT, CP and GE have no seeded type today. The others map to the seeded eight.
 
 ## Where the base and Epic 22 differ
 
-The detail is in `_bmad-output/implementation-artifacts/epic-22-context.md` § "Bruno's test base against Epic 22". In short, the base:
+The detail is in `_bmad-output/implementation-artifacts/epic-22/epic-22-context.md` § "Bruno's test base against Epic 22". In short, the base:
 
 - judges the protection accuracy classes and the TP's protection classes differently from Story 22.9's reading *(2026-11-07, taken by fix batch e22g: TC 5P ± 1 %, 10P ± 3 %; TP 3P ± 3 %, 6P ± 6 %)*;
 - picks the insulation test voltage by winding voltage *(2026-11-07, taken by e22g for the transformer's high-voltage rows: 2,5 kV from 601 V to 5000 V, 5 kV above)*;
@@ -104,7 +104,7 @@ Matheus decided groups A to N on 2026-11-08 (`docs/context/epic-23/decisoes-epic
 - decision I's wave 1 tests;
 - a Malha de aterramento type.
 
-The stories are `epics.md` § Epic 23 (23.1 to 23.21). The batch plan is `_bmad-output/implementation-artifacts/epic-23-context.md`, the plan and its open items for Bruno (B-1 to B-11) and Matheus (M-1 to M-6) are in `_bmad-output/planning-artifacts/sprint-change-proposal-2026-11-08.md`, and the overrides are the `source-deltas.md` rows of 2026-11-08.
+The stories are `epics.md` § Epic 23 (23.1 to 23.21). The batch plan is `_bmad-output/implementation-artifacts/epic-23/epic-23-context.md`, the plan and its open items for Bruno (B-1 to B-11) and Matheus (M-1 to M-6) are in `_bmad-output/planning-artifacts/sprint-change-proposals/sprint-change-proposal-2026-11-08.md`, and the overrides are the `source-deltas.md` rows of 2026-11-08.
 
 The base's procedure and recommendation texts enter the product only after Matheus's decision M-1, on a waiver like R-023 or through a private load path (Story 23.12). Values reach the seed only through the story that names their row.
 

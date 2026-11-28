@@ -14,7 +14,7 @@ import { syncNowAndReturn } from './support/sync.ts';
 import { appOrigin } from './support/origin.ts';
 
 /*
- * Status flow 2026-10-10 (Matheus; `implementation-artifacts/spec-status-flow-2026-10-10.md`),
+ * Status flow 2026-10-10 (Matheus; `implementation-artifacts/general/spec-status-flow-2026-10-10.md`),
  * the whole matrix driven as a person would, at 1280 and at 390 px:
  *
  * - SF-E2E-001, a relatório born on Home (Rascunho): the next-step sentence under the status

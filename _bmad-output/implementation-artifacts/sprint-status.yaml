@@ -422,29 +422,29 @@ action_items:
       and calibrate the storage threshold (blocking before Epics 5 and 6)"
     owner: "Matheus (manual)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-3-retro-item-27-e3-a10-tooling-remove-stale-worktrees-re"
     epic: 3
     action: "E3-A10 Tooling: remove stale worktrees, require the worktree .env before
       the first compose command, drop the emoji from the PR attribution line"
     owner: "Matheus"
     status: in-progress
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-8-retro-item-65-e8-a8-story-9-1-dor-remaining-gaps"
     epic: 8
     action: "E8-A8 Story 9.1 DoR: range-source answer, real tablet photos of the four
       displays, a decision on the 2 ambiguous crops; dated line when ready"
     owner: "Matheus; coordinator for the line"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-08/epic-8-retro-2026-09-28.md"
   - id: "epic-9-retro-item-78-e9-a6-real-display-accuracy"
     epic: 9
     action: "E9-A6 Run the plate and display paths and keep the higher-confidence
       value; re-score on real crops and tablet photos (E8-A8); target at least 8/15
-      real, with the tablet set scored in docs/display-reading-spike.md"
+      real, with the tablet set scored in docs/archive/display-reading-spike.md"
     owner: "dev batch; Matheus for photos"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-10-retro-item-88-e10-a6-epic-10-product-questions"
     epic: 10
     action: "E10-A6 Add to the E5-A3 session: undoable resolutions (E10-Q2, option
@@ -454,7 +454,7 @@ action_items:
       1071, 370 and the third merge-fold limit; dated answers under Stories 10.1-10.4"
     owner: "Matheus (Bruno for wording)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+    ref: "_bmad-output/implementation-artifacts/epic-10/epic-10-retro-2026-09-29.md"
   - id: "epic-11-retro-item-99-e11-a10-infra-offline-checks"
     epic: 11
     action: "E11-A10 infra/bin/check gains a Caddy run of the production Caddyfile
@@ -462,7 +462,7 @@ action_items:
       values; both fail on the pre-#76 and pre-#78 trees and pass on main"
     owner: "coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-14-retro-item-117-e14-a8-liveness-accessor-and-config-family"
     epic: 14
     action: "E14-A8 Architect before wave 3: decide location liveness for raw-row
@@ -472,7 +472,7 @@ action_items:
       amendments of Story 14.6's DoR; target a dated AD note for each"
     owner: "architect (Winston) with Matheus"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-15-retro-item-133-e15-a11-ac-reconciliation"
     epic: 15
     action: "E15-A11 Spec reconciliation: dated strike-through amendments on the criteria
@@ -480,7 +480,7 @@ action_items:
       the oil rule marking seven NA, 15.6 62,89 to 62,90; no sentence deleted"
     owner: "coordinator (draft); Matheus (approve)"
     status: open  # 2026-11-03: drafted in spec-reconciliation-drafts-2026-11-03.md (PR #227); waits for Matheus's approval
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-16-retro-item-140-e16-a7-spec-reconciliation"
     epic: 16
     action: "E16-A7 Spec reconciliation in epics.md: dated as-built line under Story
@@ -489,7 +489,7 @@ action_items:
       and Matheus's decision on N.A in Altitude do site (QA G3); no sentence deleted"
     owner: "coordinator (draft); Matheus (approve, altitude decision)"
     status: open  # 2026-11-03: drafted in spec-reconciliation-drafts-2026-11-03.md (PR #227); waits for Matheus's approval
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-17-retro-item-145-e17-a2-matheus-decisions"
     epic: 17
     action: "E17-A2 Matheus's decisions, one dated line each: 17.1 (orphan photo placement,
@@ -502,7 +502,7 @@ action_items:
       or seed v11)"
     owner: "Matheus"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-17/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-146-e17-a3-bruno-tablet-session"
     epic: 17
     action: "E17-A3 Bruno's tablet session: the authored strings of all eight stories
@@ -513,7 +513,7 @@ action_items:
       answers under the stories"
     owner: "Matheus (Bruno)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-17/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-150-e17-a7-spec-reconciliation"
     epic: 17
     action: "E17-A7 Spec reconciliation in epics.md, dated strike-through, no sentence
@@ -524,7 +524,7 @@ action_items:
       lines"
     owner: "coordinator (draft); Matheus (approve)"
     status: open  # 2026-11-03: drafted in spec-reconciliation-drafts-2026-11-03.md (PR #227); waits for Matheus's approval
-    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-17/epic-17-retro-2026-10-28.md"
   - id: "epic-18-retro-item-155-e18-a4-spec-reconciliation"
     epic: 18
     action: "E18-A4 Spec reconciliation in epics.md, dated strike-through, no sentence
@@ -534,7 +534,7 @@ action_items:
       until re-timed; and in the terms per Matheus's decision"
     owner: "coordinator (draft); Matheus (approve)"
     status: open  # 2026-11-03: drafted in spec-reconciliation-drafts-2026-11-03.md (PR #227); waits for Matheus's approval
-    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-18/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-156-e18-a5-matheus-decisions"
     epic: 18
     action: "E18-A5 Matheus's decisions, one dated line each: the terms notice of
@@ -545,7 +545,7 @@ action_items:
       Conta sentence wording with Bruno"
     owner: "Matheus (Bruno for the Conta wording)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-18/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-158-e18-a7-first-monthly-digest"
     epic: 18
     action: "E18-A7 First monthly friction digest on 2026-11-30 from friction-digest-template.md:
@@ -556,7 +556,7 @@ action_items:
       and to Bruno for anything on the screens"
     owner: "coordinator (digest); Matheus and Bruno (decisions)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-18/epic-18-retro-2026-10-30.md"
   - id: "epic-19-retro-item-159-e19-a1-most-recent-meaning"
     epic: 19
     action: "E19-A1 Decide what most recent means for an active relatorio (S-1, R-1):
@@ -567,7 +567,7 @@ action_items:
       (max ops.seq per relatorio_id, additive) and Home sorts on it."
     owner: "Matheus (decision); coordinator (draft and apply)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+    ref: "_bmad-output/implementation-artifacts/epic-19/epic-19-retro-2026-11-03.md"
   - id: "epic-20-retro-item-164-e20-a2-matheus-decisions"
     epic: 20
     action: "E20-A2 Matheus decisions, one dated line each: R-6 offline undo across
@@ -578,7 +578,7 @@ action_items:
       with 24 h production; the five known items of epic-20-context.md."
     owner: "Matheus (decision); coordinator (record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+    ref: "_bmad-output/implementation-artifacts/epic-20/epic-20-retro-2026-11-04.md"
   - id: "epic-21-retro-item-168-e21-a2-paid-eval-prompt-revision"
     epic: 21
     action: "E21-A2 Next paid eval: bedrock-eval.ts with Nova Pro on the transformer
@@ -589,7 +589,7 @@ action_items:
       plate of his 2026-11-05 message)."
     owner: "Matheus (AWS login, Bruno); coordinator (run and record)"
     status: in-progress  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6)
-    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+    ref: "_bmad-output/implementation-artifacts/epic-21/epic-21-retro-2026-11-06.md"
   - id: "epic-21-retro-item-171-e21-a5-decisions"
     epic: 21
     action: "E21-A5 Decisions, one dated line each under the story in epics.md: Bruno
@@ -598,7 +598,7 @@ action_items:
       in the architecture spine (AD-13 extended to model output)."
     owner: "Matheus and Bruno (decision); coordinator (record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+    ref: "_bmad-output/implementation-artifacts/epic-21/epic-21-retro-2026-11-06.md"
   - id: "epic-23-retro-item-177-e23-a6-production-base-import"
     epic: 23
     action: "E23-A6 Import Bruno's test base in production as the company's office
@@ -606,7 +606,7 @@ action_items:
       in their base group and that Como ensaiar shows offline; record both in epic-23-context.md."
     owner: "Matheus (the import); coordinator (the check and the record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+    ref: "_bmad-output/implementation-artifacts/epic-23/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-178-e23-a7-list-for-bruno"
     epic: 23
     action: "E23-A7 One list for Bruno: F8 of the behaviour pass (is a rise of exactly
@@ -616,7 +616,7 @@ action_items:
       star-star plate (E21-A2, E21-A5)."
     owner: "Matheus (passes it on); coordinator (drafts the list and records the answers)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+    ref: "_bmad-output/implementation-artifacts/epic-23/epic-23-retro-2026-11-10.md"
   - id: "epic-24-retro-item-183-e24-a4-test-hardening-second-round"
     epic: 24
     action: "E24-A4 Test hardening, second round: find why the relatorio tree's unit
@@ -630,14 +630,14 @@ action_items:
       lock with no other stack up, or its cause is written in its ledger row."
     owner: "a carry-over batch of Epic 25; the coordinator assigns"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+    ref: "_bmad-output/implementation-artifacts/epic-24/epic-24-retro-2026-11-11.md"
   - id: "epic-25-retro-item-188-e25-a2-run-the-measured-evaluation-of-th"
     epic: 25
     action: "E25-A2 Run the measured evaluation of the audit-2 prompt, including the
       planted observation-versus-items case."
     owner: "coordinator, after Matheus word for the spend"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+    ref: "_bmad-output/implementation-artifacts/epic-25/epic-25-retro-2026-11-16.md"
   - id: "epic-25-retro-item-190-e25-a4-decide-the-two-open-readings-no-p"
     epic: 25
     action: "E25-A4 Decide the two open readings: no previous visit for an added row
@@ -645,14 +645,14 @@ action_items:
       no decision in the conflict view."
     owner: "Matheus (decision); coordinator (record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+    ref: "_bmad-output/implementation-artifacts/epic-25/epic-25-retro-2026-11-16.md"
   - id: "epic-25-retro-item-191-e25-a5-story-25-23-when-the-real-base-re"
     epic: 25
     action: "E25-A5 Story 25.23: when the real base revision file arrives, run the
       update on it and check one relatorio."
     owner: "field engineer, through Matheus (the file); coordinator (the check)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+    ref: "_bmad-output/implementation-artifacts/epic-25/epic-25-retro-2026-11-16.md"
   - id: "epic-25-retro-item-192-e25-a6-add-dated-lines-to-epic-batch-orc"
     epic: 25
     action: "E25-A6 Add dated lines to epic-batch-orchestrator.md section 12: scratch
@@ -661,7 +661,7 @@ action_items:
       fix touches product code."
     owner: "coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+    ref: "_bmad-output/implementation-artifacts/epic-25/epic-25-retro-2026-11-16.md"
   - id: "epic-26-retro-item-193-e26-a1-delete-the-stray-docs-kbs-log-md"
     epic: 26
     action: "E26-A1 Delete the stray docs/kbs/log.md-e (a sed backup committed in
@@ -669,7 +669,7 @@ action_items:
       tree."
     owner: "the coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-194-e26-a2-spec-reconciliation-strike-throug"
     epic: 26
     action: "E26-A2 Spec reconciliation: strike through and date SPEC.md lines 52,
@@ -678,7 +678,7 @@ action_items:
       57 as dated built records."
     owner: "John writes, Matheus applies"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-195-e26-a3-write-the-hands-on-pass-as-the-fi"
     epic: 26
     action: "E26-A3 Write the hands-on pass as the five roles and the integrated review
@@ -686,7 +686,7 @@ action_items:
       width, finding, fix commit; no screenshots, no client data)."
     owner: "the coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-196-e26-a4-count-the-production-users-with-t"
     epic: 26
     action: "E26-A4 Count the production users with the read-only recipe: each user
@@ -694,14 +694,14 @@ action_items:
       role now. Counts only; record a dated line in epic-26-context.md."
     owner: "Matheus (the word to touch production); the coordinator (run and record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-197-e26-a5-on-a-real-ipad-sign-in-pause-the"
     epic: 26
     action: "E26-A5 On a real iPad: sign in, pause the user from another device, reactivate,
       sign in again, check the unsent work arrives; fill the ipad manual template."
     owner: "Matheus (the device)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-198-e26-a6-decide-one-dated-line-each-under"
     epic: 26
     action: "E26-A6 Decide, one dated line each under its story in epics.md: the open
@@ -711,7 +711,7 @@ action_items:
       and expiry."
     owner: "Matheus (decisions); the coordinator (record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-199-e26-a7-dated-lines-in-epic-batch-orchest"
     epic: 26
     action: "E26-A7 Dated lines in epic-batch-orchestrator.md section 12 and the Epic
@@ -724,7 +724,7 @@ action_items:
       previous build; the three E25-A6 lines still owed."
     owner: "the coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-200-e26-a8-make-a-root-owned-node_modules-vi"
     epic: 26
     action: "E26-A8 Make a root-owned node_modules/.vite-temp under apps/api and packages/domain
@@ -732,7 +732,7 @@ action_items:
       Vite, or extend scripts/preflight.ts to name it before a gate starts."
     owner: "the next test-hardening batch (with E23-A4 and E24-A4)"
     status: done  # 2026-11-24, Story 30.2 D (batch e30a): scripts/preflight.ts names any root-owned entry of the four node_modules volumes (.vite-temp first) and fails at once; the gate runs tools as node
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-26-retro-item-201-e26-a9-record-the-two-manual-steps-of-st"
     epic: 26
     action: "E26-A9 Record the two manual steps of Story 26.7 in infra/README.md E-mail
@@ -740,7 +740,7 @@ action_items:
       SES production access granted, both on 2026-11-22."
     owner: "the coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-26-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-26/epic-26-retro-2026-11-24.md"
   - id: "epic-28-retro-item-193-e28-a1-decide-the-seven-open-readings-em"
     epic: 28
     action: "E28-A1 Decide the seven open readings (empty utility name blocks the
@@ -752,7 +752,7 @@ action_items:
       in epics.md."
     owner: "Matheus (decision); coordinator (record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-28/epic-28-retro-2026-11-24.md"
   - id: "epic-28-retro-item-194-e28-a2-send-bruno-the-one-message-after"
     epic: 28
     action: "E28-A2 Send Bruno the one message after the deploy: every authored sentence
@@ -760,7 +760,7 @@ action_items:
       built; record his replies as dated lines."
     owner: "Matheus (send); coordinator (draft the list, record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-28/epic-28-retro-2026-11-24.md"
   - id: "epic-28-retro-item-195-e28-a3-close-the-hands-on-pass-gaps-in-o"
     epic: 28
     action: "E28-A3 Close the hands-on pass gaps in one tracked manual pass: a v17
@@ -769,7 +769,7 @@ action_items:
       or iPad device."
     owner: "coordinator (pass); Matheus (the device)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-28/epic-28-retro-2026-11-24.md"
   - id: "epic-28-retro-item-196-e28-a4-paid-evaluation-hygiene-add-a-v18"
     epic: 28
     action: "E28-A4 Paid-evaluation hygiene: add a v18 sample from a non-client plate
@@ -778,7 +778,7 @@ action_items:
       model."
     owner: "coordinator (sample, run); Matheus (the word for the spend, the decision)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-28/epic-28-retro-2026-11-24.md"
   - id: "epic-28-retro-item-197-e28-a5-dated-lines-in-epic-batch-orchest"
     epic: 28
     action: "E28-A5 Dated lines in epic-batch-orchestrator.md section 12 with the
@@ -789,7 +789,7 @@ action_items:
       file."
     owner: "coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-28/epic-28-retro-2026-11-24.md"
   - id: "epic-28-retro-item-198-e28-a6-test-hardening-third-round-merged"
     epic: 28
     action: "E28-A6 Test hardening, third round, merged with E23-A4 and E24-A4: find
@@ -797,14 +797,14 @@ action_items:
       and e24y-paired-tables fail under load and pass alone; no retries."
     owner: "coordinator (batch)"
     status: done  # 2026-11-25, Story 30.5 (batch e30d, PR #390): every item fixed or recorded; the table is in epic-30-context.md, "Story 30.5"
-    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-28/epic-28-retro-2026-11-24.md"
   - id: "epic-28-retro-item-199-e28-a7-low-fix-the-tag-suggestions-offer"
     epic: 28
     action: "E28-A7 Low: fix the TAG suggestions offered after their locals were removed,
       and decide whether the Gerar dialog gets a Cancelar button."
     owner: "Matheus (the Cancelar decision); coordinator (batch)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-28-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-28/epic-28-retro-2026-11-24.md"
   - id: "epic-29-retro-item-200-e29-a1-ask-bruno-through-matheus-to-conf"
     epic: 29
     action: "E29-A1 Ask Bruno, through Matheus, to confirm on his tablet that closing
@@ -812,7 +812,7 @@ action_items:
       that Alterar senha works; record his answer, sent with the message of E28-A2."
     owner: "Matheus (ask); coordinator (record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-29-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-29/epic-29-retro-2026-11-24.md"
   - id: "epic-29-retro-item-201-e29-a2-put-story-29-2-into-the-real-devi"
     epic: 29
     action: "E29-A2 Put Story 29.2 into the real-device pass of E28-A3: the device
@@ -821,14 +821,14 @@ action_items:
       fix any case red first."
     owner: "coordinator (pass, batch); Matheus (the device)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-29-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-29/epic-29-retro-2026-11-24.md"
   - id: "epic-29-retro-item-202-e29-a3-low-give-a-sumario-that-was-the-t"
     epic: 29
     action: "E29-A3 Low: give a Sumario that was the tab first page a key of its own
       so a back restores its view (history-return.ts UNKEYED), or decide the gap stays."
     owner: "coordinator (batch); Matheus (decides)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-29-retro-2026-11-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-29/epic-29-retro-2026-11-24.md"
   - id: "epic-27-retro-item-46-e27-a1-decide-story-27-5-ac2-remove-the"
     epic: 27
     action: "E27-A1 Decide Story 27.5 AC2: remove the cross-type reorder from the
@@ -838,7 +838,7 @@ action_items:
       small story. Story 27.14's \"one number per section\" already depends on it."
     owner: "Matheus (decision); coordinator (row, line)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-27/epic-27-retro-2026-11-25.md"
   - id: "epic-27-retro-item-47-e27-a2-confirm-or-change-the-coordinator"
     epic: 27
     action: "E27-A2 Confirm or change the coordinator's readings of Stories 27.1,
@@ -847,7 +847,7 @@ action_items:
       26."
     owner: "Matheus (decision); coordinator (record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-27/epic-27-retro-2026-11-25.md"
   - id: "epic-27-retro-item-48-e27-a3-put-epic-27-into-the-one-message"
     epic: 27
     action: "E27-A3 Put Epic 27 into the one message to Bruno of E28-A2: the corrected
@@ -858,7 +858,7 @@ action_items:
       his replies as dated lines."
     owner: "Matheus (send); coordinator (draft, record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-27/epic-27-retro-2026-11-25.md"
   - id: "epic-27-retro-item-49-e27-a4-write-the-kb-concept-lines-the-st"
     epic: 27
     action: "E27-A4 Write the KB concept lines the stories name: architecture/sync.md
@@ -868,7 +868,7 @@ action_items:
       caption_para_raios), with a log.md line."
     owner: "coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-27/epic-27-retro-2026-11-25.md"
   - id: "epic-27-retro-item-50-e27-a5-write-the-browser-pass-of-886af55"
     epic: 27
     action: "E27-A5 Write the browser pass of 886af55e as a tracked report under _bmad-output/test-artifacts/manual/
@@ -878,7 +878,7 @@ action_items:
       with E26-A3 and E28-A3."
     owner: "coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-27/epic-27-retro-2026-11-25.md"
   - id: "epic-27-retro-item-51-e27-a6-playbook-lines-in-epic-batch-orch"
     epic: 27
     action: "E27-A6 Playbook lines in epic-batch-orchestrator.md § 12, edited once
@@ -892,7 +892,7 @@ action_items:
       keeps the failing trace (P-3)."
     owner: "coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-27/epic-27-retro-2026-11-25.md"
   - id: "epic-27-retro-item-52-e27-a7-close-f1-as-cause-not-found-guard"
     epic: 27
     action: "E27-A7 Close F1 as \"cause not found, guard in place, production clean\"\
@@ -900,7 +900,7 @@ action_items:
       in #345's body, or record that the local database was reset."
     owner: "Matheus (close); coordinator (the local row)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-27/epic-27-retro-2026-11-25.md"
   - id: "epic-27-retro-item-53-e27-a8-decide-the-two-clientes-panel-row"
     epic: 27
     action: "E27-A8 Decide the two Clientes panel rows together with the audit's L4300:
@@ -909,7 +909,7 @@ action_items:
       audit holds only the first."
     owner: "Matheus (decision); coordinator (batch if yes)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-27-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-27/epic-27-retro-2026-11-25.md"
   - id: "epic-30-retro-item-54-e30-a1-decide-the-open-readings-one-date"
     epic: 30
     action: "E30-A1 Decide the open readings, one dated line each under its story
@@ -925,7 +925,7 @@ action_items:
       first of #392 to source-deltas.md row 224."
     owner: "Matheus (decide); coordinator (record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"
   - id: "epic-30-retro-item-55-e30-a2-send-bruno-with-the-message-of-e2"
     epic: 30
     action: "E30-A2 Send Bruno, with the message of E28-A2, the authored sentences
@@ -935,7 +935,7 @@ action_items:
       at phone width (zoom, split screen or upright). Record his answers."
     owner: "Matheus (send); Bruno (answer); coordinator (list, record)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"
   - id: "epic-30-retro-item-56-e30-a3-after-bruno-s-next-session-read-t"
     epic: 30
     action: "E30-A3 After Bruno's next session, read the new device_kinds view once
@@ -944,7 +944,7 @@ action_items:
       run in Logs Insights has not been recorded."
     owner: "coordinator (read, record); Matheus (the AWS login)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"
   - id: "epic-30-retro-item-57-e30-a4-add-the-lesson-of-finding-3-to-th"
     epic: 30
     action: "E30-A4 Add the lesson of finding 3 to the story template and epic-batch-orchestrator.md
@@ -955,7 +955,7 @@ action_items:
       Fold into E28-A5."
     owner: "coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"
   - id: "epic-30-retro-item-58-e30-a5-records-hygiene-in-one-records-pr"
     epic: 30
     action: "E30-A5 Records hygiene in one records PR: in epic-30-context.md, a section
@@ -968,7 +968,7 @@ action_items:
       Matheus."
     owner: "coordinator"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"
   - id: "epic-30-retro-item-59-e30-a6-close-what-story-30-5-left-red-a"
     epic: 30
     action: "E30-A6 Close what Story 30.5 left red: (a) the Export dialog's ready
@@ -981,7 +981,7 @@ action_items:
       no retry. This closes E24-A4."
     owner: "Matheus (decides a, c, d); coordinator (batch)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"
   - id: "epic-30-retro-item-60-e30-a7-decide-whether-home-says-why-it-s"
     epic: 30
     action: "E30-A7 Decide whether Home says why it shows no list and no \"Novo relatorio\"\
@@ -989,7 +989,7 @@ action_items:
       26.5, ROLE_UNKNOWN_TEXT is only for the offline case), and build the line."
     owner: "Matheus (decide); coordinator (batch)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"
   - id: "epic-30-retro-item-61-e30-a8-add-the-epic-30-rows-to-the-real"
     epic: 30
     action: "E30-A8 Add the Epic 30 rows to the real-device pass of E28-A3: \"Abrindo
@@ -999,7 +999,7 @@ action_items:
       query units), and the \"Marcar como enviado\" then Esc path."
     owner: "coordinator (pass); Matheus (the device)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"
   - id: "epic-30-retro-item-62-e30-a9-optional-on-matheus-s-word-for-th"
     epic: 30
     action: "E30-A9 Optional, on Matheus's word for the spend: a read-only bmad-review
@@ -1009,4 +1009,4 @@ action_items:
       not a known gap."
     owner: "Matheus (the word); coordinator (run)"
     status: open
-    ref: "_bmad-output/implementation-artifacts/epic-30-retro-2026-11-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-30/epic-30-retro-2026-11-25.md"

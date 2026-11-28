@@ -46,7 +46,7 @@ at the same effort. Since 2026-09-24 (Matheus) the effort floor is medium: a sto
 """,
   """
 PROCESS LESSONS (Epic 1 retrospective, A11). Five lessons from the Epic 1 retrospective
-(`_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md`, findings P1-P6), binding on every run of this
+(`_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md`, findings P1-P6), binding on every run of this
 workflow:
 
 (a) Re-examine the patch, not only the diff (P1). The independent review that runs after this workflow completes

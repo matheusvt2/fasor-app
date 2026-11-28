@@ -1,6 +1,6 @@
 """The display read (Story 9.1): an instrument display, seven-segment or dot-matrix LCD.
 
-Chosen by the spike (`docs/display-reading-spike.md`). The plate pipeline splits each
+Chosen by the spike (`docs/archive/display-reading-spike.md`). The plate pipeline splits each
 detected line into words at ink gaps; on a display that split breaks a seven-segment
 number at its segment gaps and at its decimal point, so here every detected line is
 recognized whole. Before detection the working copy is:

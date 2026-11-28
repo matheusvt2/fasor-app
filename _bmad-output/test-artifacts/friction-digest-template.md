@@ -11,7 +11,7 @@ Template (Story 18.3, 2026-10-29). Copy to `friction-digest-<YYYY-MM>.md` and fi
 
 ## 2. First questions: Home navigation
 
-The measures the 2026-10-29 analysis (`implementation-artifacts/backlog-2026-10-29-home-nav-and-telemetry.md` § 1) asked for, before and after any Home change:
+The measures the 2026-10-29 analysis (`implementation-artifacts/general/backlog-2026-10-29-home-nav-and-telemetry.md` § 1) asked for, before and after any Home change:
 
 - Taps on `home.shortcut_templates` and `home.shortcut_cadastros` per session (`actions`, divided by `sessions_per_day`):
 - Time from the Home `screen_view` to the first navigation out of Home, p50 and p95 (~~Logs Insights over `session_id` and `ts`~~ *(2026-11-03, Story 18.4: the `home_first_nav` view; see "Five questions" below)*):
@@ -19,7 +19,7 @@ The measures the 2026-10-29 analysis (`implementation-artifacts/backlog-2026-10-
 
 ## Five questions
 
-*(2026-11-03, Story 18.4.)* The questions a month of data must answer (`implementation-artifacts/backlog-2026-10-30-ux-data-sufficiency.md` § 5), each with the view that answers it (`docs/observability.md` § The views) and what a reader concludes. Only events of bundles from Story 18.4 on carry the fields these views read: note the share of sessions on such a bundle (`app_version`) first.
+*(2026-11-03, Story 18.4.)* The questions a month of data must answer (`implementation-artifacts/general/backlog-2026-10-30-ux-data-sufficiency.md` § 5), each with the view that answers it (`docs/observability.md` § The views) and what a reader concludes. Only events of bundles from Story 18.4 on carry the fields these views read: note the share of sessions on such a bundle (`app_version`) first.
 
 1. **Time per screen** (`screen_time`): p50 and p95 per screen. A screen meant for work with a short p50 is opened and left; a screen meant for a choice with a long p95 makes people search:
 2. **Home to first navigation** (`home_first_nav`): p50 and p95 of the Home views that began a visit. Seconds say people find their way at once; tens of seconds say Home makes them search; compare with the previous digest and with any Home change between:
