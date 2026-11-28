@@ -395,11 +395,11 @@ development_status:
   31-7-the-mic-on-the-fields-that-lack-it: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
   31-8-amazon-transcribe-in-production: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
   31-9-the-ai-control-rewrites-the-text-in-the-field: done  # 2026-11-27: deployed in 8aefd758 (v0.16.0)
-  31-10-the-audio-and-ai-controls-sit-in-the-fields-own-bar-the-ai-proposes-before-it-writes-and-a-refusal-says-why: review  # 2026-11-27: written after the v0.16.1 deploy (Matheus chose the field bar, the comparison and the reasons); a follow-up, Epic 31 stays delivered. 2026-11-27: built in batch e31h (branch e31h-field-bar), tests written, the gate runs on the integrated branch
+  31-10-the-audio-and-ai-controls-sit-in-the-fields-own-bar-the-ai-proposes-before-it-writes-and-a-refusal-says-why: done  # 2026-11-28: deployed as c06428e0 (PR #410, smoke 8 of 8, tag v0.17.0, migration 0011, contract 62 unchanged) | was review: 2026-11-27: written after the v0.16.1 deploy (Matheus chose the field bar, the comparison and the reasons); a follow-up, Epic 31 stays delivered. 2026-11-27: built in batch e31h (branch e31h-field-bar), tests written, the gate runs on the integrated branch
   epic-31-retrospective: optional
-  epic-32: in-progress  # 2026-11-27: written on Matheus's request (every AI answer and the user's correction recorded, then a rubric); his answers of 2026-11-27 recorded in epics.md; built as batch e32a (branch e32a-ai-records), gate by the coordinator
-  32-1-one-record-per-ai-answer-and-the-users-correction-joined-to-it: review  # 2026-11-27, batch e32a
-  32-2-a-rubric-for-the-ais-quality-and-a-tool-that-reads-the-records-against-it: review  # 2026-11-27, batch e32a; the first report run with Matheus still owed
+  epic-32: done  # 2026-11-28: deployed as c06428e0 (PR #410, smoke 8 of 8, tag v0.17.0, migration 0011, contract 62 unchanged) | was in-progress: 2026-11-27: written on Matheus's request (every AI answer and the user's correction recorded, then a rubric); his answers of 2026-11-27 recorded in epics.md; built as batch e32a (branch e32a-ai-records), gate by the coordinator
+  32-1-one-record-per-ai-answer-and-the-users-correction-joined-to-it: done  # 2026-11-28: deployed as c06428e0 (PR #410, smoke 8 of 8, tag v0.17.0, migration 0011, contract 62 unchanged) | was review: 2026-11-27, batch e32a
+  32-2-a-rubric-for-the-ais-quality-and-a-tool-that-reads-the-records-against-it: done  # 2026-11-28: deployed as c06428e0 (PR #410, smoke 8 of 8, tag v0.17.0, migration 0011, contract 62 unchanged) | was review: 2026-11-27, batch e32a; the first report run with Matheus still owed
   epic-32-retrospective: optional
 
   # Deferred or dropped stories (not tracked as keys). No script status means "deferred" or "dropped", so these two are
