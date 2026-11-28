@@ -29,7 +29,7 @@ Conforme (codename fasor, earlier working name Releng) is a tablet-first, offlin
 | `_bmad-output/implementation-artifacts/deferred-work.md` | 178 KB | The ledger of open, partially closed and in-progress carry-over rows, one section per story or batch. Grep the story, batch or topic; never whole. Closed rows are in `deferred-work-archive.md` (577 KB) under the same headings. |
 | `_bmad-output/implementation-artifacts/epic-NN/` | one folder per epic, `epic-01` to `epic-31` | The built records of one epic: `epic-N-context.md`, `spec-*.md` per story or batch, `epic-N-retro-*.md`. `ls` the folder, open one file. A new story's spec is written at the folder's root and moves into its epic's folder when the epic closes. |
 | `_bmad-output/implementation-artifacts/general/` | 30 files | Records of no single epic (review-fix batches, production-pass fixes, test-speed chores, backlogs). `ls`, then open one. |
-| `AGENTS.md` | 21 KB | Already in your context. Do not re-read. |
+| `AGENTS.md` | 19 KB | Already in your context. Do not re-read. |
 
 Sizes measured with `wc -c` on 2026-11-28.
 
