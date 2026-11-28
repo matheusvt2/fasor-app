@@ -5,7 +5,7 @@ Reviewers: Amelia (senior engineer) and Sally (UX designer), at Matheus's reques
 Companion outputs of the same review:
 
 - `DESIGN.md` v0.9 direction (§ v0.9 of that file), `mockups/tokens-v09.css`, `mockups/components-v09.css`, `mockups/key-equipment-sheet-v09.html`, `mockups/key-relatorio-overview-v09.html`.
-- Sprint change proposal `_bmad-output/planning-artifacts/sprint-change-proposal-2026-09-24.md` and the six stories of Epic 12 in `epics.md`.
+- Sprint change proposal `_bmad-output/planning-artifacts/sprint-change-proposals/sprint-change-proposal-2026-09-24.md` and the six stories of Epic 12 in `epics.md`.
 - Open decisions for Matheus, § Open for Matheus below.
 
 ## 1. Summary

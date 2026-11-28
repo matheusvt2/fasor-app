@@ -19,7 +19,7 @@ action_items:
       save as user/{id}/{field} ops, account reads through the contract"
     owner: "Architecture, then first Epic 2 story"
     status: done  # PR #9
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-3-a3-persist-the-service-worker-hold-shell"
     epic: 1
     action: "A3 Persist the service worker hold-shell flag (Cache Storage sentinel
@@ -27,14 +27,14 @@ action_items:
       browser (blocking before Epics 5 and 6)"
     owner: "Follow-up story (opus/high)"
     status: done  # PR #11
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-4-a4-stamp-the-minted-device_id-in-commitd"
     epic: 1
     action: "A4 Stamp the minted device_id in CommitDeps/commitBatch and drop the
       user-id fallback in the fixture before any Epic 2 op emitter"
     owner: "Next story"
     status: done  # PR #9
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-5-a5-ui-hygiene-story-checked-in-a-real-br"
     epic: 1
     action: "A5 UI hygiene story checked in a real browser at 390/768/1280: translate
@@ -45,7 +45,7 @@ action_items:
       title, favicon"
     owner: "Next story (opus/high)"
     status: done  # PR #12
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-6-a6-stabilize-and-widen-the-gate-testtime"
     epic: 1
     action: "A6 Stabilize and widen the gate: testTimeout for jsdom and tooling, move
@@ -53,7 +53,7 @@ action_items:
       and pnpm audit, rebuild the tools image, keep one reset mechanism"
     owner: "Process"
     status: done  # PR #10
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-7-a7-move-status-words-plurals-counts-and"
     epic: 1
     action: "A7 Move status words, plurals, counts and the auto-pull rule into the
@@ -61,14 +61,14 @@ action_items:
       goes"
     owner: "Architecture"
     status: done  # PR #9
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-8-a8-keep-the-last-session-pointer-on-a-bo"
     epic: 1
     action: "A8 Keep the last-session pointer on a boot-time 401 so offline cold opens
       reach local data behind the re-auth banner"
     owner: "Next story"
     status: done  # PR #9
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-9-a9-refresh-readme-agents-md-running-and"
     epic: 1
     action: "A9 Refresh README, AGENTS.md Running and verifying, Docker-only prod
@@ -76,14 +76,14 @@ action_items:
       seed flag; strike Story 1.7 CI AC through"
     owner: "Process (bmad-project-context)"
     status: done  # PR #10
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-10-a10-merge-every-spec-deferred-item-into"
     epic: 1
     action: "A10 Merge every spec deferred item into deferred-work.md with a class,
       close resolved ones, add a cross-tenant case per new route to the DoD"
     owner: "Process"
     status: done  # PR #10
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-11-a11-pipeline-independent-review-on-every"
     epic: 1
     action: "A11 Pipeline: independent review on every PR re-examining its own patch,
@@ -92,7 +92,7 @@ action_items:
       gate checks manual ACs, parallel-story start checklist"
     owner: "Process (bmad-build.toml, model guide)"
     status: done  # PR #10
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-12-a12-before-any-exposure-beyond-the-offic"
     epic: 1
     action: "A12 Before any exposure beyond the office LAN: rate limiting, security
@@ -100,7 +100,7 @@ action_items:
       outside dev"
     owner: "Architecture (Epic 11 checklist)"
     status: done  # PR #83 (security headers, body and rate limits, SESSION_SECRET refused in production, Vite on loopback); duplicate of E11-A5
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-01/epic-1-retro-2026-09-22.md"
   - id: "epic-2-retro-item-13-e2-a1-fix-d-1-server-merge-of-manufactur"
     epic: 2
     action: "E2-A1 Fix D-1: server merge of manufacturer/voltage_class emits a system
@@ -108,56 +108,56 @@ action_items:
       two-cycle convergence test"
     owner: "dev"
     status: done  # PR #17
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+    ref: "_bmad-output/implementation-artifacts/epic-02/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-14-e2-a2-fix-d-2-wire-registrypickerfield-i"
     epic: 2
     action: "E2-A2 Fix D-2: wire RegistryPickerField into the instrument Fabricante
       field with an offline Criar e2e; move AC 2.4-2 to Epic 4 in epics.md"
     owner: "dev"
     status: done  # PR #17
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+    ref: "_bmad-output/implementation-artifacts/epic-02/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-15-e2-a3-fix-d-3-d-8-open-certificate-empre"
     epic: 2
     action: "E2-A3 Fix D-3..D-8 (open certificate, Empresa @p0, visible defaults,
       voltage-class kV form, phone full-screen form, polish)"
     owner: "dev"
     status: done  # PR #17
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+    ref: "_bmad-output/implementation-artifacts/epic-02/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-17-e2-a5-human-style-pass-covers-each-form"
     epic: 2
     action: "E2-A5 Human-style pass covers each form at 390 and one second-cycle or
       second-device scenario"
     owner: "dev and reviewers"
     status: done  # no PR; adopted as process in the retro (commit 5feb8d7)
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+    ref: "_bmad-output/implementation-artifacts/epic-02/epic-2-retro-2026-09-22.md"
   - id: "epic-3-retro-item-20-e3-a3-validate-sheet-path-segments-again"
     epic: 3
     action: "E3-A3 Validate sheet/* path segments against getDefinition in applyOp
       before Epic 4 writes sheet values"
     owner: "dev"
     status: done  # PR #30; assertSeedPath, cell row/col stay structural
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-21-e3-a4-stabilize-the-gate-templates-list"
     epic: 3
     action: "E3-A4 Stabilize the gate: Templates list empty for 30 s after sign-in
       under load (3.6-E2E-001), and cut unit-suite jsdom/axe cost"
     owner: "dev"
     status: done  # PR #40; Epic 6 batch F
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-24-e3-a7-process-one-story-per-pr-or-a-reco"
     epic: 3
     action: "E3-A7 Process: one story per PR or a recorded exception; Dev model changes
       noted in epics.md with a date"
     owner: "Matheus / SM"
     status: done  # no PR; adopted as process in the retro (commit 91f1664)
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-25-e3-a8-process-focus-asserted-after-every"
     epic: 3
     action: "E3-A8 Process: focus asserted after every destructive action; contenteditable
       and touch ACs run once on Android Chrome or WebKit before close"
     owner: "dev + reviewers"
     status: done  # no PR; adopted as process in the retro (commit 91f1664)
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-26-e3-a9-deferred-polish-toggle-sub-lines-f"
     epic: 3
     action: "E3-A9 Deferred polish: toggle-sub lines from kernel text, one bullet
@@ -165,7 +165,7 @@ action_items:
       Editar texto from the card"
     owner: "dev"
     status: done  # section-8.ts derivedGroupText, PR #51 (Epic 7 retro)
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-4-retro-item-28-e4-a1-fix-the-generate-and-status-seams"
     epic: 4
     action: "E4-A1 Fix the generate and status seams: one kernel editedSince limited
@@ -174,14 +174,14 @@ action_items:
       generate-edit-regenerate e2e (before Epic 5)"
     owner: "dev (opus)"
     status: done  # PR #29; item 23 and Q15 product choice stay open questions
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-29-e4-a2-q4-across-devices-pull-the-project"
     epic: 4
     action: "E4-A2 Q4 across devices: pull the project equipment before Criar relatorio
       (or refuse offline) so reuse never mints duplicates; add a two-device test"
     owner: "dev"
     status: done  # PR #29; item 23 and Q15 product choice stay open questions
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-30-e4-a3-section-text-and-exclusions-one-sh"
     epic: 4
     action: "E4-A3 Section text and exclusions: one shared undo-toast/edit-queue hook
@@ -189,14 +189,14 @@ action_items:
       filtered and removable, decide template section 3 vs setup exclusions"
     owner: "dev"
     status: done  # PR #29; item 23 and Q15 product choice stay open questions
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-31-e4-a4-small-fixes-one-putrelatoriostatus"
     epic: 4
     action: "E4-A4 Small fixes: one putRelatorioStatusOp/putBlockOp for every write,
       web uses the kernel projectLabel, drop the stale ART comment in document-control.ts"
     owner: "dev"
     status: done  # PR #29; item 23 and Q15 product choice stay open questions
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-32-e4-a5-spec-reconciliation-dated-narrowin"
     epic: 4
     action: "E4-A5 Spec reconciliation: dated narrowings in epics.md for items 27,
@@ -204,14 +204,14 @@ action_items:
       Epic 7"
     owner: "Matheus with the coordinator"
     status: done  # 2026-10-05 audit-2026-09-30: only item 25 was left, carried by E7-A5
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-33-e4-a6-bruno-reads-the-skeleton-docx-revi"
     epic: 4
     action: "E4-A6 Bruno reads the skeleton DOCX (reviews/qa-epic-4-D) and his remarks
       are recorded under Story 4.8; Matheus confirms or reverses the Q3 and Q4 decisions"
     owner: "Matheus"
     status: done  # 2026-11-24 audit: superseded: Bruno has read real relatorios and likes the document (epics.md:6331, 2026-11-06); v5 layout locked (Story 23.2)
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-34-e4-a7-refactor-when-next-touched-split-s"
     epic: 4
     action: "E4-A7 Refactor when next touched: split setup-surface.tsx, extract the
@@ -219,7 +219,7 @@ action_items:
       of sumario.ts"
     owner: "dev"
     status: done  # PR #40; Epic 6 batch F
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-35-e4-a8-process-integrated-human-style-qa"
     epic: 4
     action: "E4-A8 Process: integrated human-style QA on clean main before each epic
@@ -227,7 +227,7 @@ action_items:
       rules get a two-device test; fix agents report product choices as open questions"
     owner: "coordinator / SM"
     status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-36-e4-a9-gate-run-test-e2e-matrix-at-epic-c"
     epic: 4
     action: "E4-A9 Gate: run test:e2e:matrix at epic close, at most two concurrent
@@ -235,7 +235,7 @@ action_items:
       timestamps"
     owner: "dev / coordinator"
     status: done  # PR #48 (makeSyncState); host lock and watchdog rule in epic-batch-orchestrator.md (commit b08f622)
-    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-04/epic-4-retro-2026-09-24.md"
   - id: "epic-5-retro-item-37-e5-a1-stabilize-the-e2e-gate-before-epic"
     epic: 5
     action: "E5-A1 Stabilize the e2e gate before Epic 6: fix 3.6-E2E-001 (E3-A4) and
@@ -243,7 +243,7 @@ action_items:
       E5-Q8 test by waiting on committed state; three green full runs in a row"
     owner: "dev (opus)"
     status: done  # PR #34
-    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-05/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-38-e5-a2-add-the-sheet-to-the-durability-ma"
     epic: 5
     action: "E5-A2 Add the sheet to the durability matrix (tri-state taps, phone unit
@@ -251,7 +251,7 @@ action_items:
       device script"
     owner: "dev, then Matheus"
     status: done  # PR #40 dev part; the device run is carried by E1-A1 (audit-2026-09-30)
-    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-05/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-40-e5-a4-small-fixes-with-the-epic-7-print"
     epic: 5
     action: "E5-A4 Small fixes with the Epic 7 print path: apply criterion_override,
@@ -259,7 +259,7 @@ action_items:
       confirm, remaining E5-Q18 e2e"
     owner: "dev"
     status: done  # PR #40; E5-Q18 (b) moves to Epic 7
-    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-05/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-41-e5-a5-kernel-path-builders-for-every-op"
     epic: 5
     action: "E5-A5 Kernel path builders for every op family the web writes (ficha-ops,
@@ -267,7 +267,7 @@ action_items:
       split"
     owner: "dev"
     status: done  # PR #40; Epic 6 batch F
-    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-05/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-42-e5-a6-dod-a-new-kernel-refusal-of-a-writ"
     epic: 5
     action: "E5-A6 DoD: a new kernel refusal of a write ships with an api integration
@@ -275,14 +275,14 @@ action_items:
       its 390 px fit in an e2e"
     owner: "coordinator / SM"
     status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
-    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-05/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-43-e5-a7-keep-the-epic-5-token-economy-deli"
     epic: 5
     action: "E5-A7 Keep the Epic 5 token-economy delivery shape while tokens are scarce,
       orchestrate on opus, cut batches along data dependencies"
     owner: "coordinator"
     status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
-    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-05/epic-5-retro-2026-09-24.md"
   - id: "epic-12-retro-item-45-e12-a2-add-the-prefilled-tag-deferral-to"
     epic: 12
     action: "E12-A2 Add the prefilled-TAG deferral to deferred-work.md and the Epic
@@ -290,14 +290,14 @@ action_items:
       projection must read nameplateTagPrefill"
     owner: "coordinator"
     status: done  # no PR; epic-7-context.md carry-over (commit 1582cdd)
-    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-12/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-46-e12-a3-add-to-the-e1-a1-manual-device-sc"
     epic: 12
     action: "E12-A3 Add to the E1-A1 manual device script the soft keyboard after
       Outro and Criar (E12-Q7) and the lost-tap paths on a real tablet"
     owner: "Matheus"
     status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
-    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-12/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-47-e12-a4-every-seed-version-bump-names-how"
     epic: 12
     action: "E12-A4 Every seed version bump names how existing companies reach it;
@@ -306,14 +306,14 @@ action_items:
       seed_version change (E12-Q4, E12-R1)"
     owner: "architect / dev"
     status: done  # 2026-11-24 audit: resolved: templates upgrade on api start (apps/api/src/main.ts:50) and on a push (apps/api/src/sync/apply.ts:952-966); older seeds stay frozen
-    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-12/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-48-e12-a5-recompute-every-numeric-ac-target"
     epic: 12
     action: "E12-A5 Recompute every numeric AC target (taps, keys, times) against
       the decisions of its source document before a story is marked ready (E12-Q5)"
     owner: "coordinator / SM"
     status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
-    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-12/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-49-e12-a6-gate-and-agents-new-p0-specs-wait"
     epic: 12
     action: "E12-A6 Gate and agents: new @p0 specs wait on the target's committed
@@ -322,7 +322,7 @@ action_items:
       one coordinator per checkout"
     owner: "coordinator"
     status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
-    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-12/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-50-e12-a7-visual-follow-ups-with-epic-6-s-s"
     epic: 12
     action: "E12-A7 Visual follow-ups with Epic 6's sheet work: 1024 landscape capture
@@ -330,7 +330,7 @@ action_items:
       lows, MOCK-GUIDE note that the before mocks now render with v0.9 CSS"
     owner: "dev; coordinator for MOCK-GUIDE"
     status: done  # PR #48
-    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-12/epic-12-retro-2026-09-25.md"
   - id: "epic-6-retro-item-51-e6-a1-gate-time-next-action-fix-the-sync-push"
     epic: 6
     action: "E6-A1 Gate time, next action: fix the sync push slowdown under overlap
@@ -340,7 +340,7 @@ action_items:
       bringing verify back under 15 min (measured 17-21 min)"
     owner: "Epic 7 carry-over batch (dev)"
     status: done  # #48 push fix, #53 1499 s -> 1268 s; the 900 s target is superseded by epic-8-retro-item-58
-    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-06/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-52-e6-a2-gate-policy-one-verify-at-a-time-on-this"
     epic: 6
     action: "E6-A2 Gate policy: one verify at a time on this machine (replaces E4-A9
@@ -348,7 +348,7 @@ action_items:
       test:e2e:full before merge, and the epic's last story PR always does"
     owner: "coordinator; Matheus decides the e2e:full rule"
     status: done  # superseded by the split merge gate (AGENTS.md 2026-09-30, E10-A1) and E11-A3 (audit-2026-09-30)
-    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-06/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-53-e6-a3-document-the-new-e2e-runner-in-agents-md"
     epic: 6
     action: "E6-A3 Document the new e2e runner in AGENTS.md Running and verifying:
@@ -356,7 +356,7 @@ action_items:
       and --workers opt-in"
     owner: "coordinator"
     status: done  # PR #48
-    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-06/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-55-e6-a5-add-to-the-e1-a1-manual-device-script-tc"
     epic: 6
     action: "E6-A5 Add to the E1-A1 manual device script (TC-12 at Epic 6 close) a
@@ -364,7 +364,7 @@ action_items:
       (untested in Playwright WebKit) and the soft keyboard after programmatic focus"
     owner: "Matheus"
     status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
-    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-06/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-56-e6-a6-epic-7-carry-over-lows-persist-the-point"
     epic: 6
     action: "E6-A6 Epic 7 carry-over lows: persist the point draft on each input,
@@ -373,7 +373,7 @@ action_items:
       a test on which picture the viewer shows"
     owner: "Epic 7 carry-over batch (dev)"
     status: done  # PR #48
-    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-06/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-57-e6-a7-process-and-structure-retarget-stacked-p"
     epic: 6
     action: "E6-A7 Process and structure: retarget stacked PRs with --base main after
@@ -382,7 +382,7 @@ action_items:
       keep the carry-over-first batch in each epic"
     owner: "coordinator (batch instruction file); dev for the split"
     status: done  # PR #48 (split, dated narrowings); process rules in epic-batch-orchestrator.md (commit b08f622)
-    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-06/epic-6-retro-2026-09-26.md"
   - id: "epic-7-retro-item-66-e7-a1-gate-time-device-snapshot-first"
     epic: 7
     action: "E7-A1 Gate time back under budget: stop the device rebuilding the whole
@@ -392,7 +392,7 @@ action_items:
       a dated DoD budget line with the measured number"
     owner: "Epic 9 carry-over batch (dev); coordinator accepts on the numbers"
     status: done  # superseded by the split merge gate (AGENTS.md 2026-09-30) and E11-A1 (audit-2026-09-30); PR #57 incremental snapshot
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-07/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-67-e7-a2-gate-throughput-queue-and-load-flakes"
     epic: 7
     action: "E7-A2 Gate throughput: targeted specs, unit and api before queueing for
@@ -401,7 +401,7 @@ action_items:
       wait <= 10 min per batch and 0 unit-file timeouts in the next epic's gates"
     owner: "coordinator (playbook); dev (unit files)"
     status: done  # superseded by the split merge gate and E11-A3 (audit-2026-09-30); dev part in PR #57
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-07/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-68-e7-a3-track-e78-q10-q12-q15"
     epic: 7
     action: "E7-A3 Add deferred-work entries with owners for E78-Q10, E78-Q12 and
@@ -409,7 +409,7 @@ action_items:
       the Porto Seguro fixture"
     owner: "coordinator"
     status: done  # entries a2cd053; fixture TTR 13.2 in PR #57
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-07/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-69-e7-a4-re-own-epic-7-carry-over-rows"
     epic: 7
     action: "E7-A4 Re-own the open Epic 7 deferred-work rows (cert_number_mismatch
@@ -418,7 +418,7 @@ action_items:
       entry (pre-issue.ts:361)"
     owner: "coordinator (re-own); Epic 9 carry-over batch (dev)"
     status: done  # PR #57 (fixed or re-owned; stale certificate entry closed)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-07/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-71-e7-a6-playbook-shared-renderer-and-cut-batches"
     epic: 7
     action: "E7-A6 Playbook: a batch touching docx.ts, layout.ts, the golden or the
@@ -427,7 +427,7 @@ action_items:
       leaves a handoff note (branch, last green stage, failing tests, conflicts)"
     owner: "coordinator"
     status: done  # epic-batch-orchestrator.md a2cd053
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-07/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-72-e7-a7-gate-without-the-network"
     epic: 7
     action: "E7-A7 Bake or cache the pnpm binary in the tools image so verify and
@@ -435,7 +435,7 @@ action_items:
       gets past install"
     owner: "dev"
     status: done  # PR #57 (COREPACK_ENABLE_NETWORK=0, offline gate start proven)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-07/epic-7-retro-2026-09-28.md"
   - id: "epic-8-retro-item-58-e8-a1-gate-under-budget-incremental-snapshot"
     epic: 8
     action: "E8-A1 Make the device relatório snapshot incremental (the whole-snapshot
@@ -445,14 +445,14 @@ action_items:
       is missed, Matheus decides a dated DoD clause 3 amendment or a split gate"
     owner: "Epic 9 carry-over batch (dev); Matheus for the stop rule"
     status: done  # superseded with E7-A1 (audit-2026-09-30)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-08/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-59-e8-a2-bake-pnpm-into-the-tools-image"
     epic: 8
     action: "E8-A2 Bake the pinned pnpm binary into the tools image so no gate downloads
       at start; proof: a gate starts its first test with the network off"
     owner: "Epic 9 carry-over batch (dev)"
     status: done  # PR #57
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-08/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-61-e8-a4-sidecar-contract-drift-gate"
     epic: 8
     action: "E8-A4 Owner for deferred 'OCR contract change passes verify without the
@@ -460,7 +460,7 @@ action_items:
       runs the sidecar build and pytest under the lock and pastes the output"
     owner: "coordinator (playbook); dev for an optional tooling check"
     status: done  # playbook rule a2cd053; applied in PR #56; tooling check in batch C2
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-08/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-62-e8-a5-epic-9-carry-over-lows"
     epic: 8
     action: "E8-A5 Epic 9 carry-over lows: E78-R1 crop region, EXIF orientation of
@@ -468,7 +468,7 @@ action_items:
       queued' entry with the QA refutation"
     owner: "Epic 9 carry-over batch (dev); coordinator for the stale entry"
     status: done  # PR #57 (crop region, eviction, re-download, stale entry); EXIF in PR #60
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-08/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-64-e8-a7-tc-12-plate-flow-on-a-device"
     epic: 8
     action: "E8-A7 Add the plate flow (offline shot, queued line, upload on signal,
@@ -476,7 +476,7 @@ action_items:
       and E12-A3; evidence in test-artifacts/manual"
     owner: "Matheus"
     status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-08/epic-8-retro-2026-09-28.md"
   - id: "epic-9-retro-item-73-e9-a1-gate-budget-stop-rule"
     epic: 9
     action: "E9-A1 Decide the gate-budget stop rule (E9-Q6): a dated AGENTS.md/DoD
@@ -484,7 +484,7 @@ action_items:
       supersedes the 900 s targets of E7-A1/E8-A1, before Epic 10's first story PR"
     owner: "Matheus"
     status: done  # AGENTS.md 2026-09-30 split merge gate (Matheus)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-74-e9-a2-no-merge-on-red-gate"
     epic: 9
     action: "E9-A2 No merge with a red or partial gate: a flake needs a green verify
@@ -492,7 +492,7 @@ action_items:
       its gate re-runs full verify; Epic 10 target 0 such merges"
     owner: "coordinator (playbook)"
     status: done  # playbook 2026-09-29
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-75-e9-a3-lock-aware-agents"
     epic: 9
     action: "E9-A3 Agents never block a stream on flock (gate in the background, polls
@@ -500,7 +500,7 @@ action_items:
       lock wait recorded per PR; Epic 10 target 0 watchdog kills, 0 shared-file overwrites"
     owner: "coordinator (playbook)"
     status: done  # playbook 2026-09-29
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-76-e9-a4-cross-story-interaction-tests"
     epic: 9
     action: "E9-A4 The epic context lists every story pair sharing a cell, entity,
@@ -508,7 +508,7 @@ action_items:
       checks assert table scroll containers, not only the page"
     owner: "coordinator"
     status: done  # Epic 10 retro: pairs owned and tested; per-item gap carried by E10-A3
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-77-e9-a5-deferred-ledger-ownership"
     epic: 9
     action: "E9-A5 deferred-work: close 1113 (fixed E9-Q2) and 1125 (refuted by QA
@@ -516,7 +516,7 @@ action_items:
       e2e), 1161 (Epic 10); target 0 entries owned by a finished review or retro"
     owner: "Epic 10 carry-over batch"
     status: done  # PR #63
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-79-e9-a7-split-suggestions-ts"
     epic: 9
     action: "E9-A7 Split packages/domain/src/relatorio/suggestions.ts (905 lines,
@@ -524,7 +524,7 @@ action_items:
       change; no relatorio/ file over 500 lines"
     owner: "Epic 10 carry-over batch"
     status: done  # PR #63
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-81-e9-a9-speech-engine-default"
     epic: 9
     action: "E9-A9 Until vendor audio is approved (Q18), default VITE_SPEECH_ENGINE
@@ -532,7 +532,7 @@ action_items:
       first dictation"
     owner: "dev; Matheus approves"
     status: done  # PR #63
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-82-e9-a10-device-script-epic-9-flows"
     epic: 9
     action: "E9-A10 Add Ler visor on real displays, dictation on a real tablet (Chrome/Safari)
@@ -540,7 +540,7 @@ action_items:
       E12-A3; evidence in test-artifacts/manual/"
     owner: "Matheus"
     status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-10-retro-item-83-e10-a1-gate-decision-draft"
     epic: 10
     action: "E10-A1 Draft the E9-A1 decision from Epic 10 data: split gate (story
@@ -550,7 +550,7 @@ action_items:
       s wave-2 lock waits"
     owner: "coordinator drafts; Matheus decides"
     status: done  # AGENTS.md 2026-09-30 split merge gate (Matheus)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-84-e10-a2-push-wip-checkpoints"
     epic: 10
     action: "E10-A2 Batches push their branch to origin after each commit that precedes
@@ -559,7 +559,7 @@ action_items:
       a commit on origin"
     owner: "coordinator (playbook)"
     status: done  # applied by the coordinator 2026-09-29
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-85-e10-a3-one-test-per-shared-item"
     epic: 10
     action: "E10-A3 Refine E9-A4: every item in a pair's 'What they share' cell gets
@@ -568,7 +568,7 @@ action_items:
       fell between batches)"
     owner: "coordinator"
     status: done  # applied by the coordinator 2026-09-29
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-86-e10-a4-targeted-matrix-per-batch"
     epic: 10
     action: "E10-A4 A batch changing the fold, the commit path or a live query on
@@ -577,14 +577,14 @@ action_items:
       the epic QA"
     owner: "coordinator (playbook)"
     status: done  # applied by the coordinator 2026-09-29
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-87-e10-a5-relocate-story-10-4-narrowing"
     epic: 10
     action: "E10-A5 Move the PR #65 narrowing from epics.md:489 (Epic List overview,
       stray leading '#') to under Story 10.4 with a dated relocation note"
     owner: "coordinator"
     status: done  # applied by the coordinator 2026-09-29
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-89-e10-a7-device-script-two-tablets"
     epic: 10
     action: "E10-A7 Add to the E1-A1 manual device script a two-tablet NC/C merge,
@@ -593,7 +593,7 @@ action_items:
       in test-artifacts/manual/"
     owner: "Matheus"
     status: done  # 2026-11-24 audit: duplicate: E1-A1 (epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10/epic-10-retro-2026-09-29.md"
   - id: "epic-11-retro-item-90-e11-a1-gate-time-answer"
     epic: 11
     action: "E11-A1 Answer 'os testes estão demorando muito': profile the @p0 e2e
@@ -603,7 +603,7 @@ action_items:
       story gate <= 15 min or the dated budget"
     owner: "coordinator drafts; Matheus decides"
     status: done  # 2026-10-08, Matheus: story gate (lint, static, unit, api, touched specs), full @p0 per wave; AGENTS.md Decisions of record
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-91-e11-a2-close-11-8-live-evidence"
     epic: 11
     action: "E11-A2 Close Story 11.8: explain the 502 on /api/health at 15:10 on 2026-09-30
@@ -614,7 +614,7 @@ action_items:
       compared with USD 78.83"
     owner: "Matheus (AWS login) with the coordinator"
     status: done  # 2026-09-30 coordinator: the 15:10 502 is the api roll of the #79 deploy (ECS events 18:10:53-18:12:38 UTC); health all up after; budget action fasor-monthly APPLY_IAM_POLICY AUTOMATIC STANDBY at 100 % on fasor-production-app and fasor-app; task role = fasor-app-bedrock-textract + files-bucket; live Textract through fasor-app 42 tokens (PR #69)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-94-e11-a5-a12-hardening-story"
     epic: 11
     action: "E11-A5 Make A12 a story via bmad-correct-course before the production
@@ -624,7 +624,7 @@ action_items:
       an oversized push, A12 closed"
     owner: "Matheus (priority); architect"
     status: done  # PR #83 (api headers and CSP, body limits, rate limits, production SESSION_SECRET check, HSTS at the edge)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-96-e11-a7-recheck-pr-79"
     epic: 11
     action: "E11-A7 QA re-check of PR #79 (DOCX and PDF download and share as files,
@@ -633,7 +633,7 @@ action_items:
       to the E1-A1 device script; the leaked screenshot deleted from the main checkout"
     owner: "coordinator (re-check); Matheus (device)"
     status: done  # 2026-11-24 audit: superseded: desktop download held in the production pass (prod-pass-2026-10-28.md row 11.1); the device share is part of E1-A1
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-97-e11-a8-playbook-shared-fix-stale-api-paths"
     epic: 11
     action: "E11-A8 Playbook: a shared-file fix two batches need (toast.tsx) has one
@@ -643,7 +643,7 @@ action_items:
       false reds, 0 leaked files"
     owner: "coordinator (playbook)"
     status: done  # 2026-11-24 audit: resolved: one owning batch per shared file (epic-13-context.md:35); the api restart is playbook § 7 (E16-A8)
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-98-e11-a9-unblock-story-11-6"
     epic: 11
     action: "E11-A9 Track the Bedrock quota support case; when a quota is above 0
@@ -652,7 +652,7 @@ action_items:
       and ai_features on"
     owner: "Matheus (support case); coordinator (batch L)"
     status: done  # Bedrock unblocked 2026-10-05 on Haiku 4.5; Story 11.6 merged in PR #88
-    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-13-retro-item-100-e13-a1-wave-gate-on-75c4bad"
     epic: 13
     action: "E13-A1 Run the wave gate on integrated main 75c4bad before Epic 14 starts:
@@ -661,7 +661,7 @@ action_items:
       only failures also red on b1c2c6b left, each with a ledger row"
     owner: "coordinator"
     status: done  # 2026-10-08 on a8b9b0e: verify green, e2e:full 409/415, matrix 80/93, failures known or pre-epic (deferred-work rows)
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-101-e13-a2-fix-recurring-unit-failures"
     epic: 13
     action: "E13-A2 Fix the three recurring unit failures (theme.test.tsx, export-dialog.test.tsx
@@ -670,7 +670,7 @@ action_items:
       story gates, 0 PRs merged with a red stage"
     owner: "next carry-over batch"
     status: done  # 2026-10-15: PR #137; test:unit exit 0 in two consecutive gates on an idle host (#137 gate 4122/4122, #133 pre-merge 4134/4134, wave gate 2026-10-15 green); load-only timeouts remain when three stacks share the VM
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-102-e13-a3-epic-13-device-script"
     epic: 13
     action: "E13-A3 Add the Epic 13 device steps to test-artifacts/manual/offline-proof-script.md
@@ -680,7 +680,7 @@ action_items:
       E10-A7, E12-A3; evidence in test-artifacts/manual"
     owner: "coordinator (script lines); Matheus (device run)"
     status: done  # 2026-10-14: steps 9-13 in test-artifacts/manual/offline-proof-script.md and rows in its result template; the device run itself is Matheus's, with the other device items
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-103-e13-a4-ledger-cleanup"
     epic: 13
     action: "E13-A4 deferred-work: close the EXPERIENCE.md Salvo row (landed #109);
@@ -690,7 +690,7 @@ action_items:
       target 0 rows owned by a finished batch"
     owner: "coordinator"
     status: done  # 2026-10-14: deferred-work Salvo row closed (#109), panel palette decision recorded and the double-confirm risk routed, wait-text and ?panel= rows re-owned
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-104-e13-a5-handoff-every-phase"
     epic: 13
     action: "E13-A5 Playbook: WIP commit, push and HANDOFF.md update at every phase
@@ -699,7 +699,7 @@ action_items:
       13; target a stalled Epic 14 batch resumes with no rework beyond its last phase"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: folded into E14-A6 (epic-batch-orchestrator.md section 3)
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-105-e13-a6-capture-refactor"
     epic: 13
     action: "E13-A6 Refactor without behavior change: one pointer-gesture core shared
@@ -708,7 +708,7 @@ action_items:
       no camera file over 400 lines, camera, zoom and plate-shot-fallback specs green"
     owner: "next carry-over batch"
     status: done  # 2026-10-15: PR #133 (pointer-gesture core, camera-view.tsx split, no camera file over 400 lines); camera, zoom and plate-shot specs green
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-106-e13-a7-fallback-and-capture-test-rules"
     epic: 13
     action: "E13-A7 Playbook test rules: a story adopting a browser API with a fallback
@@ -717,7 +717,7 @@ action_items:
       size), not only that it exists"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: rules in epic-batch-orchestrator.md section 4
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-108-e13-a9-decide-story-13-9"
     epic: 13
     action: "E13-A9 Decide Story 13.9: settle its DoR (consent wording, webspeech
@@ -725,7 +725,7 @@ action_items:
       can close"
     owner: "Matheus"
     status: done  # 2026-10-21 (Bruno via Matheus, answer 11): Story 13.9 deferred, moved to the epics.md "Backlog: deferred stories" section with a dated line; epic-13 closes
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-13-retro-item-109-e13-a10-measure-story-gate"
     epic: 13
     action: "E13-A10 Measure the 2026-10-08 story gate and load rules on Epic 14's
@@ -734,7 +734,7 @@ action_items:
       lock wait under 60 min, at most one rerun per batch"
     owner: "coordinator"
     status: done  # 2026-10-14: measured on PRs #126-#130 in epic-14-retro-2026-10-14.md (longest lock wait 1074 s, gate wall 10-34 min, #127 two reruns); E11-A3 not folded (no wait over 60 min)
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-14-retro-item-110-e14-a1-full-and-matrix-on-62db6c2"
     epic: 14
     action: "E14-A1 Run test:e2e:full and the full test:e2e:matrix on main 62db6c2
@@ -743,7 +743,7 @@ action_items:
       each with a ledger row"
     owner: "coordinator"
     status: done  # 2026-10-14 on main f2c0bb8 (lock wait 0 s): test:e2e:full 480 of 485 passed, 1 failed, 4 skipped (1847 s); test:e2e:matrix 102 of 114 passed, 1 failed, 11 skipped (358 s). The two reds are the known points 6.6-E2E-011 and WebKit ficha.durability F-11, both in E14-A7 (carry-over); no Epic 14 red
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-111-e14-a2-ledger-cleanup"
     epic: 14
     action: "E14-A2 deferred-work: close or re-own the ten Epic 14 rows owned by a
@@ -753,7 +753,7 @@ action_items:
       batch, review, QA, gate or unscheduled sweep"
     owner: "coordinator"
     status: done  # 2026-10-14: deferred-work rows owned by finished events closed or re-owned (boot-wiring and relatorio-tree-edges closed); the rows held by co14a/co14b left to them
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-112-e14-a3-closed-list-spec-rule"
     epic: 14
     action: "E14-A3 Playbook: a batch that adds a value to a closed list other specs
@@ -763,7 +763,7 @@ action_items:
       0 reds from stale expectations"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 4
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-113-e14-a4-dor-capability-check"
     epic: 14
     action: "E14-A4 Definition of Ready check: every verb a criterion asks of a surface
@@ -773,7 +773,7 @@ action_items:
       PR review in the next epic"
     owner: "Matheus (with John at story writing); coordinator (DoR check)"
     status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 6 and docs/kbs/workflow/story-delivery.md
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-114-e14-a5-patched-not-re-reviewed"
     epic: 14
     action: "E14-A5 Playbook: a review-loop patch to an evaluation, verdict or lock
@@ -783,7 +783,7 @@ action_items:
       QA finds 0 defects in listed patches"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: rule in epic-batch-orchestrator.md section 4
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-115-e14-a6-orchestrator-handback-and-handoff"
     epic: 14
     action: "E14-A6 Playbook: land E13-A5 (WIP commit, push and HANDOFF.md at every
@@ -794,7 +794,7 @@ action_items:
       in the next epic"
     owner: "coordinator (playbook)"
     status: done  # 2026-10-14: rules in epic-batch-orchestrator.md sections 3 and 4 (folds E13-A5)
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-116-e14-a7-carry-over-batch-first"
     epic: 14
     action: "E14-A7 Run a carry-over batch first in the next epic (E6-A7): quantity-stepper
@@ -805,7 +805,7 @@ action_items:
       or tree surface file over 600 lines"
     owner: "coordinator (launch); next carry-over batch"
     status: done  # 2026-10-15: carry-over batches co14a (#137) and co14b (#133) merged; wave gate on 0b67a20 found one interaction (14.2-E2E-002, a menu item picked by the focus scroll of #137 under the pointer) fixed in fix/wave-e14-carry-over
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-119-e14-a10-bruno-copy-review"
     epic: 14
     action: "E14-A10 Bruno's copy review before the first real job: NC phrases of
@@ -814,7 +814,7 @@ action_items:
       dated answers, 0 rows marked before the first real job open when it starts"
     owner: "Matheus (Bruno for wording)"
     status: done  # 2026-11-24 audit: duplicate: E17-A3 (epic-17-retro-item-146-e17-a3-bruno-tablet-session) | was open: 2026-10-14: not yet reviewed; PR #130 added more // authored: strings (site NC hint, summary and Criterios lines, Corrente de ensaio label) and E4 waits for Bruno's list of rows  # 2026-10-15: Bruno reviewed and accepted the NC phrases (19 site items, NO-BREAK DE COMANDO, 51 CTA) and the CTA criteria wording and sources (manufacturer's value preferred); E1 test current required; E4 keeps its rows. Still open: the // authored: strings of PRs #126-#130, pending the tablet session Matheus schedules  # 2026-10-20: Bruno's answers accept copy outside this item's list (the 17 QGBT/QD NC phrases of Story 14.9, the coluna group title of Story 14.10 part 8) and close no part of it; E13-A8 and E14-A9 are not touched by these answers  # 2026-10-21 (answer 12): the 10-minute tablet session with Bruno to review the authored copy stays open; Matheus schedules it
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-120-e14-a11-story-14-4-pdf-dod"
     epic: 14
     action: "E14-A11 Meet Story 14.4 DoD: check a v5 relatorio PDF layout against
@@ -822,7 +822,7 @@ action_items:
       with a dated line (Q-16); target a dated line under Story 14.4"
     owner: "coordinator (check); Matheus (narrowing)"
     status: done  # 2026-11-24 audit: moot: v5 is locked byte-identical as printed in production (Story 23.2, epics.md:6331); later seeds have their own approved frames
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-121-e14-a12-real-jobs-and-wave-3-gate"
     epic: 14
     action: "E14-A12 For each next real relatorio record under Story 14.6, dated:
@@ -832,7 +832,7 @@ action_items:
       epic; target 2-3 dated job records and a dated line on the epic status"
     owner: "Matheus (records, decision); coordinator (lines)"
     status: done  # 2026-11-24 audit: superseded: Matheus lifted the gate 2026-11-06; 14.6 to 14.8 built in Epic 22 wave C (#274, #276) | was open: 2026-10-21 (Bruno via Matheus, answer 13): Bruno has real jobs ready to test as soon as the app is released to him; the count of 2-3 real relatorios starts when he gets production access, each job recorded under Story 14.6
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-14-retro-item-122-e14-a13-pnpm-tmp-files"
     epic: 14
     action: "E14-A13 Stop the _tmp_13_* files pnpm 12.5.1's link probe leaves in bind-mounted
@@ -840,7 +840,7 @@ action_items:
       that skips the probe; target a batch worktree shows no _tmp_* file after install"
     owner: "coordinator (tooling)"
     status: done  # 2026-10-15: PR #133, pnpm_config_store_dir in x-app-env skips the probe; a fresh batch install left no _tmp_* file
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-15-retro-item-123-e15-a1-ledger-hygiene"
     epic: 15
     action: "E15-A1 Ledger hygiene for Epic 15: close the 15.3 dry-template row (moot,
@@ -850,7 +850,7 @@ action_items:
       target 0 Epic 15 rows owned by a finished batch or unscheduled event"
     owner: "coordinator"
     status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-124-e15-a2-ratio-verdict-feeds-conclusion"
     epic: 15
     action: "E15-A2 Decide whether a ratio row INSATISFATORIO feeds the conclusion
@@ -858,7 +858,7 @@ action_items:
       and schedule the fix if yes; target a dated decision on the row"
     owner: "Matheus (decision); next fix batch (build)"
     status: done  # 2026-10-27: Bruno's answer 6 (yes); built as Story 17.5 (Epic 17 wave A)
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-125-e15-a3-seed-bump-literal-grep"
     epic: 15
     action: "E15-A3 Playbook rule for a seed bump: grep e2e/ for the previous count
@@ -867,7 +867,7 @@ action_items:
       fixture; target 0 stale-literal reds at the next seed-bump wave gate"
     owner: "coordinator (playbook)"
     status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 (E17-A5) carries the rule; verified by batch e18fd, PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-126-e15-a4-no-gate-overlap"
     epic: 15
     action: "E15-A4 Load rule: no story gate overlaps a wave gate; a unit stage red
@@ -876,7 +876,7 @@ action_items:
       green re-run"
     owner: "coordinator"
     status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 carries the load rule with E16-A10; verified PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-127-e15-a5-integrated-code-review"
     epic: 15
     action: "E15-A5 Run the integrated code review the Epic 15 batches deferred (Blind
@@ -885,7 +885,7 @@ action_items:
       coordinator schedules it"
     owner: "coordinator; Matheus (waiver)"
     status: done  # 2026-11-03: Blind Hunter and intent alignment run 2026-11-03 over 6e5d8aee..be2f46fb on main 0fede8ac: test-artifacts/review-e15-e16-integrated-2026-11-03.md; E15-R1 and E15-R2 ledger rows, E15-R3 accepted
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-129-e15-a7-story-15-7-carried"
     epic: 15
     action: "E15-A7 Story 15.7 carried: ask Bruno for the TC checklist (items in order,
@@ -894,7 +894,7 @@ action_items:
       or a dated move line under Story 15.7"
     owner: "Matheus"
     status: done  # 2026-11-24 audit: resolved: Bruno's list came 2026-10-27 (epics.md:4211) and 15.7 was built in PR #193
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-130-e15-a8-epic-15-copy-review"
     epic: 15
     action: "E15-A8 Fold Epic 15 authored copy into the E14-A10 Bruno review: site
@@ -903,7 +903,7 @@ action_items:
       under Stories 15.2, 15.3, 15.5, 15.6"
     owner: "Matheus (Bruno for the wording)"
     status: done  # 2026-11-24 audit: duplicate: E17-A3 (epic-17-retro-item-146-e17-a3-bruno-tablet-session)
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-132-e15-a10-deploy-lost-ecs-endpoint"
     epic: 15
     action: "E15-A10 Make infra/bin/deploy survive a lost ECS endpoint after the rollout
@@ -912,7 +912,7 @@ action_items:
       and smoke on its first run"
     owner: "coordinator (infra)"
     status: done  # 2026-11-24 audit: resolved: infra/bin/deploy has --resume and aws_retry (PR #230, f085d7ec)
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-16-retro-item-134-e16-a1-na-on-tablet-keypad"
     epic: 16
     action: "E16-A1 Decide how a tablet or phone enters N.A in a nameplate or cabine
@@ -920,7 +920,7 @@ action_items:
       or an N.A control beside them (candidate Story 16.5); then cut the story"
     owner: "Matheus (decision); next batch (build)"
     status: done  # 2026-10-27: Bruno's answer 3 (a clickable option beside the field); cut as Story 17.3 (Epic 17 wave A)
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-135-e16-a2-section-8-display-shot-ref"
     epic: 16
     action: "E16-A2 Decide what section 8 prints for a ponto de atencao citing a display
@@ -928,7 +928,7 @@ action_items:
       ask with Bruno's question 1; dated line under Story 16.3"
     owner: "Matheus"
     status: done  # 2026-10-27: Bruno's answers 1 and 5 (numbered; the caption): Story 17.4 returns the numbers, so a cited display shot prints Imagem N again; dated line under Story 16.3
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-136-e16-a3-bruno-answers-and-copy"
     epic: 16
     action: "E16-A3 Record Bruno's answers: question 1 (display shots under their
@@ -937,7 +937,7 @@ action_items:
       as alteracoes, Foto for a display shot), folded into E14-A10 and E15-A8"
     owner: "Matheus (Bruno for the answers)"
     status: done  # 2026-11-24 audit: superseded: answers recorded 2026-10-27 (epics.md:4270); the copy part is folded into E17-A3
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-137-e16-a4-github-release-v0-3-3"
     epic: 16
     action: "E16-A4 Create the GitHub release v0.3.3 from the notes drafted in the
@@ -945,7 +945,7 @@ action_items:
       deploy playbook who creates a release"
     owner: "Matheus"
     status: done  # 2026-10-26: release v0.3.3 created with gh on Matheus's instruction (https://github.com/matheusvt2/fasor-app/releases/tag/v0.3.3); releases stay a human-authorized step
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-138-e16-a5-ledger-hygiene"
     epic: 16
     action: "E16-A5 Ledger hygiene for Epic 16: ledger rows for the pre-16.3 frozen
@@ -954,7 +954,7 @@ action_items:
       owner for QA G1 and G2 instead of the next fix batch"
     owner: "coordinator"
     status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-139-e16-a6-integrated-review-epic-16"
     epic: 16
     action: "E16-A6 Run Blind Hunter and Intent Alignment over be2f46fb..541ceb97,
@@ -963,7 +963,7 @@ action_items:
       or record a dated waiver"
     owner: "coordinator; Matheus (waiver)"
     status: done  # 2026-11-03: same review over be2f46fb..541ceb97: E16-R1 to batch s184 (Story 18.4 wave), E16-R2 ledger row for Matheus and Bruno, E16-R3 accepted; the PR #183 and #181 hunks hold or are moot
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-141-e16-a8-restart-api-before-story-e2e"
     epic: 16
     action: "E16-A8 Playbook: before the story gate's e2e a batch restarts its api
@@ -972,7 +972,7 @@ action_items:
       overnight is stopped or restarted before its gate"
     owner: "coordinator (playbook)"
     status: done  # 2026-11-03: epic-batch-orchestrator.md § 7; verified PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-142-e16-a9-static-after-review-patches"
     epic: 16
     action: "E16-A9 Playbook: after the review's patches re-run lint and static on
@@ -980,7 +980,7 @@ action_items:
       static, TS2345, fixed in PR #181)"
     owner: "coordinator (playbook)"
     status: done  # 2026-11-03: epic-batch-orchestrator.md § 7; verified PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-16-retro-item-143-e16-a10-template-composer-load-timeouts"
     epic: 16
     action: "E16-A10 Make the template-composer unit tests load-independent (15 s
@@ -989,7 +989,7 @@ action_items:
       start of every wave gate"
     owner: "coordinator (tooling)"
     status: done  # 2026-11-24 audit: superseded: carried by E24-A4 and the load-line rule (playbook §§ 7-8)
-    ref: "_bmad-output/implementation-artifacts/epic-16-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-16/epic-16-retro-2026-10-26.md"
   - id: "epic-17-retro-item-144-e17-a1-fix-batch-code-findings"
     epic: 17
     action: "E17-A1 Fix batch for the Epic 17 code findings, one branch, kernel tests
@@ -1001,7 +1001,7 @@ action_items:
       PR with its story gate"
     owner: "coordinator (batch); Bruno's wording for R18"
     status: done  # 2026-10-28, fix batch fx17r, PR #199 (2c0748a0)
-    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-17/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-147-e17-a4-deploy-v0-4-0"
     epic: 17
     action: "E17-A4 Deploy v0.4.0 (contract 27) from the integrated main: aws login
@@ -1011,7 +1011,7 @@ action_items:
       and smoke green on the first run"
     owner: "Matheus (login, release word); coordinator (deploy, record)"
     status: done  # 2026-11-03: v0.4.0 deployed 8f5fa154, smoke 8/8, tag pushed (epic-17-context.md); later deploys supersede it; v0.4.0 stays a tag without a release page (release-notes-v0.5.0.md), v0.5.0 page published
-    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-17/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-148-e17-a5-playbook-rules"
     epic: 17
     action: "E17-A5 Playbook: write into epic-batch-orchestrator.md (unchanged since
@@ -1023,7 +1023,7 @@ action_items:
       file"
     owner: "coordinator (playbook)"
     status: done  # 2026-11-03: epic-batch-orchestrator.md § 7 written 2026-10-28 plus the .scratch-<tag> log rule; verified PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-17/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-149-e17-a6-ledger-hygiene"
     epic: 17
     action: "E17-A6 Ledger hygiene for Epic 17: re-own the two-tap row to Bruno's
@@ -1035,7 +1035,7 @@ action_items:
       line, 0 rows owned by a finished event"
     owner: "coordinator"
     status: done  # 2026-11-03: deferred-work.md hygiene, PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-17/epic-17-retro-2026-10-28.md"
   - id: "epic-17-retro-item-151-e17-a8-load-on-one-vm"
     epic: 17
     action: "E17-A8 Load on one VM: E16-A10 recurred (template-composer-defaults and
@@ -1046,7 +1046,7 @@ action_items:
       0 superseded unit or api stages in Epic 18"
     owner: "coordinator (tooling); Matheus (two batch stacks)"
     status: done  # 2026-11-24 audit: superseded: folded into E24-A4 and the load-line rule (playbook § 7 line 308, § 8 line 336)
-    ref: "_bmad-output/implementation-artifacts/epic-17-retro-2026-10-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-17/epic-17-retro-2026-10-28.md"
   - id: "epic-18-retro-item-152-e18-a1-code-fix-batch"
     epic: 18
     action: "E18-A1 Fix batch for the Epic 18 code findings, one branch, red-first:
@@ -1062,7 +1062,7 @@ action_items:
       promoted to @p0"
     owner: "coordinator (batch)"
     status: done  # 2026-11-03: batch e18fa, PR #231, deployed in cf468e3d  (was: open)
-    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-18/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-153-e18-a2-observability-fix-batch"
     epic: 18
     action: "E18-A2 Observability fix batch: local.ux_events_log_group from the Terraform
@@ -1084,7 +1084,7 @@ action_items:
       production run by Matheus the same day (exit 0, two users, the two labels confirmed)"
     owner: "coordinator (batch); Matheus (deploy go)"
     status: done  # 2026-11-03: users view (#221, #222, #223) and the remainder in batch e18fb, PR #230, deployed in cf468e3d  (was: open)
-    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-18/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-154-e18-a3-docs-ledger-playbook"
     epic: 18
     action: "E18-A3 Docs, ledger and playbook, no code: docs/observability.md (LGPD
@@ -1098,7 +1098,7 @@ action_items:
       same PR; the wave gate record carries the host load line)"
     owner: "coordinator"
     status: done  # 2026-11-03: PR #227 and the docs/observability.md part in PR #230  (was: in-progress  # 2026-11-03: ledger and playbook parts done in PR #227; the docs/observability.md part is in batch e18fb)
-    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-18/epic-18-retro-2026-10-30.md"
   - id: "epic-18-retro-item-157-e18-a6-gate-record-before-deploy"
     epic: 18
     action: "E18-A6 Gate record rule in the playbook's deploy checklist: before infra/bin/deploy
@@ -1107,7 +1107,7 @@ action_items:
       the record is the retrospective's run of 2026-10-30"
     owner: "coordinator (playbook)"
     status: done  # 2026-11-03: epic-batch-orchestrator.md § 8 and infra/PUBLISHING.md step 1, PR #227
-    ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-18/epic-18-retro-2026-10-30.md"
   - id: "epic-19-retro-item-160-e19-a2-home-fix-batch"
     epic: 19
     action: "E19-A2 Home fix batch, red-first, story gate plus the two Home specs:
@@ -1120,7 +1120,7 @@ action_items:
       line for the note (R-12)."
     owner: "coordinator (batch)"
     status: done  # 2026-11-03: batch f19, PR #232, deployed in cf468e3d  (was: open)
-    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+    ref: "_bmad-output/implementation-artifacts/epic-19/epic-19-retro-2026-11-03.md"
   - id: "epic-19-retro-item-161-e19-a3-ledger-rows"
     epic: 19
     action: "E19-A3 Ledger rows in deferred-work.md under Deferred from: the Epic
@@ -1130,7 +1130,7 @@ action_items:
       (UX question for Matheus and Sally)."
     owner: "coordinator"
     status: done  # 2026-11-03: four rows in deferred-work.md, PR #232  (was: open)
-    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+    ref: "_bmad-output/implementation-artifacts/epic-19/epic-19-retro-2026-11-03.md"
   - id: "epic-19-retro-item-162-e19-a4-process-lessons"
     epic: 19
     action: "E19-A4 Process lessons: record the 2026-11-03 wave gate test:e2e:full
@@ -1140,7 +1140,7 @@ action_items:
       read recorded in one line of its sprint-status note (P-2)."
     owner: "coordinator"
     status: done  # 2026-11-03: wave gate record in epic-19-context.md and two playbook lines in epic-batch-orchestrator.md § 8  (was: open)
-    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-11-03.md"
+    ref: "_bmad-output/implementation-artifacts/epic-19/epic-19-retro-2026-11-03.md"
   - id: "epic-20-retro-item-163-e20-a1-fix-batch"
     epic: 20
     action: "E20-A1 Fix batch, red-first, story gate plus touched and durability specs:
@@ -1156,7 +1156,7 @@ action_items:
       test after E20-A2."
     owner: "coordinator (batch, opus high)"
     status: done  # 2026-11-04: merged #250 (e0b47ad4), wave gate full 570/574 and matrix 136/150 with 0 failed, deployed e0b47ad4 with smoke 8/8; the R-6 test waits on E20-A2 and goes with that decision
-    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+    ref: "_bmad-output/implementation-artifacts/epic-20/epic-20-retro-2026-11-04.md"
   - id: "epic-20-retro-item-165-e20-a3-records"
     epic: 20
     action: "E20-A3 Records: epic-20 backlog to done in sprint-status; close the stale
@@ -1165,7 +1165,7 @@ action_items:
       query and the R-12 meta caps."
     owner: "coordinator; Matheus for the production count"
     status: done  # 2026-11-04: (1) epic-20 done and (2) the two stale rows closed in #249, (4) the three ledger rows added in #249; (3) the PR #239 over-cap count ran in production after the e0b47ad4 deploy, 0 values over cap, recorded in the e20s row
-    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+    ref: "_bmad-output/implementation-artifacts/epic-20/epic-20-retro-2026-11-04.md"
   - id: "epic-20-retro-item-166-e20-a4-process-lessons"
     epic: 20
     action: "E20-A4 Playbook lines: the integrated review adds a code-read pass over
@@ -1176,7 +1176,7 @@ action_items:
       ships with restore and shrink tests (R-1)."
     owner: "coordinator"
     status: done  # 2026-11-04: four dated lines in epic-batch-orchestrator.md section 9 (P-1 two-pass integrated review, P-2 verification-gap read in the PR body, P-3 before-the-deploy rows in the deploy record, R-1 restore and shrink tests)
-    ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-11-04.md"
+    ref: "_bmad-output/implementation-artifacts/epic-20/epic-20-retro-2026-11-04.md"
   - id: "epic-21-retro-item-167-e21-a1-reading-fix-batch"
     epic: 21
     action: "E21-A1 Reading fix batch, red-first, story gate plus plate, plate-reading,
@@ -1189,7 +1189,7 @@ action_items:
       printed Dyn1 plus diagram facts stays suggested (R-9). No prompt change."
     owner: "coordinator (batch, opus high)"
     status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
-    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+    ref: "_bmad-output/implementation-artifacts/epic-21/epic-21-retro-2026-11-06.md"
   - id: "epic-21-retro-item-169-e21-a3-records"
     epic: 21
     action: "E21-A3 Records after e21g merges: epic-21-context.md gains v0.6.0 tag
@@ -1199,7 +1199,7 @@ action_items:
       eval after the deploy, accepted deviation; N-4 and N-5 accepted as designed)."
     owner: "coordinator"
     status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
-    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+    ref: "_bmad-output/implementation-artifacts/epic-21/epic-21-retro-2026-11-06.md"
   - id: "epic-21-retro-item-170-e21-a4-process-lessons"
     epic: 21
     action: "E21-A4 Playbook section 10, one dated line each: an AC that depends on
@@ -1214,7 +1214,7 @@ action_items:
       body (P-4)."
     owner: "coordinator"
     status: done  # 2026-11-10: Matheus, with the Epic 23 retrospective (E23-A2 item 6): the evidence shows it done
-    ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-11-06.md"
+    ref: "_bmad-output/implementation-artifacts/epic-21/epic-21-retro-2026-11-06.md"
   - id: "epic-23-retro-item-172-e23-a1-review-fix-batch"
     epic: 23
     action: "E23-A1 Fix batch from the retrospective's review of e23z and e23p, red-first,
@@ -1230,7 +1230,7 @@ action_items:
     owner: "coordinator (batch); suggested as the carry-over batch that opens Epic
       24"
     status: done  # 2026-11-24 audit: resolved: fix batch e24f, PR #309 (8bddd986, contract 42) | was open: 2026-11-10 evening: e24f starts after fix batch e24h (no automatic points, contract 41) merges; its item R-3 is reworded in epic-24-context.md | 2026-11-10: Matheus said yes; planned as fix batch e24f, beside Epic 24 wave 0 (epic-24-context.md)
-    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+    ref: "_bmad-output/implementation-artifacts/epic-23/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-173-e23-a2-matheus-decisions"
     epic: 23
     action: "E23-A2 Matheus decisions, one dated line each: contract 41 with MIN 41
@@ -1241,7 +1241,7 @@ action_items:
       of the Epic 21 items (E21-A1, E21-A3 and E21-A4 done)."
     owner: "Matheus (decision); coordinator (record)"
     status: done  # 2026-11-10 evening: contract 41 with MIN 41 comes with fix batch e24h, before e24a, which takes 42 | 2026-11-10: Matheus decided all six: the e23p contract gap accepted (contract 41 comes with e24a); v13 layout lock yes (Story 24.2); the Epic 22 retrospective waived; the two base quotes stay in the git history; oil fields of a dry unit read-only (Story 24.11); E21-A1, E21-A3 and E21-A4 done, E21-A2 in progress
-    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+    ref: "_bmad-output/implementation-artifacts/epic-23/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-174-e23-a3-process-rules"
     epic: 23
     action: "E23-A3 Playbook section 11, one dated line each: no deploy of an integrated
@@ -1260,7 +1260,7 @@ action_items:
       for word runs of the base (P-7)."
     owner: "coordinator"
     status: done  # 2026-11-24 audit: resolved: playbook § 11 written (epic-batch-orchestrator.md:412-452, 2026-11-11; docs/kbs/log.md:254)
-    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+    ref: "_bmad-output/implementation-artifacts/epic-23/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-175-e23-a4-test-hardening-batch"
     epic: 23
     action: "E23-A4 A test-hardening batch with an owner for the tests red under load
@@ -1271,7 +1271,7 @@ action_items:
       e23v row."
     owner: "coordinator (batch)"
     status: done  # 2026-11-24 audit: superseded: e24f hardened all eight; the two that recurred are carried by E24-A4 | was open: 2026-11-10 evening: e24f starts after fix batch e24h merges | 2026-11-10: Matheus said yes; planned inside fix batch e24f (epic-24-context.md)
-    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+    ref: "_bmad-output/implementation-artifacts/epic-23/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-176-e23-a5-records"
     epic: 23
     action: "E23-A5 Records, no code: a dated line under the deploys-once rule of
@@ -1282,7 +1282,7 @@ action_items:
       or dropped with the reason."
     owner: "coordinator (draft); Matheus (approve the epics.md lines)"
     status: done  # 2026-11-24 audit: resolved: items 1 to 3 written (docs/kbs/log.md:254); item 4 (v5 preview) is carried by E24-A6 item 5
-    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+    ref: "_bmad-output/implementation-artifacts/epic-23/epic-23-retro-2026-11-10.md"
   - id: "epic-23-retro-item-179-e23-a8-handover-to-epic-24"
     epic: 23
     action: "E23-A8 Hand over to Epic 24, named in the retrospective and planned there:
@@ -1293,7 +1293,7 @@ action_items:
       open e23f print rows and the open e23b and e23g notes."
     owner: "coordinator (Epic 24 planning)"
     status: done  # 2026-11-10: handed over in sprint-change-proposal-2026-11-10.md and epics.md, Epic 24
-    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-11-10.md"
+    ref: "_bmad-output/implementation-artifacts/epic-23/epic-23-retro-2026-11-10.md"
   - id: "epic-24-retro-item-180-e24-a1-like-with-like-after-issue"
     epic: 24
     action: "E24-A1 Fix R-1 red-first in the first Epic 25 batch that touches the
@@ -1309,7 +1309,7 @@ action_items:
       a deadline, concludes and reloads."
     owner: "batch e25c of Epic 25 (R-1); batch e25a (G1); the coordinator assigns"
     status: done  # 2026-11-12: closed by #330 (fix batch e25r merged on main, not deployed) | was open: 2026-11-11: items 1 to 3 built by fix batch e25r (spec-e25r-like-with-like.md; R-1 reproduced through the issue job, plate_measured travels with last_results, contract 49, MIN 49), PR open, not merged; status unchanged
-    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+    ref: "_bmad-output/implementation-artifacts/epic-24/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-181-e24-a2-v14-layout-lock"
     epic: 24
     action: "E24-A2 The v14 layout lock, close its records: batch e25b took the lock
@@ -1324,7 +1324,7 @@ action_items:
       written in the ledger row."
     owner: "coordinator"
     status: done  # 2026-11-24 audit: resolved: v14 layout lock recorded (deferred-work.md:3689, epic-24-context.md:413-415, epics.md:9639)
-    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+    ref: "_bmad-output/implementation-artifacts/epic-24/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-182-e24-a3-process-rules"
     epic: 24
     action: "E24-A3 Playbook section 11, one dated line each, carrying the eight unwritten
@@ -1344,7 +1344,7 @@ action_items:
       closed with it."
     owner: "coordinator"
     status: done  # 2026-11-24 audit: resolved: playbook lines in epic-batch-orchestrator.md:453-483; KB line in docs/kbs/workflow/story-delivery.md:17
-    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+    ref: "_bmad-output/implementation-artifacts/epic-24/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-186-e24-a7-carried-from-epic-23"
     epic: 24
     action: "E24-A7 Carried from Epic 23, still open: import Bruno's test base in
@@ -1353,28 +1353,28 @@ action_items:
     owner: "Matheus (the import, the message); coordinator (the check, the list and
       the record)"
     status: done  # 2026-11-24 audit: duplicate: E23-A6 (epic-23-retro-item-177-e23-a6-production-base-import) and E23-A7 (epic-23-retro-item-178-e23-a7-list-for-bruno)
-    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+    ref: "_bmad-output/implementation-artifacts/epic-24/epic-24-retro-2026-11-11.md"
   - id: "epic-25-retro-item-187-e25-a1-run-the-paid-plate-evaluation-wit"
     epic: 25
     action: "E25-A1 Run the paid plate evaluation with the A SECO option and record
       its counts."
     owner: "Matheus (the word for the spend); coordinator (run and record)"
     status: done  # 2026-11-24 audit: resolved: the eval ran on v18 on Matheus's word 2026-11-24, record in epic-28-context.md:97-107
-    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+    ref: "_bmad-output/implementation-artifacts/epic-25/epic-25-retro-2026-11-16.md"
   - id: "epic-25-retro-item-189-e25-a3-get-b-1-b-2-b-4-and-b-7-answered"
     epic: 25
     action: "E25-A3 Get B-1, B-2, B-4 and B-7 answered so 25.17, the oil half of 25.19
       and 25.21 can start."
     owner: "field engineer, through Matheus"
     status: done  # 2026-11-24 audit: resolved: answered 2026-11-22; 25.17 dropped, Stories 28.3 and 28.8 done
-    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-16.md"
+    ref: "_bmad-output/implementation-artifacts/epic-25/epic-25-retro-2026-11-16.md"
   - id: "epic-2-retro-item-16-e2-a4-dod-every-user-facing-ac-exercised"
     epic: 2
     action: "E2-A4 DoD: every user-facing AC exercised through a mounted screen or
       moved in epics.md with a date; at least one @p0 per story"
     owner: "Matheus"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: in-progress
-    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+    ref: "_bmad-output/implementation-artifacts/epic-02/epic-2-retro-2026-09-22.md"
   - id: "epic-3-retro-item-18-e3-a1-record-the-r-009-seed-review-under"
     epic: 3
     action: "E3-A1 Record the R-009 seed review under Story 3.1 and decide D-2 ({obra}),
@@ -1382,14 +1382,14 @@ action_items:
       (blocks Story 4.1)"
     owner: "Matheus"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: open  # 2026-09-23 deferred to before Epic 5 by Matheus; Epic 4 proceeds on seed v1
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-19-e3-a2-decide-the-not_tested_reason-for-t"
     epic: 3
     action: "E3-A2 Decide the not_tested_reason for the Porto Seguro untested blocks
       (solicitacao_cliente vs impossibilidade_desligamento)"
     owner: "Matheus"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-22-e3-a5-decide-d-4-template-version-d-5-co"
     epic: 3
     action: "E3-A5 Decide D-4 template.version, D-5 contact-insulation row offset
@@ -1397,14 +1397,14 @@ action_items:
       renderer"
     owner: "Winston + Matheus"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: in-progress  # 2026-09-23 D-4 decided by Matheus: template.version increments on edit (Story 4.1); D-5, D-7 open
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-23-e3-a6-process-a-seed-fixture-freeze-requ"
     epic: 3
     action: "E3-A6 Process: a seed/fixture freeze requires the human review record
       first; goldens get an explicit assertion against the source document"
     owner: "Matheus / SM"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+    ref: "_bmad-output/implementation-artifacts/epic-03/epic-3-retro-2026-09-23.md"
   - id: "epic-5-retro-item-39-e5-a3-decide-oq-1-oq-6-of-reviews-epic-5"
     epic: 5
     action: "E5-A3 Decide OQ-1..OQ-6 of reviews/epic-5-review-qa.md, the carried questions
@@ -1413,7 +1413,7 @@ action_items:
       story"
     owner: "Matheus (with Bruno for wording)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+    ref: "_bmad-output/implementation-artifacts/epic-05/epic-5-retro-2026-09-24.md"
   - id: "epic-12-retro-item-44-e12-a1-add-the-epic-12-product-questions"
     epic: 12
     action: "E12-A1 Add the Epic 12 product questions to the E5-A3 session: D-2 residue
@@ -1424,7 +1424,7 @@ action_items:
       (J-19)"
     owner: "Matheus (with Bruno for wording)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+    ref: "_bmad-output/implementation-artifacts/epic-12/epic-12-retro-2026-09-25.md"
   - id: "epic-6-retro-item-54-e6-a4-add-the-epic-6-product-questions-to-the"
     epic: 6
     action: "E6-A4 Add the Epic 6 product questions to the E5-A3 session: manual points
@@ -1434,7 +1434,7 @@ action_items:
       reverse photos never block Gerar"
     owner: "Matheus (with Bruno for wording)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-06/epic-6-retro-2026-09-26.md"
   - id: "epic-7-retro-item-70-e7-a5-answer-the-epic-7-product-questions"
     epic: 7
     action: "E7-A5 Answer or date as deferred: Rascunho may generate (E4 item 25),
@@ -1444,7 +1444,7 @@ action_items:
       batch"
     owner: "Matheus (with Bruno for wording)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-07/epic-7-retro-2026-09-28.md"
   - id: "epic-8-retro-item-60-e8-a3-epic-8-product-questions"
     epic: 8
     action: "E8-A3 Add to the E5-A3 session: PARSeq vs PP-OCRv5, Confirmar todos and
@@ -1454,7 +1454,7 @@ action_items:
       as dated lines"
     owner: "Matheus (Bruno for wording); coordinator records"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-08/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-63-e8-a6-pipeline-e2e-through-the-real-job"
     epic: 8
     action: "E8-A6 A feature with a server pipeline gets one @p1 e2e from the UI entry
@@ -1462,7 +1462,7 @@ action_items:
       DoD wording for Matheus"
     owner: "coordinator; Matheus approves the DoD wording"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: in-progress  # playbook rule a2cd053, applied in 9.1; DoD wording for Matheus
-    ref: "_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+    ref: "_bmad-output/implementation-artifacts/epic-08/epic-8-retro-2026-09-28.md"
   - id: "epic-9-retro-item-80-e9-a8-epic-9-product-questions"
     epic: 9
     action: "E9-A8 Add to the E5-A3 session: E9-Q15, Q16 (a blocker before Epic 11),
@@ -1471,7 +1471,7 @@ action_items:
       9.1-9.5"
     owner: "Matheus (Bruno for wording)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+    ref: "_bmad-output/implementation-artifacts/epic-09/epic-9-retro-2026-09-29.md"
   - id: "epic-11-retro-item-92-e11-a3-visible-gate-lock"
     epic: 11
     action: "E11-A3 Wrap the gate lock in a script that records holder pid, session,
@@ -1480,7 +1480,7 @@ action_items:
       target Epic 12: no wait over 30 min from a dead or stuck holder"
     owner: "coordinator (playbook and script)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-93-e11-a4-rotate-password-seed-from-ssm"
     epic: 11
     action: "E11-A4 Rotate the production admin password exposed in the chat and in
@@ -1489,7 +1489,7 @@ action_items:
       playbook: agents never open or print a secrets file"
     owner: "Matheus (rotation); coordinator (task definition, playbook)"
     status: done  # 2026-11-24, Matheus: "nao precisa" (rotation not needed); was: in-progress  # PR #83: seed-users reads SEED_USER_PASSWORD; rotating the exposed production password is still Matheus's
-    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-95-e11-a6-epic-11-product-questions"
     epic: 11
     action: "E11-A6 Add to the E5-A3 session: the per-relatório rich editor vs Story
@@ -1500,7 +1500,7 @@ action_items:
       dated answers under Stories 11.1-11.10"
     owner: "Matheus (Bruno for wording)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+    ref: "_bmad-output/implementation-artifacts/epic-11/epic-11-retro-2026-09-30.md"
   - id: "epic-13-retro-item-107-e13-a8-epic-13-product-questions"
     epic: 13
     action: "E13-A8 Add to the E5-A3 session: authored copy pending Bruno (13.2 torch/zoom/refusal,
@@ -1510,7 +1510,7 @@ action_items:
       rule (arrival opt-in); dated answers under Stories 13.2-13.8"
     owner: "Matheus (Bruno for wording)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: open  # 2026-10-15: Bruno's answers (relayed by Matheus) close Q-2: a "Hoje" chip on Proxima intervencao is wanted, built in Story 14.10 part 9. The authored copy (13.2 torch/zoom/refusal, Ler de novo, Recorte na tela, the audit notice) goes to a 10-minute tablet session Bruno accepted, not yet scheduled by Matheus. Still open: that session, Q-4 cables nameplate, the 13.4 typed-year parse, the #110 toast rule
-    ref: "_bmad-output/implementation-artifacts/epic-13-retro-2026-10-08.md"
+    ref: "_bmad-output/implementation-artifacts/epic-13/epic-13-retro-2026-10-08.md"
   - id: "epic-14-retro-item-118-e14-a9-epic-14-product-decisions"
     epic: 14
     action: "E14-A9 Decide before the first real job: site NCs in NC abertos and the
@@ -1521,7 +1521,7 @@ action_items:
       stacking on phone; target dated answers under Stories 14.3-14.5"
     owner: "Matheus"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7); was: open  # 2026-10-14: partly answered by Bruno, PR #130 (b6765c2): Q-4 settled (a site NC counts in NC abertos, the tap focuses its local, the parecer suggests Apto com restricoes naming the item). Still open: the item link on a point, Q-8, Q-9, Q-15/R2, 14.3 O1/O2/O4, cabine incompleta row, 14.5 W1 and W6  # 2026-10-15: Bruno's answers close no further part; answer 6 accepts the parecer wording for a site NC (the Q-4 suggestion), answer 3 records the manufacturer's value as the preferred criterion source and opens a product question (a per-equipment manufacturer criterion on the sheet), answer 2 keeps E4's 14 rows. The parts listed above stay open
-    ref: "_bmad-output/implementation-artifacts/epic-14-retro-2026-10-14.md"
+    ref: "_bmad-output/implementation-artifacts/epic-14/epic-14-retro-2026-10-14.md"
   - id: "epic-15-retro-item-128-e15-a6-story-15-1-bruno-dod"
     epic: 15
     action: "E15-A6 Meet Story 15.1 DoD (Bruno sees the phone frame, his answer dated
@@ -1529,14 +1529,14 @@ action_items:
       a dated line; same for Story 14.1"
     owner: "Matheus"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-15-retro-item-131-e15-a9-success-signal"
     epic: 15
     action: "E15-A9 Measure the success signal: on Bruno's next relatorio from the
       phone, record dated under Epic 15 which of the seven workarounds he still needed"
     owner: "Matheus (record); coordinator (line)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-15-retro-2026-10-26.md"
+    ref: "_bmad-output/implementation-artifacts/epic-15/epic-15-retro-2026-10-26.md"
   - id: "epic-24-retro-item-184-e24-a5-matheus-decisions"
     epic: 24
     action: "E24-A5 Matheus decisions, one dated line each: the open readings of the
@@ -1550,7 +1550,7 @@ action_items:
       E23-A4 and E23-A7 in progress)."
     owner: "Matheus (decision); coordinator (record)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+    ref: "_bmad-output/implementation-artifacts/epic-24/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-185-e24-a6-records"
     epic: 24
     action: "E24-A6 Records, no code: the Epic 24 story rows of sprint-status.yaml
@@ -1564,7 +1564,7 @@ action_items:
     owner: "coordinator (draft); Matheus (approve the epics.md lines; the AWS login
       for the eval run)"
     status: done  # 2026-11-24, Matheus "ok": dropped, kept as built (open-work-audit-2026-11-24.md section 7)
-    ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
+    ref: "_bmad-output/implementation-artifacts/epic-24/epic-24-retro-2026-11-11.md"
 
 # Original trailing comments of development_status, as of main e687b442, archived 2026-11-24.
 development_status_history:

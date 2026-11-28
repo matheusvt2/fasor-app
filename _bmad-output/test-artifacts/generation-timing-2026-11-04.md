@@ -1,6 +1,6 @@
 # Generation timing: from the press to the document (2026-11-04)
 
-This is the spike of `_bmad-output/planning-artifacts/sprint-change-proposal-2026-11-04.md` § 4.2, ordered by Matheus on 2026-11-04 ("Faça a medicao"). It only measures; no product code changed.
+This is the spike of `_bmad-output/planning-artifacts/sprint-change-proposals/sprint-change-proposal-2026-11-04.md` § 4.2, ordered by Matheus on 2026-11-04 ("Faça a medicao"). It only measures; no product code changed.
 
 ## Source
 

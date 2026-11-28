@@ -41,7 +41,7 @@ No device model, no user agent and no free text are sent; the api refuses a batc
 
 ## Opening the dashboard and the saved queries
 
-Both exist only after the production Terraform apply that follows the Epic 18 merges (`infra/production/observability.tf`). They exist since the deploy of `3b45e83c` on 2026-10-30, when the nine queries first ran to `Complete` over production events (`_bmad-output/implementation-artifacts/epic-18-context.md`).
+Both exist only after the production Terraform apply that follows the Epic 18 merges (`infra/production/observability.tf`). They exist since the deploy of `3b45e83c` on 2026-10-30, when the nine queries first ran to `Complete` over production events (`_bmad-output/implementation-artifacts/epic-18/epic-18-context.md`).
 
 1. Sign in to the AWS console with the `fasor-admin` login (passkey MFA; the same account `infra/bin/aws` uses), region **us-east-1**.
 2. **Dashboard:** CloudWatch > Dashboards > `fasor-production-ux`. It opens on the last 7 days; the time picker widens it up to the 90 days the group keeps. Each widget runs its query when the page opens.

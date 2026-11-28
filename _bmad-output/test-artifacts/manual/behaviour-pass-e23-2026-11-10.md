@@ -60,7 +60,7 @@ The DOCX; the type editor's "Como ensaiar" fields; tablet and phone widths; the 
 
 ### Outcome (2026-11-10, coordinator)
 
-- Fix batch e23p (PR #301, merged as `9add87b5`) fixed F2, F3, F4 (the screen and the point's text), F5 and F7. Its record is `_bmad-output/implementation-artifacts/spec-e23p-pass-fixes.md`.
-- The PDF crops of the four insulation table shapes after the fix are in `_bmad-output/implementation-artifacts/e23p-pdf-crops/`.
+- Fix batch e23p (PR #301, merged as `9add87b5`) fixed F2, F3, F4 (the screen and the point's text), F5 and F7. Its record is `_bmad-output/implementation-artifacts/epic-23/spec-e23p-pass-fixes.md`.
+- The PDF crops of the four insulation table shapes after the fix are in `_bmad-output/implementation-artifacts/epic-23/e23p-pdf-crops/`.
 - Matheus accepted the type sizes of the fixed table on 2026-11-10: 7,5 pt with one criterion, 7 pt with ACEITÁVEL per row, 7 pt with one criterion and MANUT. ANTERIOR, and 6 pt with ACEITÁVEL per row and MANUT. ANTERIOR, every word whole.
 - F8 is a question for Bruno. F6, F4's print half and F9 to F20 stay for Epic 24 or for the next list of questions for Bruno.

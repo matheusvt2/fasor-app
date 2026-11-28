@@ -1,6 +1,6 @@
 # Hands-on pass, 2026-11-23: Epics 28 and 29 as a user, local stack
 
-The hands-on pass of the Definition of Done of Epic 28 (`implementation-artifacts/epic-28-context.md`, "Gates"): drive the new behavior through the browser as a person would, before the deploy.
+The hands-on pass of the Definition of Done of Epic 28 (`implementation-artifacts/epic-28/epic-28-context.md`, "Gates"): drive the new behavior through the browser as a person would, before the deploy.
 
 ## How it was run
 
@@ -42,5 +42,5 @@ These are one row in `deferred-work.md`, chiefly the real Android or iPad device
 
 ## What came after
 
-- The paid plate evaluation of 2026-11-24 and its two structuring fixes (#375, #376): `implementation-artifacts/epic-28-context.md`, "Delivery record, 2026-11-24".
+- The paid plate evaluation of 2026-11-24 and its two structuring fixes (#375, #376): `implementation-artifacts/epic-28/epic-28-context.md`, "Delivery record, 2026-11-24".
 - Deployed 2026-11-24 as `de79700b` (tag `v0.14.0`, smoke 8 of 8).
